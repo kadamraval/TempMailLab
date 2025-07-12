@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { StayConnected } from "@/components/stay-connected";
 
 export default function ContactPage() {
   return (
@@ -39,6 +40,7 @@ export default function ContactPage() {
           </CardContent>
         </Card>
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );

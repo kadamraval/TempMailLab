@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
+import { StayConnected } from "@/components/stay-connected";
 
 const plans = [
     {
@@ -77,6 +78,7 @@ export default function PremiumPage() {
             ))}
         </div>
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );

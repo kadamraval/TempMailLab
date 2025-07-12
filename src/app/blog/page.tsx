@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
+import { StayConnected } from "@/components/stay-connected";
 
 const blogPosts = [
     {
@@ -64,6 +65,7 @@ export default function BlogPage() {
             ))}
         </div>
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );

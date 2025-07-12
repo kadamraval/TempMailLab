@@ -1,6 +1,7 @@
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StayConnected } from "@/components/stay-connected";
 
 export default function AboutPage() {
   return (
@@ -18,6 +19,7 @@ export default function AboutPage() {
           </CardContent>
         </Card>
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );

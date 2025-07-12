@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { StayConnected } from "@/components/stay-connected";
 
 const features = [
   {
@@ -181,6 +182,7 @@ export default function Home() {
         </section>
 
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );

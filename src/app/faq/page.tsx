@@ -7,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { StayConnected } from "@/components/stay-connected";
 
 const faqItems = [
     {
@@ -54,6 +55,7 @@ export default function FaqPage() {
           </CardContent>
         </Card>
       </main>
+      <StayConnected />
       <Footer />
     </div>
   );
