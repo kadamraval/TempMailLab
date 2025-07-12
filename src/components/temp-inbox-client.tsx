@@ -182,7 +182,7 @@ export function TempInboxClient() {
                     <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
                     Refresh
                 </Button>
-                <Button onClick={handleGenerateEmail} className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button onClick={handleGenerateEmail} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
                    New Email
                 </Button>
               </div>

@@ -32,7 +32,7 @@ export function Header() {
               Login
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild variant="default">
             <Link href="/premium">
               <Star className="mr-2 h-4 w-4" />
               Premium
