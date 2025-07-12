@@ -10,10 +10,9 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import fetch from 'node-fetch';
 
 const GenerateTempEmailInputSchema = z.object({
-  prefix: z.string().optional().describe('Optional prefix for the email address.'),
-  domain: z.string().optional().describe('Optional domain for the email address. Defaults to mail.tm if not specified.'),
 });
 export type GenerateTempEmailInput = z.infer<typeof GenerateTempEmailInputSchema>;
 
@@ -26,36 +25,30 @@ export async function generateTempEmail(input: GenerateTempEmailInput): Promise<
   return generateTempEmailFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateTempEmailPrompt',
-  input: {schema: GenerateTempEmailInputSchema},
-  output: {schema: GenerateTempEmailOutputSchema},
-  prompt: `Generate a random temporary email address.
-
-  {{#if prefix}}
-  Use the prefix: {{{prefix}}}
-  {{/if}}
-
-  {{#if domain}}
-  Use the domain: {{{domain}}}
-  {{else}}
-  Use the domain: mail.tm
-  {{/if}}
-  `,
-});
-
 const generateTempEmailFlow = ai.defineFlow(
   {
     name: 'generateTempEmailFlow',
     inputSchema: GenerateTempEmailInputSchema,
     outputSchema: GenerateTempEmailOutputSchema,
   },
-  async input => {
-    const randomString = Math.random().toString(36).substring(2, 10);
-    const domain = input.domain || 'mail.tm';
-    const prefix = input.prefix || randomString;
-    const email = `${prefix}@${domain}`;
-
-    return {email};
+  async () => {
+    try {
+      const response = await fetch('https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1');
+      if (!response.ok) {
+        throw new Error(`1secmail API failed with status: ${response.status}`);
+      }
+      const data = await response.json() as string[];
+      if (!data || data.length === 0) {
+        throw new Error('No email address returned from 1secmail API');
+      }
+      const email = data[0];
+      return { email };
+    } catch (error) {
+      console.error('Error generating temporary email:', error);
+      // Fallback to a random string if API fails
+      const randomString = Math.random().toString(36).substring(2, 10);
+      const email = `${randomString}@1secmail.com`;
+      return { email };
+    }
   }
 );
