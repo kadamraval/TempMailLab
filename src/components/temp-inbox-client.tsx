@@ -194,12 +194,10 @@ export function TempInboxClient() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Inbox</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleDeleteInbox} variant="ghost" size="sm" disabled={inbox.length === 0}>
-              <Trash2 className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Clear Inbox</span>
-            </Button>
-          </div>
+          <Button onClick={handleDeleteInbox} variant="ghost" size="sm" disabled={inbox.length === 0}>
+            <Trash2 className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Clear Inbox</span>
+          </Button>
         </CardHeader>
         <CardContent>
           <InboxView inbox={inbox} onSelectEmail={handleSelectEmail} />
