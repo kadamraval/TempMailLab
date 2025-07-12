@@ -161,11 +161,15 @@ export function TempInboxClient() {
                 className="text-lg text-center sm:text-left font-mono"
               />
               <div className="flex gap-2 w-full sm:w-auto">
-                <Button onClick={handleCopyEmail} variant="outline" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button onClick={handleCopyEmail} variant="outline" className="w-full sm:w-auto">
                   <Copy className="mr-2 h-4 w-4" /> Copy
                 </Button>
-                <Button onClick={handleGenerateEmail} className="w-full sm:w-auto">
-                  <RefreshCw className="mr-2 h-4 w-4" /> New
+                 <Button onClick={() => fetchInbox(account?.token || "", true)} variant="outline" className="w-full sm:w-auto" disabled={isRefreshing || !account}>
+                    <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
+                    Refresh
+                </Button>
+                <Button onClick={handleGenerateEmail} className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90">
+                   New Email
                 </Button>
               </div>
             </div>
@@ -193,10 +197,6 @@ export function TempInboxClient() {
             <Button onClick={handleDeleteInbox} variant="ghost" size="sm" disabled={inbox.length === 0}>
               <Trash2 className="h-4 w-4" />
               <span className="ml-2 hidden sm:inline">Clear Inbox</span>
-            </Button>
-            <Button onClick={() => fetchInbox(account?.token || "", true)} variant="outline" size="sm" disabled={isRefreshing || !account}>
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-              <span className="ml-2 hidden sm:inline">Refresh</span>
             </Button>
           </div>
         </CardHeader>
