@@ -7,7 +7,13 @@ import Link from "next/link";
 
 export default function AdminLoginPage() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+      <div className="mb-6">
+        <Link href="/" className="flex items-center gap-2 text-foreground">
+          <Mail className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">TempInbox</h1>
+        </Link>
+      </div>
       <Card className="mx-auto max-w-sm w-full">
         <CardHeader>
           <CardTitle className="text-2xl">Admin Login</CardTitle>
