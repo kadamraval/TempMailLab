@@ -1,9 +1,9 @@
 export interface Email {
-  id: string;
-  sender: string;
+  id: number;
+  from: string;
   subject: string;
-  body: string;
+  date: string;
+  body?: string;
   htmlBody?: string;
-  time: string;
-  read: boolean;
+  read?: boolean;
 }

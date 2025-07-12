@@ -23,13 +23,13 @@ export function EmailView({ email, onBack }: EmailViewProps) {
             </Button>
         </div>
         <div className="text-sm text-muted-foreground pt-2">
-          <p><strong>From:</strong> {email.sender}</p>
-          <p><strong>Time:</strong> {email.time}</p>
+          <p><strong>From:</strong> {email.from}</p>
+          <p><strong>Time:</strong> {email.date}</p>
         </div>
       </CardHeader>
       <Separator />
       <CardContent className="pt-6">
-        <Tabs defaultValue="html" className="w-full">
+        <Tabs defaultValue={email.htmlBody ? "html" : "text"} className="w-full">
           <TabsList>
             <TabsTrigger value="html" disabled={!email.htmlBody}>HTML</TabsTrigger>
             <TabsTrigger value="text">Plain Text</TabsTrigger>

@@ -1,42 +1,67 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Copy, RefreshCw, Loader2, Clock, Trash2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { generateTempEmailAction } from "@/app/actions";
+import { generateTempEmailAction, getInboxAction, getSingleEmailAction } from "@/app/actions";
 import type { Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-
-const DUMMY_EMAILS: Omit<Email, "id" | "time" | "read">[] = [
-  { sender: "Notion", subject: "5 ways to be more productive", body: "Discover new templates and workflows...", htmlBody: "<h1>Be More Productive</h1><p>Check out our new templates!</p>" },
-  { sender: "GitHub", subject: "Your weekly digest is here", body: "Explore popular repositories and trends.", htmlBody: "<h1>Weekly Digest</h1><p>See what's new on <strong>GitHub</strong>.</p>" },
-  { sender: "Amazon", subject: "Your order has shipped!", body: "Track your package for order #123-4567890.", htmlBody: "<h1>Order Shipped!</h1><p>Your package is on its way.</p>" },
-  { sender: "Figma", subject: "New features for prototyping", body: "Create interactive components and more.", htmlBody: "<h1>New in Figma</h1><p>Design and prototype faster than ever.</p>" },
-  { sender: "Netflix", subject: "New arrivals you might like", body: "We've added new shows and movies.", htmlBody: "<h1>Binge Time!</h1><p>Check out the latest arrivals.</p>" },
-];
-
+import { cn } from "@/lib/utils";
 
 export function TempInboxClient() {
   const [email, setEmail] = useState("");
   const [inbox, setInbox] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes
   const { toast } = useToast();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearInboxInterval = () => {
+    if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+    }
+  }
+
+  const fetchInbox = useCallback(async (currentEmail: string, isManualRefresh: boolean = false) => {
+    if (!currentEmail) return;
+    if (isManualRefresh) {
+        setIsRefreshing(true);
+    }
+    const [login, domain] = currentEmail.split("@");
+    const fetchedMessages = await getInboxAction(login, domain);
+    
+    // Naive check to see if new emails have arrived.
+    if (fetchedMessages.length > inbox.length) {
+        setInbox(fetchedMessages);
+    }
+    if (isManualRefresh) {
+        setInbox(fetchedMessages);
+        setIsRefreshing(false);
+        toast({ title: "Inbox refreshed" });
+    }
+  }, [inbox.length, toast]);
 
   const handleGenerateEmail = useCallback(async () => {
     setIsLoading(true);
     setSelectedEmail(null);
     setInbox([]);
+    clearInboxInterval();
+
     const newEmail = await generateTempEmailAction();
     if (newEmail) {
       setEmail(newEmail);
       setCountdown(600);
+      // Start fetching inbox for the new email
+      fetchInbox(newEmail);
+      intervalRef.current = setInterval(() => fetchInbox(newEmail), 5000); // Check every 5 seconds
     } else {
       toast({
         title: "Error",
@@ -45,11 +70,14 @@ export function TempInboxClient() {
       });
     }
     setIsLoading(false);
-  }, [toast]);
+  }, [toast, fetchInbox]);
 
   useEffect(() => {
     handleGenerateEmail();
-  }, [handleGenerateEmail]);
+    // Clear interval on component unmount
+    return () => clearInboxInterval();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (email && countdown > 0) {
@@ -59,28 +87,10 @@ export function TempInboxClient() {
       return () => clearInterval(timer);
     } else if (countdown === 0) {
         setEmail("");
+        setInbox([]);
+        clearInboxInterval();
     }
   }, [email, countdown]);
-
-  useEffect(() => {
-      if (!email) return;
-
-      const newEmailInterval = setInterval(() => {
-          setInbox(prevInbox => {
-              const randomEmail = DUMMY_EMAILS[Math.floor(Math.random() * DUMMY_EMAILS.length)];
-              const newEmail: Email = {
-                  ...randomEmail,
-                  id: Math.random().toString(36).substring(2),
-                  time: new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date()),
-                  read: false,
-              };
-              return [newEmail, ...prevInbox];
-          });
-      }, 8000); // New email every 8 seconds
-
-      return () => clearInterval(newEmailInterval);
-  }, [email]);
-
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(email);
@@ -90,7 +100,20 @@ export function TempInboxClient() {
     });
   };
   
-  const handleSelectEmail = (email: Email) => {
+  const handleSelectEmail = async (email: Email) => {
+    // If we don't have the body, fetch it.
+    if (!email.body) {
+      const [login, domain] = email.from.split('@'); // This was using selectedEmail which would be stale
+      const fullEmail = await getSingleEmailAction(login, domain, email.id);
+      if (fullEmail) {
+        setSelectedEmail(fullEmail);
+         setInbox(inbox.map(e => e.id === email.id ? { ...fullEmail, read: true } : e));
+         return;
+      } else {
+        toast({ title: "Error", description: "Could not fetch email content.", variant: "destructive" });
+        return;
+      }
+    }
     setSelectedEmail(email);
     setInbox(inbox.map(e => e.id === email.id ? { ...e, read: true } : e));
   };
@@ -165,12 +188,12 @@ export function TempInboxClient() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Inbox</CardTitle>
           <div className="flex items-center gap-2">
-             <Button onClick={() => setInbox([])} variant="ghost" size="sm" disabled={inbox.length === 0}>
+             <Button onClick={handleDeleteInbox} variant="ghost" size="sm" disabled={inbox.length === 0}>
                 <Trash2 className="h-4 w-4" />
                 <span className="ml-2 hidden sm:inline">Clear Inbox</span>
              </Button>
-            <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4" />
+            <Button onClick={() => fetchInbox(email, true)} variant="outline" size="sm" disabled={isRefreshing}>
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
                 <span className="ml-2 hidden sm:inline">Refresh</span>
             </Button>
           </div>
