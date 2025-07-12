@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock } from "lucide-react";
+import Link from "next/link";
 
 export default function AdminLoginPage() {
   return (
@@ -39,8 +40,8 @@ export default function AdminLoginPage() {
                 <Input id="password" type="password" defaultValue="password" required className="pl-8" />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button asChild type="submit" className="w-full">
+              <Link href="/admin/dashboard">Login</Link>
             </Button>
           </div>
         </CardContent>
