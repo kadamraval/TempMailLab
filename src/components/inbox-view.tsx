@@ -33,7 +33,7 @@ export function InboxView({ inbox, onSelectEmail }: InboxViewProps) {
           <div className="grid grid-cols-5 gap-4 flex-grow items-center">
             <span className="col-span-2 sm:col-span-1 truncate">{email.from}</span>
             <span className="col-span-3 sm:col-span-3 truncate">{email.subject}</span>
-            <span className="hidden sm:block text-right text-sm text-muted-foreground">{email.date}</span>
+            <span className="hidden sm:block text-right text-sm text-muted-foreground">{new Date(email.date).toLocaleString()}</span>
           </div>
         </button>
       ))}

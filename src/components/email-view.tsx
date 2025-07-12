@@ -24,7 +24,7 @@ export function EmailView({ email, onBack }: EmailViewProps) {
         </div>
         <div className="text-sm text-muted-foreground pt-2">
           <p><strong>From:</strong> {email.from}</p>
-          <p><strong>Time:</strong> {email.date}</p>
+          <p><strong>Time:</strong> {new Date(email.date).toLocaleString()}</p>
         </div>
       </CardHeader>
       <Separator />
@@ -32,7 +32,7 @@ export function EmailView({ email, onBack }: EmailViewProps) {
         <Tabs defaultValue={email.htmlBody ? "html" : "text"} className="w-full">
           <TabsList>
             <TabsTrigger value="html" disabled={!email.htmlBody}>HTML</TabsTrigger>
-            <TabsTrigger value="text">Plain Text</TabsTrigger>
+            <TabsTrigger value="text" disabled={!email.body}>Plain Text</TabsTrigger>
           </TabsList>
           <TabsContent value="html">
             <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-white text-black">
@@ -47,7 +47,7 @@ export function EmailView({ email, onBack }: EmailViewProps) {
           </TabsContent>
           <TabsContent value="text">
             <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-muted/30 whitespace-pre-wrap font-mono text-sm">
-              {email.body}
+              {email.body || 'No plain text view available.'}
             </div>
           </TabsContent>
         </Tabs>
