@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock } from "lucide-react";
@@ -25,6 +25,7 @@ export default function ClientLoginPage() {
                   id="email"
                   type="email"
                   placeholder="m@example.com"
+                  defaultValue="client@example.com"
                   required
                   className="pl-8"
                 />
@@ -42,7 +43,7 @@ export default function ClientLoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" required className="pl-8" />
+                <Input id="password" type="password" defaultValue="password" required className="pl-8" />
               </div>
             </div>
             <Button type="submit" className="w-full">
@@ -56,6 +57,12 @@ export default function ClientLoginPage() {
             </Link>
           </div>
         </CardContent>
+        <CardFooter>
+            <p className="text-xs text-center text-muted-foreground w-full">
+                <strong>Demo Credentials:</strong><br/>
+                Email: client@example.com | Password: password
+            </p>
+        </CardFooter>
       </Card>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock } from "lucide-react";
@@ -24,6 +24,7 @@ export default function AdminLoginPage() {
                   id="email"
                   type="email"
                   placeholder="m@example.com"
+                  defaultValue="admin@example.com"
                   required
                   className="pl-8"
                 />
@@ -35,7 +36,7 @@ export default function AdminLoginPage() {
               </div>
                <div className="relative">
                 <Lock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="password" type="password" required className="pl-8" />
+                <Input id="password" type="password" defaultValue="password" required className="pl-8" />
               </div>
             </div>
             <Button type="submit" className="w-full">
@@ -43,6 +44,12 @@ export default function AdminLoginPage() {
             </Button>
           </div>
         </CardContent>
+        <CardFooter>
+            <p className="text-xs text-center text-muted-foreground w-full">
+                <strong>Demo Credentials:</strong><br/>
+                Email: admin@example.com | Password: password
+            </p>
+        </CardFooter>
       </Card>
     </div>
   );
