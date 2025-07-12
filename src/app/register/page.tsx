@@ -44,8 +44,8 @@ export default function RegisterPage() {
                 <Input id="password" type="password" className="pl-8" />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Create an account
+            <Button asChild type="submit" className="w-full">
+              <Link href="/client/dashboard">Create an account</Link>
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">

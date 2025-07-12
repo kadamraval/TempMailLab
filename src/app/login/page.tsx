@@ -46,8 +46,8 @@ export default function ClientLoginPage() {
                 <Input id="password" type="password" defaultValue="password" required className="pl-8" />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button asChild type="submit" className="w-full">
+              <Link href="/client/dashboard">Login</Link>
             </Button>
           </div>
           <div className="mt-4 text-center text-sm">
