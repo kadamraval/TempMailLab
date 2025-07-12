@@ -1,7 +1,7 @@
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { TempInboxClient } from "@/components/temp-inbox-client";
-import { CheckCircle, ShieldCheck, Zap, Globe, Check } from "lucide-react";
+import { ShieldCheck, Zap, Globe, Check, Clock, Forward, Mail, Save } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -15,24 +15,34 @@ import { StayConnected } from "@/components/stay-connected";
 
 const features = [
   {
-    icon: <ShieldCheck className="w-8 h-8 text-primary" />,
-    title: "Privacy Focused",
-    description: "Keep your real inbox clean and secure from spam and phishing.",
-  },
-  {
-    icon: <Zap className="w-8 h-8 text-primary" />,
-    title: "Instant Setup",
-    description: "Generate a new temporary email address with a single click. No registration required.",
+    icon: <Clock className="w-8 h-8 text-primary" />,
+    title: "Auto-Expiration",
+    description: "Emails expire automatically after a set period with temp mail, ensuring your inbox is always clutter-free without any effort on your part.",
   },
   {
     icon: <Globe className="w-8 h-8 text-primary" />,
-    title: "Multiple Domains",
-    description: "Choose from a variety of domains to generate your temporary email.",
+    title: "Custom Domain Support",
+    description: "Enhance your brand identity with custom domain for temp mail, allowing you to create temporary emails using your own domain name.",
   },
   {
-    icon: <CheckCircle className="w-8 h-8 text-primary" />,
-    title: "Easy to Use",
-    description: "A simple and intuitive interface to manage your temporary inbox.",
+    icon: <Forward className="w-8 h-8 text-primary" />,
+    title: "Email Forwarding",
+    description: "Automatically forward your temp email to your primary email inbox, ensuring you never miss important messages while using our service.",
+  },
+  {
+    icon: <Mail className="w-8 h-8 text-primary" />,
+    title: "Instant Setup",
+    description: "No lengthy sign-up processes. Generate a temp mail address with a single click and start using it instantly.",
+  },
+  {
+    icon: <ShieldCheck className="w-8 h-8 text-primary" />,
+    title: "Privacy Protection",
+    description: "Your personal email stays secure and out of reach from spam and phishing attacks. We ensure your data is safe with temp mail.",
+  },
+  {
+    icon: <Save className="w-8 h-8 text-primary" />,
+    title: "Save for Later",
+    description: "Not just for temporary use. You have the option to save your temp mail to your account for long-term use, making it versatile.",
   },
 ];
 
@@ -103,7 +113,7 @@ export default function Home() {
                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Why TempInbox?</h2>
                 <p className="mt-4 text-lg text-muted-foreground">Your go-to solution for private and temporary email.</p>
             </div>
-            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
                 {features.map((feature) => (
                     <div key={feature.title} className="p-6 rounded-lg border bg-card text-card-foreground shadow-sm text-center">
                         <div className="inline-block bg-primary/10 p-3 rounded-full mb-4">{feature.icon}</div>
