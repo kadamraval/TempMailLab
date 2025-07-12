@@ -87,6 +87,11 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-background font-body">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
+        <section className="text-center py-12">
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">Your Private, Temporary Inbox</h1>
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">Get a free, anonymous email address instantly. Protect your real inbox from spam, bots, and phishing attacks.</p>
+        </section>
+
         <TempInboxClient />
 
         <section id="features" className="py-16 sm:py-24">
