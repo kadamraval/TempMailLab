@@ -33,6 +33,7 @@ const generateTempEmailFlow = ai.defineFlow(
   },
   async () => {
     try {
+      // Use 1secmail's random generator to get a unique login
       const response = await fetch('https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1');
       if (!response.ok) {
         throw new Error(`1secmail API failed with status: ${response.status}`);
@@ -41,13 +42,14 @@ const generateTempEmailFlow = ai.defineFlow(
       if (!data || data.length === 0) {
         throw new Error('No email address returned from 1secmail API');
       }
-      const email = data[0];
+      const login = data[0].split('@')[0];
+      const email = `${login}@temprmail.in`; // Use our custom domain
       return { email };
     } catch (error) {
       console.error('Error generating temporary email:', error);
       // Fallback to a random string if API fails
       const randomString = Math.random().toString(36).substring(2, 10);
-      const email = `${randomString}@1secmail.com`;
+      const email = `${randomString}@temprmail.in`;
       return { email };
     }
   }
