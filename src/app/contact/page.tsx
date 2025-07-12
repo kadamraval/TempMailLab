@@ -1,4 +1,5 @@
 import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function ContactPage() {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 }

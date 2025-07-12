@@ -1,4 +1,5 @@
 import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function TermsPage() {
@@ -29,8 +30,9 @@ export default function TermsPage() {
             <h3>5. Modifications</h3>
             <p>TempInbox may revise these terms of service for its website at any time without notice. By using this website you are agreeing to be bound by the then current version of these terms of service.</p>
           </CardContent>
-        </card>
+        </Card>
       </main>
+      <Footer />
     </div>
   );
 }

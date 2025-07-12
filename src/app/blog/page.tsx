@@ -1,4 +1,5 @@
 import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -63,6 +64,7 @@ export default function BlogPage() {
             ))}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

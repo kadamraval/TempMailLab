@@ -1,4 +1,5 @@
 import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
@@ -76,6 +77,7 @@ export default function PremiumPage() {
             ))}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
