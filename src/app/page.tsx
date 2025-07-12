@@ -12,7 +12,7 @@ export default function Home() {
       <footer className="text-center p-4 text-muted-foreground text-sm">
         <p>&copy; {new Date().getFullYear()} TempInbox. All rights reserved.</p>
         <p className="mt-2">
-          <Link href="/admin/login" className="underline">
+          <Link href="/login/admin" className="underline">
             Admin Login (Temporary)
           </Link>
         </p>
