@@ -145,7 +145,20 @@ export function TempInboxClient() {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>Your Temporary Email Address</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Your Temporary Email Address</CardTitle>
+            {isLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Generating...</span>
+                </div>
+            ) : (
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-md">
+                    <Clock className="h-4 w-4" />
+                    <span>Expires in: {formatTime(countdown)}</span>
+                </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading ? (
@@ -175,19 +188,6 @@ export function TempInboxClient() {
               </div>
             </div>
           )}
-          <div className="flex items-center justify-center text-sm text-muted-foreground pt-2">
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Generating...</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                <span>Address expires in: {formatTime(countdown)}</span>
-              </div>
-            )}
-          </div>
         </CardContent>
       </Card>
 
