@@ -1,11 +1,11 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export default function AdminPlansPage() {
+export default function AdminDomainPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plans</CardTitle>
-        <CardDescription>Manage your pricing plans here.</CardDescription>
+        <CardTitle>Domains</CardTitle>
+        <CardDescription>Manage your domains here.</CardDescription>
       </CardHeader>
     </Card>
   );

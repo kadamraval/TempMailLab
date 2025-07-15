@@ -1,11 +1,11 @@
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
-export default function AdminPlansPage() {
+export default function AdminInboxPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Plans</CardTitle>
-        <CardDescription>Manage your pricing plans here.</CardDescription>
+        <CardTitle>Inbox</CardTitle>
+        <CardDescription>Manage your inbox here.</CardDescription>
       </CardHeader>
     </Card>
   );
