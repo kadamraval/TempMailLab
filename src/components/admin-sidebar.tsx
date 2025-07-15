@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -19,9 +20,8 @@ import {
   BookOpen,
   LayoutGrid,
   Library,
-  ChevronDown,
   ChevronRight,
-  Code,
+  ChevronsLeft,
 } from "lucide-react"
 import {
   Tooltip,
@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
 import React from "react"
 import { Button } from "./ui/button"
-
+import { ScrollArea } from "./ui/scroll-area"
 
 const navItems = [
     { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
@@ -44,7 +44,7 @@ const navItems = [
       label: "Sales",
       icon: DollarSign,
       subItems: [
-        { href: "/admin/plans", icon: Package, label: "Plans" },
+        { href: "/admin/packages", icon: Package, label: "Plans" },
         { href: "/admin/coupons", icon: Ticket, label: "Coupons" },
         { href: "/admin/ads", icon: Megaphone, label: "Ads" },
         { href: "/admin/billing", icon: ShoppingCart, label: "Billing" },
@@ -63,72 +63,110 @@ const navItems = [
       ]
     },
     { href: "/admin/settings", icon: Settings, label: "Settings" },
-]
+];
 
-export function AdminSidebar() {
-  const pathname = usePathname()
+interface AdminSidebarProps {
+  isCollapsed: boolean;
+  setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+}
 
-  return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 flex-col border-r bg-background sm:flex">
-      <div className="flex h-16 items-center border-b px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Inbox className="h-6 w-6 text-primary" />
-          <span>TempInbox</span>
-        </Link>
-      </div>
-      <nav className="flex-1 overflow-auto py-4">
-        <div className="grid items-start px-4 text-sm font-medium">
-          {navItems.map((item) =>
-            item.subItems ? (
-              <Collapsible key={item.label} className="grid gap-1">
-                <CollapsibleTrigger className="flex items-center justify-between rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary [&[data-state=open]>svg]:rotate-90">
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </div>
-                  <ChevronRight className="h-4 w-4 transition-transform" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pl-7">
-                  <div className="grid gap-1">
-                  {item.subItems.map((subItem) => (
-                    <Link
-                      key={subItem.href}
-                      href={subItem.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                        pathname.startsWith(subItem.href) && "bg-muted text-primary"
-                      )}
-                    >
-                      <subItem.icon className="h-4 w-4" />
-                      {subItem.label}
-                    </Link>
-                  ))}
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
+export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps) {
+  const pathname = usePathname();
+
+  const renderLink = (item: any) => (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+        pathname === item.href && "bg-muted text-primary",
+        isCollapsed && "justify-center"
+      )}
+    >
+      <item.icon className="h-4 w-4" />
+      {!isCollapsed && <span>{item.label}</span>}
+      {isCollapsed && <span className="sr-only">{item.label}</span>}
+    </Link>
+  );
+
+  const renderCollapsible = (item: any) => (
+    <Collapsible key={item.label} className="grid gap-1">
+      <CollapsibleTrigger asChild>
+          <button className={cn(
+            "flex items-center w-full gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary [&[data-state=open]>svg:last-child]:rotate-90",
+            isCollapsed && "justify-center"
+            )}>
+            <item.icon className="h-4 w-4" />
+            {!isCollapsed && <span>{item.label}</span>}
+            {!isCollapsed && <ChevronRight className="ml-auto h-4 w-4 transition-transform" />}
+          </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className={cn("pl-7", isCollapsed && "pl-0")}>
+        <div className="grid gap-1">
+          {item.subItems.map((subItem: any) =>
+            isCollapsed ? (
+              <Tooltip key={subItem.href}>
+                <TooltipTrigger asChild>{renderLink(subItem)}</TooltipTrigger>
+                <TooltipContent side="right">{subItem.label}</TooltipContent>
+              </Tooltip>
             ) : (
-              <Link
-                key={item.href}
-                href={item.href!}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                  pathname === item.href && "bg-muted text-primary"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
+              renderLink(subItem)
             )
           )}
         </div>
-      </nav>
-      <div className="mt-auto p-4 border-t">
-         <Button size="sm" variant="outline" className="w-full justify-start" asChild>
-          <Link href="/">
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Link>
-        </Button>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+
+  return (
+    <aside className={cn(
+        "fixed inset-y-0 left-0 z-10 hidden flex-col border-r bg-background sm:flex transition-all duration-300",
+        isCollapsed ? "w-16" : "w-64"
+    )}>
+       <div className="flex h-16 items-center border-b px-6">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Inbox className="h-6 w-6 text-primary" />
+          {!isCollapsed && <span>TempInbox</span>}
+        </Link>
+      </div>
+       <ScrollArea className="flex-1 py-4">
+        <TooltipProvider delayDuration={0}>
+            <nav className="grid items-start px-4 text-sm font-medium">
+            {navItems.map((item) =>
+                item.subItems ? (
+                    renderCollapsible(item)
+                ) : isCollapsed ? (
+                <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>
+                        {renderLink(item)}
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
+                ) : (
+                    renderLink(item)
+                )
+            )}
+            </nav>
+        </TooltipProvider>
+       </ScrollArea>
+       <div className="mt-auto p-4 border-t">
+        <div className="flex justify-between items-center">
+            {!isCollapsed && (
+                <Button size="sm" variant="outline" className="w-full justify-start" asChild>
+                    <Link href="/">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                    </Link>
+                </Button>
+            )}
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className={cn("h-8 w-8", isCollapsed && "mx-auto")}
+            >
+                <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+            </Button>
+        </div>
       </div>
     </aside>
   );
