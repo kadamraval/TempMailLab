@@ -2,11 +2,11 @@
 "use client"
 
 import * as React from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Briefcase, KeyRound, Mail, MessageSquare, Monitor, MousePointerClick, Zap } from "lucide-react";
+import { BarChart, Briefcase, KeyRound, Mail, MessageSquare, Monitor, MousePointerClick, Zap, Tags } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const SvgPlaceholder = ({ className }: { className?: string }) => (
@@ -47,7 +47,7 @@ const integrations = [
         category: "Analytics", 
         title: "Google Tag Manager", 
         description: "Manage and deploy marketing tags on your website without code changes.", 
-        icon: <SvgPlaceholder />,
+        icon: <Tags className="h-6 w-6 text-blue-400" />,
         configured: false,
     },
     { 
@@ -151,7 +151,7 @@ export default function IntegrationsSettingsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Integrations</h2>
                     <p className="text-muted-foreground">
@@ -171,15 +171,15 @@ export default function IntegrationsSettingsPage() {
                     </Select>
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredIntegrations.map((integration) => (
                     <Card key={integration.title} className="flex flex-col">
-                        <CardHeader>
+                        <CardHeader className="pb-4">
                              <div className="flex items-start justify-between">
                                 {integration.icon}
                                 {integration.configured && <Badge variant="secondary">Connected</Badge>}
                             </div>
-                            <CardTitle className="text-lg">{integration.title}</CardTitle>
+                            <CardTitle className="text-lg pt-4">{integration.title}</CardTitle>
                         </CardHeader>
                         <CardContent className="flex-grow">
                              <p className="text-sm text-muted-foreground">{integration.description}</p>
