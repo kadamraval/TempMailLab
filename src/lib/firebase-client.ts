@@ -1,7 +1,7 @@
 // @/lib/firebase-client.ts
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,10 +12,9 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const firestore = getFirestore(app);
-const auth = getAuth(app);
+let app: FirebaseApp | undefined;
+let firestore: Firestore | undefined;
+let auth: Auth | undefined;
 
 // A helper function to check if the client-side Firebase config is present
 const isFirebaseClientConfigured = () => {
@@ -28,6 +27,13 @@ const isFirebaseClientConfigured = () => {
         firebaseConfig.appId
     );
 };
+
+if (isFirebaseClientConfigured()) {
+    // Initialize Firebase
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    firestore = getFirestore(app);
+    auth = getAuth(app);
+}
 
 
 export { app, firestore, auth, isFirebaseClientConfigured };
