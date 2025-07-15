@@ -6,6 +6,11 @@ import { firestore, auth } from '@/lib/firebase-admin'
 import type { User } from '@/types'
 
 export async function getUsers(): Promise<User[]> {
+  if (!firestore || !auth) {
+    console.log("Firebase not configured, skipping user fetch.");
+    return [];
+  }
+  
   try {
     const usersSnapshot = await firestore.collection('users').get()
     if (usersSnapshot.empty) {
@@ -29,7 +34,6 @@ export async function getUsers(): Promise<User[]> {
         })
       } catch (authError) {
         console.warn(`Could not fetch auth user for UID: ${doc.id}`, authError)
-        // Optionally add user with partial data if auth user is not found
       }
     }
     
@@ -41,11 +45,12 @@ export async function getUsers(): Promise<User[]> {
 }
 
 export async function upgradeUser(uid: string) {
+  if (!firestore) return { success: false, error: 'Firebase not configured.' };
   try {
     await firestore.collection('users').doc(uid).update({
       isPremium: true,
       planType: 'premium',
-      planExpiry: null, // Or set a new expiry date
+      planExpiry: null,
     })
     revalidatePath('/admin/users')
     return { success: true }
@@ -56,6 +61,7 @@ export async function upgradeUser(uid: string) {
 }
 
 export async function downgradeUser(uid: string) {
+  if (!firestore) return { success: false, error: 'Firebase not configured.' };
   try {
     await firestore.collection('users').doc(uid).update({
       isPremium: false,
@@ -71,10 +77,9 @@ export async function downgradeUser(uid: string) {
 }
 
 export async function deleteUser(uid: string) {
+  if (!firestore || !auth) return { success: false, error: 'Firebase not configured.' };
   try {
-    // Delete from Firestore
     await firestore.collection('users').doc(uid).delete()
-    // Delete from Firebase Auth
     await auth.deleteUser(uid)
     
     revalidatePath('/admin/users')
