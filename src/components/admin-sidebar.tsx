@@ -30,10 +30,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
 import React from "react"
-import { Button } from "./ui/button"
-import { ScrollArea } from "./ui/scroll-area"
+import { Button } from "../ui/button"
+import { ScrollArea } from "../ui/scroll-area"
 
 const navItems = [
     { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
@@ -78,7 +78,8 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
       href={item.href}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-        pathname === item.href && "bg-muted text-primary",
+        pathname.startsWith(item.href) && item.href !== '/admin/settings' && "bg-muted text-primary",
+        pathname.startsWith('/admin/settings') && item.href === '/admin/settings' && "bg-muted text-primary",
         isCollapsed && "justify-center"
       )}
     >
