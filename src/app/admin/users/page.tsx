@@ -37,8 +37,8 @@ export default async function AdminUsersPage() {
         <CardDescription>Manage your users and their roles.</CardDescription>
       </CardHeader>
       <CardContent>
-        {!isFirebaseConfigured ? (
-          <div className="flex flex-col items-center justify-center gap-4 p-8 text-center bg-muted/50 rounded-lg">
+        {!isFirebaseConfigured && (
+          <div className="mb-4 flex flex-col items-center justify-center gap-4 p-8 text-center bg-muted/50 rounded-lg">
             <AlertTriangle className="h-12 w-12 text-destructive" />
             <h3 className="text-xl font-semibold">Firebase Not Configured</h3>
             <p className="text-muted-foreground max-w-md">
@@ -49,7 +49,7 @@ export default async function AdminUsersPage() {
               <Link href="/admin/settings">Go to Settings</Link>
             </Button>
           </div>
-        ) : null}
+        )}
          <UserDataTable columns={columns} data={users} />
       </CardContent>
     </Card>
