@@ -17,7 +17,7 @@ function getIntegrationDetails(slug: string) {
         slug: slug,
         title: `${title}`,
         description: `Manage settings for the ${title} integration here.`,
-        // In a real app, you'd fetch this from a database
+        // In a real app, you'd fetch this from a database or env file
         isConfigured: ['firebase', 'google-analytics', 'stripe', 'google-adsense', 'google-login', 'mail-tm'].includes(slug),
     }
 }
