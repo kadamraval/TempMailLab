@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -31,8 +32,16 @@ const createMailTmAccountFlow = ai.defineFlow(
   },
   async () => {
     try {
+      const commonHeaders = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+      };
+
       // 1. Get available domains
-      const domainResponse = await fetch('https://api.mail.tm/domains');
+      const domainResponse = await fetch('https://api.mail.tm/domains', {
+        headers: { 'User-Agent': commonHeaders['User-Agent'] }
+      });
+
       if (!domainResponse.ok) {
         throw new Error(`mail.tm domain API failed with status: ${domainResponse.status}`);
       }
@@ -45,9 +54,7 @@ const createMailTmAccountFlow = ai.defineFlow(
 
       const accountResponse = await fetch('https://api.mail.tm/accounts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: commonHeaders,
         body: JSON.stringify({
           address,
           password,
@@ -55,7 +62,7 @@ const createMailTmAccountFlow = ai.defineFlow(
       });
 
       if (!accountResponse.ok) {
-        throw new Error(`mail.tm account creation failed with status: ${accountResponse.status}`);
+        throw new Error(`mail.tm account creation failed with status: ${accountResponse.statusText}`);
       }
       const accountData = await accountResponse.json();
       const accountId = accountData.id;
@@ -63,16 +70,14 @@ const createMailTmAccountFlow = ai.defineFlow(
       // 3. Get the auth token
       const tokenResponse = await fetch('https://api.mail.tm/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: commonHeaders,
         body: JSON.stringify({
           address,
           password,
         }),
       });
       if (!tokenResponse.ok) {
-        throw new Error(`mail.tm token generation failed with status: ${tokenResponse.status}`);
+        throw new Error(`mail.tm token generation failed with status: ${tokenResponse.statusText}`);
       }
       const tokenData = await tokenResponse.json();
 
