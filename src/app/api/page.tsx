@@ -10,10 +10,10 @@ export default function ApiPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>TempInbox API</CardTitle>
+            <CardTitle>Temp Mailer API</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p>Integrate the power of temporary email generation directly into your applications with the TempInbox API. Our powerful, easy-to-use API is perfect for developers who need to automate testing, user sign-ups, and more.</p>
+            <p>Integrate the power of temporary email generation directly into your applications with the Temp Mailer API. Our powerful, easy-to-use API is perfect for developers who need to automate testing, user sign-ups, and more.</p>
             
             <h3 className="text-xl font-semibold pt-4">API Features</h3>
             <ul className="list-disc list-inside space-y-2 pl-4">
@@ -28,7 +28,7 @@ export default function ApiPage() {
             <pre className="bg-muted p-4 rounded-md text-sm font-mono mt-2">
                 <code>
                     {`// Example: Generate a new email
-fetch('https://api.tempinbox.com/v1/new-address')
+fetch('https://api.tempmailer.com/v1/new-address')
   .then(res => res.json())
   .then(data => console.log(data.email));`}
                 </code>

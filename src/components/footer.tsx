@@ -46,7 +46,7 @@ export function Footer() {
             </div>
           </div>
           <div className="text-center mt-8 pt-8 border-t">
-             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} TempInbox. All rights reserved.</p>
+             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Temp Mailer. All rights reserved.</p>
           </div>
         </div>
       </footer>

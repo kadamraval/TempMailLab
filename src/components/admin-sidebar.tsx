@@ -125,7 +125,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
        <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <Inbox className="h-6 w-6 text-primary" />
-          {!isCollapsed && <span>TempInbox</span>}
+          {!isCollapsed && <span>Temp Mailer</span>}
         </Link>
       </div>
        <ScrollArea className="flex-1 py-4">

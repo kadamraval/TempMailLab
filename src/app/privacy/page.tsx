@@ -14,7 +14,7 @@ export default function PrivacyPage() {
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none">
             <p>Last updated: July 20, 2024</p>
-            <p>Your privacy is important to us. It is TempInbox's policy to respect your privacy regarding any information we may collect from you across our website.</p>
+            <p>Your privacy is important to us. It is Temp Mailer's policy to respect your privacy regarding any information we may collect from you across our website.</p>
             
             <h3>1. Information We Collect</h3>
             <p>For our free service, we do not require any personal information or registration. We do not log the IP addresses of our users. For premium services, we collect only the necessary information to process payment and provide the service, such as an email address for account management.</p>

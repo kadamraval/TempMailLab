@@ -17,7 +17,7 @@ const blogPosts = [
     },
     {
         title: "Top 5 Use Cases for a Temporary Email Address",
-        description: "From online shopping to signing up for newsletters, discover how TempInbox can simplify your life.",
+        description: "From online shopping to signing up for newsletters, discover how Temp Mailer can simplify your life.",
         author: "John Smith",
         date: "July 10, 2024",
         image: "https://placehold.co/600x400.png",

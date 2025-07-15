@@ -1,6 +1,6 @@
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { TempInboxClient } from "@/components/temp-inbox-client";
+import { TempMailerClient } from "@/components/temp-mailer-client";
 import { ShieldCheck, Zap, Globe, Check, Clock, Forward, Mail, Save } from "lucide-react";
 import {
   Accordion,
@@ -105,12 +105,12 @@ export default function Home() {
             <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">Get a free, anonymous email address instantly. Protect your real inbox from spam, bots, and phishing attacks.</p>
         </section>
 
-        <TempInboxClient />
+        <TempMailerClient />
 
         <section id="features" className="py-16 sm:py-24">
             <div className="text-center">
                 <p className="font-semibold text-primary">FEATURES</p>
-                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Why TempInbox?</h2>
+                <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Why Temp Mailer?</h2>
                 <p className="mt-4 text-lg text-muted-foreground">Your go-to solution for private and temporary email.</p>
             </div>
             <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -165,7 +165,7 @@ export default function Home() {
              <div className="text-center">
                 <p className="font-semibold text-primary">FAQ</p>
                 <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Questions? We have answers.</h2>
-                <p className="mt-4 text-lg text-muted-foreground">Find answers to the most common questions about TempInbox.</p>
+                <p className="mt-4 text-lg text-muted-foreground">Find answers to the most common questions about Temp Mailer.</p>
             </div>
             <div className="mt-12 max-w-3xl mx-auto">
                 <Accordion type="single" collapsible>

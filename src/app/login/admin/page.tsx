@@ -11,7 +11,7 @@ export default function AdminLoginPage() {
       <div className="mb-6">
         <Link href="/" className="flex items-center gap-2 text-foreground">
           <Mail className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">TempInbox</h1>
+          <h1 className="text-2xl font-bold">Temp Mailer</h1>
         </Link>
       </div>
       <Card className="mx-auto max-w-sm w-full">

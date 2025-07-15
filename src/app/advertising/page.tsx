@@ -15,8 +15,8 @@ export default function AdvertisingPage() {
             <CardTitle>Advertise With Us</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p>Reach a large audience of tech-savvy, privacy-conscious users by advertising on TempInbox. Our platform is an excellent place to promote your products, services, or brand.</p>
-            <h3 className="text-xl font-semibold pt-4">Why Advertise with TempInbox?</h3>
+            <p>Reach a large audience of tech-savvy, privacy-conscious users by advertising on Temp Mailer. Our platform is an excellent place to promote your products, services, or brand.</p>
+            <h3 className="text-xl font-semibold pt-4">Why Advertise with Temp Mailer?</h3>
             <ul className="list-disc list-inside space-y-2 pl-4">
                 <li><strong>Targeted Audience:</strong> Connect with users who are interested in technology, privacy, and online security.</li>
                 <li><strong>High Visibility:</strong> Our clean, user-friendly interface ensures your ad gets noticed without being intrusive.</li>

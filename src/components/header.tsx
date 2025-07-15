@@ -16,7 +16,7 @@ export function Header() {
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link href="/" className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">TempInbox</h1>
+          <h1 className="text-2xl font-bold text-foreground">Temp Mailer</h1>
         </Link>
         <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
