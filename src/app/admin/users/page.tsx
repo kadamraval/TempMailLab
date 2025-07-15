@@ -46,7 +46,7 @@ export default async function AdminUsersPage() {
               Please add your Firebase service account details in the settings to manage real users.
             </p>
             <Button asChild>
-              <Link href="/admin/settings">Go to Settings</Link>
+              <Link href="/admin/settings/integrations/firebase">Go to Settings</Link>
             </Button>
           </div>
         )}
