@@ -13,3 +13,13 @@ export interface MailTmAccount {
     email: string;
     token: string;
 }
+
+export interface User {
+  uid: string;
+  email: string;
+  isPremium: boolean;
+  planType: 'free' | 'premium';
+  planExpiry: string | null;
+  mailTmId: string;
+  inboxCount: number;
+}

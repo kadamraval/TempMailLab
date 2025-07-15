@@ -10,6 +10,7 @@ import {
   Megaphone,
   Settings,
   LogOut,
+  Users2,
 } from "lucide-react"
 import {
   Tooltip,
@@ -21,7 +22,8 @@ import { cn } from "@/lib/utils"
 
 const navItems = [
     { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
-    { href: "/admin/clients", icon: Users, label: "Clients" },
+    { href: "/admin/users", icon: Users, label: "Users" },
+    { href: "/admin/clients", icon: Users2, label: "Clients" },
     { href: "/admin/packages", icon: Package, label: "Packages" },
     { href: "/admin/coupons", icon: Ticket, label: "Coupons" },
     { href: "/admin/ads", icon: Megaphone, label: "Ads" },
@@ -42,7 +44,7 @@ export function AdminSidebar() {
                     href={item.href}
                     className={cn(
                         "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                        pathname === item.href && "bg-accent text-accent-foreground"
+                        pathname.startsWith(item.href) && item.href !== '/admin/dashboard' || pathname === item.href ? "bg-accent text-accent-foreground" : ""
                     )}
                 >
                     <item.icon className="h-5 w-5" />
