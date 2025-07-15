@@ -30,10 +30,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import React from "react"
-import { Button } from "../ui/button"
-import { ScrollArea } from "../ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const navItems = [
     { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
@@ -136,7 +136,9 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
             <nav className="grid items-start px-4 text-sm font-medium">
             {navItems.map((item) =>
                 item.subItems ? (
-                    renderCollapsible(item)
+                    <React.Fragment key={item.label}>
+                      {renderCollapsible(item)}
+                    </React.Fragment>
                 ) : isCollapsed ? (
                 <Tooltip key={item.href}>
                     <TooltipTrigger asChild>
