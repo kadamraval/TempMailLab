@@ -23,3 +23,13 @@ export interface User {
   mailTmId: string;
   inboxCount: number;
 }
+
+export interface InboxLog {
+  id: string;
+  email: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+  emailCount: number;
+  domain: string;
+}
