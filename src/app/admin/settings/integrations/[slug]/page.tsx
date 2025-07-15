@@ -1,6 +1,4 @@
 
-"use client"
-
 import {
   Breadcrumb,
   BreadcrumbItem,
