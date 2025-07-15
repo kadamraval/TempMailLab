@@ -15,8 +15,13 @@ export function useInboxLogs() {
   const isFirebaseConfigured = isFirebaseClientConfigured();
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isFirebaseClientConfigured) {
       setLoading(false);
+      // Optional: Set dummy data if you want to see the UI without a connection
+      // setLogs([
+      //   { id: 'dummy1', email: 'test1@example.com', userId: 'anon1', createdAt: new Date().toLocaleString(), expiresAt: new Date().toLocaleString(), emailCount: 0, domain: 'example.com' },
+      //   { id: 'dummy2', email: 'test2@example.com', userId: 'anon2', createdAt: new Date().toLocaleString(), expiresAt: new Date().toLocaleString(), emailCount: 3, domain: 'example.com' },
+      // ]);
       return;
     }
 

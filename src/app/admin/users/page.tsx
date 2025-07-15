@@ -15,6 +15,9 @@ import { UserDataTable } from './data-table'
 import { columns } from './columns'
 import type { User } from '@/types'
 
+export const revalidate = 0; // Don't cache this page
+export const dynamic = 'force-dynamic';
+
 export default async function AdminUsersPage() {
   const isFirebaseConfigured = !!firestore;
 
@@ -24,9 +27,9 @@ export default async function AdminUsersPage() {
   } else {
     // Dummy data for when Firebase is not configured
     users = [
-      { uid: 'dummy1', email: 'user1@example.com', isPremium: true, planType: 'premium', planExpiry: 'N/A', mailTmId: 'abc-123', inboxCount: 15 },
-      { uid: 'dummy2', email: 'user2@example.com', isPremium: false, planType: 'free', planExpiry: 'N/A', mailTmId: 'def-456', inboxCount: 3 },
-      { uid: 'dummy3', email: 'user3@example.com', isPremium: true, planType: 'premium', planExpiry: '2024-12-31', mailTmId: 'ghi-789', inboxCount: 45 },
+      { uid: 'dummy1', email: 'user1@example.com', isPremium: true, planType: 'premium', createdAt: '2024-07-20', inboxCount: 15 },
+      { uid: 'dummy2', email: 'user2@example.com', isPremium: false, planType: 'free', createdAt: '2024-07-19', inboxCount: 3 },
+      { uid: 'dummy3', email: 'user3@example.com', isPremium: true, planType: 'premium', createdAt: '2024-07-18', inboxCount: 45 },
     ];
   }
 

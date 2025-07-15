@@ -12,14 +12,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, ArrowUpDown, Trash2, ShieldQuestion } from "lucide-react"
+import { MoreHorizontal, ArrowUpDown, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { deleteInbox } from "./actions"
-import { toast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +28,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
-async function handleDelete(id: string) {
-    const result = await deleteInbox(id)
-    if (result.success) {
-        toast({ title: "Success", description: "Inbox deleted successfully." })
-    } else {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-    }
-}
 
 export const columns: ColumnDef<InboxLog>[] = [
   {
@@ -75,23 +63,26 @@ export const columns: ColumnDef<InboxLog>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+     cell: ({ row }) => <div className="truncate max-w-[200px] font-medium">{row.getValue("email")}</div>
   },
   {
     accessorKey: "userId",
     header: "User ID",
     cell: ({ row }) => <div className="truncate max-w-[150px]">{row.getValue("userId")}</div>
   },
-  {
-    accessorKey: "emailCount",
-    header: "Email Count",
-  },
-  {
+    {
     accessorKey: "createdAt",
     header: "Created At",
+     cell: ({ row }) => <div className="min-w-[150px]">{row.getValue("createdAt")}</div>
   },
   {
     accessorKey: "expiresAt",
     header: "Expires At",
+     cell: ({ row }) => <div className="min-w-[150px]">{row.getValue("expiresAt")}</div>
+  },
+  {
+    accessorKey: "emailCount",
+    header: "Email Count",
   },
   {
     accessorKey: "domain",
@@ -102,6 +93,16 @@ export const columns: ColumnDef<InboxLog>[] = [
     id: "actions",
     cell: ({ row }) => {
       const inbox = row.original
+      const { toast } = useToast();
+
+      const handleDelete = async () => {
+        const result = await deleteInbox(inbox.id);
+        if (result.success) {
+            toast({ title: "Success", description: "Inbox deleted successfully." });
+        } else {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+        }
+      };
 
       return (
         <AlertDialog>
@@ -119,7 +120,7 @@ export const columns: ColumnDef<InboxLog>[] = [
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialogTrigger asChild>
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-destructive/10">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
                 </DropdownMenuItem>
@@ -131,12 +132,12 @@ export const columns: ColumnDef<InboxLog>[] = [
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the inbox
-                and all associated emails.
+                log from the database.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => handleDelete(inbox.id)}>Continue</AlertDialogAction>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Continue</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

@@ -4,6 +4,8 @@ import { createMailTmAccount } from "@/ai/flows/create-mail-tm-account";
 import { getInbox } from "@/ai/flows/get-inbox";
 import { getSingleEmail } from "@/ai/flows/get-single-email";
 import type { MailTmAccount } from "@/types";
+import { firestore } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 export async function createMailTmAccountAction(): Promise<MailTmAccount | null> {
   try {
@@ -25,7 +27,7 @@ export async function getInboxAction(token: string) {
             subject: m.subject,
             date: m.createdAt,
             read: m.seen,
-        }));
+        })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     } catch (error) {
         console.error("Error fetching inbox:", error);
         return [];
@@ -50,4 +52,31 @@ export async function getSingleEmailAction(token: string, id: string) {
         console.error("Error fetching email:", error);
         return null;
     }
+}
+
+export async function logInboxToFirestoreAction(
+    { id, email, countdown }: { id: string, email: string, countdown: number }
+) {
+  if (!firestore) {
+    console.log("Firestore not configured. Skipping inbox log.");
+    return;
+  }
+  
+  try {
+    const createdAt = new Date();
+    const expiresAt = new Date(createdAt.getTime() + countdown * 1000);
+    const domain = email.split('@')[1];
+
+    await firestore.collection('inboxes').doc(id).set({
+        email: email,
+        userId: 'anonymous', // For now, all are anonymous
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: expiresAt,
+        emailCount: 0, // This could be updated later with another function
+        domain: domain,
+    });
+  } catch (error) {
+    console.error("Error logging inbox to Firestore:", error);
+    // We don't throw here, as it's a non-critical background task
+  }
 }

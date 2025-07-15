@@ -19,8 +19,7 @@ export interface User {
   email: string;
   isPremium: boolean;
   planType: 'free' | 'premium';
-  planExpiry: string | null;
-  mailTmId: string;
+  createdAt: string;
   inboxCount: number;
 }
 

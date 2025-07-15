@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { createMailTmAccountAction, getInboxAction, getSingleEmailAction } from "@/app/actions";
+import { createMailTmAccountAction, getInboxAction, getSingleEmailAction, logInboxToFirestoreAction } from "@/app/actions";
 import type { Email, MailTmAccount } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
@@ -60,6 +60,14 @@ export function TempMailerClient() {
     if (newAccount && newAccount.token) {
       setAccount(newAccount);
       setCountdown(600);
+      
+      // Log this new inbox to Firestore without blocking the UI
+      logInboxToFirestoreAction({
+        id: newAccount.id,
+        email: newAccount.email,
+        countdown: 600
+      });
+
       // Start fetching inbox for the new email
       fetchInbox(newAccount.token);
       intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000); // Check every 5 seconds
