@@ -10,7 +10,6 @@ import {
   Megaphone,
   Settings,
   LogOut,
-  Users2,
 } from "lucide-react"
 import {
   Tooltip,
@@ -23,7 +22,6 @@ import { cn } from "@/lib/utils"
 const navItems = [
     { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
     { href: "/admin/users", icon: Users, label: "Users" },
-    { href: "/admin/clients", icon: Users2, label: "Clients" },
     { href: "/admin/packages", icon: Package, label: "Packages" },
     { href: "/admin/coupons", icon: Ticket, label: "Coupons" },
     { href: "/admin/ads", icon: Megaphone, label: "Ads" },

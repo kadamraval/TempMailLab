@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Users } from "lucide-react";
 
 export default function AdminDashboardPage() {
   return (
@@ -7,8 +8,8 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle>Total Clients</CardTitle>
-            <CardDescription>Number of registered clients.</CardDescription>
+            <CardTitle>Total Users</CardTitle>
+            <CardDescription>Number of registered users.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">1,234</p>
