@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -6,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Analytics, Briefcase, KeyRound, Mail, MessageSquare, Monitor, MousePointerClick, Zap } from "lucide-react";
+import { BarChart, Briefcase, KeyRound, Mail, MessageSquare, Monitor, MousePointerClick, Zap } from "lucide-react";
 
 // A simple placeholder for logos that are not in lucide-react
 const SvgPlaceholder = ({ className }: { className?: string }) => (
@@ -34,7 +35,7 @@ const integrations = [
         category: "Analytics", 
         title: "Google Analytics", 
         description: "Track website traffic and gain insights into user behavior.", 
-        icon: <Analytics className="h-8 w-8 text-orange-500" /> 
+        icon: <BarChart className="h-8 w-8 text-orange-500" /> 
     },
     { 
         category: "Analytics", 
