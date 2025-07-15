@@ -109,7 +109,9 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
                 <TooltipContent side="right">{subItem.label}</TooltipContent>
               </Tooltip>
             ) : (
-              renderLink(subItem)
+              <React.Fragment key={subItem.href}>
+                {renderLink(subItem)}
+              </React.Fragment>
             )
           )}
         </div>
@@ -142,7 +144,9 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
                     <TooltipContent side="right">{item.label}</TooltipContent>
                 </Tooltip>
                 ) : (
-                    renderLink(item)
+                    <React.Fragment key={item.href}>
+                      {renderLink(item)}
+                    </React.Fragment>
                 )
             )}
             </nav>
