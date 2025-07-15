@@ -25,7 +25,7 @@ export default function AdminInboxPage() {
                 <AlertTriangle className="h-12 w-12 text-destructive" />
                 <h3 className="text-xl font-semibold">Firebase Not Configured</h3>
                 <p className="text-muted-foreground max-w-md">
-                    Inbox monitoring requires a Firebase connection. Please add your Firebase service account details in the settings to see live data.
+                    Inbox monitoring requires a Firebase connection. Please add your Firebase client and admin credentials in your environment file to see live data.
                 </p>
                 <Button asChild>
                     <Link href="/admin/settings">Go to Settings</Link>
