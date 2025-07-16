@@ -60,6 +60,7 @@ export function TempMailerClient() {
     if (newAccount && newAccount.token) {
       setAccount(newAccount);
       setCountdown(600);
+      
       // Start fetching inbox for the new email
       fetchInbox(newAccount.token);
       intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000); // Check every 5 seconds
