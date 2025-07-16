@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -14,6 +13,36 @@ import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
+import { adminDb } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-client";
+import type { User } from "firebase/auth";
+
+
+async function logInboxToFirestoreAction(inboxData: { id: string; email: string; countdown: number; userId: string | null }) {
+    if (!inboxData.userId) {
+        console.log("No user logged in, skipping Firestore log.");
+        return;
+    }
+    try {
+        const { id, email, countdown, userId } = inboxData;
+        const domain = email.split('@')[1];
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + countdown * 1000);
+
+        await adminDb.collection("inboxes").doc(id).set({
+            email,
+            userId,
+            createdAt: now.toISOString(),
+            expiresAt: expiresAt.toISOString(),
+            emailCount: 0,
+            domain: domain,
+        });
+        console.log(`Inbox ${id} logged to Firestore for user ${userId}.`);
+    } catch (error) {
+        console.error("Error logging inbox to Firestore:", error);
+    }
+}
+
 
 export function TempMailerClient() {
   const [account, setAccount] = useState<MailTmAccount | null>(null);
@@ -22,8 +51,16 @@ export function TempMailerClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes, can be adjusted
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+        setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const clearInboxInterval = () => {
     if (intervalRef.current) {
@@ -61,6 +98,14 @@ export function TempMailerClient() {
       setAccount(newAccount);
       setCountdown(600);
       
+      // Log this new inbox to Firestore without blocking the UI
+      logInboxToFirestoreAction({
+        id: newAccount.id,
+        email: newAccount.email,
+        countdown: 600,
+        userId: currentUser?.uid || null
+      });
+
       // Start fetching inbox for the new email
       fetchInbox(newAccount.token);
       intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000); // Check every 5 seconds
@@ -72,7 +117,7 @@ export function TempMailerClient() {
       });
     }
     setIsLoading(false);
-  }, [toast, fetchInbox]);
+  }, [toast, fetchInbox, currentUser]);
 
   useEffect(() => {
     handleGenerateEmail();
