@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { createMailTmAccountAction, getInboxAction, getSingleEmailAction, logInboxToFirestoreAction } from "@/app/actions";
 import type { Email, MailTmAccount } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
@@ -37,12 +36,12 @@ export function TempMailerClient() {
     if (isManualRefresh) {
       setIsRefreshing(true);
     }
-    const fetchedMessages = await getInboxAction(token);
+    // const fetchedMessages = await getInboxAction(token);
 
-    // Naive check to see if new emails have arrived.
-    if (fetchedMessages.length > inbox.length || isManualRefresh) {
-      setInbox(fetchedMessages);
-    }
+    // // Naive check to see if new emails have arrived.
+    // if (fetchedMessages.length > inbox.length || isManualRefresh) {
+    //   setInbox(fetchedMessages);
+    // }
     
     if (isManualRefresh) {
       setIsRefreshing(false);
@@ -56,28 +55,28 @@ export function TempMailerClient() {
     setInbox([]);
     clearInboxInterval();
 
-    const newAccount = await createMailTmAccountAction();
-    if (newAccount && newAccount.token) {
-      setAccount(newAccount);
-      setCountdown(600);
+    // const newAccount = await createMailTmAccountAction();
+    // if (newAccount && newAccount.token) {
+    //   setAccount(newAccount);
+    //   setCountdown(600);
       
-      // Log this new inbox to Firestore without blocking the UI
-      logInboxToFirestoreAction({
-        id: newAccount.id,
-        email: newAccount.email,
-        countdown: 600
-      });
+    //   // Log this new inbox to Firestore without blocking the UI
+    //   logInboxToFirestoreAction({
+    //     id: newAccount.id,
+    //     email: newAccount.email,
+    //     countdown: 600
+    //   });
 
-      // Start fetching inbox for the new email
-      fetchInbox(newAccount.token);
-      intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000); // Check every 5 seconds
-    } else {
-      toast({
-        title: "Error",
-        description: "Could not generate a new email address.",
-        variant: "destructive",
-      });
-    }
+    //   // Start fetching inbox for the new email
+    //   fetchInbox(newAccount.token);
+    //   intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000); // Check every 5 seconds
+    // } else {
+    //   toast({
+    //     title: "Error",
+    //     description: "Could not generate a new email address.",
+    //     variant: "destructive",
+    //   });
+    // }
     setIsLoading(false);
   }, [toast, fetchInbox]);
 
@@ -111,18 +110,18 @@ export function TempMailerClient() {
 
   const handleSelectEmail = async (email: Email) => {
     if (!account?.token) return;
-    // If we don't have the body, fetch it.
-    if (!email.body) {
-      const fullEmail = await getSingleEmailAction(account.token, email.id.toString());
-      if (fullEmail) {
-        setSelectedEmail(fullEmail);
-        setInbox(inbox.map((e) => (e.id === email.id ? { ...fullEmail, read: true } : e)));
-        return;
-      } else {
-        toast({ title: "Error", description: "Could not fetch email content.", variant: "destructive" });
-        return;
-      }
-    }
+    // // If we don't have the body, fetch it.
+    // if (!email.body) {
+    //   const fullEmail = await getSingleEmailAction(account.token, email.id.toString());
+    //   if (fullEmail) {
+    //     setSelectedEmail(fullEmail);
+    //     setInbox(inbox.map((e) => (e.id === email.id ? { ...fullEmail, read: true } : e)));
+    //     return;
+    //   } else {
+    //     toast({ title: "Error", description: "Could not fetch email content.", variant: "destructive" });
+    //     return;
+    //   }
+    // }
     setSelectedEmail(email);
     setInbox(inbox.map((e) => (e.id === email.id ? { ...e, read: true } : e)));
   };

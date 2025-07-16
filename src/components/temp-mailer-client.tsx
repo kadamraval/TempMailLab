@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { createMailTmAccountAction, getInboxAction, getSingleEmailAction } from "@/app/actions";
+import { createMailTmAccountAction, getInboxAction, getSingleEmailAction } from "@/lib/actions/mail";
 import type { Email, MailTmAccount } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
