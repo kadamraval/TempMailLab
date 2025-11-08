@@ -1,7 +1,7 @@
 "use server"
 
 import * as z from "zod"
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getFirebaseAdmin } from "@/lib/firebase-admin";
 
 const signUpSchema = z.object({
   email: z.string().email(),
@@ -15,6 +15,7 @@ const signInSchema = z.object({
 
 export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
   try {
+    const { adminAuth, adminDb } = getFirebaseAdmin();
     const validatedCredentials = signUpSchema.parse(credentials);
     const { email, password } = validatedCredentials;
 
@@ -36,7 +37,7 @@ export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
     return { success: true, userId: userRecord.uid };
 
   } catch (error: any) {
-    let errorMessage = "An unknown error occurred.";
+    let errorMessage = "An unknown error occurred during sign up.";
     if (error.code === 'auth/email-already-exists') {
         errorMessage = "This email address is already in use by another account.";
     } else if (error instanceof z.ZodError) {
@@ -54,6 +55,7 @@ export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
 // to the server to create a session cookie. For this setup, we'll keep it simple.
 export async function signInAction(credentials: z.infer<typeof signInSchema>) {
    try {
+    const { adminAuth } = getFirebaseAdmin();
     const validatedCredentials = signInSchema.parse(credentials);
     const { email } = validatedCredentials;
     // We can check if the user exists, but can't verify password here without custom logic
