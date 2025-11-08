@@ -11,44 +11,17 @@ const publicRoutes = ['/login', '/register', '/'];
 const adminRoute = '/admin';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (user: User | null) => {
-      const isPublicRoute = publicRoutes.some(p => pathname.startsWith(p));
-      const isAdminRoute = pathname.startsWith(adminRoute);
-
-      if (user) {
-        // User is logged in
-        const idTokenResult = await user.getIdTokenResult();
-        const isAdmin = !!idTokenResult.claims.admin;
-
-        if (pathname === '/login' || pathname === '/register') {
-          // If on a public page, redirect to their dashboard
-          router.replace(isAdmin ? '/admin' : '/dashboard');
-        } else if (isAdmin && !isAdminRoute) {
-            // Admin on non-admin page, redirect to admin dashboard
-            router.replace('/admin');
-        } else if (!isAdmin && isAdminRoute) {
-            // Non-admin on admin page, redirect to user dashboard
-            router.replace('/dashboard');
-        }
-      } else {
-        // User is not logged in
-        if (!isPublicRoute) {
-          // If trying to access a private route, redirect to login
-          router.replace('/login');
-        }
-      }
+    const unsubscribe = onIdTokenChanged(auth, (user: User | null) => {
       // Regardless of the outcome, the auth check is complete.
       setLoading(false);
     });
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [pathname, router]);
+  }, []);
 
   if (loading) {
     return (
