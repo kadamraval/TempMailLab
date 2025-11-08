@@ -3,6 +3,11 @@ import * as admin from 'firebase-admin';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 
+interface FirebaseAdmin {
+  auth: Auth;
+  db: Firestore;
+}
+
 if (!admin.apps.length) {
   try {
     admin.initializeApp();
