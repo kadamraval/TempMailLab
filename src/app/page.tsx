@@ -5,7 +5,10 @@ import { DashboardClient } from "@/components/dashboard-client";
 import { auth } from "@/lib/firebase-client";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Hero } from "@/components/hero";
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,10 +29,14 @@ export default function HomePage() {
       </div>
     );
   }
-  
-  return (
-    <main className="container mx-auto px-4 py-8">
-      <DashboardClient />
-    </main>
-  );
+
+  if (user) {
+    return (
+      <main className="container mx-auto px-4 py-8">
+        <DashboardClient />
+      </main>
+    );
+  }
+
+  return <Hero />;
 }

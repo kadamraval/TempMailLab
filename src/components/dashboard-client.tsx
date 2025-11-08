@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,17 +14,7 @@ import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { auth } from "@/lib/firebase-client";
-import { adminDb } from "@/lib/firebase-admin"; // This import seems incorrect for client-side
 import type { User } from "firebase/auth";
-
-// This action should be a server action, not defined on the client
-async function logInboxToFirestoreAction(inboxData: { id: string; email: string; countdown: number; userId: string | null }) {
-    if (typeof window !== 'undefined') {
-        console.error("Firestore admin action should not be called on the client.");
-        return;
-    }
-    // The implementation was removed as it should be in a server action file.
-}
 
 
 export function DashboardClient() {
@@ -40,11 +31,14 @@ export function DashboardClient() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
         setCurrentUser(user);
-        if (!user) {
-            // Handle logged out state if necessary, e.g., redirect
+        if (user) {
+          handleGenerateEmail();
+        } else {
+          setIsLoading(false);
         }
     });
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const clearInboxInterval = () => {
@@ -83,14 +77,6 @@ export function DashboardClient() {
       setAccount(newAccount);
       setCountdown(600);
       
-      // We need a proper server action to log to firestore
-      // logInboxToFirestoreAction({
-      //   id: newAccount.id,
-      //   email: newAccount.email,
-      //   countdown: 600,
-      //   userId: currentUser?.uid || null
-      // });
-
       fetchInbox(newAccount.token);
       intervalRef.current = setInterval(() => fetchInbox(newAccount.token!), 5000);
     } else {
@@ -101,15 +87,8 @@ export function DashboardClient() {
       });
     }
     setIsLoading(false);
-  }, [toast, fetchInbox, currentUser]);
+  }, [toast, fetchInbox]);
 
-  useEffect(() => {
-    if (currentUser) {
-        handleGenerateEmail();
-    }
-    return () => clearInboxInterval();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
 
   useEffect(() => {
     if (account && countdown > 0) {
@@ -171,7 +150,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (!currentUser) {
+  if (isLoading) {
       return (
           <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -189,7 +168,7 @@ export function DashboardClient() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <CardTitle>Your Temporary Email Address</CardTitle>
-            {isLoading || !account ? (
+            {!account ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Generating...</span>
@@ -203,7 +182,7 @@ export function DashboardClient() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isLoading || !account ? (
+          {!account ? (
             <div className="flex items-center space-x-2">
               <Skeleton className="h-10 flex-grow" />
               <Skeleton className="h-10 w-24" />
