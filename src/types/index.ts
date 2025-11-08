@@ -1,3 +1,4 @@
+
 export interface Email {
   id: string; // mail.tm uses string IDs
   from: string;
@@ -31,4 +32,13 @@ export interface InboxLog {
   expiresAt: string;
   emailCount: number;
   domain: string;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  features: string;
+  status: 'active' | 'archived';
+  cycle: 'monthly' | 'yearly';
 }
