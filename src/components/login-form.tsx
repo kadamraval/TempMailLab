@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase-client"
+import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -28,6 +28,8 @@ const formSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast()
   const router = useRouter()
+  const auth = useAuth()
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -43,8 +45,7 @@ export function LoginForm() {
             title: "Success",
             description: "Logged in successfully.",
         })
-        // The homepage will now handle the redirect by listening to auth state changes.
-        // router.push("/") 
+        router.push("/") 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {

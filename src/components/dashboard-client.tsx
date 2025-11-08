@@ -13,8 +13,7 @@ import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
-import { auth } from "@/lib/firebase-client";
-import type { User } from "firebase/auth";
+import { useUser } from "@/firebase";
 
 
 export function DashboardClient() {
@@ -24,22 +23,18 @@ export function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user } = useUser();
   const { toast } = useToast();
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-        setCurrentUser(user);
-        if (user) {
-          handleGenerateEmail();
-        } else {
-          setIsLoading(false);
-        }
-    });
-    return () => unsubscribe();
+    if (user) {
+      handleGenerateEmail();
+    } else {
+      setIsLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   const clearInboxInterval = () => {
     if (intervalRef.current) {
