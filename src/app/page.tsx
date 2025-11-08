@@ -1,7 +1,8 @@
+
 "use client";
 
 import { DashboardClient } from "@/components/dashboard-client";
-import { useAuth } from "@/lib/firebase-client";
+import { auth } from "@/lib/firebase-client";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { Loader2 } from "lucide-react";
