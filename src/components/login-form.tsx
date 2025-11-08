@@ -43,7 +43,8 @@ export function LoginForm() {
             title: "Success",
             description: "Logged in successfully.",
         })
-        router.push("/") 
+        // The homepage will now handle the redirect by listening to auth state changes.
+        // router.push("/") 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -56,8 +57,6 @@ export function LoginForm() {
         })
     }
   }
-
-  const isRegisterPage = router.pathname === "/register";
 
   return (
       <Form {...form}>
