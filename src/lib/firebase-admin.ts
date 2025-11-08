@@ -8,15 +8,16 @@ interface FirebaseAdmin {
   db: Firestore;
 }
 
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp();
-  } catch (error: any) {
-    console.error('Firebase admin initialization error', error.stack);
+// This function ensures the Firebase Admin SDK is initialized only once.
+function getFirebaseAdmin(): FirebaseAdmin {
+  if (!admin.apps.length) {
+    try {
+      admin.initializeApp();
+    } catch (error: any) {
+      console.error('Firebase admin initialization error', error.stack);
+    }
   }
+  return { auth: admin.auth(), db: admin.firestore() };
 }
 
-const adminAuth: Auth = admin.auth();
-const adminDb: Firestore = admin.firestore();
-
-export { adminAuth, adminDb };
+export const { auth: adminAuth, db: adminDb } = getFirebaseAdmin();
