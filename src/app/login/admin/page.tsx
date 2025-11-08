@@ -11,7 +11,7 @@ export default function AdminLoginPage() {
                     <CardDescription>Enter your credentials to access the admin dashboard.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <LoginForm />
+                    <LoginForm redirectPath="/admin" />
                 </CardContent>
             </Card>
         </div>

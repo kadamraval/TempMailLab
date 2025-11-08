@@ -25,7 +25,11 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 })
 
-export function LoginForm() {
+interface LoginFormProps {
+  redirectPath?: string;
+}
+
+export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
@@ -45,7 +49,7 @@ export function LoginForm() {
             title: "Success",
             description: "Logged in successfully.",
         })
-        router.push("/") 
+        router.push(redirectPath) 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
