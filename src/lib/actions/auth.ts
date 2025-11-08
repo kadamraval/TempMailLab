@@ -43,6 +43,8 @@ export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
         errorMessage = "This email address is already in use by another account.";
     } else if (error instanceof z.ZodError) {
         errorMessage = error.errors.map(e => e.message).join(", ");
+    } else if (error.message.includes('Firebase admin initialization failed')) {
+        errorMessage = "Server configuration error. Could not connect to the database."
     }
     console.error("SignUp Error:", error);
     return { error: errorMessage };
