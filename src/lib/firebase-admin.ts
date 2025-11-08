@@ -19,8 +19,6 @@ if (!admin.apps.length) {
     } catch (error: any) {
       console.error('Firebase admin initialization error', error.stack);
     }
-  } else {
-    console.warn("Firebase Admin SDK credentials not found in environment variables. Skipping initialization.");
   }
 } else {
   app = admin.apps[0]!;
@@ -29,9 +27,8 @@ if (!admin.apps.length) {
 const adminAuth = app! ? admin.auth(app) : null;
 const adminDb = app! ? admin.firestore(app) : null;
 
-// Throw an error if initialization failed, making it clear that env vars are needed.
 if (!adminAuth || !adminDb) {
-    throw new Error(
+    console.error(
         "Firebase Admin SDK has not been initialized. Please check your environment variables."
     );
 }
