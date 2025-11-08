@@ -1,8 +1,7 @@
-
 "use server"
 
 import * as z from "zod"
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getAdminAuth, getAdminDb } from "@/lib/firebase-admin";
 
 const signUpSchema = z.object({
   email: z.string().email(),
@@ -18,6 +17,9 @@ export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
   try {
     const validatedCredentials = signUpSchema.parse(credentials);
     const { email, password } = validatedCredentials;
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
 
     const userRecord = await adminAuth.createUser({
       email,
@@ -57,6 +59,7 @@ export async function signInAction(credentials: z.infer<typeof signInSchema>) {
    try {
     const validatedCredentials = signInSchema.parse(credentials);
     const { email } = validatedCredentials;
+    const adminAuth = getAdminAuth();
     // We can check if the user exists, but can't verify password here without custom logic
     await adminAuth.getUserByEmail(email);
     return { success: true };

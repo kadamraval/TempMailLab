@@ -1,25 +1,47 @@
-
 import * as admin from 'firebase-admin';
+import type { Auth } from 'firebase-admin/auth';
+import type { Firestore } from 'firebase-admin/firestore';
 
-// Check if the app is already initialized to prevent re-initialization
-if (!admin.apps.length) {
+let app: admin.app.App;
+
+function initializeAdminApp(): admin.app.App {
+  if (admin.apps.length > 0) {
+    return admin.app();
+  }
+
   try {
     // In a managed environment like Firebase Hosting or Cloud Functions,
     // initializeApp() with no arguments will automatically use the environment's
     // service account credentials.
-    admin.initializeApp();
+    app = admin.initializeApp();
+    return app;
   } catch (error) {
     console.error('Firebase Admin SDK initialization error:', error);
+    throw new Error('Failed to initialize Firebase Admin SDK. Please check server logs.');
   }
 }
 
-const adminAuth = admin.apps.length ? admin.auth() : null;
-const adminDb = admin.apps.length ? admin.firestore() : null;
-
-// This is a safeguard. If initialization fails, the actions using these will fail
-// gracefully instead of crashing the entire application.
-if (!adminAuth || !adminDb) {
-  console.error("Firebase Admin SDK was not initialized. Server-side actions will fail.");
+function getAdminAuth(): Auth {
+    if (!app) {
+        initializeAdminApp();
+    }
+    const auth = admin.auth(app);
+    if (!auth) {
+        throw new Error('Firebase Admin Auth is not available.');
+    }
+    return auth;
 }
 
-export { adminAuth, adminDb };
+function getAdminDb(): Firestore {
+    if (!app) {
+        initializeAdminApp();
+    }
+    const db = admin.firestore(app);
+    if (!db) {
+        throw new Error('Firebase Admin Firestore is not available.');
+    }
+    return db;
+}
+
+
+export { getAdminAuth, getAdminDb };
