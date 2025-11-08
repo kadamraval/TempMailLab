@@ -15,7 +15,6 @@ export function getFirebaseAdmin(): FirebaseAdmin {
       admin.initializeApp();
     } catch (error: any) {
       console.error('Firebase admin initialization error', error.stack);
-      // We re-throw the error to make it clear that something is critically wrong.
       throw new Error('Firebase admin initialization failed');
     }
   }
