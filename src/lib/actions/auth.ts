@@ -1,76 +1,37 @@
 
-"use server"
+'use server';
 
-import * as z from "zod"
-import { getFirebaseAdmin } from "@/lib/firebase-admin";
+import { setDocumentNonBlocking } from '@/firebase';
+import { doc, getFirestore } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase/index.server';
 
-const signUpSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
-const signInSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-export async function signUpAction(credentials: z.infer<typeof signUpSchema>) {
+/**
+ * Creates a user document in Firestore after client-side registration.
+ * This is a server action.
+ * @param uid The user's unique ID from Firebase Authentication.
+ * @param email The user's email.
+ */
+export async function signUp(uid: string, email: string) {
   try {
-    const { adminAuth, adminDb } = getFirebaseAdmin();
-    const validatedCredentials = signUpSchema.parse(credentials);
-    const { email, password } = validatedCredentials;
+    const { firestore } = initializeFirebase();
+    const userRef = doc(firestore, 'users', uid);
 
-    const userRecord = await adminAuth.createUser({
+    const userData = {
+      uid,
       email,
-      password,
-      emailVerified: false, // Or true if you have email verification flow
-    });
-
-    // Create user document in Firestore
-    await adminDb.collection("users").doc(userRecord.uid).set({
-      uid: userRecord.uid,
-      email: userRecord.email,
       createdAt: new Date().toISOString(),
-      planType: 'free', // Default plan
+      planType: 'free',
       isPremium: false,
-    });
+    };
+    
+    // Use the non-blocking firestore update
+    setDocumentNonBlocking(userRef, userData, { merge: false });
 
-    return { success: true, userId: userRecord.uid };
-
-  } catch (error: any) {
-    let errorMessage = "An unknown error occurred during sign up.";
-    if (error.code === 'auth/email-already-exists') {
-        errorMessage = "This email address is already in use by another account.";
-    } else if (error instanceof z.ZodError) {
-        errorMessage = error.errors.map(e => e.message).join(", ");
-    } else if (error.message.includes('Firebase admin initialization failed')) {
-        errorMessage = "Server configuration error. Could not connect to the database."
-    }
-    console.error("SignUp Error:", error);
-    return { error: errorMessage };
-  }
-}
-
-// Note: signInAction does not actually sign the user in on the server.
-// Firebase Auth requires client-side sign-in to establish a session.
-// This action just validates credentials before the client attempts to sign in.
-// For a real app, you'd handle sign-in on the client and pass the ID token
-// to the server to create a session cookie. For this setup, we'll keep it simple.
-export async function signInAction(credentials: z.infer<typeof signInSchema>) {
-   try {
-    const { adminAuth } = getFirebaseAdmin();
-    const validatedCredentials = signInSchema.parse(credentials);
-    const { email } = validatedCredentials;
-    // We can check if the user exists, but can't verify password here without custom logic
-    await adminAuth.getUserByEmail(email);
     return { success: true };
-  } catch (error: any)
-   {
-    let errorMessage = "Invalid credentials or user does not exist.";
-     if (error.code === 'auth/user-not-found') {
-        errorMessage = "No user found with this email.";
-    }
-    console.error("SignIn Validation Error:", error);
-    return { error: errorMessage };
+  } catch (error: any) {
+    console.error('Error in signUp server action:', error);
+    return {
+      error: 'Could not create user record in the database.',
+    };
   }
 }

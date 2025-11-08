@@ -16,9 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { signUpAction } from "@/lib/actions/auth"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { signUp } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -32,6 +34,8 @@ const formSchema = z.object({
 export function RegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
+  const auth = useAuth();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,19 +46,28 @@ export function RegisterForm() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const result = await signUpAction({ email: values.email, password: values.password });
-    if (result.error) {
-      toast({
-        title: "Registration Failed",
-        description: result.error,
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Account created successfully. Please log in.",
-      })
-      router.push("/login")
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      
+      if (userCredential.user) {
+        await signUp(userCredential.user.uid, values.email);
+        toast({
+          title: "Success",
+          description: "Account created successfully. Please log in.",
+        })
+        router.push("/login")
+      }
+
+    } catch (error: any) {
+        let errorMessage = "An unknown error occurred during sign up.";
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "This email address is already in use by another account.";
+        }
+        toast({
+            title: "Registration Failed",
+            description: errorMessage,
+            variant: "destructive",
+        })
     }
   }
 
