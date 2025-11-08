@@ -12,6 +12,8 @@ interface FirebaseAdmin {
 export function getFirebaseAdmin(): FirebaseAdmin {
   if (!admin.apps.length) {
     try {
+      // When running in a Firebase or Google Cloud environment, the SDK will
+      // automatically discover the service account credentials.
       admin.initializeApp();
     } catch (error: any) {
       console.error('Firebase admin initialization error', error.stack);
