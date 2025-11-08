@@ -5,10 +5,11 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase-client';
 import { Loader2 } from 'lucide-react';
-import { onIdTokenChanged } from 'firebase/auth';
+import { onIdTokenChanged, type User } from 'firebase/auth';
 
-const publicRoutes = ['/login', '/register', '/'];
-const privateRoutes = ['/dashboard', '/admin'];
+const publicRoutes = ['/login', '/register'];
+// The homepage is a special case, it's public but we might redirect if logged in.
+const homeRoute = '/';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -16,29 +17,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (user) => {
+    const unsubscribe = onIdTokenChanged(auth, async (user: User | null) => {
       const isPublicRoute = publicRoutes.some(p => pathname.startsWith(p));
-      
-      if (!user && !isPublicRoute) {
-        // If the user is not logged in and trying to access a private page,
-        // redirect to login.
-        router.replace('/login');
-      } else if (user) {
-        // If the user is logged in, check for role-based redirects.
+      const isHomePage = pathname === homeRoute;
+      const isPrivateRoute = !isPublicRoute && !isHomePage;
+
+      if (user) {
+        // User is logged in
         const idTokenResult = await user.getIdTokenResult();
         const isAdmin = !!idTokenResult.claims.admin;
         const isAdminRoute = pathname.startsWith('/admin');
 
-        if (isAdmin && !isAdminRoute) {
+        if (isPublicRoute || isHomePage) {
+            // If on a public page or home, redirect to their dashboard
+            router.replace(isAdmin ? '/admin' : '/dashboard');
+        } else if (isAdmin && !isAdminRoute) {
+            // Admin on non-admin page
             router.replace('/admin');
         } else if (!isAdmin && isAdminRoute) {
-            router.replace('/dashboard');
-        } else if (pathname === '/login' || pathname === '/register') {
+            // Non-admin on admin page
             router.replace('/dashboard');
         }
+        // Otherwise, they are on the correct private page, do nothing.
+        
+      } else {
+        // User is not logged in
+        if (isPrivateRoute) {
+          // If trying to access a private route, redirect to login
+          router.replace('/login');
+        }
+        // Otherwise, they are on a public page or home, do nothing.
       }
       
-      // Authentication check is complete, stop loading.
+      // Regardless of the outcome, the auth check is complete.
       setLoading(false);
     });
 
