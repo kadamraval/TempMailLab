@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation';
 
 const integrations = [
   { slug: "firebase", title: "Firebase", description: "Core backend services.", icon: <img src="https://www.gstatic.com/mobilesdk/160503_mobilesdk/logo/2x/firebase_28.png" alt="Firebase" className="w-6 h-6"/>, isConfigured: true },
+  { slug: "mailgun", title: "Mailgun", description: "Inbound email processing for custom domains.", icon: <Mail />, isConfigured: false },
   { slug: "mail-tm", title: "Mail.tm", description: "Temporary email provider.", icon: <Mail />, isConfigured: true },
   { slug: "mailchimp", title: "MailChimp", description: "Email marketing service.", icon: <Users />, isConfigured: false },
   { slug: "google-analytics", title: "Google Analytics", description: "Website traffic analysis.", icon: <Activity />, isConfigured: true },

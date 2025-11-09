@@ -20,6 +20,7 @@ interface IntegrationPageProps {
 
 const integrationsData: { [key: string]: any } = {
   firebase: { title: "Firebase", description: "Manage your core Firebase backend services configuration." },
+  mailgun: { title: "Mailgun", description: "Configure Mailgun for inbound email processing.", fields: ['apiKey', 'domain', 'cloudFunctionName'] },
   "mail-tm": { title: "Mail.tm", description: "Configure the temporary email provider API." },
   mailchimp: { title: "MailChimp", description: "Connect your MailChimp account for email marketing." },
   "google-analytics": { title: "Google Analytics", description: "Set up website traffic analysis." },
@@ -69,7 +70,8 @@ export default function IntegrationPage({ params }: IntegrationPageProps) {
                 slug: slug,
                 title: integration.title,
                 description: integration.description,
-                isConfigured: slug === 'firebase' || slug === 'mail-tm' // Example logic
+                isConfigured: slug === 'firebase' || slug === 'mail-tm', // Example logic
+                fields: integration.fields
             }}
         />
     </div>

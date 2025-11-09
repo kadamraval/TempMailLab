@@ -18,6 +18,7 @@ interface IntegrationSettingsFormProps {
         title: string;
         description: string;
         isConfigured: boolean;
+        fields?: string[];
     }
 }
 
@@ -41,6 +42,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         publisherId: "",
         siteKey: "",
         billingAccountId: "",
+        domain: "",
+        cloudFunctionName: "",
     });
 
     const { toast } = useToast();
@@ -56,6 +59,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const handleSaveChanges = () => {
+        // Here you would save the settings to Firestore
         console.log(`Saving settings for ${integration.title}:`, settings);
         toast({
             title: "Settings Saved",
@@ -69,6 +73,26 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const renderFormFields = () => {
         switch (integration.slug) {
+            case "mailgun":
+                return (
+                    <>
+                        <div className="space-y-2">
+                            <Label htmlFor="apiKey">Mailgun API Key</Label>
+                            <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">Your private Mailgun API key.</p>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="domain">Mailgun Domain</Label>
+                            <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
+                             <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="cloudFunctionName">Cloud Function Name</Label>
+                            <Input id="cloudFunctionName" placeholder="fetchEmailsFromMailgun" value={settings.cloudFunctionName} onChange={handleInputChange} />
+                             <p className="text-sm text-muted-foreground">The name of your callable Google Cloud Function for email processing.</p>
+                        </div>
+                    </>
+                );
             case "firebase":
                 return (
                     <>
