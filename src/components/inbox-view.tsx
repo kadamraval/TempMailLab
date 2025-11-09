@@ -1,20 +1,40 @@
 
 import type { Email } from "@/types";
 import { cn } from "@/lib/utils";
-import { Inbox } from "lucide-react";
+import { Inbox, RefreshCw, Loader2 } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface InboxViewProps {
   inbox: Email[];
   onSelectEmail: (email: Email) => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
-export function InboxView({ inbox, onSelectEmail }: InboxViewProps) {
+export function InboxView({ inbox, onSelectEmail, onRefresh, isRefreshing }: InboxViewProps) {
   if (inbox.length === 0) {
     return (
-      <div className="text-center py-16 text-muted-foreground">
-        <Inbox className="mx-auto h-12 w-12" />
-        <p className="mt-4 text-lg">Your inbox is empty.</p>
-        <p>New emails will appear here automatically.</p>
+      <div className="text-center py-16 text-muted-foreground flex flex-col items-center justify-center space-y-4 min-h-[300px]">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+        <Button onClick={onRefresh} variant="secondary" disabled={isRefreshing}>
+            {isRefreshing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            {isRefreshing ? 'Checking...' : 'Refresh'}
+        </Button>
+        <div className="relative flex items-center">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="flex-shrink mx-4 text-gray-400">or</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+            <div className="absolute bottom-[-10px] left-1/2 transform -translate-x-1/2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            </div>
+        </div>
+
+
       </div>
     );
   }
