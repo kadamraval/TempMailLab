@@ -15,10 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { signUp } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -63,45 +64,89 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     }
   }
 
+  async function handleGoogleSignIn() {
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        // Check if it's a new user
+        const metadata = user.metadata;
+        const isNewUser = metadata.creationTime === metadata.lastSignInTime;
+
+        // Call server action to create DB entry if needed
+        await signUp(user.uid, user.email, isNewUser);
+
+        toast({
+            title: "Success",
+            description: "Logged in successfully with Google.",
+        });
+        router.push(redirectPath);
+    } catch (error: any) {
+        toast({
+            title: "Google Sign-In Failed",
+            description: "Could not sign in with Google. Please try again.",
+            variant: "destructive",
+        });
+    }
+  }
+
+
   return (
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="you@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="password"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Password</FormLabel>
-                <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Signing In..." : "Sign In"}
-          </Button>
-           <div className="mt-4 text-center text-sm">
-                Don't have an account?{" "}
-                <Link href="/register" className="underline">
-                    Sign up
-                </Link>
+      <div>
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                    <Input placeholder="you@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Signing In..." : "Sign In"}
+            </Button>
+            </form>
+        </Form>
+        <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
             </div>
-        </form>
-      </Form>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+                </span>
+            </div>
+        </div>
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+            <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 62.3l-66.5 64.6C305.5 99.6 279.2 88 248 88c-73.2 0-132.3 59.2-132.3 132.3s59.1 132.3 132.3 132.3c76.1 0 124.2-61.4 127.8-93.9H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"></path></svg>
+            Google
+        </Button>
+        <div className="mt-4 text-center text-sm">
+            Don't have an account?{" "}
+            <Link href="/register" className="underline">
+                Sign up
+            </Link>
+        </div>
+      </div>
   )
 }

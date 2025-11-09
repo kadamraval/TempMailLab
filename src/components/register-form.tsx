@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -50,7 +50,7 @@ export function RegisterForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
       if (userCredential.user) {
-        await signUp(userCredential.user.uid, values.email);
+        await signUp(userCredential.user.uid, values.email, true);
         toast({
           title: "Success",
           description: "Account created successfully. Please log in.",
@@ -68,6 +68,31 @@ export function RegisterForm() {
             description: errorMessage,
             variant: "destructive",
         })
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        const metadata = user.metadata;
+        const isNewUser = metadata.creationTime === metadata.lastSignInTime;
+
+        await signUp(user.uid, user.email, isNewUser);
+
+        toast({
+            title: "Success",
+            description: "Account created successfully with Google.",
+        });
+        router.push("/");
+    } catch (error: any) {
+        toast({
+            title: "Google Sign-Up Failed",
+            description: "Could not sign up with Google. Please try again.",
+            variant: "destructive",
+        });
     }
   }
 
@@ -124,6 +149,20 @@ export function RegisterForm() {
             </Button>
           </form>
         </Form>
+        <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+                </span>
+            </div>
+        </div>
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+            <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 62.3l-66.5 64.6C305.5 99.6 279.2 88 248 88c-73.2 0-132.3 59.2-132.3 132.3s59.1 132.3 132.3 132.3c76.1 0 124.2-61.4 127.8-93.9H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"></path></svg>
+            Google
+        </Button>
          <div className="mt-4 text-center text-sm">
           Already have an account?{" "}
           <Link href="/login" className="underline">
