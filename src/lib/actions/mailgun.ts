@@ -78,14 +78,15 @@ export async function fetchEmailsFromServerAction(
         let emailCount = 0;
 
         for (const event of events.items) {
-            const email = event.storage;
-            if (!email) continue;
+            // Corrected: The email data is in `event.message`, not `event.storage`
+            const email = event.message;
+            if (!email || !email.headers) continue;
             
             // NOTE: This is a basic implementation. A production system would need a more robust
             // way to prevent duplicate email entries, perhaps by storing and checking message-ids.
             
             // 3. Sanitize the email body
-            const cleanHtml = DOMPurify.sanitize(email.body || "");
+            const cleanHtml = DOMPurify.sanitize(email['body-html'] || "");
 
             // 4. Create a reference for the new email document
             const emailRef = doc(collection(firestore, "users", userId, "inboxes", inboxId, "emails"));
@@ -93,8 +94,8 @@ export async function fetchEmailsFromServerAction(
             batch.set(emailRef, {
                 id: emailRef.id,
                 inboxId: inboxId,
-                senderName: email.from || "Unknown Sender",
-                subject: email.subject || "No Subject",
+                senderName: email.headers.from || "Unknown Sender",
+                subject: email.headers.subject || "No Subject",
                 receivedAt: new Date(event.timestamp * 1000).toISOString(),
                 htmlContent: cleanHtml,
                 textContent: email["stripped-text"] || "",
