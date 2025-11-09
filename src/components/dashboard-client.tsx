@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -68,9 +69,18 @@ export function DashboardClient() {
     clearCountdown();
 
     try {
-      // In a real app, you'd get this from admin settings
-      const allowedDomain = "mg.yourdomain.com"; 
-      const emailAddress = `${generateRandomString(12)}@${allowedDomain}`;
+      // Fetch allowed domains from Firestore
+      const allowedDomainsQuery = query(collection(firestore, "allowed_domains"));
+      const querySnapshot = await getDocs(allowedDomainsQuery);
+      
+      if (querySnapshot.empty) {
+        throw new Error("No allowed domains configured by the administrator.");
+      }
+
+      const allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
+      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+
+      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
 
       const inboxRef = collection(firestore, "users", user.uid, "inboxes");
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
@@ -93,11 +103,11 @@ export function DashboardClient() {
       setActiveInbox(newInbox);
       setCountdown(600);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating new inbox:", error);
       toast({
         title: "Error",
-        description: "Could not generate a new email address.",
+        description: error.message || "Could not generate a new email address.",
         variant: "destructive",
       });
     } finally {
@@ -270,3 +280,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
