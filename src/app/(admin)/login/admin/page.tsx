@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function AdminLoginPage() {
     return (
-        <div className="container mx-auto flex items-center justify-center min-h-[calc(100vh-200px)] py-12">
+        <div className="container mx-auto flex items-center justify-center min-h-screen py-12">
              <Card className="w-full max-w-sm">
                 <CardHeader>
                     <CardTitle>Admin Access</CardTitle>

@@ -1,9 +1,7 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
-import { StayConnected } from '@/components/stay-connected';
 import { AuthProvider } from '@/components/auth-provider';
 import { FirebaseClientProvider } from '@/firebase';
 
@@ -27,12 +25,7 @@ export default function RootLayout({
       <body className="font-body antialiased flex flex-col min-h-screen">
         <FirebaseClientProvider>
           <AuthProvider>
-            <Header />
-            <main className="flex-grow">
-              {children}
-            </main>
-            <StayConnected />
-            <Footer />
+            {children}
             <Toaster />
           </AuthProvider>
         </FirebaseClientProvider>
