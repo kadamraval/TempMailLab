@@ -26,11 +26,11 @@ interface IntegrationSettingsFormProps {
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
     const [settings, setSettings] = useState({
-        enabled: integration.isConfigured,
+        enabled: false,
         apiKey: "",
         domain: "",
     });
-    const [isLoading, setIsLoading] = useState(true); // Start loading immediately
+    const [isLoading, setIsLoading] = useState(true); // Default to true
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -125,7 +125,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-2">
                             <Label htmlFor="apiKey">Mailgun API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
-                            <p className="text-sm text-muted-foreground">Your private Mailgun API key.</p>
+                            <p className="text-sm text-muted-foreground">
+                                Use your <span className="font-semibold">Private API Key</span>. You can find this in your Mailgun account under Settings &gt; API Keys.
+                            </p>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="domain">Mailgun Domain</Label>
@@ -154,7 +156,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
-                 {integration.slug === 'mailgun' && !isLoading && (
+                 {integration.slug === 'mailgun' && (
                     <>
                     <Separator />
                     <div className="flex items-center justify-between rounded-lg border p-4">
@@ -168,6 +170,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             id="enable-integration"
                             checked={settings.enabled}
                             onCheckedChange={handleSwitchChange}
+                            disabled={isLoading}
                         />
                     </div>
                     </>
