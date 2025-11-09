@@ -2,21 +2,13 @@
 
 export interface Email {
   id: string; 
-  from?: string; // Mailgun might just have a 'sender'
-  senderName?: string;
+  recipient?: string;
+  senderName: string;
   subject: string;
-  date?: string; // Will be set by server
   receivedAt: string;
-  body?: string;
   htmlContent?: string;
   textContent?: string;
   read?: boolean;
-}
-
-export interface MailTmAccount {
-    id: string;
-    email: string;
-    token: string;
 }
 
 export interface User {
@@ -36,11 +28,12 @@ export interface Inbox {
   expiresAt: string;
 }
 
-export interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  features: string;
-  status: 'active' | 'archived';
-  cycle: 'monthly' | 'yearly';
-}
+// This is now defined in src/app/(admin)/admin/packages/data.ts
+// export interface Plan {
+//   id: string;
+//   name: string;
+//   price: number;
+//   features: string;
+//   status: 'active' | 'archived';
+//   cycle: 'monthly' | 'yearly';
+// }

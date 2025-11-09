@@ -316,7 +316,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Plan",
       "type": "object",
-      "description": "Represents a subscription plan.",
+      "description": "Represents a subscription plan with granular features.",
       "properties": {
         "id": {
           "type": "string",
@@ -330,19 +330,57 @@
           "type": "number",
           "description": "The price of the plan in USD."
         },
-        "features": {
+        "cycle": {
           "type": "string",
-          "description": "A description of the plan's features."
+          "description": "The billing cycle.",
+          "enum": ["monthly", "yearly"]
         },
         "status": {
           "type": "string",
           "description": "The status of the plan.",
           "enum": ["active", "archived"]
         },
-        "cycle": {
-          "type": "string",
-          "description": "The billing cycle.",
-          "enum": ["monthly", "yearly"]
+        "features": {
+          "type": "object",
+          "description": "A map of granular feature limits and toggles for the plan.",
+          "properties": {
+            "maxInboxes": {
+              "type": "number",
+              "description": "Maximum number of active inboxes allowed."
+            },
+            "maxEmailsPerInbox": {
+              "type": "number",
+              "description": "Maximum number of emails stored per inbox."
+            },
+            "inboxLifetime": {
+              "type": "number",
+              "description": "Lifetime of an inbox in minutes."
+            },
+            "customDomains": {
+              "type": "number",
+              "description": "Number of custom domains allowed."
+            },
+            "allowPremiumDomains": {
+              "type": "boolean",
+              "description": "Whether the user can use premium domains."
+            },
+            "emailForwarding": {
+              "type": "boolean",
+              "description": "Whether email forwarding is enabled."
+            },
+            "apiAccess": {
+              "type": "boolean",
+              "description": "Whether the user has API access."
+            },
+            "noAds": {
+              "type": "boolean",
+              "description": "Whether ads are disabled for the user."
+            }
+          },
+          "required": [
+            "maxInboxes", "maxEmailsPerInbox", "inboxLifetime", "customDomains", 
+            "allowPremiumDomains", "emailForwarding", "apiAccess", "noAds"
+          ]
         },
         "createdAt": {
           "type": "string",
@@ -350,7 +388,7 @@
           "format": "date-time"
         }
       },
-      "required": ["id", "name", "price", "status", "cycle", "createdAt"]
+      "required": ["id", "name", "price", "status", "cycle", "features", "createdAt"]
     }
   },
   "auth": {

@@ -1,4 +1,6 @@
 
+"use client"
+
 import { z } from "zod"
 import type { Timestamp } from "firebase/firestore"
 
@@ -6,9 +8,21 @@ export const planSchema = z.object({
   id: z.string().optional(), // Optional for new plans
   name: z.string().min(1, "Plan name is required."),
   price: z.coerce.number().min(0, "Price must be a positive number."),
-  features: z.string().optional(),
-  status: z.enum(["active", "archived"]),
   cycle: z.enum(["monthly", "yearly"]),
+  status: z.enum(["active", "archived"]),
+  
+  // New granular features
+  features: z.object({
+    maxInboxes: z.coerce.number().int().min(1, "Must have at least 1 inbox."),
+    maxEmailsPerInbox: z.coerce.number().int().min(1, "Must store at least 1 email."),
+    inboxLifetime: z.coerce.number().int().min(1, "Lifetime must be at least 1 minute."),
+    customDomains: z.coerce.number().int().min(0, "Cannot be negative."),
+    allowPremiumDomains: z.boolean().default(false),
+    emailForwarding: z.boolean().default(false),
+    apiAccess: z.boolean().default(false),
+    noAds: z.boolean().default(false)
+  }),
+
   createdAt: z.custom<Timestamp>().optional()
 })
 

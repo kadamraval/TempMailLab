@@ -12,9 +12,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, ArrowUpDown } from "lucide-react"
+import { MoreHorizontal, ArrowUpDown, CheckCircle2, XCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
+
+const FeatureCell = ({ value }: { value: boolean }) => (
+    <div className="flex justify-center">
+        {value ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+    </div>
+);
+
 
 export const getPlanColumns = (
     onEdit: (plan: Plan) => void,
@@ -61,20 +68,13 @@ export const getPlanColumns = (
     header: () => <div className="text-right">Price</div>,
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("price"))
+      const cycle = row.original.cycle;
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
       }).format(amount)
 
-      return <div className="text-right font-medium">{formatted}</div>
-    },
-  },
-    {
-    accessorKey: "cycle",
-    header: "Billing Cycle",
-     cell: ({ row }) => {
-      const cycle = row.getValue("cycle") as string;
-      return <div className="capitalize">{cycle}</div>
+      return <div className="text-right font-medium">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
     },
   },
   {
@@ -82,8 +82,26 @@ export const getPlanColumns = (
     header: "Status",
     cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        return <Badge variant={status === 'active' ? 'default' : 'secondary'}>{status}</Badge>
+        return <Badge variant={status === 'active' ? 'default' : 'secondary'} className="capitalize">{status}</Badge>
     }
+  },
+  {
+    accessorKey: "features.maxInboxes",
+    header: "Inboxes",
+  },
+  {
+    accessorKey: "features.customDomains",
+    header: "Domains",
+  },
+  {
+    accessorKey: "features.apiAccess",
+    header: "API",
+    cell: ({ row }) => <FeatureCell value={row.original.features.apiAccess} />
+  },
+  {
+    accessorKey: "features.noAds",
+    header: "No Ads",
+    cell: ({ row }) => <FeatureCell value={row.original.features.noAds} />
   },
   {
     accessorKey: "createdAt",
