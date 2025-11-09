@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -15,7 +13,7 @@ import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { addDoc, collection, serverTimestamp, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
-import { fetchEmails } from "@/lib/services/firestore";
+import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 
 
 function generateRandomString(length: number) {
@@ -137,8 +135,11 @@ export function DashboardClient() {
     if (!activeInbox || !user) return;
     setIsRefreshing(true);
     try {
-        await fetchEmails(firestore, user.uid, activeInbox.id, activeInbox.emailAddress);
-        toast({ title: "Inbox refreshed" });
+        const result = await fetchEmailsFromServerAction(user.uid, activeInbox.id, activeInbox.emailAddress);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        toast({ title: "Inbox refreshed", description: `${result.emailsAdded || 0} new emails.` });
     } catch (error: any) {
         console.error("Error fetching emails:", error);
         toast({ title: "Error", description: error.message || "Could not refresh inbox.", variant: "destructive" });

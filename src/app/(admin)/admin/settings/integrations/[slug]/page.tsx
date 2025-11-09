@@ -1,4 +1,3 @@
-
 "use client"
 
 import { IntegrationSettingsForm } from "@/components/admin/integration-settings-form";
@@ -20,7 +19,7 @@ interface IntegrationPageProps {
 
 const integrationsData: { [key: string]: any } = {
   firebase: { title: "Firebase", description: "Manage your core Firebase backend services configuration." },
-  mailgun: { title: "Mailgun", description: "Configure Mailgun for inbound email processing.", fields: ['apiKey', 'domain', 'cloudFunctionName'] },
+  mailgun: { title: "Mailgun", description: "Configure Mailgun for inbound email processing.", fields: ['apiKey', 'domain'] },
   "mail-tm": { title: "Mail.tm", description: "Configure the temporary email provider API." },
   mailchimp: { title: "MailChimp", description: "Connect your MailChimp account for email marketing." },
   "google-analytics": { title: "Google Analytics", description: "Set up website traffic analysis." },

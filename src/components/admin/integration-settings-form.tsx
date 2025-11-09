@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -30,7 +29,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         enabled: integration.isConfigured,
         apiKey: "",
         domain: "",
-        cloudFunctionName: "",
     });
     const [isLoading, setIsLoading] = useState(true);
     const firestore = useFirestore();
@@ -53,7 +51,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     enabled: data.enabled ?? true,
                     apiKey: data.apiKey ?? "",
                     domain: data.domain ?? "",
-                    cloudFunctionName: data.cloudFunctionName ?? "",
                 });
             }
             setIsLoading(false);
@@ -117,11 +114,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="domain">Mailgun Domain</Label>
                             <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="cloudFunctionName">Cloud Function Name</Label>
-                            <Input id="cloudFunctionName" placeholder="fetchEmailsFromMailgun" value={settings.cloudFunctionName} onChange={handleInputChange} />
-                             <p className="text-sm text-muted-foreground">The name of your callable Google Cloud Function for email processing.</p>
                         </div>
                     </>
                 );
