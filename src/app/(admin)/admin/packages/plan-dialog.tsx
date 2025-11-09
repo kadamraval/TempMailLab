@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2 } from "lucide-react"
+import { Loader2, Info } from "lucide-react"
 import { useFirestore } from "@/firebase"
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -33,6 +33,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface PlanDialogProps {
     plan: Plan | null;
@@ -41,6 +49,34 @@ interface PlanDialogProps {
 }
 
 const dialogFormSchema = planSchema.omit({ id: true, createdAt: true });
+
+const featureTooltips: Record<string, string> = {
+  maxInboxes: "Maximum number of active temporary inboxes a user can have at one time.",
+  maxEmailsPerInbox: "Maximum number of emails that will be stored in a single inbox. Older emails will be deleted.",
+  inboxLifetime: "The duration in minutes that a temporary inbox will remain active before it is automatically deleted.",
+  customDomains: "The number of custom domains a user can connect to receive emails on their own domain.",
+  allowPremiumDomains: "Grants access to a pool of shorter, more memorable premium domains for email generation.",
+  emailForwarding: "Allows users to automatically forward incoming temporary emails to a real, verified email address.",
+  apiAccess: "Grants access to the developer API for programmatic use of the service.",
+  noAds: "Removes all advertisements from the user interface for a cleaner experience."
+};
+
+const FormLabelWithTooltip = ({ label, tooltipText }: { label: string; tooltipText: string }) => (
+  <div className="flex items-center gap-2">
+    <FormLabel>{label}</FormLabel>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="max-w-xs">{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  </div>
+);
+
 
 export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -171,28 +207,28 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="features.maxInboxes" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Max Active Inboxes</FormLabel>
+                                <FormLabelWithTooltip label="Max Active Inboxes" tooltipText={featureTooltips.maxInboxes} />
                                 <FormControl><Input type="number" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.maxEmailsPerInbox" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Max Emails Per Inbox</FormLabel>
+                               <FormLabelWithTooltip label="Max Emails Per Inbox" tooltipText={featureTooltips.maxEmailsPerInbox} />
                                 <FormControl><Input type="number" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.inboxLifetime" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Inbox Lifetime (minutes)</FormLabel>
+                                <FormLabelWithTooltip label="Inbox Lifetime (minutes)" tooltipText={featureTooltips.inboxLifetime} />
                                 <FormControl><Input type="number" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.customDomains" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Custom Domains</FormLabel>
+                                <FormLabelWithTooltip label="Custom Domains" tooltipText={featureTooltips.customDomains} />
                                 <FormControl><Input type="number" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -200,26 +236,26 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-start pt-4">
                         <FormField control={form.control} name="features.allowPremiumDomains" render={({ field }) => (
-                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3">
-                                <FormLabel htmlFor="allowPremiumDomains">Premium Domains</FormLabel>
+                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center">
+                                <FormLabelWithTooltip label="Premium Domains" tooltipText={featureTooltips.allowPremiumDomains}/>
                                 <FormControl><Switch id="allowPremiumDomains" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.emailForwarding" render={({ field }) => (
-                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3">
-                                <FormLabel htmlFor="emailForwarding">Forwarding</FormLabel>
+                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center">
+                                <FormLabelWithTooltip label="Forwarding" tooltipText={featureTooltips.emailForwarding}/>
                                 <FormControl><Switch id="emailForwarding" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.apiAccess" render={({ field }) => (
-                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3">
-                                <FormLabel htmlFor="apiAccess">API Access</FormLabel>
+                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center">
+                                <FormLabelWithTooltip label="API Access" tooltipText={featureTooltips.apiAccess}/>
                                 <FormControl><Switch id="apiAccess" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="features.noAds" render={({ field }) => (
-                             <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3">
-                                <FormLabel htmlFor="noAds">No Ads</FormLabel>
+                             <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center">
+                                <FormLabelWithTooltip label="No Ads" tooltipText={featureTooltips.noAds}/>
                                 <FormControl><Switch id="noAds" checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
                         )} />
@@ -268,10 +304,4 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
   )
 }
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+    
