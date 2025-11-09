@@ -368,10 +368,6 @@
               "type": "boolean",
               "description": "Whether email forwarding is enabled."
             },
-            "apiAccess": {
-              "type": "boolean",
-              "description": "Whether the user has API access."
-            },
             "noAds": {
               "type": "boolean",
               "description": "Whether ads are disabled for the user."
@@ -388,6 +384,10 @@
               "type": "number",
               "description": "The maximum size in megabytes (MB) for a single email attachment."
             },
+            "apiAccess": {
+              "type": "boolean",
+              "description": "Whether the user has API access."
+            },
             "apiRateLimit": {
               "type": "number",
               "description": "The number of API requests a user can make per minute."
@@ -399,13 +399,30 @@
             "teamMembers": {
               "type": "number",
               "description": "The number of team members a user can invite to share their plan features."
+            },
+            "prioritySupport": {
+              "type": "boolean",
+              "description": "Grants the user priority customer support."
+            },
+            "usageAnalytics": {
+              "type": "boolean",
+              "description": "Grants access to a dashboard for viewing usage statistics."
+            },
+            "exportEmails": {
+              "type": "boolean",
+              "description": "Allows the user to export their emails."
+            },
+            "searchableHistory": {
+              "type": "boolean",
+              "description": "Enables server-side search of email history."
             }
           },
           "required": [
             "maxInboxes", "maxEmailsPerInbox", "inboxLifetime", "customDomains", 
             "allowPremiumDomains", "emailForwarding", "apiAccess", "noAds",
             "passwordProtection", "allowAttachments", "maxAttachmentSize",
-            "apiRateLimit", "webhooks", "teamMembers"
+            "apiRateLimit", "webhooks", "teamMembers", "prioritySupport",
+            "usageAnalytics", "exportEmails", "searchableHistory"
           ]
         },
         "createdAt": {

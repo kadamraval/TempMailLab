@@ -37,6 +37,12 @@ export const planSchema = z.object({
 
     // Teams
     teamMembers: z.coerce.number().int().min(0, "Cannot be negative."),
+
+    // Support, Analytics & Data
+    prioritySupport: z.boolean().default(false),
+    usageAnalytics: z.boolean().default(false),
+    exportEmails: z.boolean().default(false),
+    searchableHistory: z.boolean().default(false),
   }),
 
   createdAt: z.custom<Timestamp>().optional()

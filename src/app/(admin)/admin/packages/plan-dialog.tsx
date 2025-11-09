@@ -65,6 +65,10 @@ const featureTooltips: Record<string, string> = {
   apiRateLimit: "The number of API requests a user can make per minute.",
   webhooks: "Allow incoming emails to be forwarded to a user-defined webhook URL for automation.",
   teamMembers: "The number of team members a user can invite to share their plan features.",
+  prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
+  usageAnalytics: "Grants access to a dashboard for viewing detailed usage statistics and analytics.",
+  exportEmails: "Allows users to export their emails from their inboxes, for example as a CSV or EML files.",
+  searchableHistory: "Enables server-side search of email history. Without this, users may only be able to filter currently loaded emails on the client.",
 };
 
 
@@ -107,9 +111,13 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
         passwordProtection: false,
         allowAttachments: true,
         maxAttachmentSize: 5,
-        apiRateLimit: 60,
+        apiRateLimit: 0,
         webhooks: false,
         teamMembers: 0,
+        prioritySupport: false,
+        usageAnalytics: false,
+        exportEmails: false,
+        searchableHistory: false,
     }
   }
 
@@ -121,7 +129,9 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
   useEffect(() => {
     if (isOpen) {
         if (plan) {
-            form.reset(plan);
+            // Merge existing plan data with defaults to ensure all fields are present
+            const mergedFeatures = { ...defaultValues.features, ...plan.features };
+            form.reset({ ...plan, features: mergedFeatures });
         } else {
             form.reset(defaultValues);
         }
@@ -160,7 +170,7 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{plan ? 'Edit Plan' : 'Add New Plan'}</DialogTitle>
           <DialogDescription>
@@ -210,7 +220,7 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
 
                 {/* Core Usage Features */}
                 <div className="space-y-4">
-                    <h3 className="text-lg font-medium tracking-tight">Usage Limits</h3>
+                    <h3 className="text-lg font-medium tracking-tight">Core Usage Limits</h3>
                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField control={form.control} name="features.maxInboxes" render={({ field }) => (
                             <FormItem><FormLabelWithTooltip label="Max Active Inboxes" tooltipText={featureTooltips.maxInboxes} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -226,39 +236,62 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
 
                 <Separator />
 
-                {/* Security Features */}
+                {/* Domains & Interface */}
                 <div className="space-y-4">
-                    <h3 className="text-lg font-medium tracking-tight">Security & Attachments</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="features.maxAttachmentSize" render={({ field }) => (
-                            <FormItem><FormLabelWithTooltip label="Max Attachment Size (MB)" tooltipText={featureTooltips.maxAttachmentSize} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <div className="grid grid-cols-2 gap-4 items-start pt-2">
-                             <FormField control={form.control} name="features.passwordProtection" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="Password Protection" tooltipText={featureTooltips.passwordProtection}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                            )} />
-                            <FormField control={form.control} name="features.allowAttachments" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="Allow Attachments" tooltipText={featureTooltips.allowAttachments}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                            )} />
-                        </div>
-                    </div>
-                </div>
-                
-                <Separator />
-                
-                {/* Advanced Features & Domains */}
-                <div className="space-y-4">
-                     <h3 className="text-lg font-medium tracking-tight">Advanced Features</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h3 className="text-lg font-medium tracking-tight">Domains & Interface</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                         <FormField control={form.control} name="features.customDomains" render={({ field }) => (
                             <FormItem><FormLabelWithTooltip label="Custom Domains" tooltipText={featureTooltips.customDomains} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <div className="grid grid-cols-2 gap-4 items-start pt-2">
-                            <FormField control={form.control} name="features.allowPremiumDomains" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="Premium Domains" tooltipText={featureTooltips.allowPremiumDomains}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                        <div className="flex flex-row gap-4 pt-2">
+                             <FormField control={form.control} name="features.allowPremiumDomains" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Premium Domains" tooltipText={featureTooltips.allowPremiumDomains}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            )} />
+                            <FormField control={form.control} name="features.noAds" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="No Ads" tooltipText={featureTooltips.noAds}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            )} />
+                        </div>
+                    </div>
+                </div>
+
+                <Separator />
+
+                {/* Security & Attachments */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium tracking-tight">Security & Attachments</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                       <FormField control={form.control} name="features.maxAttachmentSize" render={({ field }) => (
+                            <FormItem><FormLabelWithTooltip label="Max Attachment Size (MB)" tooltipText={featureTooltips.maxAttachmentSize} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                       <div className="flex flex-row gap-4 pt-2">
+                             <FormField control={form.control} name="features.passwordProtection" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Password Protection" tooltipText={featureTooltips.passwordProtection}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            )} />
+                            <FormField control={form.control} name="features.allowAttachments" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Allow Attachments" tooltipText={featureTooltips.allowAttachments}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            )} />
+                        </div>
+                    </div>
+                </div>
+                
+                <Separator />
+                
+                {/* API & Automation */}
+                <div className="space-y-4">
+                     <h3 className="text-lg font-medium tracking-tight">API, Forwarding & Automation</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <FormField control={form.control} name="features.apiRateLimit" render={({ field }) => (
+                            <FormItem><FormLabelWithTooltip label="API Rate Limit (req/min)" tooltipText={featureTooltips.apiRateLimit} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <div className="flex flex-row gap-4 pt-2">
+                             <FormField control={form.control} name="features.apiAccess" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="API Access" tooltipText={featureTooltips.apiAccess}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                             )} />
                             <FormField control={form.control} name="features.emailForwarding" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="Email Forwarding" tooltipText={featureTooltips.emailForwarding}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Email Forwarding" tooltipText={featureTooltips.emailForwarding}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            )} />
+                            <FormField control={form.control} name="features.webhooks" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Webhooks" tooltipText={featureTooltips.webhooks}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                             )} />
                         </div>
                     </div>
@@ -266,38 +299,36 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
                 
                 <Separator />
 
-                {/* API & Automation */}
+                {/* Teams, Support & Analytics */}
                 <div className="space-y-4">
-                     <h3 className="text-lg font-medium tracking-tight">API & Automation</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="features.apiRateLimit" render={({ field }) => (
-                            <FormItem><FormLabelWithTooltip label="API Rate Limit (req/min)" tooltipText={featureTooltips.apiRateLimit} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                     <h3 className="text-lg font-medium tracking-tight">Teams, Support & Analytics</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <FormField control={form.control} name="features.teamMembers" render={({ field }) => (
+                            <FormItem><FormLabelWithTooltip label="Team Members" tooltipText={featureTooltips.teamMembers} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <div className="grid grid-cols-2 gap-4 items-start pt-2">
-                            <FormField control={form.control} name="features.apiAccess" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="API Access" tooltipText={featureTooltips.apiAccess}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                         <div className="flex flex-row gap-4 pt-2">
+                             <FormField control={form.control} name="features.prioritySupport" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Priority Support" tooltipText={featureTooltips.prioritySupport}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                             )} />
-                            <FormField control={form.control} name="features.webhooks" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="Webhooks" tooltipText={featureTooltips.webhooks}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                             <FormField control={form.control} name="features.usageAnalytics" render={({ field }) => (
+                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Usage Analytics" tooltipText={featureTooltips.usageAnalytics}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                             )} />
                         </div>
                     </div>
                 </div>
 
-                <Separator />
+                 <Separator />
 
-                {/* Teams & Interface */}
+                {/* Data Management */}
                 <div className="space-y-4">
-                     <h3 className="text-lg font-medium tracking-tight">Teams & Interface</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="features.teamMembers" render={({ field }) => (
-                            <FormItem><FormLabelWithTooltip label="Team Members" tooltipText={featureTooltips.teamMembers} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                     <h3 className="text-lg font-medium tracking-tight">Data & History</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 items-start pt-2">
+                         <FormField control={form.control} name="features.exportEmails" render={({ field }) => (
+                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Export Emails" tooltipText={featureTooltips.exportEmails}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
                         )} />
-                        <div className="grid grid-cols-1 gap-4 items-start pt-2">
-                             <FormField control={form.control} name="features.noAds" render={({ field }) => (
-                                <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center"><FormLabelWithTooltip label="No Ads" tooltipText={featureTooltips.noAds}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
-                            )} />
-                        </div>
+                        <FormField control={form.control} name="features.searchableHistory" render={({ field }) => (
+                            <FormItem className="flex flex-col items-center space-y-2 rounded-lg border p-3 h-full justify-center flex-1"><FormLabelWithTooltip label="Searchable History" tooltipText={featureTooltips.searchableHistory}/><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                        )} />
                     </div>
                 </div>
 

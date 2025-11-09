@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, ArrowUpDown, CheckCircle2, XCircle } from "lucide-react"
+import { MoreHorizontal, ArrowUpDown, CheckCircle2, XCircle, Users, BarChart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 
@@ -62,7 +62,7 @@ export const getPlanColumns = (
         </Button>
       )
     },
-    cell: ({ row }) => <div className="min-w-[120px]">{row.getValue("name")}</div>
+    cell: ({ row }) => <div className="min-w-[120px] font-medium">{row.getValue("name")}</div>
   },
   {
     accessorKey: "price",
@@ -91,12 +91,17 @@ export const getPlanColumns = (
     header: "Inboxes",
   },
   {
-    accessorKey: "features.customDomains",
-    header: "Domains",
-  },
-  {
     accessorKey: "features.teamMembers",
     header: "Team Seats",
+    cell: ({ row }) => {
+      const teamMembers = row.original.features.teamMembers || 0;
+      return (
+        <div className="flex items-center justify-center gap-1">
+          <Users className="h-4 w-4 text-muted-foreground"/>
+          <span>{teamMembers}</span>
+        </div>
+      )
+    }
   },
   {
     accessorKey: "features.apiAccess",
@@ -104,9 +109,21 @@ export const getPlanColumns = (
     cell: ({ row }) => <FeatureCell value={row.original.features.apiAccess} />
   },
   {
-    accessorKey: "features.noAds",
-    header: "No Ads",
-    cell: ({ row }) => <FeatureCell value={row.original.features.noAds} />
+    accessorKey: "features.usageAnalytics",
+    header: "Analytics",
+    cell: ({ row }) => {
+       const hasAnalytics = row.original.features.usageAnalytics;
+       return (
+        <div className="flex justify-center">
+            {hasAnalytics ? <BarChart className="h-5 w-5 text-blue-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+        </div>
+       )
+    }
+  },
+  {
+    accessorKey: "features.prioritySupport",
+    header: "Support",
+    cell: ({ row }) => <FeatureCell value={row.original.features.prioritySupport} />
   },
   {
     accessorKey: "createdAt",
