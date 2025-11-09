@@ -37,34 +37,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const settingsRef = doc(firestore, "admin_settings", "mailgun");
 
-    // This useEffect was causing the loading issue due to permissions.
-    // It's better to just show the form and let the user input the values.
-    // Existing values will be fetched on a subsequent visit once permissions are fixed.
-    //
-    // useEffect(() => {
-    //     const fetchSettings = async () => {
-    //         if (integration.slug !== 'mailgun') {
-    //             setIsLoading(false);
-    //             return;
-    //         };
-    //
-    //         const docSnap = await getDoc(settingsRef);
-    //         if (docSnap.exists()) {
-    //             const data = docSnap.data();
-    //             setSettings({
-    -    //                 enabled: data.enabled ?? true,
-    //                 apiKey: data.apiKey ?? "",
-    //                 domain: data.domain ?? "",
-    //             });
-    //         }
-    //         setIsLoading(false);
-    //     };
-    //
-    //     fetchSettings();
-    // // eslint-disable-next-line react-hooks/exhaustive-deps
-    // }, [firestore, integration.slug]);
-
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
@@ -104,14 +76,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
-        if (isLoading && integration.slug === 'mailgun') {
-            return (
-                <div className="flex justify-center items-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-            )
-        }
-        
         switch (integration.slug) {
             case "mailgun":
                 return (

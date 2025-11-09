@@ -10,7 +10,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { notFound } from 'next/navigation';
-import { use } from 'react';
 
 interface IntegrationPageProps {
   params: {
@@ -40,8 +39,7 @@ const integrationsData: { [key: string]: any } = {
 
 
 export default function IntegrationPage({ params }: IntegrationPageProps) {
-  const resolvedParams = use(params);
-  const { slug } = resolvedParams;
+  const { slug } = params;
   const integration = integrationsData[slug];
 
   if (!integration) {
