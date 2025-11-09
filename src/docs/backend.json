@@ -311,6 +311,110 @@
       "required": [
         "id"
       ]
+    },
+    "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan with granular features.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the plan."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the plan (e.g., Free, Premium)."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the plan in USD."
+        },
+        "cycle": {
+          "type": "string",
+          "description": "The billing cycle.",
+          "enum": ["monthly", "yearly"]
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the plan.",
+          "enum": ["active", "archived"]
+        },
+        "features": {
+          "type": "object",
+          "description": "A map of granular feature limits and toggles for the plan.",
+          "properties": {
+            "maxInboxes": {
+              "type": "number",
+              "description": "Maximum number of active inboxes allowed."
+            },
+            "maxEmailsPerInbox": {
+              "type": "number",
+              "description": "Maximum number of emails stored per inbox."
+            },
+            "inboxLifetime": {
+              "type": "number",
+              "description": "Lifetime of an inbox in minutes."
+            },
+            "customDomains": {
+              "type": "number",
+              "description": "Number of custom domains allowed."
+            },
+            "allowPremiumDomains": {
+              "type": "boolean",
+              "description": "Whether the user can use premium domains."
+            },
+            "emailForwarding": {
+              "type": "boolean",
+              "description": "Whether email forwarding is enabled."
+            },
+            "apiAccess": {
+              "type": "boolean",
+              "description": "Whether the user has API access."
+            },
+            "noAds": {
+              "type": "boolean",
+              "description": "Whether ads are disabled for the user."
+            },
+            "passwordProtection": {
+              "type": "boolean",
+              "description": "Allow users to secure their temporary inboxes with a password."
+            },
+            "allowAttachments": {
+              "type": "boolean",
+              "description": "Allow or block incoming emails that contain file attachments."
+            },
+            "maxAttachmentSize": {
+              "type": "number",
+              "description": "The maximum size in megabytes (MB) for a single email attachment."
+            },
+            "apiRateLimit": {
+              "type": "number",
+              "description": "The number of API requests a user can make per minute."
+            },
+            "webhooks": {
+              "type": "boolean",
+              "description": "Allow incoming emails to be forwarded to a user-defined webhook URL for automation."
+            },
+            "teamMembers": {
+              "type": "number",
+              "description": "The number of team members a user can invite to share their plan features."
+            }
+          },
+          "required": [
+            "maxInboxes", "maxEmailsPerInbox", "inboxLifetime", "customDomains", 
+            "allowPremiumDomains", "emailForwarding", "apiAccess", "noAds",
+            "passwordProtection", "allowAttachments", "maxAttachmentSize",
+            "apiRateLimit", "webhooks", "teamMembers"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the plan was created.",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "price", "status", "cycle", "features", "createdAt"]
     }
   },
   "auth": {
@@ -477,11 +581,27 @@
           "schema": {
             "$ref": "#/backend/entities/AdminSetting"
           },
-          "description": "Stores global admin settings, like third-party API keys. Includes 'settingId' as a parameter.",
+          "description": "Stores global admin settings, like third-party API keys. Server-side actions should have read/write access.",
           "params": [
             {
               "name": "settingId",
               "description": "The unique identifier for the admin setting (e.g., 'mailgun')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/plans/{planId}",
+        "definition": {
+          "entityName": "Plan",
+          "schema": {
+            "$ref": "#/backend/entities/Plan"
+          },
+          "description": "Stores subscription plans available for users. Global collection. Includes 'planId' as a parameter.",
+          "params": [
+            {
+              "name": "planId",
+              "description": "The unique identifier for the plan."
             }
           ]
         }

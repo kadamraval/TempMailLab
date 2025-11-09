@@ -62,6 +62,7 @@ export const getPlanColumns = (
         </Button>
       )
     },
+    cell: ({ row }) => <div className="min-w-[120px]">{row.getValue("name")}</div>
   },
   {
     accessorKey: "price",
@@ -92,6 +93,10 @@ export const getPlanColumns = (
   {
     accessorKey: "features.customDomains",
     header: "Domains",
+  },
+  {
+    accessorKey: "features.teamMembers",
+    header: "Team Seats",
   },
   {
     accessorKey: "features.apiAccess",
