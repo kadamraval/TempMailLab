@@ -13,11 +13,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, ArrowUpDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 export type AllowedDomain = {
   id: string
   domain: string
   description: string
+  tier: "free" | "premium"
   createdAt: string
 }
 
@@ -61,6 +63,18 @@ export const allowedDomainColumns: ColumnDef<AllowedDomain>[] = [
   {
     accessorKey: "description",
     header: "Description",
+  },
+  {
+    accessorKey: "tier",
+    header: "Tier",
+    cell: ({ row }) => {
+      const tier = row.getValue("tier") as string
+      return (
+        <Badge variant={tier === "premium" ? "default" : "secondary"} className="capitalize">
+          {tier}
+        </Badge>
+      )
+    },
   },
   {
     accessorKey: "createdAt",

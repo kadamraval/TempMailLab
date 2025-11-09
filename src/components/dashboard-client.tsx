@@ -13,7 +13,7 @@ import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { addDoc, collection, serverTimestamp, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 
 
@@ -63,18 +63,21 @@ export function DashboardClient() {
       return;
     }
 
+    // For now, we assume all users are 'free' tier. This will be updated later.
+    const userTier = 'free';
+
     setIsLoading(true);
     setSelectedEmail(null);
     setActiveInbox(null);
     clearCountdown();
 
     try {
-      // Fetch allowed domains from Firestore
-      const allowedDomainsQuery = query(collection(firestore, "allowed_domains"));
+      // Fetch allowed domains from Firestore based on user tier
+      const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
       const querySnapshot = await getDocs(allowedDomainsQuery);
       
       if (querySnapshot.empty) {
-        throw new Error("No allowed domains configured by the administrator.");
+        throw new Error(`No domains configured by the administrator for the '${userTier}' tier.`);
       }
 
       const allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);

@@ -267,6 +267,11 @@
             "type": "string",
             "description": "A short description of the domain's purpose."
         },
+        "tier": {
+          "type": "string",
+          "description": "The subscription tier for this domain (e.g., free, premium).",
+          "enum": ["free", "premium"]
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp indicating when the domain was added.",
@@ -276,6 +281,7 @@
       "required": [
         "id",
         "domain",
+        "tier",
         "createdAt"
       ]
     },
