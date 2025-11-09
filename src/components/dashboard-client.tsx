@@ -13,7 +13,7 @@ import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { addDoc, collection, serverTimestamp, getDocs, query, where, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, query, where, orderBy, deleteDoc, doc, writeBatch } from "firebase/firestore";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 
 
@@ -50,6 +50,48 @@ export function DashboardClient() {
 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // New listener for temporary emails
+  const tempEmailsQuery = useMemoFirebase(() => {
+    if (!firestore || !activeInbox?.emailAddress) return null;
+    return query(collection(firestore, "temp_emails"), where("recipient", "==", activeInbox.emailAddress));
+  }, [firestore, activeInbox?.emailAddress]);
+  
+  const { data: tempEmails } = useCollection(tempEmailsQuery);
+
+  useEffect(() => {
+    if (!tempEmails || tempEmails.length === 0 || !user || !activeInbox) return;
+
+    const moveEmails = async () => {
+        if (!firestore) return;
+        const batch = writeBatch(firestore);
+
+        for (const tempEmail of tempEmails) {
+            // Ref to new location in user's private inbox
+            const newEmailRef = doc(collection(firestore, "users", user.uid, "inboxes", activeInbox.id, "emails"));
+            
+            // Ref to the temp email to be deleted
+            const tempEmailRef = doc(firestore, "temp_emails", tempEmail.id);
+            
+            const { recipient, finalUserId, finalInboxId, ...emailData } = tempEmail;
+
+            batch.set(newEmailRef, {
+                ...emailData,
+                id: newEmailRef.id,
+                inboxId: activeInbox.id,
+            });
+            batch.delete(tempEmailRef);
+        }
+
+        try {
+            await batch.commit();
+        } catch (error: any) {
+            console.error("Error moving emails:", error);
+            // Don't toast here as it could be noisy
+        }
+    };
+    moveEmails();
+  }, [tempEmails, user, activeInbox, firestore]);
+
   const clearCountdown = () => {
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
@@ -63,7 +105,6 @@ export function DashboardClient() {
       return;
     }
 
-    // For now, we assume all users are 'free' tier. This will be updated later.
     const userTier = 'free';
 
     setIsLoading(true);
@@ -72,7 +113,6 @@ export function DashboardClient() {
     clearCountdown();
 
     try {
-      // Fetch allowed domains from Firestore based on user tier
       const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
       const querySnapshot = await getDocs(allowedDomainsQuery);
       
@@ -153,7 +193,8 @@ export function DashboardClient() {
           throw new Error(result.error);
         }
         toast({ title: "Inbox refreshed", description: `${result.emailsAdded || 0} new emails found.` });
-    } catch (error: any) {
+    } catch (error: any)
+    {
         console.error("Error fetching emails:", error);
         toast({ title: "Refresh Failed", description: error.message || "Could not refresh inbox.", variant: "destructive" });
     }
@@ -283,7 +324,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    
