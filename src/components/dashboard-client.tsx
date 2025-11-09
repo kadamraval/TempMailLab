@@ -152,10 +152,10 @@ export function DashboardClient() {
         if (result.error) {
           throw new Error(result.error);
         }
-        toast({ title: "Inbox refreshed", description: `${result.emailsAdded || 0} new emails.` });
+        toast({ title: "Inbox refreshed", description: `${result.emailsAdded || 0} new emails found.` });
     } catch (error: any) {
         console.error("Error fetching emails:", error);
-        toast({ title: "Error", description: error.message || "Could not refresh inbox.", variant: "destructive" });
+        toast({ title: "Refresh Failed", description: error.message || "Could not refresh inbox.", variant: "destructive" });
     }
     setIsRefreshing(false);
   };
@@ -283,5 +283,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
