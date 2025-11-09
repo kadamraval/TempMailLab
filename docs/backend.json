@@ -311,6 +311,46 @@
       "required": [
         "id"
       ]
+    },
+    "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the plan."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the plan (e.g., Free, Premium)."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the plan in USD."
+        },
+        "features": {
+          "type": "string",
+          "description": "A description of the plan's features."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the plan.",
+          "enum": ["active", "archived"]
+        },
+        "cycle": {
+          "type": "string",
+          "description": "The billing cycle.",
+          "enum": ["monthly", "yearly"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the plan was created.",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "price", "status", "cycle", "createdAt"]
     }
   },
   "auth": {
@@ -482,6 +522,22 @@
             {
               "name": "settingId",
               "description": "The unique identifier for the admin setting (e.g., 'mailgun')."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/plans/{planId}",
+        "definition": {
+          "entityName": "Plan",
+          "schema": {
+            "$ref": "#/backend/entities/Plan"
+          },
+          "description": "Stores subscription plans available for users. Global collection. Includes 'planId' as a parameter.",
+          "params": [
+            {
+              "name": "planId",
+              "description": "The unique identifier for the plan."
             }
           ]
         }

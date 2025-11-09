@@ -14,9 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, ArrowUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Plan } from "./data"
+import { type Plan } from "./data"
 
-export const columns: ColumnDef<Plan>[] = [
+export const getPlanColumns = (
+    onEdit: (plan: Plan) => void,
+    onDelete: (plan: Plan) => void
+): ColumnDef<Plan>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -83,6 +86,15 @@ export const columns: ColumnDef<Plan>[] = [
     }
   },
   {
+    accessorKey: "createdAt",
+    header: "Created",
+    cell: ({ row }) => {
+        const createdAt = row.getValue("createdAt") as any;
+        const date = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
+        return <div>{date.toLocaleDateString()}</div>
+    }
+  },
+  {
     id: "actions",
     cell: ({ row }) => {
       const plan = row.original
@@ -103,8 +115,8 @@ export const columns: ColumnDef<Plan>[] = [
               Copy Plan ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit Plan</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">Archive Plan</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(plan)}>Edit Plan</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDelete(plan)} className="text-red-600">Delete Plan</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

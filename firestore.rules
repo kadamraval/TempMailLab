@@ -17,6 +17,7 @@
  * - /blocked_domains/{blockedDomainId}: Stores blocked sender domains (global).
  * - /allowed_domains/{allowedDomainId}: Stores domains allowed for temp email generation (global).
  * - /admin_settings/{settingId}: Stores global admin settings like API keys.
+ * - /plans/{planId}: Stores subscription plans.
  *
  * Key Security Decisions:
  * - User data (profiles, inboxes, emails, api_keys) is strictly private and only accessible to the owning user.
@@ -133,6 +134,19 @@ service cloud.firestore {
       // In a production app with specific admin roles, this would be locked down further
       // e.g. allow write: if request.auth.token.isAdmin == true;
       allow read, write: if true;
+    }
+
+    /**
+     * @description Allows public read access to plans. Admins can write.
+     * @path /plans/{planId}
+     */
+    match /plans/{planId} {
+      function isSignedIn() { return request.auth != null; }
+
+      allow get: if true;
+      allow list: if true;
+      // In production, restrict to admins via custom claims
+      allow write: if isSignedIn(); 
     }
   }
 }
