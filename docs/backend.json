@@ -477,7 +477,7 @@
           "schema": {
             "$ref": "#/backend/entities/AdminSetting"
           },
-          "description": "Stores global admin settings, like third-party API keys. Includes 'settingId' as a parameter.",
+          "description": "Stores global admin settings, like third-party API keys. Server-side actions should have read/write access.",
           "params": [
             {
               "name": "settingId",

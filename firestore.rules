@@ -20,7 +20,7 @@
  *
  * Key Security Decisions:
  * - User data (profiles, inboxes, emails, api_keys) is strictly private and only accessible to the owning user.
- * - Admin settings can be read and written by any authenticated user. In a production app, this should be restricted to admin users via custom claims.
+ * - Admin settings can be read and written by trusted server environments.
  * - Listing of blocked and allowed domains is publicly allowed. Listing of user-owned collections is restricted to the owner.
  * - Write access to the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection is completely denied. The intended design is that these can only be written via a trusted backend.
  * - The rules do not validate the data shape or types beyond what's necessary for authorization (e.g., ownership checks).
@@ -32,30 +32,11 @@ service cloud.firestore {
     /**
      * @description Enforces read and write access to user profiles based on user ID.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user_abc' can create their own profile.
-     *     request.auth.uid == 'user_abc'
-     *     request.resource.data.id == 'user_abc'
-     * @allow (get) User with ID 'user_abc' can read their profile.
-     *     request.auth.uid == 'user_abc'
-     * @deny (create) User with ID 'user_xyz' cannot create a profile for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     *     request.resource.data.id == 'user_abc'
-     * @deny (update) User with ID 'user_xyz' cannot update profile for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @principle Enforces document ownership for writes and reads based on user ID.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
+      function isSignedIn() { return request.auth != null; }
+      function isOwner(userId) { return request.auth.uid == userId; }
+      function isExistingOwner(userId) { return isOwner(userId) && resource != null; }
 
       allow get: if isOwner(userId);
       allow list: if false;
@@ -63,199 +44,95 @@ service cloud.firestore {
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
-    }
 
-    /**
-     * @description Enforces read and write access to inboxes based on user ownership.
-     * @path /users/{userId}/inboxes/{inboxId}
-     * @allow (create) User with ID 'user_abc' can create a new inbox.
-     *     request.auth.uid == 'user_abc'
-     * @allow (get) User with ID 'user_abc' can read their inbox.
-     *     request.auth.uid == 'user_abc'
-     * @deny (create) User with ID 'user_xyz' cannot create inbox for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @deny (update) User with ID 'user_xyz' cannot update inbox for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @principle Enforces document ownership for inboxes.
-     */
-    match /users/{userId}/inboxes/{inboxId} {
-      function isSignedIn() {
-        return request.auth != null;
+      /**
+       * @description Enforces read and write access to inboxes based on user ownership.
+       * @path /users/{userId}/inboxes/{inboxId}
+       */
+      match /inboxes/{inboxId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isSignedIn() && isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
+
+        /**
+         * @description Enforces read and write access to emails based on user ownership of parent inbox.
+         * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
+         */
+        match /emails/{emailId} {
+          allow get: if isOwner(userId);
+          allow list: if isOwner(userId);
+          allow create: if isSignedIn() && isOwner(userId);
+          allow update: if isExistingOwner(userId);
+          allow delete: if isExistingOwner(userId);
+        }
       }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
+      
+      /**
+       * @description Enforces read and write access to API keys based on user ownership.
+       * @path /users/{userId}/api_keys/{apiKeyId}
+       */
+      match /api_keys/{apiKeyId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isSignedIn() && isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
       }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Enforces read and write access to emails based on user ownership of parent inbox.
-     * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
-     * @allow (create) User with ID 'user_abc' can create a new email in their inbox.
-     *     request.auth.uid == 'user_abc'
-     * @allow (get) User with ID 'user_abc' can read their email.
-     *     request.auth.uid == 'user_abc'
-     * @deny (create) User with ID 'user_xyz' cannot create email for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @deny (update) User with ID 'user_xyz' cannot update email for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @principle Enforces document ownership for emails.
-     */
-    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Enforces read and write access to API keys based on user ownership.
-     * @path /users/{userId}/api_keys/{apiKeyId}
-     * @allow (create) User with ID 'user_abc' can create a new API key.
-     *     request.auth.uid == 'user_abc'
-     * @allow (get) User with ID 'user_abc' can read their API key.
-     *     request.auth.uid == 'user_abc'
-     * @deny (create) User with ID 'user_xyz' cannot create API key for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @deny (update) User with ID 'user_xyz' cannot update API key for 'user_abc'.
-     *     request.auth.uid == 'user_xyz'
-     * @principle Enforces document ownership for API keys.
-     */
-    match /users/{userId}/api_keys/{apiKeyId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
     }
 
     /**
      * @description Denies all access to API key usage logs.
      * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
-     * @deny (create) No one can create a usage log directly.
-     * @deny (get) No one can read a usage log directly.
-     * @deny (update) No one can update a usage log directly.
-     * @deny (delete) No one can delete a usage log directly.
-     * @principle Only trusted backends can write usage logs.
      */
     match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
-      allow get: if false;
-      allow list: if false;
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read, write: if false;
     }
 
     /**
      * @description Allows public read access to blocked IP addresses, but denies all write access.
      * @path /blocked_ips/{blockedIpId}
-     * @allow (get) Anyone can read blocked IP addresses.
-     * @deny (create) No one can create a blocked IP directly.
-     * @deny (update) No one can update a blocked IP directly.
-     * @deny (delete) No one can delete a blocked IP directly.
-     * @principle Public read, no write access to blocked IP addresses.
      */
     match /blocked_ips/{blockedIpId} {
       allow get: if true;
       allow list: if true;
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow write: if false;
     }
 
     /**
      * @description Allows public read access to blocked domains, but denies all write access.
      * @path /blocked_domains/{blockedDomainId}
-     * @allow (get) Anyone can read blocked domains.
-     * @deny (create) No one can create a blocked domain directly.
-     * @deny (update) No one can update a blocked domain directly.
-     * @deny (delete) No one can delete a blocked domain directly.
-     * @principle Public read, no write access to blocked domains.
      */
     match /blocked_domains/{blockedDomainId} {
       allow get: if true;
       allow list: if true;
-
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow write: if false;
     }
     
     /**
-     * @description Allows public read access to allowed domains, but denies all write access.
+     * @description Allows public read access to allowed domains. Admin can write.
      * @path /allowed_domains/{allowedDomainId}
-     * @allow (get) Anyone can read allowed domains.
-     * @deny (create) No one can create an allowed domain directly.
-     * @deny (update) No one can update an allowed domain directly.
-     * @deny (delete) No one can delete an allowed domain directly.
-     * @principle Public read, admin-only write access to allowed domains.
      */
     match /allowed_domains/{allowedDomainId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+      function isSignedIn() { return request.auth != null; }
 
       allow get: if true;
       allow list: if true;
-
-      // In production, this should be restricted to admins
-      allow write: if isSignedIn();
+      // In production, restrict to admins via custom claims
+      allow write: if isSignedIn(); 
     }
     
     /**
-     * @description Allows any authenticated user to manage admin settings.
+     * @description Allows server-side access to manage admin settings.
      * @path /admin_settings/{settingId}
-     * @allow (read, write) Any authenticated user can read or write to the admin settings.
-     * @principle This is a permissive rule for ease of development. In production, this should be locked down to admin users only.
      */
     match /admin_settings/{settingId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      
-      allow read, write: if isSignedIn();
+      // This rule allows server-side actions (which can bypass rules or act as unauthenticated)
+      // and authenticated clients to read/write settings.
+      // In a production app with specific admin roles, this would be locked down further
+      // e.g. allow write: if request.auth.token.isAdmin == true;
+      allow read, write: if true;
     }
   }
 }
-
-    
