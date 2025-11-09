@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Firestore Security Rules for TempInbox application.
  *
@@ -89,23 +88,23 @@ service cloud.firestore {
      * Client can only read/delete their own emails.
      */
     match /temp_emails/{emailId} {
-        function isSignedIn() { return request.auth != null; }
-        
-        // CREATE: Only a trusted server process (Admin SDK) should write here. Client cannot create.
-        allow create: if false;
-        
-        // GET: A user can read an individual email only if they are the intended recipient.
-        allow get: if isSignedIn() && request.auth.uid == resource.data.finalUserId;
-        
-        // LIST (QUERY): A user can ONLY query for emails where the 'finalUserId' matches their own UID.
-        // This is the critical rule that secures the collection query.
-        allow list: if isSignedIn() && request.query.where.finalUserId == request.auth.uid;
-        
-        // DELETE: A user can delete the temporary email once they have processed it.
-        allow delete: if isSignedIn() && resource.data.finalUserId == request.auth.uid;
-        
-        // UPDATE: No updates allowed on temporary emails.
-        allow update: if false;
+      function isSignedIn() { return request.auth != null; }
+      
+      // CREATE: Denied for clients. Only a trusted server process (Admin SDK) should write here.
+      allow create: if false;
+      
+      // GET: A user can read an individual email only if they are the intended recipient.
+      allow get: if isSignedIn() && request.auth.uid == resource.data.finalUserId;
+      
+      // LIST (QUERY): A user can ONLY query for emails where their query's `where` clause
+      // specifies that 'finalUserId' must be equal to their own UID. This secures the query.
+      allow list: if isSignedIn() && request.query.where.finalUserId == request.auth.uid;
+      
+      // DELETE: A user can delete the temporary email once they have processed it.
+      allow delete: if isSignedIn() && resource.data.finalUserId == request.auth.uid;
+      
+      // UPDATE: No updates allowed on temporary emails.
+      allow update: if false;
     }
 
     /**
