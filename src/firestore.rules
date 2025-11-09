@@ -92,11 +92,14 @@ service cloud.firestore {
         // Only a trusted server process (Admin SDK) can create. Client cannot create.
         allow create: if false; 
         
-        // A user can read/list an email only if they are the intended recipient.
-        allow get, list: if request.auth != null && request.auth.uid == resource.data.finalUserId;
+        // A user can read an email only if they are the intended recipient.
+        allow get: if request.auth != null && request.auth.uid == resource.data.finalUserId;
+        
+        // Users can only query for emails intended for them.
+        allow list: if request.auth != null && request.query.resource.data.finalUserId == request.auth.uid;
         
         // A user can delete the temporary email once they have processed it.
-        allow delete: if request.auth != null && request.auth.uid == resource.data.finalUserId;
+        allow delete: if request.auth != null && resource.data.finalUserId == request.auth.uid;
         
         // No updates allowed.
         allow update: if false;
