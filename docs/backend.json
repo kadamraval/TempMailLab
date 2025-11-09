@@ -248,6 +248,33 @@
         "domain",
         "createdAt"
       ]
+    },
+    "AdminSetting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminSetting",
+      "type": "object",
+      "description": "Represents a generic admin setting, such as an integration's API key.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the setting (e.g., 'mailgun')."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the integration or setting is enabled."
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "The API key for the service."
+        },
+        "domain": {
+          "type": "string",
+          "description": "The domain associated with the service."
+        }
+      },
+      "required": [
+        "id"
+      ]
     }
   },
   "auth": {
@@ -387,6 +414,22 @@
             {
               "name": "blockedDomainId",
               "description": "The unique identifier for the blocked domain entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_settings/{settingId}",
+        "definition": {
+          "entityName": "AdminSetting",
+          "schema": {
+            "$ref": "#/backend/entities/AdminSetting"
+          },
+          "description": "Stores global admin settings, like third-party API keys. Includes 'settingId' as a parameter.",
+          "params": [
+            {
+              "name": "settingId",
+              "description": "The unique identifier for the admin setting (e.g., 'mailgun')."
             }
           ]
         }
