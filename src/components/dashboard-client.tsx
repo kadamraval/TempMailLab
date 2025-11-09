@@ -78,10 +78,18 @@ export function DashboardClient() {
         }
         
         if (result.emails && result.emails.length > 0) {
-             setInboxEmails(prev => [...result.emails, ...prev].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()));
-             if (!isAutoRefresh) {
-                toast({ title: "Inbox refreshed", description: `${result.emails.length} new email(s) found.` });
-             }
+            setInboxEmails(prevEmails => {
+                const existingIds = new Set(prevEmails.map(e => e.id));
+                const newEmails = result.emails.filter(e => !existingIds.has(e.id));
+                
+                if (newEmails.length > 0 && !isAutoRefresh) {
+                    toast({ title: "Inbox refreshed", description: `${newEmails.length} new email(s) found.` });
+                } else if (!isAutoRefresh) {
+                    toast({ title: "Inbox refreshed", description: "No new emails found." });
+                }
+
+                return [...newEmails, ...prevEmails].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+            });
         } else {
             if (!isAutoRefresh) {
                 toast({ title: "Inbox refreshed", description: "No new emails found." });
