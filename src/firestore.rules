@@ -95,8 +95,8 @@ service cloud.firestore {
         // A user can read an email only if they are the intended recipient.
         allow get: if request.auth != null && request.auth.uid == resource.data.finalUserId;
         
-        // Users can only query for emails intended for them.
-        allow list: if request.auth != null && request.query.resource.data.finalUserId == request.auth.uid;
+        // Users can only query for emails where the 'finalUserId' matches their own UID.
+        allow list: if request.auth != null && request.query.get("where")[0][2] == request.auth.uid;
         
         // A user can delete the temporary email once they have processed it.
         allow delete: if request.auth != null && resource.data.finalUserId == request.auth.uid;
@@ -157,3 +157,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

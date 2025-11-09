@@ -52,9 +52,10 @@ export function DashboardClient() {
 
   // New listener for temporary emails
   const tempEmailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.emailAddress) return null;
-    return query(collection(firestore, "temp_emails"), where("recipient", "==", activeInbox.emailAddress));
-  }, [firestore, activeInbox?.emailAddress]);
+    if (!firestore || !user?.uid) return null;
+    // This query MUST match the security rule in firestore.rules
+    return query(collection(firestore, "temp_emails"), where("finalUserId", "==", user.uid));
+  }, [firestore, user?.uid]);
   
   const { data: tempEmails } = useCollection(tempEmailsQuery);
 
@@ -72,6 +73,7 @@ export function DashboardClient() {
             // Ref to the temp email to be deleted
             const tempEmailRef = doc(firestore, "temp_emails", tempEmail.id);
             
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { recipient, finalUserId, finalInboxId, ...emailData } = tempEmail;
 
             batch.set(newEmailRef, {
@@ -324,3 +326,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
