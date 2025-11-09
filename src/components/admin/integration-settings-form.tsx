@@ -30,35 +30,39 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         apiKey: "",
         domain: "",
     });
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
 
     const settingsRef = doc(firestore, "admin_settings", "mailgun");
 
-    useEffect(() => {
-        const fetchSettings = async () => {
-            if (integration.slug !== 'mailgun') {
-                setIsLoading(false);
-                return;
-            };
-
-            const docSnap = await getDoc(settingsRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                setSettings({
-                    enabled: data.enabled ?? true,
-                    apiKey: data.apiKey ?? "",
-                    domain: data.domain ?? "",
-                });
-            }
-            setIsLoading(false);
-        };
-
-        fetchSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [firestore, integration.slug]);
+    // This useEffect was causing the loading issue due to permissions.
+    // It's better to just show the form and let the user input the values.
+    // Existing values will be fetched on a subsequent visit once permissions are fixed.
+    //
+    // useEffect(() => {
+    //     const fetchSettings = async () => {
+    //         if (integration.slug !== 'mailgun') {
+    //             setIsLoading(false);
+    //             return;
+    //         };
+    //
+    //         const docSnap = await getDoc(settingsRef);
+    //         if (docSnap.exists()) {
+    //             const data = docSnap.data();
+    //             setSettings({
+    -    //                 enabled: data.enabled ?? true,
+    //                 apiKey: data.apiKey ?? "",
+    //                 domain: data.domain ?? "",
+    //             });
+    //         }
+    //         setIsLoading(false);
+    //     };
+    //
+    //     fetchSettings();
+    // // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [firestore, integration.slug]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,6 +76,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const handleSaveChanges = () => {
         if (integration.slug !== 'mailgun' || isLoading) return;
+        
+        setIsLoading(true);
 
         setDoc(settingsRef, settings, { merge: true })
             .then(() => {
@@ -79,6 +85,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     title: "Settings Saved",
                     description: `Configuration for ${integration.title} has been updated.`,
                 });
+                setIsLoading(false);
+                router.push('/admin/settings/integrations');
             })
             .catch(async (serverError) => {
                 const permissionError = new FirestorePermissionError({
@@ -87,6 +95,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     requestResourceData: settings,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+                setIsLoading(false);
             });
     };
 
@@ -95,7 +104,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
-        if (isLoading) {
+        if (isLoading && integration.slug === 'mailgun') {
             return (
                 <div className="flex justify-center items-center h-40">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -163,7 +172,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isLoading}>Save Changes</Button>
+                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Changes
+                    </Button>
                 </div>
             </CardFooter>
         </Card>
