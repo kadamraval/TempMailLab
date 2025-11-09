@@ -2,17 +2,16 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from 'next/link';
 import { Copy, RefreshCw, Loader2, Clock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { cn } from "@/lib/utils";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useUser } from "@/firebase";
 import { getDocs, query, collection, where } from "firebase/firestore";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 
@@ -44,6 +43,7 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,10 +87,8 @@ export function DashboardClient() {
                     toast({ title: "Inbox refreshed", description: "No new emails found." });
                 }
 
-                // Combine and sort, ensuring no duplicates
                 const allEmails = [...prevEmails, ...newEmails];
-                const uniqueEmails = Array.from(new Map(allEmails.map(email => [email.id, email])).values());
-                return uniqueEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+                return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
             });
         } else {
             if (!isAutoRefresh) {
@@ -117,7 +115,7 @@ export function DashboardClient() {
       return;
     }
 
-    const userTier = 'free';
+    const userTier = user && !user.isAnonymous ? 'premium' : 'free';
 
     setIsLoading(true);
     setSelectedEmail(null);
@@ -141,11 +139,9 @@ export function DashboardClient() {
       setActiveInbox({ emailAddress });
       setCountdown(600);
       
-      // Initial fetch is manual
       await handleRefresh(false); 
       
-      // Start auto-refreshing
-      refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); // every 15 seconds
+      refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
 
     } catch (error: any) {
       console.error("Error generating new inbox:", error);
@@ -157,19 +153,17 @@ export function DashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [firestore, toast, handleRefresh]);
+  }, [firestore, toast, handleRefresh, user]);
 
   useEffect(() => {
     sessionIdRef.current = getSessionId();
     handleGenerateEmail();
     
-    // Cleanup on unmount
     return () => {
         clearCountdown();
         clearRefreshInterval();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
+  }, [handleGenerateEmail]); 
 
 
   useEffect(() => {
@@ -221,83 +215,68 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (isLoading && !activeInbox) {
-      return (
-          <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-              <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-      )
-  }
-
   if (selectedEmail) {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
   }
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <CardTitle>Your Temporary Email Address</CardTitle>
-            {!activeInbox ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Generating...</span>
-                </div>
-            ) : (
-                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-md">
-                    <Clock className="h-4 w-4" />
-                    <span>Expires in: {formatTime(countdown)}</span>
-                </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!activeInbox ? (
-            <div className="flex items-center space-x-2">
-              <Skeleton className="h-10 flex-grow" />
-              <Skeleton className="h-10 w-24" />
-              <Skeleton className="h-10 w-24" />
+      <div className="text-center">
+          <h1 className="text-4xl font-bold tracking-tight">Your Temporary Email Address</h1>
+          <p className="mt-2 text-muted-foreground">
+              This is your unique temporary email address. Copy it and send an email. It will automatically delete when it expires, leaving no trace.
+          </p>
+      </div>
+
+      <Card className="shadow-lg">
+        <CardHeader className="border-b bg-muted/30 p-4">
+          {isLoading ? (
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-24 rounded-md" />
+              <Skeleton className="h-10 w-1/2 rounded-md" />
+              <Skeleton className="h-10 w-32 rounded-md" />
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row items-center gap-2">
-              <Input
-                readOnly
-                value={activeInbox?.emailAddress || "Generating..."}
-                className="text-lg text-center sm:text-left font-mono"
-              />
-              <div className="flex gap-2 w-full sm:w-auto">
-                <Button onClick={handleCopyEmail} variant="outline" className="w-full sm:w-auto">
-                  <Copy className="mr-2 h-4 w-4" /> Copy
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm font-mono bg-background/50 px-3 py-1.5 rounded-md border text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{formatTime(countdown)}</span>
+                </div>
+
+                <div className="flex-grow flex items-center justify-center">
+                    <p className="font-mono text-lg text-foreground">{activeInbox?.emailAddress}</p>
+                     <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
+                        <Copy className="h-5 w-5" />
+                    </Button>
+                </div>
+                
+                <Button onClick={handleGenerateEmail} variant="outline">
+                   <RefreshCw className="mr-2 h-4 w-4" />
+                   Change Address
                 </Button>
-                <Button onClick={handleGenerateEmail} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-                   New Email
-                </Button>
-              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Inbox</CardTitle>
-          <Button onClick={handleDeleteInbox} variant="ghost" size="sm" disabled={!inboxEmails || inboxEmails.length === 0}>
-            <Trash2 className="h-4 w-4" />
-            <span className="ml-2 hidden sm:inline">Clear Inbox</span>
-          </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <InboxView 
             inbox={inboxEmails} 
             onSelectEmail={handleSelectEmail} 
             onRefresh={() => handleRefresh(false)}
             isRefreshing={isRefreshing}
+            onDelete={handleDeleteInbox}
           />
         </CardContent>
+        {user && user.isAnonymous && (
+           <CardFooter className="p-4 border-t bg-muted/30">
+                <p className="text-center text-sm text-muted-foreground w-full">
+                    Need to save email address, use a custom domain or forward emails?{' '}
+                    <Link href="/login" className="font-semibold text-primary hover:underline">
+                        Log In
+                    </Link>
+                </p>
+           </CardFooter>
+        )}
       </Card>
     </div>
   );
 }
-
-    
