@@ -30,12 +30,46 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         apiKey: "",
         domain: "",
     });
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // Start loading immediately
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
 
     const settingsRef = doc(firestore, "admin_settings", "mailgun");
+
+    useEffect(() => {
+        if (integration.slug !== 'mailgun') {
+            setIsLoading(false);
+            return;
+        }
+
+        const fetchSettings = async () => {
+            setIsLoading(true);
+            try {
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    setSettings({
+                        enabled: data.enabled ?? false,
+                        apiKey: data.apiKey ?? "",
+                        domain: data.domain ?? "",
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching settings:", error);
+                toast({
+                    title: "Error",
+                    description: "Could not load existing settings.",
+                    variant: "destructive",
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSettings();
+    }, [firestore, integration.slug, toast]);
+
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
@@ -57,7 +91,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     title: "Settings Saved",
                     description: `Configuration for ${integration.title} has been updated.`,
                 });
-                setIsLoading(false);
                 router.push('/admin/settings/integrations');
             })
             .catch(async (serverError) => {
@@ -67,6 +100,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     requestResourceData: settings,
                 });
                 errorEmitter.emit('permission-error', permissionError);
+            }).finally(() => {
                 setIsLoading(false);
             });
     };
@@ -76,6 +110,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
+        if (isLoading && integration.slug === 'mailgun') {
+            return (
+                <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            )
+        }
+
         switch (integration.slug) {
             case "mailgun":
                 return (
@@ -92,8 +134,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         </div>
                     </>
                 );
-            
-            // Cases for other integrations can be added here
             
             default:
                 return (
@@ -114,7 +154,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
-                 {integration.slug === 'mailgun' && (
+                 {integration.slug === 'mailgun' && !isLoading && (
                     <>
                     <Separator />
                     <div className="flex items-center justify-between rounded-lg border p-4">
