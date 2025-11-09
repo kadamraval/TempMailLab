@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Inbox as InboxType, Email } from "@/types";
+import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { getDocs, query, collection, where } from "firebase/firestore";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 
@@ -37,13 +37,12 @@ function getSessionId() {
 }
 
 export function DashboardClient() {
-  const [activeInbox, setActiveInbox] = useState<InboxType | null>(null);
+  const [activeInbox, setActiveInbox] = useState<{ emailAddress: string } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(600); // 10 minutes
-  const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -66,7 +65,7 @@ export function DashboardClient() {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!activeInbox || !sessionIdRef.current) return;
+    if (!activeInbox?.emailAddress || !sessionIdRef.current) return;
     if (!isAutoRefresh) {
         setIsRefreshing(true);
     }
@@ -82,13 +81,16 @@ export function DashboardClient() {
                 const existingIds = new Set(prevEmails.map(e => e.id));
                 const newEmails = result.emails.filter(e => !existingIds.has(e.id));
                 
-                if (newEmails.length > 0 && !isAutoRefresh) {
-                    toast({ title: "Inbox refreshed", description: `${newEmails.length} new email(s) found.` });
+                if (newEmails.length > 0) {
+                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
                 } else if (!isAutoRefresh) {
                     toast({ title: "Inbox refreshed", description: "No new emails found." });
                 }
 
-                return [...newEmails, ...prevEmails].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+                // Combine and sort, ensuring no duplicates
+                const allEmails = [...prevEmails, ...newEmails];
+                const uniqueEmails = Array.from(new Map(allEmails.map(email => [email.id, email])).values());
+                return uniqueEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
             });
         } else {
             if (!isAutoRefresh) {
@@ -115,7 +117,6 @@ export function DashboardClient() {
       return;
     }
 
-    // Always use 'free' tier for this public client
     const userTier = 'free';
 
     setIsLoading(true);
@@ -136,19 +137,12 @@ export function DashboardClient() {
       const allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
       const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
-
-      const newInbox: InboxType = {
-        id: generateRandomString(20),
-        userId: sessionIdRef.current || 'anonymous',
-        emailAddress,
-        createdAt: new Date().toISOString(),
-        expiresAt: expiresAt.toISOString(),
-      };
       
-      setActiveInbox(newInbox);
+      setActiveInbox({ emailAddress });
       setCountdown(600);
-      await handleRefresh(); // Initial refresh
+      
+      // Initial fetch is manual
+      await handleRefresh(false); 
       
       // Start auto-refreshing
       refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); // every 15 seconds
@@ -183,15 +177,17 @@ export function DashboardClient() {
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
-      return () => clearCountdown();
-    } else if (countdown === 0 && activeInbox) {
+    } else if (countdown <= 0 && activeInbox) {
         toast({
             title: "Session Expired",
-            description: "Your temporary email has expired. Generate a new one.",
+            description: "Your temporary email has expired. Please generate a new one.",
+            variant: "destructive"
         })
       setActiveInbox(null);
       clearRefreshInterval();
+      clearCountdown();
     }
+    return () => clearCountdown();
   }, [activeInbox, countdown, toast]);
 
   const handleCopyEmail = () => {
@@ -219,6 +215,7 @@ export function DashboardClient() {
   };
 
   const formatTime = (seconds: number) => {
+    if (seconds <= 0) return "00:00";
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
