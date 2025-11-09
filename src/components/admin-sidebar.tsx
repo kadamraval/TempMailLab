@@ -22,6 +22,7 @@ import {
   Library,
   ChevronRight,
   ChevronsLeft,
+  Shield,
 } from "lucide-react"
 import {
   Tooltip,
@@ -37,7 +38,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
-    { href: "/admin/domain", icon: Globe, label: "Domain" },
+    { 
+      label: "Domain", 
+      icon: Globe, 
+      href: "/admin/domain",
+      subItems: [
+        { href: "/admin/domain", label: "Allowed & Blocked" }
+      ]
+    },
     { href: "/admin/inbox", icon: Inbox, label: "Inbox" },
     { href: "/admin/users", icon: Users, label: "Users" },
     {
@@ -73,27 +81,39 @@ interface AdminSidebarProps {
 export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps) {
   const pathname = usePathname();
 
-  const renderLink = (item: any) => (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-        pathname.startsWith(item.href) && item.href !== '/admin/settings' && "bg-muted text-primary",
-        pathname.startsWith('/admin/settings') && item.href === '/admin/settings' && "bg-muted text-primary",
-        isCollapsed && "justify-center"
-      )}
-    >
-      <item.icon className="h-4 w-4" />
-      {!isCollapsed && <span>{item.label}</span>}
-      {isCollapsed && <span className="sr-only">{item.label}</span>}
-    </Link>
-  );
+  const isLinkActive = (item: any) => {
+    if (item.href === '/admin' && pathname === '/admin') return true;
+    if (item.href !== '/admin' && pathname.startsWith(item.href)) return true;
+    if (item.label === "Settings" && pathname.startsWith('/admin/settings')) return true;
+    return false;
+  }
 
-  const renderCollapsible = (item: any) => (
-    <Collapsible key={item.label} className="grid gap-1">
+  const renderLink = (item: any, isSubItem = false) => {
+    const isActive = isLinkActive(item);
+    return (
+        <Link
+          href={item.href}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
+            isActive && "bg-muted text-primary",
+            isCollapsed && "justify-center"
+          )}
+        >
+          <item.icon className="h-4 w-4" />
+          {!isCollapsed && <span>{item.label}</span>}
+          {isCollapsed && <span className="sr-only">{item.label}</span>}
+        </Link>
+    )
+  };
+
+  const renderCollapsible = (item: any) => {
+    const isActive = item.subItems.some((sub: any) => pathname.startsWith(sub.href)) || pathname.startsWith(item.href || '---');
+    return (
+    <Collapsible key={item.label} className="grid gap-1" defaultOpen={isActive}>
       <CollapsibleTrigger asChild>
           <button className={cn(
             "flex items-center w-full gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary [&[data-state=open]>svg:last-child]:rotate-90",
+            isActive && "text-primary",
             isCollapsed && "justify-center"
             )}>
             <item.icon className="h-4 w-4" />
@@ -106,19 +126,19 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
           {item.subItems.map((subItem: any) =>
             isCollapsed ? (
               <Tooltip key={subItem.href}>
-                <TooltipTrigger asChild>{renderLink(subItem)}</TooltipTrigger>
+                <TooltipTrigger asChild>{renderLink(subItem, true)}</TooltipTrigger>
                 <TooltipContent side="right">{subItem.label}</TooltipContent>
               </Tooltip>
             ) : (
               <React.Fragment key={subItem.href}>
-                {renderLink(subItem)}
+                {renderLink(subItem, true)}
               </React.Fragment>
             )
           )}
         </div>
       </CollapsibleContent>
     </Collapsible>
-  );
+  )};
 
   return (
     <aside className={cn(
