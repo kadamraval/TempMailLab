@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 const footerLinks = {
@@ -38,11 +39,8 @@ export function Footer() {
                 </div>
             ))}
              <div>
-                <h3 className="font-semibold mb-4">Admin Access</h3>
-                 <p className="text-sm text-muted-foreground">For administrative use only.</p>
-                 <Link href="/login/admin" className="text-sm underline text-primary hover:text-primary/80 mt-2 inline-block">
-                    Admin Login
-                 </Link>
+                <h3 className="font-semibold mb-4">Language</h3>
+                 <p className="text-sm text-muted-foreground">This is a placeholder for language selection.</p>
             </div>
           </div>
           <div className="text-center mt-8 pt-8 border-t">
