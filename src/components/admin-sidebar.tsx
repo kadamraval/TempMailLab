@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const navItems = [
-    { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/admin", icon: Home, label: "Dashboard" },
     { href: "/admin/domain", icon: Globe, label: "Domain" },
     { href: "/admin/inbox", icon: Inbox, label: "Inbox" },
     { href: "/admin/users", icon: Users, label: "Users" },
