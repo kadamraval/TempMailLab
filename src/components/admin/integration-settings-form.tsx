@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { Textarea } from "../ui/textarea";
-import { useFirestore } from "@/firebase";
+import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 
@@ -61,7 +60,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     }, [firestore, integration.slug]);
 
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
     };
@@ -70,22 +69,24 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setSettings(prev => ({ ...prev, enabled: checked }));
     };
 
-    const handleSaveChanges = async () => {
-        if (integration.slug !== 'mailgun') return;
-        
-        try {
-            await setDoc(settingsRef, settings, { merge: true });
-            toast({
-                title: "Settings Saved",
-                description: `Configuration for ${integration.title} has been updated.`,
+    const handleSaveChanges = () => {
+        if (integration.slug !== 'mailgun' || isLoading) return;
+
+        setDoc(settingsRef, settings, { merge: true })
+            .then(() => {
+                toast({
+                    title: "Settings Saved",
+                    description: `Configuration for ${integration.title} has been updated.`,
+                });
+            })
+            .catch(async (serverError) => {
+                const permissionError = new FirestorePermissionError({
+                    path: settingsRef.path,
+                    operation: 'update',
+                    requestResourceData: settings,
+                });
+                errorEmitter.emit('permission-error', permissionError);
             });
-        } catch (error) {
-             toast({
-                title: "Error",
-                description: `Could not save settings.`,
-                variant: "destructive",
-            });
-        }
     };
 
     const handleCancel = () => {
