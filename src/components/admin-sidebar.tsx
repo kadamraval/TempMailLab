@@ -42,9 +42,6 @@ const navItems = [
       label: "Domain", 
       icon: Globe, 
       href: "/admin/domain",
-      subItems: [
-        { href: "/admin/domain", label: "Allowed & Blocked", icon: Shield }
-      ]
     },
     { href: "/admin/inbox", icon: Inbox, label: "Inbox" },
     { href: "/admin/users", icon: Users, label: "Users" },
@@ -85,6 +82,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
     if (item.href === '/admin' && pathname === '/admin') return true;
     if (item.href !== '/admin' && pathname.startsWith(item.href)) return true;
     if (item.label === "Settings" && pathname.startsWith('/admin/settings')) return true;
+    if (item.label === "Domain" && pathname.startsWith('/admin/domain')) return true;
     return false;
   }
 

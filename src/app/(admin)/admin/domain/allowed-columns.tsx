@@ -20,10 +20,16 @@ export type AllowedDomain = {
   domain: string
   description: string
   tier: "free" | "premium"
-  createdAt: string
+  createdAt: string // This could be a Date object if transformed
+  // Add a function type for handlers
+  onEdit: (domain: AllowedDomain) => void;
+  onDelete: (domain: AllowedDomain) => void;
 }
 
-export const allowedDomainColumns: ColumnDef<AllowedDomain>[] = [
+export const getAllowedDomainColumns = (
+    onEdit: (domain: AllowedDomain) => void,
+    onDelete: (domain: AllowedDomain) => void
+): ColumnDef<AllowedDomain>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -80,7 +86,9 @@ export const allowedDomainColumns: ColumnDef<AllowedDomain>[] = [
     accessorKey: "createdAt",
     header: "Added On",
     cell: ({ row }) => {
-        const date = new Date(row.getValue("createdAt"))
+        const createdAt = row.getValue("createdAt") as any;
+        // Firestore timestamp can be an object, handle it safely
+        const date = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
         return <div>{date.toLocaleDateString()}</div>
     }
   },
@@ -105,8 +113,8 @@ export const allowedDomainColumns: ColumnDef<AllowedDomain>[] = [
               Copy Domain ID
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Edit Domain</DropdownMenuItem>
-            <DropdownMenuItem className="text-red-600">Delete Domain</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(domain)}>Edit Domain</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDelete(domain)} className="text-red-600">Delete Domain</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )
