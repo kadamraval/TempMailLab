@@ -5,31 +5,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataTable } from "@/components/admin/data-table";
 import { blockedDomainColumns } from "./blocked-columns";
 import { allowedDomainColumns } from "./allowed-columns";
-import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-
-// Mock data - in a real app, this would come from a database
-const sampleBlockedDomains = [
-    { id: "1", domain: "spam-source.com", createdAt: new Date().toISOString() },
-    { id: "2", domain: "unwanted-mailer.net", createdAt: new Date().toISOString() },
-    { id: "3", domain: "evil-corp.org", createdAt: new Date().toISOString() },
-];
-
-const sampleAllowedDomains = [
-    { id: "1", domain: "temp-inbox.app", description: "Default domain for free users", createdAt: new Date().toISOString() },
-    { id: "2", domain: "mail-shield.io", description: "Premium user domain", createdAt: new Date().toISOString() },
-];
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { AllowedDomain } from "./allowed-columns";
+import type { BlockedDomain } from "./blocked-columns";
 
 export default function AdminDomainPage() {
-    const [loading, setLoading] = useState(true);
+    const firestore = useFirestore();
 
-    // Simulate data fetching
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setLoading(false);
-        }, 500);
-        return () => clearTimeout(timer);
-    }, []);
+    const allowedDomainsQuery = useMemoFirebase(() => collection(firestore, "allowed_domains"), [firestore]);
+    const blockedDomainsQuery = useMemoFirebase(() => collection(firestore, "blocked_domains"), [firestore]);
+    
+    const { data: allowedDomains, isLoading: isLoadingAllowed } = useCollection<AllowedDomain>(allowedDomainsQuery);
+    const { data: blockedDomains, isLoading: isLoadingBlocked } = useCollection<BlockedDomain>(blockedDomainsQuery);
+
+    const loading = isLoadingAllowed || isLoadingBlocked;
 
     if (loading) {
         return (
@@ -60,7 +51,7 @@ export default function AdminDomainPage() {
                             <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <DataTable columns={allowedDomainColumns} data={sampleAllowedDomains} filterColumn="domain" />
+                            <DataTable columns={allowedDomainColumns} data={allowedDomains || []} filterColumn="domain" />
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -71,7 +62,7 @@ export default function AdminDomainPage() {
                             <CardDescription>Emails from these domains will be rejected by the system.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <DataTable columns={blockedDomainColumns} data={sampleBlockedDomains} filterColumn="domain" />
+                            <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
                         </CardContent>
                     </Card>
                 </TabsContent>

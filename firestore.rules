@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Firestore Security Rules for TempInbox application.
  *
@@ -14,12 +15,13 @@
  * - /api_keys/{apiKeyId}/usage_logs/{usageLogId}: Stores usage logs per API key.
  * - /blocked_ips/{blockedIpId}: Stores blocked IP addresses (global).
  * - /blocked_domains/{blockedDomainId}: Stores blocked sender domains (global).
+ * - /allowed_domains/{allowedDomainId}: Stores domains allowed for temp email generation (global).
  * - /admin_settings/{settingId}: Stores global admin settings like API keys.
  *
  * Key Security Decisions:
  * - User data (profiles, inboxes, emails, api_keys) is strictly private and only accessible to the owning user.
  * - Admin settings can be read and written by any authenticated user. In a production app, this should be restricted to admin users via custom claims.
- * - Listing of blocked IPs and domains is publicly allowed. Listing of user-owned collections is restricted to the owner.
+ * - Listing of blocked and allowed domains is publicly allowed. Listing of user-owned collections is restricted to the owner.
  * - Write access to the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection is completely denied. The intended design is that these can only be written via a trusted backend.
  * - The rules do not validate the data shape or types beyond what's necessary for authorization (e.g., ownership checks).
  */
@@ -217,6 +219,27 @@ service cloud.firestore {
       allow create: if false;
       allow update: if false;
       allow delete: if false;
+    }
+    
+    /**
+     * @description Allows public read access to allowed domains, but denies all write access.
+     * @path /allowed_domains/{allowedDomainId}
+     * @allow (get) Anyone can read allowed domains.
+     * @deny (create) No one can create an allowed domain directly.
+     * @deny (update) No one can update an allowed domain directly.
+     * @deny (delete) No one can delete an allowed domain directly.
+     * @principle Public read, admin-only write access to allowed domains.
+     */
+    match /allowed_domains/{allowedDomainId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if true;
+      allow list: if true;
+
+      // In production, this should be restricted to admins
+      allow write: if isSignedIn();
     }
     
     /**

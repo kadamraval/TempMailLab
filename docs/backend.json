@@ -249,6 +249,36 @@
         "createdAt"
       ]
     },
+    "AllowedDomain": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllowedDomain",
+      "type": "object",
+      "description": "Represents a domain allowed for generating temporary emails.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the allowed domain entry."
+        },
+        "domain": {
+          "type": "string",
+          "description": "The allowed domain name."
+        },
+        "description": {
+            "type": "string",
+            "description": "A short description of the domain's purpose."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the domain was added.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "domain",
+        "createdAt"
+      ]
+    },
     "AdminSetting": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminSetting",
@@ -414,6 +444,22 @@
             {
               "name": "blockedDomainId",
               "description": "The unique identifier for the blocked domain entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/allowed_domains/{allowedDomainId}",
+        "definition": {
+          "entityName": "AllowedDomain",
+          "schema": {
+            "$ref": "#/backend/entities/AllowedDomain"
+          },
+          "description": "Stores domains allowed for generating temporary emails. Global collection. Includes 'allowedDomainId' as a parameter.",
+          "params": [
+            {
+              "name": "allowedDomainId",
+              "description": "The unique identifier for the allowed domain entry."
             }
           ]
         }
