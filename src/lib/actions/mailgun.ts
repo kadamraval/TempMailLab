@@ -1,11 +1,12 @@
 
 'use server';
 
-import { getFirestore, doc, getDoc, collection, addDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
+import type { Email } from '@/types';
 
 async function getMailgunSettings(firestore: any) {
     const settingsRef = doc(firestore, "admin_settings", "mailgun");
@@ -43,59 +44,34 @@ export async function fetchEmailsFromServerAction(
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
-        // 1. Fetch new events from Mailgun
         const events = await mg.events.get(domain, {
             "to": emailAddress,
             "event": "stored",
             "limit": 30
         });
 
+        const emails: Email[] = [];
+
         if (events?.items?.length) {
              for (const event of events.items) {
-                const email = event.message;
-                if (!email || !email.headers) continue;
+                const message = event.message;
+                if (!message || !message.headers) continue;
                 
-                const cleanHtml = DOMPurify.sanitize(email['body-html'] || "");
+                const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
-                // Write to the global temp_emails collection
-                const tempEmailsRef = collection(firestore, "temp_emails");
-                await addDoc(tempEmailsRef, {
-                    sessionId: sessionId,
+                emails.push({
+                    id: event.id,
                     recipient: emailAddress,
-                    senderName: email.headers.from || "Unknown Sender",
-                    subject: email.headers.subject || "No Subject",
+                    senderName: message.headers.from || "Unknown Sender",
+                    subject: message.headers.subject || "No Subject",
                     receivedAt: new Date(event.timestamp * 1000).toISOString(),
                     htmlContent: cleanHtml,
-                    textContent: email["stripped-text"] || "",
+                    textContent: message["stripped-text"] || "",
                     read: false,
                 });
             }
         }
-
-        // 2. Query for all emails for this session ID
-        const tempEmailsQuery = query(collection(firestore, "temp_emails"), where("sessionId", "==", sessionId));
-        const querySnapshot = await getDocs(tempEmailsQuery);
         
-        if (querySnapshot.empty) {
-            return { success: true, emails: [] };
-        }
-
-        const emails: any[] = [];
-        const batch = writeBatch(firestore);
-
-        querySnapshot.forEach(doc => {
-            const data = doc.data();
-            emails.push({
-                id: doc.id,
-                ...data,
-            });
-            // 3. Delete them after querying
-            batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-
-        // 4. Return the emails to the client
         return { success: true, emails };
 
     } catch (error: any) {

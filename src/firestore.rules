@@ -11,7 +11,6 @@
  * - /users/{userId}: Stores user profiles.
  * - /users/{userId}/inboxes/{inboxId}: Stores temporary inboxes for each user.
  * - /users/{userId}/inboxes/{inboxId}/emails/{emailId}: Stores emails received in a temporary inbox.
- * - /temp_emails/{emailId}: A temporary holding pen for emails fetched by the server.
  * - /users/{userId}/api_keys/{apiKeyId}: Stores API keys for developers.
  * - /api_keys/{apiKeyId}/usage_logs/{usageLogId}: Stores usage logs per API key.
  * - /blocked_ips/{blockedIpId}: Stores blocked IP addresses (global).
@@ -81,26 +80,6 @@ service cloud.firestore {
         allow update: if isExistingOwner(userId);
         allow delete: if isExistingOwner(userId);
       }
-    }
-    
-    /**
-     * @description Rules for the temporary email holding collection.
-     * The trusted server action (which runs without auth) can write, read, and delete.
-     * All client-side access is denied.
-     */
-    match /temp_emails/{emailId} {
-      function isServer() {
-        return request.auth == null;
-      }
-      
-      // CREATE: Allow writes from the server.
-      allow create: if isServer();
-      
-      // READ/DELETE: Allow server to read/delete, deny clients.
-      allow read, delete: if isServer();
-      
-      // UPDATE: Deny all updates.
-      allow update: if false;
     }
 
     /**

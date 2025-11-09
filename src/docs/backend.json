@@ -116,23 +116,6 @@
         "textContent"
       ]
     },
-    "TempEmail": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "TempEmail",
-      "type": "object",
-      "description": "Represents an email temporarily stored before being moved to a user's private inbox.",
-      "properties": {
-        "id": { "type": "string", "description": "Unique ID for the temp email." },
-        "sessionId": { "type": "string", "description": "The persistent session ID for anonymous users." },
-        "recipient": { "type": "string", "description": "The email address it was sent to." },
-        "senderName": { "type": "string" },
-        "subject": { "type": "string" },
-        "receivedAt": { "type": "string", "format": "date-time" },
-        "htmlContent": { "type": "string" },
-        "textContent": { "type": "string" }
-      },
-      "required": ["id", "sessionId", "recipient", "receivedAt"]
-    },
     "ApiKey": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ApiKey",
@@ -397,22 +380,6 @@
               "description": "The unique identifier for the email."
             }
           ]
-        }
-      },
-      {
-        "path": "/temp_emails/{emailId}",
-        "definition": {
-            "entityName": "TempEmail",
-            "schema": {
-                "$ref": "#/backend/entities/TempEmail"
-            },
-            "description": "A temporary holding collection for emails fetched by the server. The client will securely read from here and move emails to their private inbox.",
-             "params": [
-                {
-                  "name": "emailId",
-                  "description": "The unique identifier for the temporary email."
-                }
-            ]
         }
       },
       {
