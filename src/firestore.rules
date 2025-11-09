@@ -85,20 +85,22 @@ service cloud.firestore {
     
     /**
      * @description Rules for the temporary email holding collection.
-     * Server action (using Admin SDK) can write here.
-     * Clients are NOT allowed to read from here at all.
-     * The server action is responsible for fetching and deleting.
+     * The trusted server action (which runs without auth) can write, read, and delete.
+     * All client-side access is denied.
      */
     match /temp_emails/{emailId} {
-      // CREATE: Allow writes. This will be performed by the trusted server action.
-      allow create: if true;
+      function isServer() {
+        return request.auth == null;
+      }
       
-      // READ (get, list): Deny all client-side reads for security.
-      allow read: if false;
+      // CREATE: Allow writes from the server.
+      allow create: if isServer();
       
-      // UPDATE, DELETE: Deny client-side updates and deletes.
+      // READ/DELETE: Allow server to read/delete, deny clients.
+      allow read, delete: if isServer();
+      
+      // UPDATE: Deny all updates.
       allow update: if false;
-      allow delete: if false;
     }
 
     /**
