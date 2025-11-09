@@ -43,7 +43,7 @@ const navItems = [
       icon: Globe, 
       href: "/admin/domain",
       subItems: [
-        { href: "/admin/domain", label: "Allowed & Blocked" }
+        { href: "/admin/domain", label: "Allowed & Blocked", icon: Shield }
       ]
     },
     { href: "/admin/inbox", icon: Inbox, label: "Inbox" },
