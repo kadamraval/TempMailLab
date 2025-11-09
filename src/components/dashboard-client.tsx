@@ -79,7 +79,7 @@ export function DashboardClient() {
         if (result.emails && result.emails.length > 0) {
             setInboxEmails(prevEmails => {
                 const existingIds = new Set(prevEmails.map(e => e.id));
-                const newEmails = result.emails.filter(e => !existingIds.has(e.id));
+                const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
                 
                 if (newEmails.length > 0) {
                     toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
@@ -139,7 +139,13 @@ export function DashboardClient() {
       setActiveInbox({ emailAddress });
       setCountdown(600);
       
-      await handleRefresh(false); 
+      // We manually call handleRefresh here, but it's not a dependency
+      if (sessionIdRef.current && emailAddress) {
+          const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
+          if (result.emails) {
+              setInboxEmails(result.emails);
+          }
+      }
       
       refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
 
@@ -153,7 +159,7 @@ export function DashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [firestore, toast, handleRefresh, user]);
+  }, [firestore, toast, user]);
 
   useEffect(() => {
     sessionIdRef.current = getSessionId();
