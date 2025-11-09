@@ -25,16 +25,6 @@ export function InboxView({ inbox, onSelectEmail, onRefresh, isRefreshing }: Inb
             )}
             {isRefreshing ? 'Checking...' : 'Refresh'}
         </Button>
-        <div className="relative flex items-center">
-            <div className="flex-grow border-t border-gray-300"></div>
-            <span className="flex-shrink mx-4 text-gray-400">or</span>
-            <div className="flex-grow border-t border-gray-300"></div>
-            <div className="absolute bottom-[-10px] left-1/2 transform -translate-x-1/2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-            </div>
-        </div>
-
-
       </div>
     );
   }
