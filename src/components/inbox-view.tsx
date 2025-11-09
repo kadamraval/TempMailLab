@@ -1,3 +1,4 @@
+
 import type { Email } from "@/types";
 import { cn } from "@/lib/utils";
 import { Inbox } from "lucide-react";
@@ -31,9 +32,9 @@ export function InboxView({ inbox, onSelectEmail }: InboxViewProps) {
         >
           <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
           <div className="grid grid-cols-5 gap-4 flex-grow items-center">
-            <span className="col-span-2 sm:col-span-1 truncate">{email.from}</span>
+            <span className="col-span-2 sm:col-span-1 truncate">{email.senderName}</span>
             <span className="col-span-3 sm:col-span-3 truncate">{email.subject}</span>
-            <span className="hidden sm:block text-right text-sm text-muted-foreground">{new Date(email.date).toLocaleString()}</span>
+            <span className="hidden sm:block text-right text-sm text-muted-foreground">{new Date(email.receivedAt).toLocaleString()}</span>
           </div>
         </button>
       ))}

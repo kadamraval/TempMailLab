@@ -1,11 +1,15 @@
 
+
 export interface Email {
-  id: string; // mail.tm uses string IDs
-  from: string;
+  id: string; 
+  from?: string; // Mailgun might just have a 'sender'
+  senderName?: string;
   subject: string;
-  date: string;
+  date?: string; // Will be set by server
+  receivedAt: string;
   body?: string;
-  htmlBody?: string;
+  htmlContent?: string;
+  textContent?: string;
   read?: boolean;
 }
 
@@ -17,21 +21,19 @@ export interface MailTmAccount {
 
 export interface User {
   uid: string;
-  email: string;
+  email: string | null;
   isPremium: boolean;
   planType: 'free' | 'premium';
   createdAt: string;
-  inboxCount: number;
+  inboxCount?: number;
 }
 
-export interface InboxLog {
+export interface Inbox {
   id: string;
-  email: string;
   userId: string;
+  emailAddress: string;
   createdAt: string;
   expiresAt: string;
-  emailCount: number;
-  domain: string;
 }
 
 export interface Plan {

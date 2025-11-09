@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Email } from "@/types";
@@ -23,22 +24,22 @@ export function EmailView({ email, onBack }: EmailViewProps) {
             </Button>
         </div>
         <div className="text-sm text-muted-foreground pt-2">
-          <p><strong>From:</strong> {email.from}</p>
-          <p><strong>Time:</strong> {new Date(email.date).toLocaleString()}</p>
+          <p><strong>From:</strong> {email.senderName}</p>
+          <p><strong>Time:</strong> {new Date(email.receivedAt).toLocaleString()}</p>
         </div>
       </CardHeader>
       <Separator />
       <CardContent className="pt-6">
-        <Tabs defaultValue={email.htmlBody ? "html" : "text"} className="w-full">
+        <Tabs defaultValue={email.htmlContent ? "html" : "text"} className="w-full">
           <TabsList>
-            <TabsTrigger value="html" disabled={!email.htmlBody}>HTML</TabsTrigger>
-            <TabsTrigger value="text" disabled={!email.body}>Plain Text</TabsTrigger>
+            <TabsTrigger value="html" disabled={!email.htmlContent}>HTML</TabsTrigger>
+            <TabsTrigger value="text" disabled={!email.textContent}>Plain Text</TabsTrigger>
           </TabsList>
           <TabsContent value="html">
             <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-white text-black">
-                {email.htmlBody ? (
+                {email.htmlContent ? (
                      <iframe
-                        srcDoc={email.htmlBody}
+                        srcDoc={email.htmlContent}
                         className="w-full h-[500px] border-0"
                         sandbox="allow-same-origin"
                      />
@@ -47,7 +48,7 @@ export function EmailView({ email, onBack }: EmailViewProps) {
           </TabsContent>
           <TabsContent value="text">
             <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-muted/30 whitespace-pre-wrap font-mono text-sm">
-              {email.body || 'No plain text view available.'}
+              {email.textContent || 'No plain text view available.'}
             </div>
           </TabsContent>
         </Tabs>

@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, getFirestore, setDoc } from 'firebase/firestore';
+import { doc, getFirestore, setDoc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 
 /**
@@ -16,7 +16,12 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
     const { firestore } = initializeFirebase();
     const userRef = doc(firestore, 'users', uid);
 
-    if (isNewUser) {
+    // For Google Sign-in, isNewUser is reliable.
+    // For email/pass, we might want to double-check if the doc exists
+    // to handle cases where client-side creation failed.
+    const docSnap = await getDoc(userRef);
+
+    if (isNewUser || !docSnap.exists()) {
         const userData = {
           uid,
           email,
@@ -24,12 +29,10 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
           planType: 'free',
           isPremium: false,
         };
-        // Use setDoc with merge:false to ensure it's a new document
-        await setDoc(userRef, userData, { merge: false });
-        return { success: true, message: 'New user record created in database.' };
+        await setDoc(userRef, userData, { merge: true });
+        return { success: true, message: 'User record ensured in database.' };
     }
-    // If it's not a new user, we don't need to do anything on the database side for a standard login.
-    // You could add logic here to update 'lastLogin' timestamp if needed.
+    
     return { success: true, message: 'User already exists, login successful.'};
 
   } catch (error: any) {

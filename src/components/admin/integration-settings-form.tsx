@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,9 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Textarea } from "../ui/textarea";
+import { useFirestore } from "@/firebase";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 interface IntegrationSettingsFormProps {
     integration: {
@@ -23,31 +26,43 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    // A more robust state to handle various fields
     const [settings, setSettings] = useState({
         enabled: integration.isConfigured,
         apiKey: "",
-        apiSecret: "",
-        clientId: "",
-        clientSecret: "",
-        projectId: "",
-        measurementId: "",
-        containerId: "",
-        appId: "",
-        privateKey: "",
-        serverPrefix: "",
-        audienceId: "",
-        propertyId: "",
-        widgetId: "",
-        publisherId: "",
-        siteKey: "",
-        billingAccountId: "",
         domain: "",
         cloudFunctionName: "",
     });
-
+    const [isLoading, setIsLoading] = useState(true);
+    const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
+
+    const settingsRef = doc(firestore, "admin_settings", "mailgun");
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (integration.slug !== 'mailgun') {
+                setIsLoading(false);
+                return;
+            };
+
+            const docSnap = await getDoc(settingsRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                setSettings({
+                    enabled: data.enabled ?? true,
+                    apiKey: data.apiKey ?? "",
+                    domain: data.domain ?? "",
+                    cloudFunctionName: data.cloudFunctionName ?? "",
+                });
+            }
+            setIsLoading(false);
+        };
+
+        fetchSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [firestore, integration.slug]);
+
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { id, value } = e.target;
@@ -58,13 +73,22 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setSettings(prev => ({ ...prev, enabled: checked }));
     };
 
-    const handleSaveChanges = () => {
-        // Here you would save the settings to Firestore
-        console.log(`Saving settings for ${integration.title}:`, settings);
-        toast({
-            title: "Settings Saved",
-            description: `Configuration for ${integration.title} has been updated.`,
-        });
+    const handleSaveChanges = async () => {
+        if (integration.slug !== 'mailgun') return;
+        
+        try {
+            await setDoc(settingsRef, settings, { merge: true });
+            toast({
+                title: "Settings Saved",
+                description: `Configuration for ${integration.title} has been updated.`,
+            });
+        } catch (error) {
+             toast({
+                title: "Error",
+                description: `Could not save settings.`,
+                variant: "destructive",
+            });
+        }
     };
 
     const handleCancel = () => {
@@ -72,6 +96,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
+        if (isLoading) {
+            return (
+                <div className="flex justify-center items-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            )
+        }
+        
         switch (integration.slug) {
             case "mailgun":
                 return (
@@ -93,133 +125,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         </div>
                     </>
                 );
-            case "firebase":
-                return (
-                    <>
-                        <div className="space-y-2">
-                            <Label htmlFor="projectId">Project ID</Label>
-                            <Input id="projectId" placeholder="your-firebase-project-id" value={settings.projectId} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="clientEmail">Client Email</Label>
-                            <Input id="clientEmail" type="email" placeholder="firebase-adminsdk-...@...iam.gserviceaccount.com" value={settings.clientId} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="privateKey">Private Key</Label>
-                            <Textarea id="privateKey" placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n" value={settings.privateKey} onChange={handleInputChange} className="min-h-32" />
-                        </div>
-                    </>
-                );
-            case "mailchimp":
-                return (
-                     <>
-                        <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key</Label>
-                            <Input id="apiKey" placeholder="Enter your MailChimp API key" value={settings.apiKey} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="serverPrefix">Server Prefix</Label>
-                            <Input id="serverPrefix" placeholder="e.g., us19" value={settings.serverPrefix} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="audienceId">Audience ID</Label>
-                            <Input id="audienceId" placeholder="Enter your Audience ID" value={settings.audienceId} onChange={handleInputChange} />
-                        </div>
-                    </>
-                );
-            case "google-analytics":
-                return (
-                    <div className="space-y-2">
-                        <Label htmlFor="measurementId">Measurement ID</Label>
-                        <Input id="measurementId" placeholder="G-XXXXXXXXXX" value={settings.measurementId} onChange={handleInputChange} />
-                    </div>
-                );
-            case "google-tag-manager":
-                return (
-                    <div className="space-y-2">
-                        <Label htmlFor="containerId">Container ID</Label>
-                        <Input id="containerId" placeholder="GTM-XXXXXXX" value={settings.containerId} onChange={handleInputChange} />
-                    </div>
-                );
-            case "paypal":
-            case "stripe":
-            case "razorpay":
-            case "google-login":
-            case "facebook-login":
-                 return (
-                    <>
-                        <div className="space-y-2">
-                            <Label htmlFor="clientId">{integration.title.includes('Google') || integration.title.includes('Facebook') ? 'App ID / Client ID' : 'Client ID / Key ID'}</Label>
-                            <Input id="clientId" placeholder="Enter your Client ID" value={settings.clientId} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="clientSecret">{integration.title.includes('Google') || integration.title.includes('Facebook') ? 'App Secret / Client Secret' : 'Client Secret / Key Secret'}</Label>
-                            <Input id="clientSecret" type="password" placeholder="Enter your Client Secret" value={settings.clientSecret} onChange={handleInputChange} />
-                        </div>
-                    </>
-                );
-            case "tawkto":
-                return (
-                     <>
-                        <div className="space-y-2">
-                            <Label htmlFor="propertyId">Property ID</Label>
-                            <Input id="propertyId" placeholder="Enter your Tawk.to Property ID" value={settings.propertyId} onChange={handleInputChange} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="widgetId">Widget ID</Label>
-                            <Input id="widgetId" placeholder="e.g., default" value={settings.widgetId} onChange={handleInputChange} />
-                        </div>
-                    </>
-                );
-            case "google-adsense":
-                return (
-                    <div className="space-y-2">
-                        <Label htmlFor="publisherId">Publisher ID</Label>
-                        <Input id="publisherId" placeholder="pub-XXXXXXXXXXXXXXXX" value={settings.publisherId} onChange={handleInputChange} />
-                    </div>
-                );
-             case "recaptcha":
-                 return (
-                    <>
-                        <div className="space-y-2">
-                            <Label htmlFor="siteKey">Site Key</Label>
-                            <Input id="siteKey" placeholder="Enter your reCAPTCHA Site Key" value={settings.siteKey} onChange={handleInputChange} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="apiSecret">Secret Key</Label>
-                            <Input id="apiSecret" type="password" placeholder="Enter your reCAPTCHA Secret Key" value={settings.apiSecret} onChange={handleInputChange} />
-                        </div>
-                    </>
-                );
-            case "mail-tm":
-                return (
-                    <p className="text-sm text-muted-foreground">
-                        This is a core application service and is configured via environment variables. Its status is always 'Connected'.
-                    </p>
-                )
-             case "cloud-billing-api":
-             case "cloud-monitoring-api":
-                 return (
-                    <>
-                        <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key</Label>
-                            <Input id="apiKey" placeholder="Enter your Google Cloud API Key" value={settings.apiKey} onChange={handleInputChange} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="projectId">Project ID</Label>
-                            <Input id="projectId" placeholder="Enter your Google Cloud Project ID" value={settings.projectId} onChange={handleInputChange} />
-                        </div>
-                    </>
-                );
+            
+            // Cases for other integrations can be added here
+            
             default:
                 return (
-                    <div className="space-y-2">
-                        <Label htmlFor="apiKey">API Key</Label>
-                        <Input id="apiKey" placeholder="Enter your API key" value={settings.apiKey} onChange={handleInputChange} />
-                        <p className="text-sm text-muted-foreground">
-                            Enter the primary API key for {integration.title}.
-                        </p>
-                    </div>
+                     <p className="text-sm text-muted-foreground">
+                        This integration is not yet configurable.
+                    </p>
                 )
         }
     }
@@ -234,26 +147,29 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
-                <Separator />
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                        <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Turn this integration on or off for your application.
-                        </p>
+                 {integration.slug === 'mailgun' && (
+                    <>
+                    <Separator />
+                    <div className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Turn this integration on or off for your application.
+                            </p>
+                        </div>
+                        <Switch 
+                            id="enable-integration"
+                            checked={settings.enabled}
+                            onCheckedChange={handleSwitchChange}
+                        />
                     </div>
-                    <Switch 
-                        id="enable-integration"
-                        checked={settings.enabled}
-                        onCheckedChange={handleSwitchChange}
-                        disabled={integration.slug === 'mail-tm' || integration.slug === 'firebase'}
-                    />
-                </div>
+                    </>
+                )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSaveChanges}>Save Changes</Button>
+                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isLoading}>Save Changes</Button>
                 </div>
             </CardFooter>
         </Card>
