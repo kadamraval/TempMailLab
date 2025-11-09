@@ -1,12 +1,11 @@
+
 'use server';
 
-import { getFirestore, doc, getDoc, collection, addDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, addDoc, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
-import { revalidatePath } from 'next/cache';
-
+import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
-import DOMPurify from 'isomorphic-dompurify';
 
 async function getMailgunSettings(firestore: any) {
     const settingsRef = doc(firestore, "admin_settings", "mailgun");
@@ -29,60 +28,75 @@ async function getMailgunSettings(firestore: any) {
 }
 
 export async function fetchEmailsFromServerAction(
-    userId: string,
-    inboxId: string,
+    sessionId: string,
     emailAddress: string
 ) {
-    if (!userId || !inboxId || !emailAddress) {
-        return { error: 'Invalid arguments provided.' };
+    if (!sessionId || !emailAddress) {
+        return { error: 'Invalid session or email address provided.' };
     }
 
+    const { firestore } = initializeFirebase();
+    
     try {
-        const { firestore } = initializeFirebase();
         const { apiKey, domain } = await getMailgunSettings(firestore);
 
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
+        // 1. Fetch new events from Mailgun
         const events = await mg.events.get(domain, {
             "to": emailAddress,
             "event": "stored",
             "limit": 30
         });
 
-        if (!events?.items?.length) {
-            revalidatePath('/dashboard');
-            return { success: true, message: "No new emails found.", emailsAdded: 0 };
+        if (events?.items?.length) {
+             for (const event of events.items) {
+                const email = event.message;
+                if (!email || !email.headers) continue;
+                
+                const cleanHtml = DOMPurify.sanitize(email['body-html'] || "");
+
+                // Write to the global temp_emails collection
+                const tempEmailsRef = collection(firestore, "temp_emails");
+                await addDoc(tempEmailsRef, {
+                    sessionId: sessionId,
+                    recipient: emailAddress,
+                    senderName: email.headers.from || "Unknown Sender",
+                    subject: email.headers.subject || "No Subject",
+                    receivedAt: new Date(event.timestamp * 1000).toISOString(),
+                    htmlContent: cleanHtml,
+                    textContent: email["stripped-text"] || "",
+                    read: false,
+                });
+            }
         }
 
-        let emailCount = 0;
+        // 2. Query for all emails for this session ID
+        const tempEmailsQuery = query(collection(firestore, "temp_emails"), where("sessionId", "==", sessionId));
+        const querySnapshot = await getDocs(tempEmailsQuery);
+        
+        if (querySnapshot.empty) {
+            return { success: true, emails: [] };
+        }
 
-        for (const event of events.items) {
-            const email = event.message;
-            if (!email || !email.headers) continue;
-            
-            const cleanHtml = DOMPurify.sanitize(email['body-html'] || "");
+        const emails: any[] = [];
+        const batch = writeBatch(firestore);
 
-            // Write to the global temp_emails collection
-            const tempEmailsRef = collection(firestore, "temp_emails");
-            await addDoc(tempEmailsRef, {
-                // Not using batch to ensure each mail is processed.
-                recipient: emailAddress, // The address it was sent to
-                finalUserId: userId,      // The intended final owner
-                finalInboxId: inboxId,    // The intended final inbox
-                senderName: email.headers.from || "Unknown Sender",
-                subject: email.headers.subject || "No Subject",
-                receivedAt: new Date(event.timestamp * 1000).toISOString(),
-                htmlContent: cleanHtml,
-                textContent: email["stripped-text"] || "",
-                read: false,
+        querySnapshot.forEach(doc => {
+            const data = doc.data();
+            emails.push({
+                id: doc.id,
+                ...data,
             });
-            emailCount++;
-        }
-        
-        revalidatePath('/dashboard');
-        
-        return { success: true, emailsAdded: emailCount };
+            // 3. Delete them after querying
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+
+        // 4. Return the emails to the client
+        return { success: true, emails };
 
     } catch (error: any) {
         console.error("Error in fetchEmailsFromServerAction:", error);

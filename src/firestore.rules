@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Firestore Security Rules for TempInbox application.
  *
@@ -85,26 +86,19 @@ service cloud.firestore {
     /**
      * @description Rules for the temporary email holding collection.
      * Server action (using Admin SDK) can write here.
-     * Client can only read/delete their own emails.
+     * Clients are NOT allowed to read from here at all.
+     * The server action is responsible for fetching and deleting.
      */
     match /temp_emails/{emailId} {
-      function isSignedIn() { return request.auth != null; }
+      // CREATE: Allow writes. This will be performed by the trusted server action.
+      allow create: if true;
       
-      // CREATE: Denied for clients. Only a trusted server process (Admin SDK) should write here.
-      allow create: if false;
+      // READ (get, list): Deny all client-side reads for security.
+      allow read: if false;
       
-      // GET: A user can read an individual email only if they are the intended recipient.
-      allow get: if isSignedIn() && request.auth.uid == resource.data.finalUserId;
-      
-      // LIST (QUERY): A user can ONLY query for emails where their query's `where` clause
-      // specifies that 'finalUserId' must be equal to their own UID. This secures the query.
-      allow list: if isSignedIn() && request.query.where.finalUserId == request.auth.uid;
-      
-      // DELETE: A user can delete the temporary email once they have processed it.
-      allow delete: if isSignedIn() && resource.data.finalUserId == request.auth.uid;
-      
-      // UPDATE: No updates allowed on temporary emails.
+      // UPDATE, DELETE: Deny client-side updates and deletes.
       allow update: if false;
+      allow delete: if false;
     }
 
     /**
@@ -136,7 +130,7 @@ service cloud.firestore {
     }
     
     /**
-     * @description Allows public read access to allowed domains, but denies all write access.
+     * @description Allows public read access to allowed domains. Admin can write.
      * @path /allowed_domains/{allowedDomainId}
      */
     match /allowed_domains/{allowedDomainId} {
@@ -144,7 +138,8 @@ service cloud.firestore {
 
       allow get: if true;
       allow list: if true;
-      allow write: if isSignedIn(); // In production, restrict to admins
+      // In production, restrict to admins via custom claims
+      allow write: if isSignedIn(); 
     }
     
     /**

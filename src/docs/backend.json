@@ -123,16 +123,15 @@
       "description": "Represents an email temporarily stored before being moved to a user's private inbox.",
       "properties": {
         "id": { "type": "string", "description": "Unique ID for the temp email." },
+        "sessionId": { "type": "string", "description": "The persistent session ID for anonymous users." },
         "recipient": { "type": "string", "description": "The email address it was sent to." },
-        "finalUserId": { "type": "string", "description": "The user ID of the intended final recipient." },
-        "finalInboxId": { "type": "string", "description": "The inbox ID of the intended final recipient." },
         "senderName": { "type": "string" },
         "subject": { "type": "string" },
         "receivedAt": { "type": "string", "format": "date-time" },
         "htmlContent": { "type": "string" },
         "textContent": { "type": "string" }
       },
-      "required": ["id", "recipient", "finalUserId", "finalInboxId", "receivedAt"]
+      "required": ["id", "sessionId", "recipient", "receivedAt"]
     },
     "ApiKey": {
       "$schema": "http://json-schema.org/draft-07/schema#",
