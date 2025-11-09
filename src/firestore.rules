@@ -89,19 +89,22 @@ service cloud.firestore {
      * Client can only read/delete their own emails.
      */
     match /temp_emails/{emailId} {
-        // Only a trusted server process (Admin SDK) can create. Client cannot create.
-        allow create: if false; 
+        function isSignedIn() { return request.auth != null; }
         
-        // A user can read an email only if they are the intended recipient.
-        allow get: if request.auth != null && request.auth.uid == resource.data.finalUserId;
+        // CREATE: Only a trusted server process (Admin SDK) should write here. Client cannot create.
+        allow create: if false;
         
-        // Users can only query for emails where the 'finalUserId' matches their own UID.
-        allow list: if request.auth != null && request.query.resource.data.finalUserId == request.auth.uid;
+        // GET: A user can read an individual email only if they are the intended recipient.
+        allow get: if isSignedIn() && request.auth.uid == resource.data.finalUserId;
         
-        // A user can delete the temporary email once they have processed it.
-        allow delete: if request.auth != null && resource.data.finalUserId == request.auth.uid;
+        // LIST (QUERY): A user can ONLY query for emails where the 'finalUserId' matches their own UID.
+        // This is the critical rule that secures the collection query.
+        allow list: if isSignedIn() && request.query.where.finalUserId == request.auth.uid;
         
-        // No updates allowed.
+        // DELETE: A user can delete the temporary email once they have processed it.
+        allow delete: if isSignedIn() && resource.data.finalUserId == request.auth.uid;
+        
+        // UPDATE: No updates allowed on temporary emails.
         allow update: if false;
     }
 
