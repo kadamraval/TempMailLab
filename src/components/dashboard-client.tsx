@@ -271,9 +271,13 @@ export function DashboardClient() {
                 <Button onClick={handleCopyEmail} variant="outline" className="w-full sm:w-auto">
                   <Copy className="mr-2 h-4 w-4" /> Copy
                 </Button>
-                 <Button onClick={() => handleRefresh(false)} variant="outline" className="w-full sm:w-auto" disabled={isRefreshing || !activeInbox}>
-                    <RefreshCw className={cn("mr-2 h-4 w-4", isRefreshing && "animate-spin")} />
-                    Refresh
+                 <Button onClick={() => handleRefresh(false)} variant="secondary" className="w-full sm:w-auto" disabled={isRefreshing || !activeInbox}>
+                    {isRefreshing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    {isRefreshing ? 'Checking...' : 'Refresh'}
                 </Button>
                 <Button onClick={handleGenerateEmail} className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
                    New Email
@@ -299,3 +303,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
