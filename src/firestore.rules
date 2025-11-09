@@ -96,7 +96,7 @@ service cloud.firestore {
         allow get: if request.auth != null && request.auth.uid == resource.data.finalUserId;
         
         // Users can only query for emails where the 'finalUserId' matches their own UID.
-        allow list: if request.auth != null && request.query.where[0][0] == 'finalUserId' && request.query.where[0][1] == '==' && request.query.where[0][2] == request.auth.uid;
+        allow list: if request.auth != null && request.query.resource.data.finalUserId == request.auth.uid;
         
         // A user can delete the temporary email once they have processed it.
         allow delete: if request.auth != null && resource.data.finalUserId == request.auth.uid;
