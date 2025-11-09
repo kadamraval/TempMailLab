@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
-import { PlusCircle, FileUp, FileDown, Trash2 } from "lucide-react"
+import { FileUp, FileDown, Trash2 } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -69,34 +69,18 @@ export function DataTable<TData, TValue>({
     },
   })
 
-  // A bit of a hack to allow filtering by multiple columns.
-  // The 'filterColumn' is the primary one, but we also allow filtering by 'domain' if it exists.
-  const primaryFilterValue = (table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""
-  const domainFilterValue = (table.getColumn("domain")?.getFilterValue() as string) ?? ""
-
-
   return (
     <div>
       <div className="flex items-center justify-between py-4 gap-2 flex-wrap">
         <div className="flex gap-2">
            <Input
             placeholder={`Filter by ${filterColumn}...`}
-            value={primaryFilterValue}
+            value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
                 table.getColumn(filterColumn)?.setFilterValue(event.target.value)
             }
             className="max-w-sm"
             />
-            {table.getColumn("domain") && (
-                 <Input
-                    placeholder="Filter by domain..."
-                    value={domainFilterValue}
-                    onChange={(event) =>
-                        table.getColumn("domain")?.setFilterValue(event.target.value)
-                    }
-                    className="max-w-sm"
-                />
-            )}
         </div>
         <div className="flex items-center gap-2">
             {Object.keys(rowSelection).length > 0 && (
@@ -122,10 +106,7 @@ export function DataTable<TData, TValue>({
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New
-            </Button>
+            
         </div>
       </div>
       <div className="rounded-md border">

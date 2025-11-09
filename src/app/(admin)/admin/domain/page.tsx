@@ -10,6 +10,7 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { AllowedDomain } from "./allowed-columns";
 import type { BlockedDomain } from "./blocked-columns";
+import { AddAllowedDomainDialog } from "./add-allowed-domain";
 
 export default function AdminDomainPage() {
     const firestore = useFirestore();
@@ -46,9 +47,12 @@ export default function AdminDomainPage() {
                 </TabsList>
                 <TabsContent value="allowed">
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Allowed Domains</CardTitle>
-                            <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Allowed Domains</CardTitle>
+                                <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
+                            </div>
+                            <AddAllowedDomainDialog />
                         </CardHeader>
                         <CardContent>
                             <DataTable columns={allowedDomainColumns} data={allowedDomains || []} filterColumn="domain" />

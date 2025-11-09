@@ -2,20 +2,21 @@
 
 This document outlines the professional plan for building the TempInbox custom temporary email service. It defines the system architecture, the separation of responsibilities, and a phased development roadmap.
 
-## **Architectural Blueprint: A Two-Layer System**
+## **Architectural Blueprint: A Modern, Integrated System**
 
-Our system will have two distinct layers that communicate via a secure API and a shared database (Firestore).
+Our system uses a modern Next.js architecture with Server Actions, which simplifies development and enhances security.
 
-1.  **The Application Layer (AI Responsibility):** This is the Next.js application that users interact with. The AI will build and manage 100% of this layer.
-    *   **Technology:** Next.js, React, Tailwind CSS, Server Actions.
+1.  **The Application Layer (AI Responsibility):** This is the Next.js application that users and administrators interact with. The AI will build and manage 100% of this layer.
+    *   **Technology:** Next.js, React, Tailwind CSS, ShadCN UI.
     *   **Backend-for-Frontend:** Firebase (Authentication, Firestore).
-    *   **Core Functions:** User registration/login, admin panel, inbox generation, real-time display of emails, and invoking backend services via Server Actions.
+    *   **Core Functions:** The AI is responsible for the entire user interface, admin panel, real-time inbox display, and the core logic for generating email addresses and fetching messages.
+    *   **Server Actions:** Instead of separate cloud functions, we use secure Server Actions (`'use server'`) within the Next.js app to communicate with third-party services like Mailgun. This code lives in `src/lib/actions/` and is never exposed to the user's browser.
 
-2.  **The Service & Infrastructure Layer (Your Responsibility):** This is the backend engine that receives and processes emails. You will set this up, and the AI will provide the interface (in the admin panel) to connect it to the application.
+2.  **The Service Layer (Your Responsibility):** This is the external email-receiving service. You are responsible for setting up this service and providing the necessary credentials to the application via the admin panel.
     *   **Technology:** Mailgun.
-    *   **Core Functions:** Providing API keys and a configured domain for receiving emails.
+    *   **Core Functions:** You provide a Mailgun API Key and a configured Domain. The application uses these credentials to fetch emails.
 
-This separation is clean, secure, and scalable.
+This integrated approach is clean, secure, and highly efficient.
 
 ---
 
@@ -23,44 +24,41 @@ This separation is clean, secure, and scalable.
 
 We will build the system in three distinct phases.
 
-### **Phase 1: Admin Foundation & Service Configuration**
+### **Phase 1: Foundation & Configuration (In Progress)**
 
-**Goal:** Before any user features are built, we must establish the administrative control center. This phase empowers you to connect your infrastructure to the application.
+**Goal:** Establish the administrative controls and connect your Mailgun service to the application.
 
-*   **AI's Task 1: Build the Mailgun Integration Settings Page.**
-    *   The AI will create a new page at `/admin/settings/integrations/mailgun`.
-    *   This page will contain a secure form for you to enter:
-        1.  Your Mailgun API Key.
-        2.  Your Mailgun Domain (e.g., `mg.yourdomain.com`).
-    *   The AI will write the code to save these values securely into a dedicated, admin-only document in Firestore.
+*   **AI's Task 1: Build Mailgun Integration Settings Page (✅ Complete)**
+    *   The AI has built the secure form at `/admin/settings/integrations/mailgun`.
+    *   This allows you to save your Mailgun API Key and Domain securely to Firestore.
 
-*   **Your Task 1: Set up Mailgun.**
-    *   **Action:** Create a Mailgun account. Add and verify a domain/subdomain you will use for receiving emails (e.g., `mg.yourdomain.com`).
-    *   **Result Needed for Admin Panel:** Your Mailgun API Key and the domain name.
+*   **Your Task 1: Set up Mailgun & Connect It (✅ Complete)**
+    *   You have created a Mailgun account and entered your API key and domain into the application's admin panel.
 
-*   **AI's Task 2: Build the Domain Management UI.**
-    *   The AI will build the UI at `/admin/domain` for you to specify which domains our application is allowed to use when generating temporary email addresses.
+*   **AI's Task 2: Build the "Domain Pool" Management UI (In Progress)**
+    *   The AI is building the UI at `/admin/domain`. This is where you will define the pool of domains that the application can use to generate temporary email addresses.
+    *   **Your Next Step:** Once the AI completes this task, you will add at least one of your Mailgun-verified domains to this list (e.g., `mg.yourdomain.com`).
 
 ---
 
 ### **Phase 2: The Core User Experience**
 
-**Goal:** With the admin foundation in place, we will now build the temp-mail generator for your users.
+**Goal:** Build the main temp-mail generator for your end-users.
 
-*   **AI's Task 3: Implement Inbox Generation.**
-    *   The AI will create the "Generate New Email" functionality on the main dashboard.
-    *   This action will read the "Allowed Domains" from Firestore, generate a unique address, and create a new `inbox` document in Firestore, linked to the user's ID.
+*   **AI's Task 3: Implement Inbox Generation Logic.**
+    *   The AI will create the "Generate New Email" functionality on the user-facing dashboard.
+    *   This action will:
+        1.  Fetch the "Allowed Domains" list you created in Phase 1.
+        2.  Randomly select one domain from the list.
+        3.  Generate a unique, random prefix (e.g., `xy2z9a`).
+        4.  Combine them into a full email address (`xy2z9a@your-allowed-domain.com`).
+        5.  Create a corresponding `inbox` document in Firestore, linking the new address to the user ID and setting an expiration time.
 
-*   **AI's Task 4: Implement On-Demand Email Fetching.**
-    *   The AI will create a "Refresh" button in the user's inbox view.
-    *   When clicked, the code will execute a Server Action (`fetchEmailsFromServerAction`) that securely:
-        1.  Reads the Mailgun settings from Firestore.
-        2.  Uses the Mailgun API to fetch new emails.
-        3.  Sanitizes them and writes them to the database.
+*   **AI's Task 4: Implement On-Demand Email Fetching (✅ Complete)**
+    *   The `fetchEmailsFromServerAction` is already built. When a user clicks "Refresh", this Server Action securely uses your saved Mailgun credentials to fetch new emails for their specific address.
 
-*   **AI's Task 5: Build the Real-Time Inbox Display.**
-    *   The AI will use Firestore's real-time `useCollection` hook to listen for changes to the user's inbox collection.
-    *   When the Server Action writes new emails to Firestore, they will appear instantly in the UI.
+*   **AI's Task 5: Build the Real-Time Inbox Display (✅ Complete)**
+    *   The app already uses Firestore's real-time `useCollection` hook. When the Server Action saves new emails to the database, they will appear instantly in the user's UI.
 
 ---
 
@@ -69,12 +67,9 @@ We will build the system in three distinct phases.
 **Goal:** Harden the system, add monetization, and ensure long-term stability.
 
 *   **AI's Task 6: Implement Security Rules & User Quotas.**
-    *   The AI will write strict Firestore Security Rules to guarantee that users can only access their own inboxes.
-    *   The AI will build the UI for managing Plans (Free, Pro) and write application logic to enforce plan limits (e.g., a "Free" user can only have one active inbox at a time).
+    *   The AI will write strict Firestore Security Rules to guarantee that users can only access their own inboxes and data.
+    *   The AI will build the UI for managing subscription plans (e.g., Free, Pro) and write application logic to enforce plan limits (e.g., a "Free" user can only have one active inbox at a time).
 
-*   **AI's Task 7: Implement Cleanup Timestamps.**
-    *   The AI will add an `expiresAt` timestamp to every inbox document created.
-
-*   **Your Task 2: Set up the Cleanup Cron Job.**
-    *   **Action:** In Google Cloud Scheduler, create a cron job that runs periodically (e.g., every hour).
-    *   **Job Logic:** This job should trigger a simple Cloud Function that queries Firestore for all `inbox` documents where `expiresAt` is in the past and deletes them and their associated emails.
+*   **AI's Task 7: Implement Inbox Cleanup.**
+    *   The AI has already added an `expiresAt` timestamp to every inbox document created.
+    *   **A cron job (scheduled task) will be required** to periodically query Firestore and delete expired inboxes and their associated emails. The AI will provide guidance on setting this up in Google Cloud Scheduler when we reach this stage.
