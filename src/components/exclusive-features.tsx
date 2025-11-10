@@ -4,28 +4,26 @@
 import { KeyRound, Users, BarChart } from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import imageData from '@/app/lib/placeholder-images.json';
 
 const exclusiveFeatures = [
     {
       icon: <KeyRound className="h-8 w-8 text-primary" />,
       title: "Password Protection",
       description: "Secure your temporary inboxes with a unique password, ensuring only you can access the contents.",
-      image: "https://picsum.photos/seed/password/600/400",
-      dataAiHint: "password security",
+      image: imageData.exclusiveFeatures[0]
     },
     {
       icon: <Users className="h-8 w-8 text-primary" />,
       title: "Team Member Access",
       description: "Invite your team to share plan features. Perfect for development teams and QA testing environments.",
-      image: "https://picsum.photos/seed/team/600/400",
-      dataAiHint: "team collaboration",
+      image: imageData.exclusiveFeatures[1]
     },
     {
       icon: <BarChart className="h-8 w-8 text-primary" />,
       title: "Advanced Analytics",
       description: "Access a detailed dashboard to monitor your temporary email usage, track statistics, and gain insights.",
-      image: "https://picsum.photos/seed/analytics/600/400",
-      dataAiHint: "analytics dashboard",
+      image: imageData.exclusiveFeatures[2]
     },
 ];
 
@@ -51,12 +49,12 @@ export const ExclusiveFeatures = () => {
                 >
                     <div className="w-full md:w-1/2">
                         <Image 
-                            src={feature.image}
-                            alt={feature.title}
-                            width={600}
-                            height={400}
+                            src={feature.image.src}
+                            alt={feature.image.alt}
+                            width={feature.image.width}
+                            height={feature.image.height}
                             className="rounded-md object-cover w-full aspect-video"
-                            data-ai-hint={feature.dataAiHint}
+                            data-ai-hint={feature.image.dataAiHint}
                         />
                     </div>
                     <div className="w-full md:w-1/2">
