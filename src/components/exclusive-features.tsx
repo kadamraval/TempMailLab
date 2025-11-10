@@ -5,7 +5,6 @@ import { KeyRound, Users, BarChart } from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import imageData from '@/app/lib/placeholder-images.json';
-import { BorderBeam } from "./ui/border-beam";
 import { cn } from "@/lib/utils";
 
 const exclusiveFeatures = [
@@ -48,11 +47,10 @@ export const ExclusiveFeatures = () => {
                   transition={{ duration: 0.5, delay: index * 0.2 }}
                   viewport={{ once: true }}
                   className={cn(
-                    "relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background overflow-hidden",
+                    "relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-gradient-to-br from-background to-background/50",
                     index % 2 !== 0 && "md:flex-row-reverse" // Alternate layout
                   )}
                 >
-                    <BorderBeam size={250} duration={12} delay={index * 2} />
                     <div className="w-full md:w-1/2">
                         <Image 
                             src={feature.image.src}

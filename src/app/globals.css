@@ -71,9 +71,3 @@
     @apply font-headline;
   }
 }
-
-@keyframes border-beam-animate {
-  100% {
-    offset-distance: 100%;
-  }
-}

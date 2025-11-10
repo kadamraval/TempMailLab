@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 const svgToDataUri = require("mini-svg-data-uri");
@@ -102,16 +103,10 @@ export default {
             height: '0',
           },
         },
-        "border-beam-animate": {
-          "100%": {
-            "offset-distance": "100%",
-          },
-        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        "border-beam": "border-beam-animate var(--duration) linear infinite",
       },
     },
   },
