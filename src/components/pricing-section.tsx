@@ -31,17 +31,32 @@ const plans = {
             priceCycle: "/ month",
             description: "For power users who need more.",
             features: [
-                "Unlimited Inboxes",
+                "25 Active Inboxes",
                 "24 Hour Inbox Lifetime",
                 "Premium & Custom Domains",
                 "Advanced Spam Filtering",
                 "Email Forwarding",
                 "No Ads",
-                "Developer API Access",
             ],
             buttonText: "Go Premium",
             href: "/register",
             isPrimary: true,
+        },
+        {
+            name: "Pro",
+            price: "$15",
+            priceCycle: "/ month",
+            description: "For businesses and developers.",
+            features: [
+                "Unlimited Inboxes",
+                "7 Day Inbox Lifetime",
+                "Unlimited Custom Domains",
+                "Password Protected Inboxes",
+                "Team Member Access",
+                "Developer API Access",
+            ],
+            buttonText: "Go Pro",
+            href: "/register",
         }
     ],
     yearly: [
@@ -64,17 +79,32 @@ const plans = {
             priceCycle: "/ year",
             description: "For power users who need more.",
             features: [
-                "Unlimited Inboxes",
+                "25 Active Inboxes",
                 "24 Hour Inbox Lifetime",
                 "Premium & Custom Domains",
                 "Advanced Spam Filtering",
                 "Email Forwarding",
                 "No Ads",
-                "Developer API Access",
             ],
             buttonText: "Go Premium",
             href: "/register",
             isPrimary: true,
+        },
+        {
+            name: "Pro",
+            price: "$144",
+            priceCycle: "/ year",
+            description: "For businesses and developers.",
+            features: [
+                "Unlimited Inboxes",
+                "7 Day Inbox Lifetime",
+                "Unlimited Custom Domains",
+                "Password Protected Inboxes",
+                "Team Member Access",
+                "Developer API Access",
+            ],
+            buttonText: "Go Pro",
+            href: "/register",
         }
     ]
 }
@@ -89,6 +119,9 @@ export function PricingSection() {
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-4 mb-12">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Fair Pricing</h2>
+                    <p className="text-lg text-muted-foreground">
+                        Choose the plan that's right for you.
+                    </p>
                 </div>
                 
                 <div className="flex items-center justify-center space-x-4 mb-12">
@@ -104,11 +137,11 @@ export function PricingSection() {
                     </Label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     {currentPlans.map((plan) => (
                          <Card key={plan.name} className={cn(
                             "flex flex-col h-full rounded-2xl border",
-                            plan.isPrimary && "border-2 border-primary"
+                            plan.isPrimary && "border-2 border-primary shadow-lg"
                          )}>
                              <CardHeader className="p-6">
                                 <div className="flex justify-between items-start">
@@ -138,6 +171,13 @@ export function PricingSection() {
                             </CardFooter>
                         </Card>
                     ))}
+                </div>
+                 <div className="mt-12 text-center">
+                    <Button asChild variant="ghost">
+                        <Link href="/pricing">
+                            Compare All Plans &rarr;
+                        </Link>
+                    </Button>
                 </div>
             </div>
         </section>
