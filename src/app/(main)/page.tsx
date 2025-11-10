@@ -67,18 +67,20 @@ export default function HomePage() {
         </main>
       </div>
       {sections.map((Section, index) => {
-        const patternIndex = index % 3;
+        const patternIndex = index % 4;
         let backgroundClass = "";
         let removeBorder = false;
 
-        if (patternIndex === 0) { // First gradient
-          backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
-          removeBorder = true;
+        if (patternIndex === 0) { // 1st Gradient
+            backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
+            removeBorder = true;
         } else if (patternIndex === 1) { // White
-          backgroundClass = "bg-white dark:bg-background";
-        } else { // Second gradient
-          backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
-          removeBorder = true;
+            backgroundClass = "bg-white dark:bg-background";
+        } else if (patternIndex === 2) { // 2nd Gradient
+            backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
+            removeBorder = true;
+        } else { // White
+            backgroundClass = "bg-white dark:bg-background";
         }
 
         return (
