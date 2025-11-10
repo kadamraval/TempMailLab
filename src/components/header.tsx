@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, LogIn, LogOut, LayoutDashboard, Settings, User as UserIcon } from "lucide-react";
+import { Mail, LogIn, LogOut, LayoutDashboard, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { useUser, useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
@@ -17,13 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModeToggle } from "./mode-toggle";
 
 
 const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/#features", label: "Features" },
     { href: "/pricing", label: "Pricing" },
-    { href: "/faq", label: "FAQ" },
     { href: "/blog", label: "Blog" },
     { href: "/api", label: "API" },
 ];
@@ -70,7 +69,7 @@ export function Header() {
                 </Link>
             ))}
         </nav>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {user && !user.isAnonymous ? (
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -120,6 +119,7 @@ export function Header() {
               </Link>
             </Button>
           )}
+          <ModeToggle />
         </div>
       </div>
     </header>

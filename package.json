@@ -50,6 +50,7 @@
     "lucide-react": "^0.475.0",
     "mailgun.js": "^10.2.1",
     "next": "15.3.3",
+    "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
