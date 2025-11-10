@@ -1,6 +1,7 @@
 "use client"
 
 import { ShieldCheck, Zap, Lock, Forward, Server, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const features = [
     {
@@ -53,7 +54,7 @@ export function FeaturesSection() {
                         <div key={index} className="bg-card border-2 border-foreground p-1 rounded-lg relative group">
                             <div className="absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md bg-foreground" />
                             <div className="relative z-10 bg-card p-6 rounded-md h-full text-center">
-                                <div className={`p-3 rounded-md inline-block mb-4 ${feature.color}`}>
+                                <div className={cn("p-3 rounded-md inline-block mb-4 border-2 border-foreground", feature.color)}>
                                     {feature.icon}
                                 </div>
                                 <h3 className="text-xl font-bold mb-2">{feature.title}</h3>

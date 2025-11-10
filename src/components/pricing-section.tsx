@@ -19,6 +19,7 @@ const plans = [
         ],
         buttonText: "Get Started",
         href: "/",
+        shadowColor: "bg-foreground",
     },
     {
         name: "Premium",
@@ -37,6 +38,7 @@ const plans = [
         buttonText: "Go Premium",
         href: "/register",
         isPrimary: true,
+        shadowColor: "bg-chart-1",
     }
 ]
 
@@ -55,7 +57,7 @@ export function PricingSection() {
                          )}>
                             <div className={cn(
                                 "absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md",
-                                plan.isPrimary ? "bg-chart-1" : "bg-foreground"
+                                plan.shadowColor
                             )} />
                              <div className="relative z-10 bg-card rounded-md flex flex-col h-full">
                                 <CardHeader className="pt-8">
