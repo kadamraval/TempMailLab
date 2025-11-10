@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Chrome, Zap, MousePointerSquare } from "lucide-react";
+import { Check, Chrome, Zap, MousePointerClick } from "lucide-react";
 
 const features = [
     {
@@ -38,7 +38,7 @@ const installSteps = [
         step: 3,
         title: "Load Unpacked",
         description: "Enable 'Developer mode' in the top right, then click 'Load unpacked' and select the unzipped extension folder.",
-        icon: <MousePointerSquare className="h-6 w-6 text-primary" />
+        icon: <MousePointerClick className="h-6 w-6 text-primary" />
     },
 ];
 
