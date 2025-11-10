@@ -18,7 +18,7 @@ const plans = [
             "Standard Domains",
             "Basic Spam Filtering",
         ],
-        buttonText: "Get Started",
+        buttonText: "Get Started Free",
         href: "/",
     },
     {
@@ -43,9 +43,9 @@ const plans = [
 
 export function PricingSection() {
     return (
-        <section id="pricing" className="py-12 lg:py-24">
+        <section id="pricing" className="py-16 sm:py-24">
             <div className="container mx-auto px-4">
-                <div className="text-center space-y-3 mb-12">
+                <div className="text-center space-y-4 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Pricing</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
