@@ -33,6 +33,7 @@ export default function HomePage() {
   }
   
   if (!user) {
+    // This case should be rare due to anonymous sign-in, but as a fallback:
     return (
        <>
         <Hero />
@@ -45,8 +46,13 @@ export default function HomePage() {
 
   // Show the dashboard for both anonymous and registered users
   return (
+    <>
     <main className="container mx-auto px-4 py-8">
       <DashboardClient />
     </main>
+    <FeaturesSection />
+    <PricingSection />
+    <FaqSection />
+    </>
   );
 }

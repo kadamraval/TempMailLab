@@ -27,12 +27,16 @@ const faqs = [
     {
         question: "What is the difference between the Free and Premium plans?",
         answer: "The Free plan is great for quick, occasional use. The Premium plan unlocks powerful features like unlimited inboxes, longer email retention, custom domains, email forwarding, API access, and an ad-free experience."
+    },
+    {
+        question: "Can I recover an expired inbox?",
+        answer: "No, once an inbox expires, it and all of its contents are permanently and irretrievably deleted to ensure user privacy. If you need longer-lasting inboxes, please consider our Premium plan."
     }
 ];
 
 export function FaqSection() {
     return (
-        <section className="py-12 lg:py-24 bg-secondary">
+        <section id="faq" className="py-12 lg:py-24 bg-secondary">
             <div className="container mx-auto px-4">
                  <div className="text-center space-y-3 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Frequently Asked Questions</h2>

@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Zap, Lock, Forward } from "lucide-react";
+import { ShieldCheck, Zap, Lock, Forward, Server, Users } from "lucide-react";
 
 const features = [
     {
@@ -24,11 +24,21 @@ const features = [
         title: "Email Forwarding",
         description: "Premium users can forward temporary emails to their real email address, keeping their primary address hidden.",
     },
+    {
+        icon: <Server className="w-8 h-8 text-primary" />,
+        title: "Custom Domains",
+        description: "Power users can connect their own domains to generate unique, branded temporary email addresses.",
+    },
+    {
+        icon: <Users className="w-8 h-8 text-primary" />,
+        title: "Developer API",
+        description: "Integrate our temporary email service into your own applications with our simple and powerful API.",
+    },
 ];
 
 export function FeaturesSection() {
     return (
-        <section className="py-12 lg:py-24 bg-secondary">
+        <section id="features" className="py-12 lg:py-24 bg-secondary">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-3 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Powerful Features for Your Privacy</h2>
@@ -36,7 +46,7 @@ export function FeaturesSection() {
                         Our service is packed with features designed to protect your identity and keep your main inbox clean.
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {features.map((feature, index) => (
                         <Card key={index} className="text-center shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
                             <CardHeader className="items-center">

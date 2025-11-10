@@ -22,9 +22,9 @@ import { ModeToggle } from "./mode-toggle";
 
 const navLinks = [
     { href: "/", label: "Home" },
-    { href: "/pricing", label: "Pricing" },
+    { href: "/#pricing", label: "Pricing" },
     { href: "/blog", label: "Blog" },
-    { href: "/api", label: "API" },
+    { href: "/#faq", label: "FAQ" },
 ];
 
 export function Header() {

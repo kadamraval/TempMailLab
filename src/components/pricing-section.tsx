@@ -31,7 +31,7 @@ const plans = [
             "Advanced Spam Filtering",
             "Email Forwarding",
             "No Ads",
-            "API Access",
+            "Developer API Access",
         ],
         buttonText: "Go Premium",
         href: "/register",
@@ -41,7 +41,7 @@ const plans = [
 
 export function PricingSection() {
     return (
-        <section className="py-12 lg:py-24">
+        <section id="pricing" className="py-12 lg:py-24">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-3 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Flexible Plans for Everyone</h2>
@@ -51,27 +51,27 @@ export function PricingSection() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
                     {plans.map((plan) => (
-                        <Card key={plan.name} className={`flex flex-col ${plan.isPrimary ? 'border-primary shadow-primary/20' : ''}`}>
+                        <Card key={plan.name} className={`flex flex-col ${plan.isPrimary ? 'border-primary shadow-xl shadow-primary/10' : 'shadow-lg'}`}>
                             <CardHeader>
-                                <CardTitle>{plan.name}</CardTitle>
+                                <CardTitle className="text-2xl">{plan.name}</CardTitle>
                                 <CardDescription>{plan.description}</CardDescription>
                                 <div className="flex items-baseline pt-4">
-                                    <span className="text-4xl font-bold">{plan.price}</span>
-                                    {plan.priceCycle && <span className="text-muted-foreground">{plan.priceCycle}</span>}
+                                    <span className="text-5xl font-bold tracking-tight">{plan.price}</span>
+                                    {plan.priceCycle && <span className="text-muted-foreground ml-1">{plan.priceCycle}</span>}
                                 </div>
                             </CardHeader>
                             <CardContent className="flex-grow">
-                                <ul className="space-y-3">
+                                <ul className="space-y-4">
                                     {plan.features.map((feature) => (
                                         <li key={feature} className="flex items-center gap-3">
-                                            <Check className="w-5 h-5 text-green-500" />
-                                            <span>{feature}</span>
+                                            <Check className="w-5 h-5 text-green-500 shrink-0" />
+                                            <span className="text-muted-foreground">{feature}</span>
                                         </li>
                                     ))}
                                 </ul>
                             </CardContent>
                             <CardFooter>
-                                <Button asChild className="w-full" variant={plan.isPrimary ? "default" : "outline"}>
+                                <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
                                     <Link href={plan.href}>{plan.buttonText}</Link>
                                 </Button>
                             </CardFooter>
