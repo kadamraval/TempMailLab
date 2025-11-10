@@ -175,7 +175,7 @@ export function DashboardClient() {
         clearCountdown();
         clearRefreshInterval();
     }
-  }, []); 
+  }, [handleGenerateEmail]); 
 
 
   useEffect(() => {

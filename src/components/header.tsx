@@ -56,11 +56,11 @@ export function Header() {
   }
 
   return (
-    <header className="border-b sticky top-0 bg-background z-50">
+    <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-50">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link href="/" className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Temp Mailer</h1>
+          <h1 className="text-xl font-bold text-foreground">Temp Mailer</h1>
         </Link>
         <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
@@ -112,7 +112,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link href="/login">
                 <LogIn className="mr-2 h-4 w-4" />
                 Login
