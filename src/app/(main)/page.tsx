@@ -15,6 +15,19 @@ import { UseCasesSection } from "@/components/use-cases-section";
 import { ComparisonSection } from "@/components/comparison-section";
 import { ExclusiveFeatures } from "@/components/exclusive-features";
 import { BlogSection } from "@/components/blog-section";
+import { cn } from "@/lib/utils";
+
+const sections = [
+  { component: UseCasesSection },
+  { component: FeaturesSection },
+  { component: ExclusiveFeatures },
+  { component: ComparisonSection },
+  { component: PricingSection },
+  { component: BlogSection },
+  { component: Testimonials },
+  { component: FaqSection },
+  { component: StayConnected },
+];
 
 export default function HomePage() {
   const { user, isUserLoading } = useUser();
@@ -53,15 +66,13 @@ export default function HomePage() {
           {user ? <div className="mt-8"><DashboardClient /></div> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
         </main>
       </div>
-      <UseCasesSection />
-      <FeaturesSection />
-      <ExclusiveFeatures />
-      <ComparisonSection />
-      <PricingSection />
-      <BlogSection />
-      <Testimonials />
-      <FaqSection />
-      <StayConnected />
+      {sections.map((Section, index) => (
+        <div key={index} className={cn(
+          index % 2 === 0 ? "bg-background" : "bg-muted/30"
+        )}>
+          <Section.component />
+        </div>
+      ))}
     </>
   );
 }
