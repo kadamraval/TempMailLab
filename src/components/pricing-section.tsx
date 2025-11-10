@@ -42,28 +42,30 @@ const plans = [
 
 export function PricingSection() {
     return (
-        <section id="pricing" className="py-16 sm:py-24">
+        <section id="pricing" className="py-24 sm:py-32 bg-secondary/50">
             <div className="container mx-auto px-4">
-                <div className="text-center space-y-4 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Fair Pricing for Everyone</h2>
+                <div className="text-center space-y-4 mb-16">
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Fair Pricing for Everyone</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {plans.map((plan) => (
                          <Card key={plan.name} className={cn(
-                            "flex flex-col h-full shadow-sm hover:shadow-lg transition-shadow duration-200",
-                            plan.isPrimary && "border-primary"
+                            "flex flex-col h-full bg-card shadow-sm transition-shadow duration-300",
+                            plan.isPrimary && "border-2 border-primary shadow-lg"
                          )}>
-                             <div className="flex-grow">
-                                <CardHeader className="pt-8">
-                                    {plan.isPrimary && <div className="text-primary font-semibold mb-2">MOST POPULAR</div>}
-                                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                                    <CardDescription>{plan.description}</CardDescription>
-                                    <div className="flex items-baseline pt-4">
+                             <div className="flex-grow p-6">
+                                <CardHeader className="p-0">
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                                        {plan.isPrimary && <div className="text-primary bg-primary/10 px-3 py-1 rounded-full text-sm font-semibold">POPULAR</div>}
+                                    </div>
+                                    <CardDescription className="pt-2">{plan.description}</CardDescription>
+                                    <div className="flex items-baseline pt-6">
                                         <span className="text-5xl font-bold tracking-tight">{plan.price}</span>
                                         {plan.priceCycle && <span className="text-muted-foreground ml-1">{plan.priceCycle}</span>}
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="p-0 mt-8">
                                     <ul className="space-y-4">
                                         {plan.features.map((feature) => (
                                             <li key={feature} className="flex items-center gap-3">
@@ -74,7 +76,7 @@ export function PricingSection() {
                                     </ul>
                                 </CardContent>
                             </div>
-                            <CardFooter className="pb-8">
+                            <CardFooter className="p-6 bg-secondary/50 rounded-b-lg">
                                 <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
                                     <Link href={plan.href}>{plan.buttonText}</Link>
                                 </Button>

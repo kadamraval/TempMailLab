@@ -45,6 +45,7 @@
     "firebase": "^10.12.2",
     "firebase-admin": "^12.1.1",
     "form-data": "^4.0.0",
+    "framer-motion": "^11.3.18",
     "genkit": "^1.13.0",
     "isomorphic-dompurify": "^1.9.0",
     "lucide-react": "^0.475.0",
