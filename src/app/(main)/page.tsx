@@ -11,6 +11,8 @@ import { Testimonials } from "@/components/testimonials";
 import { FaqSection } from "@/components/faq-section";
 import { DashboardClient } from "@/components/dashboard-client";
 import { StayConnected } from "@/components/stay-connected";
+import { UseCasesSection } from "@/components/use-cases-section";
+import { ComparisonSection } from "@/components/comparison-section";
 
 export default function HomePage() {
   const { user, isUserLoading } = useUser();
@@ -51,6 +53,8 @@ export default function HomePage() {
         </main>
       </div>
       <FeaturesSection />
+      <UseCasesSection />
+      <ComparisonSection />
       <PricingSection />
       <Testimonials />
       <FaqSection />
