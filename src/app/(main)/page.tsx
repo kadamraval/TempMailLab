@@ -68,7 +68,9 @@ export default function HomePage() {
       </div>
       {sections.map((Section, index) => (
         <div key={index} className={cn(
-          index % 2 === 0 ? "bg-background" : "bg-muted/30"
+          index % 2 === 0 
+            ? "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10" 
+            : "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10"
         )}>
           <Section.component />
         </div>
