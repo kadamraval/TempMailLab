@@ -4,6 +4,7 @@ import { Separator } from "./ui/separator";
 
 const topNavLinks = [
     { name: "Use Cases", href: "/#use-cases" },
+    { name: "Extension", href: "/extension" },
     { name: "Pricing", href: "/#pricing" },
     { name: "Blog", href: "/blog" },
     { name: "About", href: "/about" },
