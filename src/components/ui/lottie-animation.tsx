@@ -1,18 +1,36 @@
 
 "use client";
 
-import React from 'react';
-import Lottie from 'lottie-react';
+import React, { useRef, useEffect } from 'react';
+import Lottie, { LottieRefCurrentProps } from 'lottie-react';
 
 interface LottieAnimationProps {
     animationData: any;
     className?: string;
+    isHovered?: boolean;
 }
 
-export const LottieAnimation: React.FC<LottieAnimationProps> = ({ animationData, className }) => {
+export const LottieAnimation: React.FC<LottieAnimationProps> = ({ animationData, className, isHovered }) => {
+    const lottieRef = useRef<LottieRefCurrentProps>(null);
+
+    useEffect(() => {
+        if (lottieRef.current) {
+            if (isHovered) {
+                lottieRef.current.play();
+            } else {
+                lottieRef.current.stop();
+            }
+        }
+    }, [isHovered]);
+
     return (
         <div className={className}>
-            <Lottie animationData={animationData} loop={true} />
+            <Lottie
+                lottieRef={lottieRef}
+                animationData={animationData}
+                loop={false}
+                autoplay={false}
+            />
         </div>
     );
 };

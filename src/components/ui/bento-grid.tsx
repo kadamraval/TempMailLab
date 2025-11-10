@@ -1,7 +1,7 @@
 
 "use client";
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 
 export const BentoGrid = ({
@@ -36,6 +36,8 @@ export const BentoGridItem = ({
   header?: React.ReactNode;
   icon?: React.ReactNode;
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -46,9 +48,12 @@ export const BentoGridItem = ({
         "row-span-1 rounded-xl group/bento hover:shadow-xl transition duration-200 shadow-input dark:shadow-none p-4 dark:bg-black dark:border-white/[0.2] bg-white border border-transparent justify-between flex flex-col space-y-4",
         className
       )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl flex items-center justify-center">
-        {header}
+        {/* Pass hover state to children if they are React elements */}
+        {React.isValidElement(header) ? React.cloneElement(header as React.ReactElement<any>, { isHovered }) : header}
       </div>
       <div className="group-hover/bento:translate-x-2 transition duration-200">
         <div className="flex items-center gap-2">
