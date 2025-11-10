@@ -1,3 +1,4 @@
+
 "use client";
 import { cn } from "@/lib/utils";
 import React from "react";
@@ -42,17 +43,15 @@ export const BentoGridItem = ({
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
       className={cn(
-        "row-span-1 rounded-xl group/bento transition duration-200 p-4 bg-card/80 border justify-between flex flex-col space-y-4",
+        "row-span-1 rounded-xl group/bento transition duration-200 p-4 bg-card border justify-between flex flex-col space-y-4",
         className
       )}
     >
-      <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl overflow-hidden">
-        {header}
-      </div>
+      {header}
       <div className="group-hover/bento:translate-x-2 transition duration-200">
         <div className="flex items-center gap-2">
           {icon}
-          <div className="font-sans font-bold text-neutral-600 dark:text-neutral-200 mb-2 mt-2">
+          <div className="font-sans font-bold text-neutral-800 dark:text-neutral-200 mb-2 mt-2">
             {title}
           </div>
         </div>
