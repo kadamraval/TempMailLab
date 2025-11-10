@@ -12,19 +12,7 @@ const features = [
 export function StayConnected() {
     return (
         <div className="border-t">
-            <div className="container mx-auto px-4 py-8 space-y-8">
-                <div className="flex flex-wrap items-center justify-between gap-6">
-                    <h3 className="text-lg font-semibold">Stay Connected, Stay Private.</h3>
-                    <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-sm text-muted-foreground">
-                        {features.map((feature, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                                {feature.icon}
-                                <span>{feature.text}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <Separator />
+            <div className="container mx-auto px-4 py-16 sm:py-24 space-y-8">
                 <SubscribeForm />
             </div>
         </div>

@@ -20,7 +20,6 @@ import { ModeToggle } from "./mode-toggle";
 
 
 const navLinks = [
-    { href: "/#inbox", label: "Inbox" },
     { href: "/#features", label: "Features" },
     { href: "/#pricing", label: "Pricing" },
     { href: "/#faq", label: "FAQ" },
@@ -34,12 +33,14 @@ export function Header() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out.",
-      });
-      router.push("/");
+      if(auth) {
+        await signOut(auth);
+        toast({
+          title: "Logged Out",
+          description: "You have been successfully logged out.",
+        });
+        router.push("/");
+      }
     } catch (error) {
       toast({
         title: "Logout Failed",
@@ -55,7 +56,7 @@ export function Header() {
   }
 
   return (
-    <header className="border-b sticky top-0 bg-background/95 backdrop-blur-sm z-50">
+    <header className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-50">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link href="/" className="flex items-center gap-2">
           <Mail className="h-6 w-6 text-primary" />
@@ -98,7 +99,7 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings">
+                  <Link href="/admin/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </Link>

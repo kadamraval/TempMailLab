@@ -42,11 +42,13 @@ export const BentoGridItem = ({
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
       className={cn(
-        "row-span-1 rounded-xl group/bento hover:shadow-xl transition duration-200 shadow-input dark:shadow-none p-4 dark:bg-black dark:border-white/[0.2] bg-white border border-transparent justify-between flex flex-col space-y-4",
+        "row-span-1 rounded-xl group/bento transition duration-200 p-4 bg-card/80 border justify-between flex flex-col space-y-4",
         className
       )}
     >
-      {header}
+      <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl overflow-hidden">
+        {header}
+      </div>
       <div className="group-hover/bento:translate-x-2 transition duration-200">
         <div className="flex items-center gap-2">
           {icon}

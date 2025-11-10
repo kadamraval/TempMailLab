@@ -35,12 +35,12 @@ export default function HomePage() {
   
   return (
     <>
-      <Hero />
-      <div id="inbox">
-        <main className="container mx-auto px-4 py-8">
+      <div id="inbox" className="py-24 sm:py-32">
+        <main className="container mx-auto px-4">
           {user ? <DashboardClient /> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
         </main>
       </div>
+      <Hero />
       <FeaturesSection />
       <PricingSection />
       <Testimonials />

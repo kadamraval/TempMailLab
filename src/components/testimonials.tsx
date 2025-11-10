@@ -40,10 +40,10 @@ const testimonials = [
 
 export function Testimonials() {
     return (
-        <section className="py-24 sm:py-32 bg-secondary/50">
+        <section className="py-24 sm:py-32">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-4 mb-16">
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Loved by Professionals</h2>
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">What Our Users Say</h2>
                 </div>
                 <Carousel
                     opts={{
@@ -56,7 +56,7 @@ export function Testimonials() {
                         {testimonials.map((testimonial, index) => (
                             <CarouselItem key={index} className="md:basis-1/2">
                                 <div className="p-4">
-                                <Card>
+                                <Card className="bg-card/80">
                                     <CardContent className="flex flex-col items-center justify-center p-8 gap-6 text-center">
                                         <p className="text-lg text-muted-foreground">"{testimonial.quote}"</p>
                                         <div className="flex items-center gap-4">
