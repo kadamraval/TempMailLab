@@ -42,7 +42,10 @@ export default function HomePage() {
       <div id="inbox" className="py-16 sm:py-20">
         <main className="container mx-auto px-4">
           <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
-             <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+            <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+            <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
+                100% Free & Secure
+            </span>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight">
               Temporary Email Address
             </h1>
