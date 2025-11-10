@@ -1,54 +1,50 @@
 
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Separator } from "./ui/separator";
 
-const footerLinks = {
-    Company: [
-        { name: "About", href: "/about" },
-        { name: "Blog", href: "/blog" },
-        { name: "Contact", href: "/contact" },
-    ],
-    Legal: [
-        { name: "Privacy Policy", href: "/privacy" },
-        { name: "Terms & Conditions", href: "/terms" },
-    ],
-    Services: [
-        { name: "Pricing", href: "/#pricing" },
-        { name: "API", href: "/api" },
-        { name: "Features", href: "/#features" },
-    ],
-}
+const topNavLinks = [
+    { name: "Use Cases", href: "/#use-cases" },
+    { name: "Pricing", href: "/#pricing" },
+    { name: "Blog", href: "/blog" },
+    { name: "About", href: "/about" },
+    { name: "Help Center", href: "/contact" },
+];
+
+const legalLinks = [
+    { name: "Terms of Service", href: "/terms" },
+    { name: "Privacy Policy", href: "/privacy" },
+];
 
 export function Footer() {
     return (
         <footer className="border-t bg-background/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="md:col-span-1">
-                <Link href="/" className="flex items-center gap-2">
-                    <Mail className="h-6 w-6 text-primary" />
-                    <h1 className="text-xl font-bold text-foreground">Temp Mailer</h1>
-                </Link>
-                <p className="mt-4 text-sm text-muted-foreground">Your secure and private temporary email solution.</p>
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <nav className="flex gap-6">
+                    {topNavLinks.map((link) => (
+                         <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            {link.name}
+                        </Link>
+                    ))}
+                 </nav>
             </div>
-            {Object.entries(footerLinks).map(([title, links]) => (
-                <div key={title}>
-                    <h3 className="font-semibold mb-4 text-foreground/90">{title}</h3>
-                    <ul className="space-y-3">
-                        {links.map((link) => (
-                            <li key={link.name}>
-                                <Link href={link.href} className="text-muted-foreground hover:text-primary text-sm transition-colors">
-                                    {link.name}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
+            
+            <Separator className="my-8" />
+            
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-sm text-muted-foreground">
+                     &copy; {new Date().getFullYear()} Temp Mailer. All rights reserved.
+                </p>
+                <div className="flex items-center gap-6">
+                     {legalLinks.map((link) => (
+                         <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            {link.name}
+                        </Link>
+                    ))}
                 </div>
-            ))}
-          </div>
-          <div className="text-center mt-12 pt-8 border-t">
-             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Temp Mailer. All rights reserved.</p>
-          </div>
+            </div>
+
         </div>
       </footer>
     )
