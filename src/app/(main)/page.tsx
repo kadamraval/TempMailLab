@@ -72,12 +72,12 @@ export default function HomePage() {
         let removeBorder = false;
 
         if (patternIndex === 0) { // 1st Gradient
-            backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
+            backgroundClass = "bg-gradient-to-b from-white to-[hsl(var(--gradient-start))]/30 dark:from-background dark:to-[hsl(var(--gradient-start))]/10";
             removeBorder = true;
         } else if (patternIndex === 1) { // White
             backgroundClass = "bg-white dark:bg-background";
         } else if (patternIndex === 2) { // 2nd Gradient
-            backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
+            backgroundClass = "bg-gradient-to-b from-white to-[hsl(var(--gradient-end))]/30 dark:from-background dark:to-[hsl(var(--gradient-end))]/10";
             removeBorder = true;
         } else { // White
             backgroundClass = "bg-white dark:bg-background";
