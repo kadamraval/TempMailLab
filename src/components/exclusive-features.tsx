@@ -1,4 +1,3 @@
-
 "use client";
 
 import { KeyRound, Users, BarChart } from "lucide-react";
@@ -47,8 +46,7 @@ export const ExclusiveFeatures = () => {
                   transition={{ duration: 0.5, delay: index * 0.2 }}
                   viewport={{ once: true }}
                   className={cn(
-                    "relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-gradient-to-br from-background to-muted/50",
-                    index % 2 !== 0 && "md:flex-row-reverse" // Alternate layout
+                    "relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-gradient-to-br from-background to-muted/50"
                   )}
                 >
                     <div className="w-full md:w-1/2">
@@ -61,8 +59,8 @@ export const ExclusiveFeatures = () => {
                             data-ai-hint={feature.image.dataAiHint}
                         />
                     </div>
-                    <div className="w-full md:w-1/2 flex flex-col items-center text-center">
-                        <div className="flex flex-col items-center gap-4">
+                    <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left">
+                        <div className="flex flex-col items-center md:items-start gap-4">
                             <div className="bg-primary p-3 rounded-full">
                                 {feature.icon}
                             </div>
