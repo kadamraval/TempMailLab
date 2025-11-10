@@ -1,3 +1,4 @@
+
 "use client";
 
 import { KeyRound, Users, BarChart } from "lucide-react";
@@ -59,8 +60,8 @@ export const ExclusiveFeatures = () => {
                             data-ai-hint={feature.image.dataAiHint}
                         />
                     </div>
-                    <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left">
-                        <div className="flex flex-col items-center md:items-start gap-4">
+                    <div className="w-full md:w-1/2 flex flex-col items-center text-center">
+                        <div className="flex flex-col items-center gap-4">
                             <div className="bg-primary p-3 rounded-full">
                                 {feature.icon}
                             </div>
