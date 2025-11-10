@@ -28,7 +28,7 @@ const exclusiveFeatures = [
     },
 ];
 
-export const ExclusiveFeatures = () => {
+export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) => {
   return (
     <section id="exclusive-features" className="py-16 sm:py-20">
          <div className="container mx-auto px-4">
@@ -46,7 +46,10 @@ export const ExclusiveFeatures = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.2 }}
                   viewport={{ once: true }}
-                  className="relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-card"
+                  className={cn(
+                    "relative flex flex-col md:flex-row items-center gap-8 p-6 rounded-lg bg-card",
+                    !removeBorder && "border"
+                  )}
                 >
                     <div className="w-full md:w-1/2">
                         <Image 
