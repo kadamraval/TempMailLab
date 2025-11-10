@@ -1,24 +1,30 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Code, Globe, Forward } from "lucide-react";
+import Image from "next/image";
 
-const features = [
+const exclusiveFeatures = [
     {
-      icon: <Globe className="h-8 w-8 text-primary" />,
+      icon: <Globe className="h-6 w-6 text-primary" />,
       title: "Custom Domains",
-      description: "Connect your own domains to generate unique, branded temporary emails.",
+      description: "Connect your own domains to generate unique, branded temporary emails for your business or project.",
+      image: "https://picsum.photos/seed/domain/600/400",
+      dataAiHint: "domain name",
     },
     {
-      icon: <Forward className="h-8 w-8 text-primary" />,
+      icon: <Forward className="h-6 w-6 text-primary" />,
       title: "Email Forwarding",
-      description: "Automatically forward temporary emails to your real address, keeping your identity hidden.",
+      description: "Automatically forward important temporary emails to your real address, ensuring you never miss a thing.",
+      image: "https://picsum.photos/seed/forward/600/400",
+      dataAiHint: "email forwarding",
     },
     {
-      icon: <Code className="h-8 w-8 text-primary" />,
+      icon: <Code className="h-6 w-6 text-primary" />,
       title: "Developer API",
-      description: "Integrate our service directly into your applications with a powerful and easy-to-use API.",
+      description: "Integrate our powerful temporary email service directly into your applications with a simple, robust API.",
+      image: "https://picsum.photos/seed/api/600/400",
+      dataAiHint: "developer api",
     },
 ];
 
@@ -28,21 +34,33 @@ export const ExclusiveFeatures = () => {
          <div className="container mx-auto px-4">
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                    Exclusive Premium Features
+                    Exclusive Features
                 </h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {features.map((feature) => (
-                <Card key={feature.title} className="border bg-background">
-                  <CardHeader>
-                    {feature.icon}
-                  </CardHeader>
-                  <CardContent>
-                    <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                  </CardContent>
-                </Card>
+            <div className="space-y-12 max-w-4xl mx-auto">
+              {exclusiveFeatures.map((feature, index) => (
+                <div key={feature.title} className="flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background">
+                    <div className="w-full md:w-1/3">
+                        <Image 
+                            src={feature.image}
+                            alt={feature.title}
+                            width={600}
+                            height={400}
+                            className="rounded-md object-cover"
+                            data-ai-hint={feature.dataAiHint}
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                            {feature.icon}
+                            <h3 className="text-2xl font-bold">{feature.title}</h3>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">
+                            {feature.description}
+                        </p>
+                    </div>
+                </div>
               ))}
             </div>
 
