@@ -5,22 +5,24 @@ import { KeyRound, Users, BarChart } from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import imageData from '@/app/lib/placeholder-images.json';
+import { BorderBeam } from "./ui/border-beam";
+import { cn } from "@/lib/utils";
 
 const exclusiveFeatures = [
     {
-      icon: <KeyRound className="h-8 w-8 text-primary" />,
+      icon: <KeyRound className="h-6 w-6 text-primary-foreground" />,
       title: "Password Protection",
       description: "Secure your temporary inboxes with a unique password, ensuring only you can access the contents.",
       image: imageData.exclusiveFeatures[0]
     },
     {
-      icon: <Users className="h-8 w-8 text-primary" />,
+      icon: <Users className="h-6 w-6 text-primary-foreground" />,
       title: "Team Member Access",
       description: "Invite your team to share plan features. Perfect for development teams and QA testing environments.",
       image: imageData.exclusiveFeatures[1]
     },
     {
-      icon: <BarChart className="h-8 w-8 text-primary" />,
+      icon: <BarChart className="h-6 w-6 text-primary-foreground" />,
       title: "Advanced Analytics",
       description: "Access a detailed dashboard to monitor your temporary email usage, track statistics, and gain insights.",
       image: imageData.exclusiveFeatures[2]
@@ -45,8 +47,12 @@ export const ExclusiveFeatures = () => {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: index * 0.2 }}
                   viewport={{ once: true }}
-                  className="flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background"
+                  className={cn(
+                    "relative flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background overflow-hidden",
+                    index % 2 !== 0 && "md:flex-row-reverse" // Alternate layout
+                  )}
                 >
+                    <BorderBeam size={250} duration={12} delay={index * 2} />
                     <div className="w-full md:w-1/2">
                         <Image 
                             src={feature.image.src}
@@ -58,8 +64,10 @@ export const ExclusiveFeatures = () => {
                         />
                     </div>
                     <div className="w-full md:w-1/2">
-                        <div className="flex flex-col items-start gap-3">
-                            {feature.icon}
+                        <div className="flex flex-col items-start gap-4">
+                            <div className="bg-primary p-3 rounded-full">
+                                {feature.icon}
+                            </div>
                             <h3 className="text-2xl font-bold">{feature.title}</h3>
                             <p className="text-muted-foreground leading-relaxed">
                                 {feature.description}
