@@ -3,6 +3,7 @@
 
 import { KeyRound, Users, BarChart } from "lucide-react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 
 const exclusiveFeatures = [
     {
@@ -40,7 +41,14 @@ export const ExclusiveFeatures = () => {
             
             <div className="space-y-8 max-w-5xl mx-auto">
               {exclusiveFeatures.map((feature, index) => (
-                <div key={feature.title} className={`flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 50 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.2 }}
+                  viewport={{ once: true }}
+                  className="flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background"
+                >
                     <div className="w-full md:w-1/2">
                         <Image 
                             src={feature.image}
@@ -60,7 +68,7 @@ export const ExclusiveFeatures = () => {
                             {feature.description}
                         </p>
                     </div>
-                </div>
+                </motion.div>
               ))}
             </div>
 
