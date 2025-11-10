@@ -41,9 +41,6 @@ export function FaqSection() {
             <div className="container mx-auto px-4">
                  <div className="text-center space-y-3 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Frequently Asked Questions</h2>
-                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Have questions? We've got answers. If you can't find what you're looking for, feel free to contact us.
-                    </p>
                 </div>
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full">

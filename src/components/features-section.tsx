@@ -43,10 +43,10 @@ export function FeaturesSection() {
         <section id="features" className="py-12 lg:py-24 bg-secondary">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-3 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Features</h2>
-                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Everything you need to protect your online identity and keep your main inbox clean.
-                    </p>
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight inline-block relative">
+                        Features
+                        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-2/3 h-1 bg-primary rounded-full"></span>
+                    </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {features.map((feature, index) => (
