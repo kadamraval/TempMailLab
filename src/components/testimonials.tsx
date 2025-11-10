@@ -43,7 +43,7 @@ export function Testimonials() {
     return (
         <section className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                <div className="text-center space-y-4 mb-16">
+                <div className="text-center space-y-4 mb-12">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">What Our Users Say</h2>
                 </div>
                 <Carousel
@@ -57,7 +57,7 @@ export function Testimonials() {
                         {testimonials.map((testimonial, index) => (
                             <CarouselItem key={index} className="md:basis-1/2">
                                 <div className="p-4">
-                                <Card>
+                                <Card className="border">
                                     <CardContent className="flex flex-col items-center justify-center p-8 gap-6 text-center">
                                         <p className="text-lg text-muted-foreground">"{testimonial.quote}"</p>
                                         <div className="flex items-center gap-4">

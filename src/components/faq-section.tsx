@@ -39,7 +39,7 @@ export function FaqSection() {
     return (
         <section id="faq" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                 <div className="text-center space-y-4 mb-16">
+                 <div className="text-center space-y-4 mb-12">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Questions?</h2>
                 </div>
                 <div className="max-w-3xl mx-auto">

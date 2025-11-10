@@ -107,8 +107,8 @@ export function PricingSection() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {currentPlans.map((plan) => (
                          <Card key={plan.name} className={cn(
-                            "flex flex-col h-full rounded-2xl",
-                            plan.isPrimary && "border-2 border-primary shadow-2xl shadow-primary/20"
+                            "flex flex-col h-full rounded-2xl border",
+                            plan.isPrimary && "border-2 border-primary"
                          )}>
                              <CardHeader className="p-6">
                                 <div className="flex justify-between items-start">

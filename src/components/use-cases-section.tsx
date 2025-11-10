@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,15 +33,12 @@ export function UseCasesSection() {
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-16">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            Why Use a Temp Mail?
+            Powerful Use Cases
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            From one-time sign-ups to developer testing, a temporary email keeps your primary inbox safe and clean.
-          </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {useCases.map((useCase) => (
-            <Card key={useCase.title} className="bg-background text-center">
+            <Card key={useCase.title} className="bg-background text-center border">
               <CardHeader className="items-center">
                 {useCase.icon}
               </CardHeader>

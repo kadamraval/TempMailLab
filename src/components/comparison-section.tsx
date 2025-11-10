@@ -1,7 +1,8 @@
+
 "use client"
 
 import { Check, X, Star } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 const comparisonData = [
@@ -18,15 +19,12 @@ export function ComparisonSection() {
   return (
     <section id="comparison" className="py-16 sm:py-20">
       <div className="container mx-auto px-4">
-        <div className="text-center space-y-4 mb-16">
+        <div className="text-center space-y-4 mb-12">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
             Tempmailer vs. Others
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            See what makes our service different from standard temporary email providers.
-          </p>
         </div>
-        <Card className="max-w-4xl mx-auto">
+        <Card className="max-w-4xl mx-auto border">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
