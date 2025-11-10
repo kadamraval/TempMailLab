@@ -53,9 +53,9 @@ export default function HomePage() {
           {user ? <div className="mt-8"><DashboardClient /></div> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
         </main>
       </div>
+      <UseCasesSection />
       <FeaturesSection />
       <ExclusiveFeatures />
-      <UseCasesSection />
       <ComparisonSection />
       <PricingSection />
       <BlogSection />
