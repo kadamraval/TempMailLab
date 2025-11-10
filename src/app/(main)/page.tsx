@@ -59,7 +59,7 @@ export default function HomePage() {
             <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
                 100% Free & Secure
             </span>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-r from-primary to-accent text-transparent bg-clip-text">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
               Temporary Email Address
             </h1>
           </div>
