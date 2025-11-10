@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temp Mailer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            width: 300px;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div class="p-4">
+        <div class="flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-blue-600"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <h1 class="text-lg font-bold">Temp Mailer</h1>
+        </div>
+        
+        <div class="mb-4">
+            <label for="email-output" class="block text-sm font-medium text-slate-600 mb-1">Your Temporary Email:</label>
+            <div class="flex items-center">
+                <input type="text" id="email-output" readonly class="w-full px-3 py-2 text-base bg-white border border-slate-300 rounded-l-md focus:outline-none" placeholder="Click 'Generate' to start">
+                <button id="copy-button" class="px-3 py-2 bg-slate-200 border-t border-b border-r border-slate-300 rounded-r-md hover:bg-slate-300" title="Copy to clipboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+            </div>
+             <p id="copy-feedback" class="text-xs text-green-600 mt-1 h-3"></p>
+        </div>
+
+        <button id="generate-button" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">
+            Generate New Email
+        </button>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
