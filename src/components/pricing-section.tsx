@@ -43,7 +43,7 @@ const plans = [
 
 export function PricingSection() {
     return (
-        <section id="pricing" className="py-24 sm:py-32 bg-secondary/30">
+        <section id="pricing" className="py-24 sm:py-32">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-4 mb-16">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Fair Pricing for Everyone</h2>
@@ -51,7 +51,7 @@ export function PricingSection() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {plans.map((plan) => (
                          <Card key={plan.name} className={cn(
-                            "flex flex-col h-full bg-card",
+                            "flex flex-col h-full",
                             plan.isPrimary && "border-2 border-primary"
                          )}>
                              <div className="flex-grow p-6">
@@ -77,7 +77,7 @@ export function PricingSection() {
                                     </ul>
                                 </CardContent>
                             </div>
-                            <CardFooter className="p-6 bg-secondary/50 rounded-b-lg">
+                            <CardFooter className="p-6 mt-auto">
                                 <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
                                     <Link href={plan.href}>{plan.buttonText}</Link>
                                 </Button>

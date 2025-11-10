@@ -4,8 +4,10 @@ import { useUser, useAuth } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { signInAnonymously } from "firebase/auth";
+import { Hero } from "@/components/hero";
 import { FeaturesSection } from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";
+import { Testimonials } from "@/components/testimonials";
 import { FaqSection } from "@/components/faq-section";
 import { DashboardClient } from "@/components/dashboard-client";
 import { StayConnected } from "@/components/stay-connected";
@@ -33,6 +35,7 @@ export default function HomePage() {
   
   return (
     <>
+      <Hero />
       <div id="inbox">
         <main className="container mx-auto px-4 py-8">
           {user ? <DashboardClient /> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
@@ -40,6 +43,7 @@ export default function HomePage() {
       </div>
       <FeaturesSection />
       <PricingSection />
+      <Testimonials />
       <FaqSection />
       <StayConnected />
     </>

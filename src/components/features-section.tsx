@@ -3,12 +3,9 @@
 import {
   ShieldCheck,
   Zap,
-  Lock,
   Forward,
-  Server,
   Code,
   Globe,
-  Mail,
 } from "lucide-react"
 import React from "react";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
@@ -23,7 +20,7 @@ const features = [
   },
   {
     title: "Total Privacy & Spam Protection",
-    description: "Keep your primary inbox clean. Use a temporary address for sign-ups to avoid marketing lists, spam, and data breaches.",
+    description: "Keep your primary inbox clean. Use a temporary address for sign-ups to avoid marketing lists and spam.",
     header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
     className: "md:col-span-2",
     icon: <ShieldCheck className="h-4 w-4 text-neutral-500" />,
@@ -38,7 +35,7 @@ const features = [
     {
     title: "Custom Domains",
     description:
-      "Power users can connect their own domains to generate unique, branded temporary emails for professional use cases.",
+      "Power users can connect their own domains to generate unique, branded temporary emails.",
     header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
     className: "md:col-span-1",
     icon: <Globe className="h-4 w-4 text-neutral-500" />,
@@ -46,7 +43,7 @@ const features = [
   {
     title: "Developer API",
     description:
-      "Integrate our temporary email service directly into your applications with a powerful and easy-to-use API.",
+      "Integrate our temporary email service directly into your applications with a powerful API.",
     header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
     className: "md:col-span-3",
     icon: <Code className="h-4 w-4 text-neutral-500" />,

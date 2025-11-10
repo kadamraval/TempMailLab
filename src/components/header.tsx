@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -21,9 +20,9 @@ import { ModeToggle } from "./mode-toggle";
 
 
 const navLinks = [
-    { href: "/", label: "Home" },
+    { href: "/#inbox", label: "Inbox" },
+    { href: "/#features", label: "Features" },
     { href: "/#pricing", label: "Pricing" },
-    { href: "/blog", label: "Blog" },
     { href: "/#faq", label: "FAQ" },
 ];
 
