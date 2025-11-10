@@ -67,10 +67,10 @@ export default function HomePage() {
         </main>
       </div>
       {sections.map((Section, index) => {
-        let backgroundClass = "bg-background";
-        if (index % 3 === 0) {
+        let backgroundClass = "";
+        if (index % 2 === 0) { // Odd sections
             backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
-        } else if (index % 3 === 2) {
+        } else { // Even sections
              backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
         }
         return (
