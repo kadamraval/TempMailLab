@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ShieldCheck, Zap, Globe, Code, Forward, Trash2 } from "lucide-react"
+import { ShieldCheck, Zap, Trash2 } from "lucide-react"
 
 const features = [
   {
