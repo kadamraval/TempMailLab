@@ -38,20 +38,20 @@ export const ExclusiveFeatures = () => {
                 </h2>
             </div>
             
-            <div className="space-y-8 max-w-4xl mx-auto">
-              {exclusiveFeatures.map((feature) => (
-                <div key={feature.title} className="flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background">
-                    <div className="w-full md:w-1/3">
+            <div className="space-y-8 max-w-5xl mx-auto">
+              {exclusiveFeatures.map((feature, index) => (
+                <div key={feature.title} className={`flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background ${index % 2 === 1 ? 'md:flex-row-reverse' : ''}`}>
+                    <div className="w-full md:w-1/2">
                         <Image 
                             src={feature.image}
                             alt={feature.title}
                             width={600}
                             height={400}
-                            className="rounded-md object-cover"
+                            className="rounded-md object-cover w-full aspect-video"
                             data-ai-hint={feature.dataAiHint}
                         />
                     </div>
-                    <div className="flex-1">
+                    <div className="w-full md:w-1/2">
                         <div className="flex items-center gap-3 mb-3">
                             {feature.icon}
                             <h3 className="text-2xl font-bold">{feature.title}</h3>
