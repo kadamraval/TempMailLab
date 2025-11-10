@@ -61,8 +61,8 @@ export const ExclusiveFeatures = () => {
                             data-ai-hint={feature.image.dataAiHint}
                         />
                     </div>
-                    <div className="w-full md:w-1/2">
-                        <div className="flex flex-col items-start gap-4">
+                    <div className="w-full md:w-1/2 text-center md:text-left">
+                        <div className="flex flex-col items-center md:items-start gap-4">
                             <div className="bg-primary p-3 rounded-full">
                                 {feature.icon}
                             </div>
