@@ -38,8 +38,7 @@ const integrationsData: { [key: string]: any } = {
 };
 
 
-export default function IntegrationPage({ params }: IntegrationPageProps) {
-  const { slug } = params;
+export default function IntegrationPage({ params: { slug } }: IntegrationPageProps) {
   const integration = integrationsData[slug];
 
   if (!integration) {
