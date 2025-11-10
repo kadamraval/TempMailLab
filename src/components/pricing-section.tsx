@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,7 @@ export function PricingSection() {
                          )}>
                             <div className={cn(
                                 "absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md",
-                                plan.isPrimary ? "bg-primary" : "bg-foreground"
+                                plan.isPrimary ? "bg-chart-1" : "bg-foreground"
                             )} />
                              <div className="relative z-10 bg-card rounded-md flex flex-col h-full">
                                 <CardHeader className="pt-8">

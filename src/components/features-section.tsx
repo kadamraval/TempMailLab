@@ -1,39 +1,43 @@
-
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck, Zap, Lock, Forward, Server, Users } from "lucide-react";
 
 const features = [
     {
-        icon: <ShieldCheck className="w-8 h-8 text-primary" />,
+        icon: <ShieldCheck className="w-8 h-8 text-foreground" />,
         title: "Total Privacy",
         description: "Your temporary inboxes are completely private. We don't save your emails longer than the expiration time.",
+        color: "bg-chart-1",
     },
     {
-        icon: <Zap className="w-8 h-8 text-primary" />,
+        icon: <Zap className="w-8 h-8 text-foreground" />,
         title: "Instant Setup",
         description: "Generate a new email address with a single click. No registration required for basic use.",
+        color: "bg-chart-2",
     },
     {
-        icon: <Lock className="w-8 h-8 text-primary" />,
+        icon: <Lock className="w-8 h-8 text-foreground" />,
         title: "Spam Protection",
         description: "Keep your primary inbox clean. Use a temporary address for website sign-ups and newsletters.",
+        color: "bg-chart-3",
     },
     {
-        icon: <Forward className="w-8 h-8 text-primary" />,
+        icon: <Forward className="w-8 h-8 text-foreground" />,
         title: "Email Forwarding",
         description: "Premium users can forward temporary emails to their real email address, keeping their primary address hidden.",
+         color: "bg-primary",
     },
     {
-        icon: <Server className="w-8 h-8 text-primary" />,
+        icon: <Server className="w-8 h-8 text-foreground" />,
         title: "Custom Domains",
         description: "Power users can connect their own domains to generate unique, branded temporary email addresses.",
+        color: "bg-chart-4",
     },
     {
-        icon: <Users className="w-8 h-8 text-primary" />,
+        icon: <Users className="w-8 h-8 text-foreground" />,
         title: "Developer API",
         description: "Integrate our temporary email service into your own applications with our simple and powerful API.",
+        color: "bg-chart-5",
     },
 ];
 
@@ -49,7 +53,7 @@ export function FeaturesSection() {
                         <div key={index} className="bg-card border-2 border-foreground p-1 rounded-lg relative group">
                             <div className="absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md bg-foreground" />
                             <div className="relative z-10 bg-card p-6 rounded-md h-full text-center">
-                                <div className="bg-primary/10 p-3 rounded-md inline-block mb-4">
+                                <div className={`p-3 rounded-md inline-block mb-4 ${feature.color}`}>
                                     {feature.icon}
                                 </div>
                                 <h3 className="text-xl font-bold mb-2">{feature.title}</h3>

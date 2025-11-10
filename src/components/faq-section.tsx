@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -45,7 +44,7 @@ export function FaqSection() {
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full">
                         {faqs.map((faq, index) => (
-                             <AccordionItem key={index} value={`item-${index}`} className="border-b-2 border-foreground">
+                             <AccordionItem key={index} value={`item-${index}`} className="border-b-2 border-primary">
                                 <AccordionTrigger className="text-lg text-left font-bold hover:no-underline">{faq.question}</AccordionTrigger>
                                 <AccordionContent className="text-base text-muted-foreground pt-2">
                                     {faq.answer}
