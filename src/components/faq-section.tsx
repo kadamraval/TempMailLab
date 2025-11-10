@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -36,7 +37,7 @@ const faqs = [
 
 export function FaqSection() {
     return (
-        <section id="faq" className="py-24 sm:py-32">
+        <section id="faq" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
                  <div className="text-center space-y-4 mb-16">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Questions?</h2>
@@ -44,7 +45,7 @@ export function FaqSection() {
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {faqs.map((faq, index) => (
-                             <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg bg-card/80">
+                             <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg bg-card">
                                 <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
                                     {faq.question}
                                 </AccordionTrigger>

@@ -35,7 +35,7 @@ export default function HomePage() {
   
   return (
     <>
-      <div id="inbox" className="py-24 sm:py-32">
+      <div id="inbox" className="py-16 sm:py-20">
         <main className="container mx-auto px-4">
           <div className="relative w-full max-w-2xl mx-auto text-center">
             <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
