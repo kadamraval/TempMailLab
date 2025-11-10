@@ -24,7 +24,7 @@ export function ComparisonSection() {
             Tempmailer vs. Others
           </h2>
         </div>
-        <Card className="max-w-4xl mx-auto border">
+        <Card className="max-w-4xl mx-auto">
           <CardContent className="p-0">
             <Table>
               <TableHeader>

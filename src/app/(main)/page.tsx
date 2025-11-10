@@ -66,15 +66,19 @@ export default function HomePage() {
           {user ? <div className="mt-8"><DashboardClient /></div> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
         </main>
       </div>
-      {sections.map((Section, index) => (
-        <div key={index} className={cn(
-          index % 2 === 0 
-            ? "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10" 
-            : "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10"
-        )}>
-          <Section.component />
-        </div>
-      ))}
+      {sections.map((Section, index) => {
+        let backgroundClass = "bg-background";
+        if (index % 3 === 0) {
+            backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
+        } else if (index % 3 === 2) {
+             backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
+        }
+        return (
+            <div key={index} className={cn(backgroundClass)}>
+                <Section.component />
+            </div>
+        )
+      })}
     </>
   );
 }

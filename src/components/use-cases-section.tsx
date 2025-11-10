@@ -29,7 +29,7 @@ const useCases = [
 
 export function UseCasesSection() {
   return (
-    <section id="use-cases" className="py-16 sm:py-20 bg-muted/30">
+    <section id="use-cases" className="py-16 sm:py-20">
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-12">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
@@ -38,7 +38,7 @@ export function UseCasesSection() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {useCases.map((useCase) => (
-            <Card key={useCase.title} className="bg-background text-center border">
+            <Card key={useCase.title} className="bg-background text-center">
               <CardHeader className="items-center">
                 {useCase.icon}
               </CardHeader>
