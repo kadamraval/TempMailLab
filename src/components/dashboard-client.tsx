@@ -128,18 +128,24 @@ export function DashboardClient() {
       const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
       const querySnapshot = await getDocs(allowedDomainsQuery);
       
-      if (querySnapshot.empty) {
-        throw new Error(`No domains configured by the administrator for the '${userTier}' tier.`);
+      let allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
+
+      if (allowedDomains.length === 0) {
+        // Fallback to 'free' tier if no premium domains are set
+        const freeDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", "free"));
+        const freeSnapshot = await getDocs(freeDomainsQuery);
+        allowedDomains = freeSnapshot.docs.map(doc => doc.data().domain);
+        if (freeSnapshot.empty) {
+          throw new Error(`No domains configured by the administrator.`);
+        }
       }
 
-      const allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
       const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
       
       setActiveInbox({ emailAddress });
       setCountdown(600);
       
-      // We manually call handleRefresh here, but it's not a dependency
       if (sessionIdRef.current && emailAddress) {
           const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
           if (result.emails) {
@@ -228,60 +234,60 @@ export function DashboardClient() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Your Temporary Email Address</h1>
-          <p className="mt-2 text-muted-foreground">
-              This is your unique temporary email address. Copy it and send an email. It will automatically delete when it expires, leaving no trace.
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight">Your Temporary Inbox</h1>
       </div>
 
-      <Card className="shadow-lg">
-        <CardHeader className="border-b bg-muted/30 p-4">
-          {isLoading ? (
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-6 w-24 rounded-md" />
-              <Skeleton className="h-10 w-1/2 rounded-md" />
-              <Skeleton className="h-10 w-32 rounded-md" />
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-sm font-mono bg-background/50 px-3 py-1.5 rounded-md border text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatTime(countdown)}</span>
-                </div>
+      <Card className="border-2 border-foreground bg-card p-1 relative group bg-background">
+         <div className="absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-lg bg-foreground" />
+        <div className="relative z-10 rounded-md bg-card">
+          <CardHeader className="border-b p-4">
+            {isLoading ? (
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-6 w-24 rounded-md" />
+                <Skeleton className="h-10 w-1/2 rounded-md" />
+                <Skeleton className="h-10 w-32 rounded-md" />
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-sm font-mono bg-background/50 px-3 py-1.5 rounded-md border-2 border-foreground text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>{formatTime(countdown)}</span>
+                  </div>
 
-                <div className="flex-grow flex items-center justify-center">
-                    <p className="font-mono text-lg text-foreground">{activeInbox?.emailAddress}</p>
-                     <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
-                        <Copy className="h-5 w-5" />
-                    </Button>
-                </div>
-                
-                <Button onClick={handleGenerateEmail} variant="outline">
-                   <RefreshCw className="mr-2 h-4 w-4" />
-                   Change Address
-                </Button>
-            </div>
+                  <div className="flex-grow flex items-center justify-center">
+                      <p className="font-mono text-lg text-foreground">{activeInbox?.emailAddress}</p>
+                       <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
+                          <Copy className="h-5 w-5" />
+                      </Button>
+                  </div>
+                  
+                  <Button onClick={handleGenerateEmail} variant="outline" className="border-2 border-foreground">
+                     <RefreshCw className="mr-2 h-4 w-4" />
+                     New Address
+                  </Button>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="p-0">
+            <InboxView 
+              inbox={inboxEmails} 
+              onSelectEmail={handleSelectEmail} 
+              onRefresh={() => handleRefresh(false)}
+              isRefreshing={isRefreshing}
+              onDelete={handleDeleteInbox}
+            />
+          </CardContent>
+          {user && user.isAnonymous && (
+             <CardFooter className="p-4 border-t">
+                  <p className="text-center text-sm text-muted-foreground w-full">
+                      <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                          Log In
+                      </Link>
+                      {' '}for more features like custom domains & longer inbox life.
+                  </p>
+             </CardFooter>
           )}
-        </CardHeader>
-        <CardContent className="p-0">
-          <InboxView 
-            inbox={inboxEmails} 
-            onSelectEmail={handleSelectEmail} 
-            onRefresh={() => handleRefresh(false)}
-            isRefreshing={isRefreshing}
-            onDelete={handleDeleteInbox}
-          />
-        </CardContent>
-        {user && user.isAnonymous && (
-           <CardFooter className="p-4 border-t bg-muted/30">
-                <p className="text-center text-sm text-muted-foreground w-full">
-                    Need to save email address, use a custom domain or forward emails?{' '}
-                    <Link href="/login" className="font-semibold text-primary hover:underline">
-                        Log In
-                    </Link>
-                </p>
-           </CardFooter>
-        )}
+        </div>
       </Card>
     </div>
   );

@@ -32,27 +32,16 @@ export default function HomePage() {
     );
   }
   
-  if (!user) {
-    // This case should be rare due to anonymous sign-in, but as a fallback:
-    return (
-       <>
-        <Hero />
-        <FeaturesSection />
-        <PricingSection />
-        <FaqSection />
-      </>
-    )
-  }
-
   // Show the dashboard for both anonymous and registered users
+  // And show the landing page content below
   return (
     <>
-    <main className="container mx-auto px-4 py-8">
-      <DashboardClient />
-    </main>
-    <FeaturesSection />
-    <PricingSection />
-    <FaqSection />
+      <main className="container mx-auto px-4 py-8">
+        {user ? <DashboardClient /> : <Hero />}
+      </main>
+      <FeaturesSection />
+      <PricingSection />
+      <FaqSection />
     </>
   );
 }

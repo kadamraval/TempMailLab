@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,24 +42,20 @@ export function FeaturesSection() {
         <section id="features" className="py-12 lg:py-24 bg-secondary">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-3 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Powerful Features for Your Privacy</h2>
-                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                        Our service is packed with features designed to protect your identity and keep your main inbox clean.
-                    </p>
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Features</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {features.map((feature, index) => (
-                        <Card key={index} className="text-center shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
-                            <CardHeader className="items-center">
-                                <div className="bg-primary/10 p-3 rounded-full">
+                        <div key={index} className="bg-card border-2 border-foreground p-1 rounded-lg relative group">
+                            <div className="absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md bg-foreground" />
+                            <div className="relative z-10 bg-card p-6 rounded-md h-full text-center">
+                                <div className="bg-primary/10 p-3 rounded-md inline-block mb-4">
                                     {feature.icon}
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
+                                <h3 className="text-xl font-bold mb-2">{feature.title}</h3>
                                 <p className="text-muted-foreground">{feature.description}</p>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     ))}
                 </div>
             </div>
