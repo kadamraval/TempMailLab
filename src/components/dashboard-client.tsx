@@ -275,7 +275,7 @@ export function DashboardClient() {
             />
           </CardContent>
           {user && user.isAnonymous && (
-             <CardFooter className="p-4 border-t bg-secondary">
+             <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                   <p className="text-center text-sm text-muted-foreground w-full">
                       <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
                           Log In
