@@ -43,7 +43,7 @@ export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
                  <div className="text-center space-y-4 mb-12">
                     <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Questions?</h2>
                 </div>
-                <div className="max-w-3xl mx-auto">
+                <div>
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {faqs.map((faq, index) => (
                              <AccordionItem key={index} value={`item-${index}`} className={cn("rounded-lg bg-card", removeBorder ? "border-0" : "border")}>

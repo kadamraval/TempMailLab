@@ -104,7 +104,7 @@ export function PricingSection() {
                     </Label>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                     {currentPlans.map((plan) => (
                          <Card key={plan.name} className={cn(
                             "flex flex-col h-full rounded-2xl border",

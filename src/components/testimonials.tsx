@@ -51,7 +51,7 @@ export function Testimonials() {
                         align: "start",
                         loop: true,
                     }}
-                    className="w-full max-w-4xl mx-auto"
+                    className="w-full"
                 >
                     <CarouselContent>
                         {testimonials.map((testimonial, index) => (

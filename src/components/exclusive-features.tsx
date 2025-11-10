@@ -38,7 +38,7 @@ export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) 
                 </h2>
             </div>
             
-            <div className="space-y-8 max-w-5xl mx-auto">
+            <div className="space-y-8">
               {exclusiveFeatures.map((feature, index) => (
                 <motion.div
                   key={feature.title}

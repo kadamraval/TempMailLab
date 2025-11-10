@@ -25,7 +25,7 @@ export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) 
             Tempmailer vs. Others
           </h2>
         </div>
-        <Card className={cn("max-w-4xl mx-auto", removeBorder && "border-0")}>
+        <Card className={cn(removeBorder && "border-0")}>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

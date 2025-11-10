@@ -37,7 +37,7 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
             Why Temp Mail?
           </h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {useCases.map((useCase) => (
             <Card key={useCase.title} className={cn("bg-background text-center", removeBorder && "border-0")}>
               <CardHeader className="items-center">
