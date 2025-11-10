@@ -3,6 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ShieldCheck, UserCheck, FileDown, TestTube2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const useCases = [
   {
@@ -27,7 +28,7 @@ const useCases = [
   },
 ]
 
-export function UseCasesSection() {
+export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
     <section id="use-cases" className="py-16 sm:py-20">
       <div className="container mx-auto px-4">
@@ -38,7 +39,7 @@ export function UseCasesSection() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {useCases.map((useCase) => (
-            <Card key={useCase.title} className="bg-background text-center">
+            <Card key={useCase.title} className={cn("bg-background text-center", removeBorder && "border-0")}>
               <CardHeader className="items-center">
                 {useCase.icon}
               </CardHeader>

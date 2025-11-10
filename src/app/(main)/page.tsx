@@ -18,15 +18,15 @@ import { BlogSection } from "@/components/blog-section";
 import { cn } from "@/lib/utils";
 
 const sections = [
-  { component: UseCasesSection },
-  { component: FeaturesSection },
-  { component: ExclusiveFeatures },
-  { component: ComparisonSection },
-  { component: PricingSection },
-  { component: BlogSection },
-  { component: Testimonials },
-  { component: FaqSection },
-  { component: StayConnected },
+  { component: UseCasesSection, hasCard: true },
+  { component: FeaturesSection, hasCard: false },
+  { component: ExclusiveFeatures, hasCard: false },
+  { component: ComparisonSection, hasCard: true },
+  { component: PricingSection, hasCard: false },
+  { component: BlogSection, hasCard: true },
+  { component: Testimonials, hasCard: false },
+  { component: FaqSection, hasCard: true },
+  { component: StayConnected, hasCard: false },
 ];
 
 export default function HomePage() {
@@ -67,15 +67,23 @@ export default function HomePage() {
         </main>
       </div>
       {sections.map((Section, index) => {
+        const patternIndex = index % 3;
         let backgroundClass = "";
-        if (index % 2 === 0) { // Odd sections
-            backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
-        } else { // Even sections
-             backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
+        let removeBorder = false;
+
+        if (patternIndex === 0) { // First gradient
+          backgroundClass = "bg-gradient-to-b from-white to-[#A3DC9A]/30 dark:from-background dark:to-[#A3DC9A]/10";
+          removeBorder = true;
+        } else if (patternIndex === 1) { // White
+          backgroundClass = "bg-white dark:bg-background";
+        } else { // Second gradient
+          backgroundClass = "bg-gradient-to-b from-white to-[#DEE791]/30 dark:from-background dark:to-[#DEE791]/10";
+          removeBorder = true;
         }
+
         return (
             <div key={index} className={cn(backgroundClass)}>
-                <Section.component />
+                <Section.component removeBorder={removeBorder && Section.hasCard} />
             </div>
         )
       })}

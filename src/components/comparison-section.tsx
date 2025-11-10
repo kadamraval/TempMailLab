@@ -4,6 +4,7 @@
 import { Check, X, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 const comparisonData = [
   { feature: "Custom Domains", other: false, tempmailer: true },
@@ -15,7 +16,7 @@ const comparisonData = [
   { feature: "Basic Spam Filtering", other: true, tempmailer: true },
 ]
 
-export function ComparisonSection() {
+export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
     <section id="comparison" className="py-16 sm:py-20">
       <div className="container mx-auto px-4">
@@ -24,7 +25,7 @@ export function ComparisonSection() {
             Tempmailer vs. Others
           </h2>
         </div>
-        <Card className="max-w-4xl mx-auto">
+        <Card className={cn("max-w-4xl mx-auto", removeBorder && "border-0")}>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

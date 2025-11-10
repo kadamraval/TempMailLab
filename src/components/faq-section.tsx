@@ -7,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { cn } from "@/lib/utils";
 
 const faqs = [
     {
@@ -35,7 +36,7 @@ const faqs = [
     }
 ];
 
-export function FaqSection() {
+export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
     return (
         <section id="faq" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
@@ -45,7 +46,7 @@ export function FaqSection() {
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {faqs.map((faq, index) => (
-                             <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg bg-card">
+                             <AccordionItem key={index} value={`item-${index}`} className={cn("rounded-lg bg-card", removeBorder ? "border-0" : "border")}>
                                 <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
                                     {faq.question}
                                 </AccordionTrigger>

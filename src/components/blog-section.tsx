@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const blogPosts = [
   {
@@ -31,9 +32,9 @@ const blogPosts = [
   },
 ]
 
-export function BlogSection() {
+export function BlogSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
-    <section id="blog" className="py-16 sm:py-20 bg-muted/30">
+    <section id="blog" className="py-16 sm:py-20">
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-12">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
@@ -42,7 +43,7 @@ export function BlogSection() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {blogPosts.map((post) => (
-            <Card key={post.title} className="overflow-hidden flex flex-col border">
+            <Card key={post.title} className={cn("overflow-hidden flex flex-col", removeBorder ? "border-0" : "border")}>
               <Link href={post.link}>
                   <Image
                     src={post.image}
