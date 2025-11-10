@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Button } from "@/components/ui/button";
@@ -46,13 +45,13 @@ export function PricingSection() {
         <section id="pricing" className="py-16 sm:py-24">
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-4 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Pricing</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Fair Pricing for Everyone</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {plans.map((plan) => (
                          <Card key={plan.name} className={cn(
-                            "flex flex-col h-full",
-                            plan.isPrimary && "border-2 border-primary shadow-lg"
+                            "flex flex-col h-full shadow-sm hover:shadow-lg transition-shadow duration-200",
+                            plan.isPrimary && "border-primary"
                          )}>
                              <div className="flex-grow">
                                 <CardHeader className="pt-8">
