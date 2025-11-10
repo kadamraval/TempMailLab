@@ -7,66 +7,51 @@ import {
   Forward,
   Server,
   Code,
+  Globe,
+  Mail,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import React from "react"
-import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import React from "react";
+import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
 
 const features = [
   {
-    icon: <ShieldCheck className="w-8 h-8 text-primary" />,
-    title: "Total Privacy",
-    description:
-      "Your temporary inboxes are private. All emails are deleted after they expire, ensuring your data is never stored long-term.",
-    className: "lg:col-span-2",
-  },
-  {
-    icon: <Zap className="w-8 h-8 text-primary" />,
     title: "Instant Setup",
     description: "Generate a new email address with a single click. No registration required for quick, anonymous use.",
-    className: "lg:col-span-1",
+    header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
+    className: "md:col-span-1",
+    icon: <Zap className="h-4 w-4 text-neutral-500" />,
   },
   {
-    icon: <Lock className="w-8 h-8 text-primary" />,
-    title: "Spam Protection",
-    description: "Keep your primary inbox clean. Use a temporary address for sign-ups to avoid marketing lists and spam.",
-    className: "lg:col-span-1",
+    title: "Total Privacy & Spam Protection",
+    description: "Keep your primary inbox clean. Use a temporary address for sign-ups to avoid marketing lists, spam, and data breaches.",
+    header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
+    className: "md:col-span-2",
+    icon: <ShieldCheck className="h-4 w-4 text-neutral-500" />,
   },
   {
-    icon: <Forward className="w-8 h-8 text-primary" />,
     title: "Email Forwarding",
-    description:
-      "Premium users can automatically forward temporary emails to their real address, keeping their primary identity hidden.",
-     className: "lg:col-span-2",
+    description: "Premium users can automatically forward temporary emails to their real address, keeping their primary identity hidden.",
+    header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
+    className: "md:col-span-2",
+    icon: <Forward className="h-4 w-4 text-neutral-500" />,
   },
     {
-    icon: <Server className="w-8 h-8 text-primary" />,
     title: "Custom Domains",
     description:
       "Power users can connect their own domains to generate unique, branded temporary emails for professional use cases.",
-    className: "lg:col-span-3",
+    header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
+    className: "md:col-span-1",
+    icon: <Globe className="h-4 w-4 text-neutral-500" />,
   },
   {
-    icon: <Code className="w-8 h-8 text-primary" />,
     title: "Developer API",
     description:
       "Integrate our temporary email service directly into your applications with a powerful and easy-to-use API.",
-    className: "lg:col-span-3",
+    header: <div className="flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-200 dark:from-neutral-900 dark:to-neutral-800 to-neutral-100"></div>,
+    className: "md:col-span-3",
+    icon: <Code className="h-4 w-4 text-neutral-500" />,
   },
-]
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: "easeOut",
-    },
-  },
-};
+];
 
 
 export function FeaturesSection() {
@@ -78,33 +63,18 @@ export function FeaturesSection() {
                 Powerful Features, Simply Delivered
             </h2>
         </div>
-        <motion.div 
-            className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ staggerChildren: 0.1 }}
-        >
-          {features.map((feature, index) => (
-            <motion.div key={index} variants={cardVariants} className={cn("h-full", feature.className)}>
-                <Card
-                className="group/bento h-full bg-card border shadow-sm hover:shadow-lg transition-shadow duration-300"
-                >
-                <CardHeader>
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-full bg-secondary">
-                            {feature.icon}
-                        </div>
-                        <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                </CardContent>
-                </Card>
-            </motion.div>
+        <BentoGrid className="max-w-4xl mx-auto md:auto-rows-[20rem]">
+          {features.map((item, i) => (
+            <BentoGridItem
+              key={i}
+              title={item.title}
+              description={item.description}
+              header={item.header}
+              className={item.className}
+              icon={item.icon}
+            />
           ))}
-        </motion.div>
+        </BentoGrid>
       </div>
     </section>
   )
