@@ -236,9 +236,10 @@ export function DashboardClient() {
 
   return (
     <div className="space-y-8">
-      <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Your Temporary Inbox</h2>
-      </div>
+        <div className="relative w-full max-w-2xl mx-auto text-center">
+            <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+            <h2 className="text-3xl font-bold tracking-tight">Your Temporary Inbox</h2>
+        </div>
 
       <Card className="shadow-lg">
           <CardHeader className="border-b p-4">
@@ -292,5 +293,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
