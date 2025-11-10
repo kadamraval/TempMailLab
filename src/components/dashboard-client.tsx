@@ -179,22 +179,25 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (activeInbox && countdown > 0) {
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-    } else if (countdown <= 0 && activeInbox) {
+    if (activeInbox) {
+      if (countdown <= 0) {
         toast({
             title: "Session Expired",
             description: "Your temporary email has expired. Please generate a new one.",
             variant: "destructive"
-        })
-      setActiveInbox(null);
-      clearRefreshInterval();
-      clearCountdown();
+        });
+        setActiveInbox(null);
+        clearRefreshInterval();
+        clearCountdown();
+        return;
+      }
+      
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
     }
     return () => clearCountdown();
-  }, [activeInbox, countdown, toast]);
+  }, [activeInbox, toast]);
 
   const handleCopyEmail = () => {
     if (!activeInbox?.emailAddress) return;
@@ -289,3 +292,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
