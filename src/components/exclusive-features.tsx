@@ -1,30 +1,30 @@
 
 "use client";
 
-import { Code, Globe, Forward } from "lucide-react";
+import { KeyRound, Users, BarChart } from "lucide-react";
 import Image from "next/image";
 
 const exclusiveFeatures = [
     {
-      icon: <Globe className="h-6 w-6 text-primary" />,
-      title: "Custom Domains",
-      description: "Connect your own domains to generate unique, branded temporary emails for your business or project.",
-      image: "https://picsum.photos/seed/domain/600/400",
-      dataAiHint: "domain name",
+      icon: <KeyRound className="h-6 w-6 text-primary" />,
+      title: "Password Protection",
+      description: "Secure your temporary inboxes with a unique password, ensuring only you can access the contents.",
+      image: "https://picsum.photos/seed/password/600/400",
+      dataAiHint: "password security",
     },
     {
-      icon: <Forward className="h-6 w-6 text-primary" />,
-      title: "Email Forwarding",
-      description: "Automatically forward important temporary emails to your real address, ensuring you never miss a thing.",
-      image: "https://picsum.photos/seed/forward/600/400",
-      dataAiHint: "email forwarding",
+      icon: <Users className="h-6 w-6 text-primary" />,
+      title: "Team Member Access",
+      description: "Invite your team to share plan features. Perfect for development teams and QA testing environments.",
+      image: "https://picsum.photos/seed/team/600/400",
+      dataAiHint: "team collaboration",
     },
     {
-      icon: <Code className="h-6 w-6 text-primary" />,
-      title: "Developer API",
-      description: "Integrate our powerful temporary email service directly into your applications with a simple, robust API.",
-      image: "https://picsum.photos/seed/api/600/400",
-      dataAiHint: "developer api",
+      icon: <BarChart className="h-6 w-6 text-primary" />,
+      title: "Advanced Analytics",
+      description: "Access a detailed dashboard to monitor your temporary email usage, track statistics, and gain insights.",
+      image: "https://picsum.photos/seed/analytics/600/400",
+      dataAiHint: "analytics dashboard",
     },
 ];
 
@@ -38,8 +38,8 @@ export const ExclusiveFeatures = () => {
                 </h2>
             </div>
             
-            <div className="space-y-12 max-w-4xl mx-auto">
-              {exclusiveFeatures.map((feature, index) => (
+            <div className="space-y-8 max-w-4xl mx-auto">
+              {exclusiveFeatures.map((feature) => (
                 <div key={feature.title} className="flex flex-col md:flex-row items-center gap-8 p-6 border rounded-lg bg-background">
                     <div className="w-full md:w-1/3">
                         <Image 

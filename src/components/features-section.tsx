@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ShieldCheck, Zap, Trash2 } from "lucide-react"
+import { ShieldCheck, Zap, Trash2, Globe, Forward, Code } from "lucide-react"
 
 const features = [
   {
@@ -20,6 +20,21 @@ const features = [
     title: "Auto-Deletion",
     description: "All emails are automatically and permanently deleted after a set time.",
   },
+  {
+    icon: <Globe className="h-8 w-8 text-primary" />,
+    title: "Custom Domains",
+    description: "Connect your own domain to generate branded temporary email addresses.",
+  },
+  {
+    icon: <Forward className="h-8 w-8 text-primary" />,
+    title: "Email Forwarding",
+    description: "Automatically forward incoming temporary emails to a real, verified email address.",
+  },
+  {
+    icon: <Code className="h-8 w-8 text-primary" />,
+    title: "Developer API",
+    description: "Integrate our temporary email service directly into your applications.",
+  },
 ];
 
 export function FeaturesSection() {
@@ -31,7 +46,7 @@ export function FeaturesSection() {
                 Core Features
             </h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {features.map((feature) => (
             <Card key={feature.title} className="border bg-background">
               <CardHeader>
