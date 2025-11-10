@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ const plans = [
         ],
         buttonText: "Get Started",
         href: "/",
-        shadowColor: "bg-foreground",
     },
     {
         name: "Premium",
@@ -38,7 +38,6 @@ const plans = [
         buttonText: "Go Premium",
         href: "/register",
         isPrimary: true,
-        shadowColor: "bg-chart-1",
     }
 ]
 
@@ -48,19 +47,19 @@ export function PricingSection() {
             <div className="container mx-auto px-4">
                 <div className="text-center space-y-3 mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Pricing</h2>
+                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                        Choose the plan that's right for you. Get started for free, or unlock powerful features with Premium.
+                    </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {plans.map((plan) => (
-                         <div key={plan.name} className={cn(
-                            "bg-card border-2 p-1 rounded-lg relative group",
-                            plan.isPrimary ? "border-primary" : "border-foreground"
+                         <Card key={plan.name} className={cn(
+                            "flex flex-col h-full",
+                            plan.isPrimary && "border-2 border-primary shadow-lg"
                          )}>
-                            <div className={cn(
-                                "absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-md",
-                                plan.shadowColor
-                            )} />
-                             <div className="relative z-10 bg-card rounded-md flex flex-col h-full">
+                             <div className="flex-grow">
                                 <CardHeader className="pt-8">
+                                    {plan.isPrimary && <div className="text-primary font-semibold mb-2">MOST POPULAR</div>}
                                     <CardTitle className="text-2xl">{plan.name}</CardTitle>
                                     <CardDescription>{plan.description}</CardDescription>
                                     <div className="flex items-baseline pt-4">
@@ -68,7 +67,7 @@ export function PricingSection() {
                                         {plan.priceCycle && <span className="text-muted-foreground ml-1">{plan.priceCycle}</span>}
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex-grow">
+                                <CardContent>
                                     <ul className="space-y-4">
                                         {plan.features.map((feature) => (
                                             <li key={feature} className="flex items-center gap-3">
@@ -78,13 +77,13 @@ export function PricingSection() {
                                         ))}
                                     </ul>
                                 </CardContent>
-                                <CardFooter className="pb-8">
-                                    <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
-                                        <Link href={plan.href}>{plan.buttonText}</Link>
-                                    </Button>
-                                </CardFooter>
                             </div>
-                        </div>
+                            <CardFooter className="pb-8">
+                                <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
+                                    <Link href={plan.href}>{plan.buttonText}</Link>
+                                </Button>
+                            </CardFooter>
+                        </Card>
                     ))}
                 </div>
             </div>

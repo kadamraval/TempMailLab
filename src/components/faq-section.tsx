@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -39,13 +40,16 @@ export function FaqSection() {
         <section id="faq" className="py-12 lg:py-24 bg-secondary">
             <div className="container mx-auto px-4">
                  <div className="text-center space-y-3 mb-12">
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">FAQ</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Frequently Asked Questions</h2>
+                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                        Have questions? We've got answers. If you can't find what you're looking for, feel free to contact us.
+                    </p>
                 </div>
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full">
                         {faqs.map((faq, index) => (
-                             <AccordionItem key={index} value={`item-${index}`} className="border-b-2 border-primary">
-                                <AccordionTrigger className="text-lg text-left font-bold hover:no-underline">{faq.question}</AccordionTrigger>
+                             <AccordionItem key={index} value={`item-${index}`}>
+                                <AccordionTrigger className="text-lg text-left hover:no-underline">{faq.question}</AccordionTrigger>
                                 <AccordionContent className="text-base text-muted-foreground pt-2">
                                     {faq.answer}
                                 </AccordionContent>

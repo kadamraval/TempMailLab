@@ -32,13 +32,14 @@ export default function HomePage() {
     );
   }
   
-  // Show the dashboard for both anonymous and registered users
-  // And show the landing page content below
   return (
     <>
-      <main className="container mx-auto px-4 py-8">
-        {user ? <DashboardClient /> : <Hero />}
-      </main>
+      <Hero />
+      <div id="inbox">
+        <main className="container mx-auto px-4 py-8">
+          {user ? <DashboardClient /> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
+        </main>
+      </div>
       <FeaturesSection />
       <PricingSection />
       <FaqSection />

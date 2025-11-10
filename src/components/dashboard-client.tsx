@@ -165,7 +165,7 @@ export function DashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [firestore, toast, user]);
+  }, [firestore, toast, user, handleRefresh]);
 
   useEffect(() => {
     sessionIdRef.current = getSessionId();
@@ -234,12 +234,10 @@ export function DashboardClient() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Your Temporary Inbox</h1>
+          <h2 className="text-3xl font-bold tracking-tight">Your Temporary Inbox</h2>
       </div>
 
-      <Card className="border-2 border-foreground bg-card p-1 relative group bg-background">
-         <div className="absolute -bottom-2 -right-2 -z-10 h-full w-full rounded-lg bg-foreground" />
-        <div className="relative z-10 rounded-md bg-card">
+      <Card className="shadow-lg">
           <CardHeader className="border-b p-4">
             {isLoading ? (
               <div className="flex items-center justify-between">
@@ -249,7 +247,7 @@ export function DashboardClient() {
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-sm font-mono bg-background/50 px-3 py-1.5 rounded-md border-2 border-foreground text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>{formatTime(countdown)}</span>
                   </div>
@@ -261,7 +259,7 @@ export function DashboardClient() {
                       </Button>
                   </div>
                   
-                  <Button onClick={handleGenerateEmail} variant="outline" className="border-2 border-foreground">
+                  <Button onClick={handleGenerateEmail} variant="outline">
                      <RefreshCw className="mr-2 h-4 w-4" />
                      New Address
                   </Button>
@@ -278,7 +276,7 @@ export function DashboardClient() {
             />
           </CardContent>
           {user && user.isAnonymous && (
-             <CardFooter className="p-4 border-t">
+             <CardFooter className="p-4 border-t bg-secondary">
                   <p className="text-center text-sm text-muted-foreground w-full">
                       <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
                           Log In
@@ -287,7 +285,6 @@ export function DashboardClient() {
                   </p>
              </CardFooter>
           )}
-        </div>
       </Card>
     </div>
   );
