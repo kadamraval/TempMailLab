@@ -51,8 +51,8 @@ export function PricingSection() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-start">
                     {plans.map((plan) => (
                          <Card key={plan.name} className={cn(
-                            "flex flex-col h-full bg-card shadow-sm transition-shadow duration-300",
-                            plan.isPrimary && "border-2 border-primary shadow-lg"
+                            "flex flex-col h-full bg-card",
+                            plan.isPrimary && "border-2 border-primary"
                          )}>
                              <div className="flex-grow p-6">
                                 <CardHeader className="p-0">

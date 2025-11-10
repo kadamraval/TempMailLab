@@ -8,6 +8,7 @@ import { FeaturesSection } from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";
 import { FaqSection } from "@/components/faq-section";
 import { DashboardClient } from "@/components/dashboard-client";
+import { StayConnected } from "@/components/stay-connected";
 
 export default function HomePage() {
   const { user, isUserLoading } = useUser();
@@ -40,6 +41,7 @@ export default function HomePage() {
       <FeaturesSection />
       <PricingSection />
       <FaqSection />
+      <StayConnected />
     </>
   );
 }

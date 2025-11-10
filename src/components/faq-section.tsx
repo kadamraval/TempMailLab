@@ -44,7 +44,7 @@ export function FaqSection() {
                 <div className="max-w-3xl mx-auto">
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {faqs.map((faq, index) => (
-                             <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg bg-background shadow-sm">
+                             <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg bg-card/50">
                                 <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
                                     {faq.question}
                                 </AccordionTrigger>
