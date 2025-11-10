@@ -7,21 +7,21 @@ import { motion } from "framer-motion";
 
 const exclusiveFeatures = [
     {
-      icon: <KeyRound className="h-6 w-6 text-primary" />,
+      icon: <KeyRound className="h-8 w-8 text-primary" />,
       title: "Password Protection",
       description: "Secure your temporary inboxes with a unique password, ensuring only you can access the contents.",
       image: "https://picsum.photos/seed/password/600/400",
       dataAiHint: "password security",
     },
     {
-      icon: <Users className="h-6 w-6 text-primary" />,
+      icon: <Users className="h-8 w-8 text-primary" />,
       title: "Team Member Access",
       description: "Invite your team to share plan features. Perfect for development teams and QA testing environments.",
       image: "https://picsum.photos/seed/team/600/400",
       dataAiHint: "team collaboration",
     },
     {
-      icon: <BarChart className="h-6 w-6 text-primary" />,
+      icon: <BarChart className="h-8 w-8 text-primary" />,
       title: "Advanced Analytics",
       description: "Access a detailed dashboard to monitor your temporary email usage, track statistics, and gain insights.",
       image: "https://picsum.photos/seed/analytics/600/400",
@@ -60,13 +60,13 @@ export const ExclusiveFeatures = () => {
                         />
                     </div>
                     <div className="w-full md:w-1/2">
-                        <div className="flex items-center gap-3 mb-3">
+                        <div className="flex flex-col items-start gap-3">
                             {feature.icon}
                             <h3 className="text-2xl font-bold">{feature.title}</h3>
+                            <p className="text-muted-foreground leading-relaxed">
+                                {feature.description}
+                            </p>
                         </div>
-                        <p className="text-muted-foreground leading-relaxed">
-                            {feature.description}
-                        </p>
                     </div>
                 </motion.div>
               ))}
