@@ -2,7 +2,7 @@
 'use server';
 
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { initializeFirebase } from '@/firebase/server-init';
 
 export async function seedDefaultPlan() {
   try {

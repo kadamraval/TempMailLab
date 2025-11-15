@@ -1,8 +1,7 @@
 
 'use server';
 
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { initializeFirebase } from '@/firebase/server-init';
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
@@ -19,8 +18,8 @@ async function getMailgunSettings() {
 
     const settings = settingsSnap.data();
     
-    if (!settings || !settings.apiKey || !settings.domain) {
-        throw new Error("Mailgun settings are incomplete. Please check the admin panel.");
+    if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
+        throw new Error("Mailgun integration is not enabled or settings are incomplete. Please check the admin panel.");
     }
     
     return {

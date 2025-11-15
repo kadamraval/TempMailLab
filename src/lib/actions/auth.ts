@@ -1,9 +1,7 @@
 
 'use server';
 
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { initializeFirebase } from '@/firebase/server-init';
 
 /**
  * Creates or updates a user document in Firestore after a client-side sign-up or first-time Google login.
