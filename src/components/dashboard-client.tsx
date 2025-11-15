@@ -338,68 +338,47 @@ export function DashboardClient() {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
   }
 
-  if (!currentInbox) {
-     return (
-        <Card className="min-h-[480px] flex flex-col">
-            <CardHeader className="border-b p-4 text-center">
-                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                     <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground invisible">
-                        <Clock className="h-4 w-4" />
-                        <span>00:00</span>
-                    </div>
-                    <p className="text-muted-foreground">Your temporary inbox will appear here</p>
-                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
-                        {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        New Address
-                    </Button>
-                 </div>
-            </CardHeader>
-            <CardContent className="p-6 flex-grow flex flex-col items-center justify-center text-center">
-                 <div className="flex flex-col items-center gap-4 text-muted-foreground">
-                    <ShieldAlert className="h-16 w-16 text-primary/50" />
-                    <h3 className="text-2xl font-semibold tracking-tight text-foreground">Protect Your Privacy</h3>
-                    <p className="max-w-md">
-                        Click the &quot;New Address&quot; button to generate a free, disposable email address. Keep your real inbox safe from spam and phishing attempts.
-                    </p>
-                </div>
-            </CardContent>
-            {!user && (
-             <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
-                  <p className="text-center text-sm text-muted-foreground w-full">
-                      <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
-                          Log In
-                      </Link>
-                      {' '}for more features like custom domains &amp; longer inbox life.
-                  </p>
-             </CardFooter>
-            )}
-        </Card>
-     )
-  }
-
   return (
     <Card>
-        <CardHeader className="border-b p-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatTime(countdown)}</span>
-                </div>
+      <CardHeader className="border-b p-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className={`flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground ${!currentInbox && "invisible"}`}>
+            <Clock className="h-4 w-4" />
+            <span>{currentInbox ? formatTime(countdown) : "00:00"}</span>
+          </div>
 
-                <div className="flex-grow flex items-center justify-center">
-                    <p className="font-mono text-lg text-foreground">{currentInbox?.emailAddress}</p>
-                     <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
-                        <Copy className="h-5 w-5" />
-                    </Button>
-                </div>
-                
-                <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
-                   {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                   New Address
+          <div className="flex-grow flex items-center justify-center">
+            {currentInbox ? (
+              <>
+                <p className="font-mono text-lg text-foreground">{currentInbox.emailAddress}</p>
+                <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
+                  <Copy className="h-5 w-5" />
                 </Button>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Your temporary inbox will appear here</p>
+            )}
+          </div>
+          
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+            {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            {currentInbox ? "New Address" : "Get Address"}
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {!currentInbox ? (
+          <div className="min-h-[400px] p-6 flex-grow flex flex-col items-center justify-center text-center">
+            <div className="flex flex-col items-center gap-4 text-muted-foreground">
+              <ShieldAlert className="h-16 w-16 text-primary/50" />
+              <h3 className="text-2xl font-semibold tracking-tight text-foreground">Protect Your Privacy</h3>
+              <p className="max-w-md">
+                Click the "Get Address" button to generate a free, disposable email address. Keep your real inbox safe from spam and phishing attempts.
+              </p>
             </div>
-        </CardHeader>
-        <CardContent className="p-0">
+          </div>
+        ) : (
           <InboxView 
             inbox={inboxEmails} 
             onSelectEmail={handleSelectEmail} 
@@ -407,8 +386,20 @@ export function DashboardClient() {
             isRefreshing={isRefreshing}
             onDelete={handleDeleteInbox}
           />
-        </CardContent>
-        {user && user.isAnonymous && !userPlan?.features.noAds && (
+        )}
+      </CardContent>
+
+      {!user && (
+        <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
+          <p className="text-center text-sm text-muted-foreground w-full">
+            <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+              Log In
+            </Link>
+            {' '}for more features like custom domains &amp; longer inbox life.
+          </p>
+        </CardFooter>
+      )}
+      {user && user.isAnonymous && !userPlan?.features.noAds && (
            <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                 <p className="text-center text-sm text-muted-foreground w-full">
                     This is a temporary anonymous session. {' '}
@@ -426,5 +417,7 @@ export function DashboardClient() {
     </Card>
   );
 }
+
+    
 
     

@@ -3,27 +3,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Make the 'plans' collection publicly readable for pricing pages.
-    // Prevent the 'default' plan from ever being deleted.
+    // Make the 'plans' and 'allowed_domains' collections publicly readable.
     match /plans/{planId} {
       allow read: if true;
-      allow create, update: if false; // Deny writes from client for now
-      allow delete: if planId != 'default'; // Only allow deleting non-default plans
+      allow write: if false; // Deny writes from client
     }
 
-    // Allow logged-in users to read their own user profile.
-    // Allow users to create their own profile upon sign-up.
-    // Allow users to update their own profile, but not change critical fields.
-    match /users/{userId} {
-      allow read, create, update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
-    }
-
-    // Allow anyone to read the list of allowed domains for generating emails.
-    // Only admins should be able to write/edit these.
     match /allowed_domains/{domainId} {
-        allow read: if true;
-        allow write: if false; // Deny all writes for now.
+      allow read: if true;
+      allow write: if false; // Deny writes from client
     }
     
     // Admin settings should be private and only accessible by server-side logic
@@ -33,6 +21,7 @@ service cloud.firestore {
     }
 
     // --- User-specific, private collections ---
+    // Allow logged-in (including anonymous) users to read and write to their own subcollections.
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
@@ -43,3 +32,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
