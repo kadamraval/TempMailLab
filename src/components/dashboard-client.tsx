@@ -62,16 +62,16 @@ export function DashboardClient() {
       }
 
       if (!fetchedPlan) {
-           const defaultPlanQuery = query(collection(firestore, "plans"), where("name", "==", "Default"), limit(1));
-           const defaultPlanSnap = await getDocs(defaultPlanQuery);
-           if (!defaultPlanSnap.empty) {
-               const planDoc = defaultPlanSnap.docs[0];
+           const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
+           const freePlanSnap = await getDocs(freePlanQuery);
+           if(!freePlanSnap.empty){
+               const planDoc = freePlanSnap.docs[0];
                fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
            } else {
-                const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
-                const freePlanSnap = await getDocs(freePlanQuery);
-                if(!freePlanSnap.empty){
-                    const planDoc = freePlanSnap.docs[0];
+                const defaultPlanQuery = query(collection(firestore, "plans"), where("name", "==", "Default"), limit(1));
+                const defaultPlanSnap = await getDocs(defaultPlanQuery);
+                if(!defaultPlanSnap.empty){
+                    const planDoc = defaultPlanSnap.docs[0];
                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
                      throw new Error("Default or Free plan not found in the database. Please ensure one has been seeded.");
@@ -95,6 +95,8 @@ export function DashboardClient() {
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
     try {
+      if (!firestore) throw new Error("Database connection not available.");
+
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -210,7 +212,7 @@ export function DashboardClient() {
                 return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
             });
         } 
-        if (!isAutoRefresh) toast({ title: "Inbox refreshed", description: "No new emails found." });
+        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) toast({ title: "Inbox refreshed", description: "No new emails found." });
         
     } catch (error: any) {
         console.error("Error fetching emails:", error);
@@ -268,14 +270,17 @@ export function DashboardClient() {
   }, [currentInbox, toast, handleRefresh]);
 
   const handleCopyEmail = async () => {
-    if (!currentInbox?.emailAddress) return;
     const currentUser = await ensureAnonymousUser();
     if (!currentUser) return;
 
     if (!userPlan) {
       const plan = await fetchPlan(currentUser);
-      if (plan) handleGenerateEmail(plan);
+       if (plan && !currentInbox) {
+          await handleGenerateEmail(plan);
+       }
     }
+    
+    if (!currentInbox?.emailAddress) return;
 
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
