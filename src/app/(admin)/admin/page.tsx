@@ -1,8 +1,8 @@
 
 'use client';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, getCountFromServer } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import type { Plan } from "./packages/data";
@@ -10,17 +10,32 @@ import { seedDefaultPlan } from "./packages/seed";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
+    const [userCount, setUserCount] = useState(0);
+    const [userCountLoading, setUserCountLoading] = useState(true);
     
     // Ensure the default plan exists on page load
     useEffect(() => {
         seedDefaultPlan();
     }, []);
 
-    // The user count can be derived from other means or an aggregate function later.
-    // Fetching all users on the dashboard is inefficient and a security risk.
-    // We will pass a static '0' for now and remove the isLoading state.
-    const usersCount = 0; 
-    const usersLoading = false;
+    useEffect(() => {
+        if (!firestore) return;
+        const fetchUserCount = async () => {
+            setUserCountLoading(true);
+            try {
+                const usersCol = collection(firestore, "users");
+                const snapshot = await getCountFromServer(usersCol);
+                setUserCount(snapshot.data().count);
+            } catch (error) {
+                console.error("Error fetching user count:", error);
+                setUserCount(0); // Set to 0 on error
+            } finally {
+                setUserCountLoading(false);
+            }
+        };
+        fetchUserCount();
+    }, [firestore]);
+
 
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
     const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
@@ -30,9 +45,9 @@ export default function AdminDashboardPage() {
     const stats = [
         {
             title: "Total Users",
-            value: usersCount, // Using the non-fetching variable
+            value: userCount,
             icon: <Users className="h-4 w-4 text-muted-foreground" />,
-            loading: usersLoading,
+            loading: userCountLoading,
         },
         {
             title: "Active Plans",

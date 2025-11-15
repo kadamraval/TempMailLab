@@ -11,7 +11,7 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { useFirestore, useUser, useAuth, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
@@ -33,7 +33,10 @@ export function DashboardClient() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(0); 
+  const [countdown, setCountdown] = useState(0);
+  const [userPlan, setUserPlan] = useState<Plan | null>(null);
+  const [arePlansLoading, setArePlansLoading] = useState(true);
+
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -44,29 +47,45 @@ export function DashboardClient() {
   const sessionIdRef = useRef<string | null>(null);
 
   // --- Start of Plan Fetching Logic ---
-  const defaultPlanRef = useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'default') : null, [firestore]);
-  const { data: defaultPlan, isLoading: isDefaultPlanLoading } = useDoc<Plan>(defaultPlanRef);
+  useEffect(() => {
+    async function fetchPlan() {
+        if (isUserLoading || !firestore) return;
 
-  // This will hold the plan for a logged-in (non-anonymous) user
-  const userPlanRef = useMemoFirebase(() => {
-      if (!firestore || !user || user.isAnonymous) return null;
-      // This is a placeholder for a real user plan lookup
-      const userPlanId = (user as any).planId || 'default'; 
-      return doc(firestore, 'plans', userPlanId); 
-  }, [firestore, user]);
-  const { data: loggedInUserPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
+        setArePlansLoading(true);
+        try {
+            let planId = 'default'; // Default for guests
+            if (user && !user.isAnonymous) {
+                const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().planId) {
+                    planId = userDoc.data().planId;
+                }
+            }
 
-  // Determine the correct plan to use
-  const userPlan = useMemo(() => {
-      // If a real user is logged in and their plan is loaded, use it.
-      if (user && !user.isAnonymous && loggedInUserPlanData) {
-          return loggedInUserPlanData;
-      }
-      // For guests or anonymous users, always use the default plan.
-      return defaultPlan;
-  }, [user, loggedInUserPlanData, defaultPlan]);
-  
-  const arePlansLoading = isUserLoading || isDefaultPlanLoading || (!!user && !user.isAnonymous && isUserPlanLoading);
+            const planDoc = await getDoc(doc(firestore, 'plans', planId));
+            if (planDoc.exists()) {
+                setUserPlan({ id: planDoc.id, ...planDoc.data() } as Plan);
+            } else {
+                // Fallback to default if user's plan doesn't exist
+                const defaultPlanDoc = await getDoc(doc(firestore, 'plans', 'default'));
+                if (defaultPlanDoc.exists()) {
+                    setUserPlan({ id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan);
+                } else {
+                    throw new Error("Default plan not found.");
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch plan:", error);
+            toast({
+                title: "Error",
+                description: "Could not load subscription details.",
+                variant: "destructive",
+            });
+        } finally {
+            setArePlansLoading(false);
+        }
+    }
+    fetchPlan();
+  }, [user, isUserLoading, firestore, toast]);
   // --- End of Plan Fetching Logic ---
   
   useEffect(() => {
@@ -85,7 +104,6 @@ export function DashboardClient() {
     if (auth.currentUser) return true;
     try {
         await signInAnonymously(auth);
-        toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
         return true;
     } catch (error) {
         console.error("Anonymous sign-in failed:", error);
@@ -172,8 +190,8 @@ export function DashboardClient() {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
         
+        // This logic will run if a user is already signed in (including anonymous)
         if (auth?.currentUser) {
-           await ensureAnonymousUser();
            const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
            const userInboxes = await getDocs(inboxesCollection);
            if(userInboxes.docs.length >= userPlan.features.maxInboxes) {
@@ -185,6 +203,9 @@ export function DashboardClient() {
                 setIsGenerating(false);
                 return;
            }
+        } else {
+            // This is the first action for a guest, so we create an anonymous user
+            await ensureAnonymousUser();
         }
 
         setSelectedEmail(null);
@@ -386,7 +407,7 @@ export function DashboardClient() {
           </p>
         </CardFooter>
       )}
-      {user && user.isAnonymous && !userPlan?.features.noAds && (
+      {user && user.isAnonymous && (
            <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                 <p className="text-center text-sm text-muted-foreground w-full">
                     This is a temporary anonymous session. {' '}

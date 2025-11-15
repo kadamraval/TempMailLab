@@ -92,7 +92,8 @@ const FeatureCell = ({ value }: { value: any }) => {
         return value ? <Check className="h-6 w-6 text-green-500 mx-auto" /> : <X className="h-6 w-6 text-red-500 mx-auto" />;
     }
     if (typeof value === 'number') {
-        return value > 0 ? <span>{value}</span> : <X className="h-6 w-6 text-red-500 mx-auto" />;
+        if (value === 0) return <span>Unlimited</span>;
+        return <span>{value}</span>;
     }
      if (typeof value === 'string') {
         return value !== 'none' ? <span className="capitalize">{value}</span> : <X className="h-6 w-6 text-red-500 mx-auto" />;
@@ -107,7 +108,9 @@ interface PricingComparisonTableProps {
 
 export function PricingComparisonTable({ plans, removeBorder }: PricingComparisonTableProps) {
     const sortedPlans = React.useMemo(() => {
-        return plans ? [...plans].sort((a, b) => a.price - b.price) : [];
+        if (!plans) return [];
+        const displayPlans = plans.filter(p => p.name !== 'Default');
+        return [...displayPlans].sort((a, b) => a.price - b.price);
     }, [plans]);
 
   return (
@@ -136,16 +139,18 @@ export function PricingComparisonTable({ plans, removeBorder }: PricingCompariso
                         <TableRow key={key}>
                             <TableCell className="font-medium flex items-center gap-2">
                                 <span>{featureLabels[key] || key}</span>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                        <p className="max-w-xs">{featureTooltips[key]}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                                {featureTooltips[key] && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                            <p className="max-w-xs">{featureTooltips[key]}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
                             </TableCell>
                             {sortedPlans.map(plan => (
                                 <TableCell key={`${plan.id}-${key}`} className="text-center">

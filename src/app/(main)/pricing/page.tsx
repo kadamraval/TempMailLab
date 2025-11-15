@@ -15,7 +15,8 @@ async function getActivePlans() {
     
     const querySnapshot = await getDocs(plansQuery);
     const plans = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Plan[];
-    return plans;
+    // Ensure correct date serialization for Server Component to Client Component prop passing
+    return JSON.parse(JSON.stringify(plans));
   } catch (error) {
     console.error("Failed to fetch active plans:", error);
     return []; // Return an empty array on error to prevent page crash

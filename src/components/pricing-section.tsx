@@ -12,10 +12,11 @@ import type { Plan } from "@/app/(admin)/admin/packages/data";
 
 const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
     let price = plan.price;
+    // Adjust price based on selected cycle vs plan's inherent cycle
     if (plan.cycle === 'monthly' && cycle === 'yearly') {
-        price = price * 12 * 0.8; // Apply 20% discount
+        price = price * 12 * 0.8; // Apply 20% discount for yearly
     } else if (plan.cycle === 'yearly' && cycle === 'monthly') {
-        price = plan.price / 12 / 0.8; // Reverse discount
+        price = plan.price / 12 / 0.8; // Reverse discount to show monthly equivalent
     }
 
     return {
@@ -39,7 +40,7 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
 };
 
 interface PricingSectionProps {
-    plans?: Plan[] | null;
+    plans: Plan[];
 }
 
 export function PricingSection({ plans }: PricingSectionProps) {
@@ -57,14 +58,13 @@ export function PricingSection({ plans }: PricingSectionProps) {
         inboxLifetime: (v) => {
             if (v === 0) return 'Unlimited Inbox Lifetime';
             const hours = v/60;
-            if (v >= 60) return `${hours} ${hours > 1 ? 'Hours' : 'Hour'} Inbox Lifetime`;
+            if (v >= 60) return `${hours.toFixed(0)} ${hours > 1 ? 'Hours' : 'Hour'} Inbox Lifetime`;
             return `${v} Minute Inbox Lifetime`;
         },
         allowPremiumDomains: (v) => v ? "Premium Domains" : "Standard Domains",
         noAds: (v) => v ? "No Ads" : "Ad-supported",
         customDomains: (v) => v > 0 ? `${v} Custom Domain${v > 1 ? 's' : ''}` : "No Custom Domains",
         apiAccess: (v) => v ? "Developer API Access" : "No API Access",
-        emailForwarding: (v) => v ? "Email Forwarding" : "No Forwarding",
     }
     
     return (
@@ -92,7 +92,7 @@ export function PricingSection({ plans }: PricingSectionProps) {
 
                 {!plans || plans.length === 0 ? (
                     <div className="flex justify-center items-center h-64">
-                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                         <p className="text-muted-foreground">No active plans available at the moment. Please check back later.</p>
                     </div>
                 ): (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start max-w-5xl mx-auto">
