@@ -36,50 +36,51 @@ interface InboxViewProps {
 }
 
 export function InboxView({ inbox, onSelectEmail, onRefresh, isRefreshing, onDelete }: InboxViewProps) {
-  if (inbox.length === 0) {
-    return (
-      <div className="text-center py-16 text-muted-foreground flex flex-col items-center justify-center space-y-4 min-h-[400px]">
-        <EnvelopeLoader />
-        <p className="mt-4 text-lg">Waiting for incoming emails...</p>
-        <Button onClick={onRefresh} variant="secondary" disabled={isRefreshing}>
-            {isRefreshing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            {isRefreshing ? 'Checking...' : 'Refresh'}
-        </Button>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="min-h-[400px]">
-        <div className="p-2 border-b flex justify-end">
-             <Button onClick={onDelete} variant="ghost" size="sm">
+    <div className="min-h-[400px] flex flex-col">
+        <div className="p-2 border-b flex justify-end items-center gap-2">
+            <Button onClick={onRefresh} variant="ghost" size="sm" disabled={isRefreshing}>
+                {isRefreshing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                {isRefreshing ? 'Checking...' : 'Refresh'}
+            </Button>
+            <Button onClick={onDelete} variant="ghost" size="sm">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Clear Inbox
             </Button>
         </div>
-        <div className="space-y-1 p-2">
-            {inbox.map((email) => (
-                <button
-                key={email.id}
-                onClick={() => onSelectEmail(email)}
-                className={cn(
-                    "w-full text-left p-3 rounded-lg border transition-colors flex items-center gap-4",
-                    email.read ? "bg-background hover:bg-muted/50" : "bg-card hover:bg-muted/50 font-semibold"
-                )}
-                >
-                <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
-                <div className="grid grid-cols-5 gap-4 flex-grow items-center">
-                    <span className="col-span-2 sm:col-span-1 truncate">{email.senderName}</span>
-                    <span className="col-span-3 sm:col-span-3 truncate">{email.subject}</span>
-                    <span className="hidden sm:block text-right text-sm text-muted-foreground">{new Date(email.receivedAt).toLocaleString()}</span>
-                </div>
-                </button>
-            ))}
-        </div>
+        
+        {inbox.length === 0 ? (
+            <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4">
+                <EnvelopeLoader />
+                <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+                <p className="text-sm">New messages will appear here automatically.</p>
+            </div>
+        ) : (
+            <div className="space-y-1 p-2">
+                {inbox.map((email) => (
+                    <button
+                    key={email.id}
+                    onClick={() => onSelectEmail(email)}
+                    className={cn(
+                        "w-full text-left p-3 rounded-lg border transition-colors flex items-center gap-4",
+                        email.read ? "bg-background hover:bg-muted/50" : "bg-card hover:bg-muted/50 font-semibold"
+                    )}
+                    >
+                    <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
+                    <div className="grid grid-cols-5 gap-4 flex-grow items-center">
+                        <span className="col-span-2 sm:col-span-1 truncate">{email.senderName}</span>
+                        <span className="col-span-3 sm:col-span-3 truncate">{email.subject}</span>
+                        <span className="hidden sm:block text-right text-sm text-muted-foreground">{new Date(email.receivedAt).toLocaleString()}</span>
+                    </div>
+                    </button>
+                ))}
+            </div>
+        )}
     </div>
   );
 }
