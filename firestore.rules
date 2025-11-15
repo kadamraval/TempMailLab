@@ -6,41 +6,39 @@
  * This ruleset enforces a strict user-ownership model for user profiles, inboxes, emails, and API keys.
  * Only the authenticated user can access their own data. API key usage logs are associated with API keys and can only be written to.
  * Blocked IPs and domains are managed globally.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles.
- * - /users/{userId}/inboxes/{inboxId}: Stores temporary inboxes for each user.
- * - /users/{userId}/inboxes/{inboxId}/emails/{emailId}: Stores emails received in a temporary inbox.
- * - /users/{userId}/api_keys/{apiKeyId}: Stores API keys for developers.
- * - /api_keys/{apiKeyId}/usage_logs/{usageLogId}: Stores usage logs per API key.
- * - /blocked_ips/{blockedIpId}: Stores blocked IP addresses (global).
- * - /blocked_domains/{blockedDomainId}: Stores blocked sender domains (global).
- * - /allowed_domains/{allowedDomainId}: Stores domains allowed for temp email generation (global).
- * - /admin_settings/{settingId}: Stores global admin settings like API keys.
- * - /plans/{planId}: Stores subscription plans.
- *
- * Key Security Decisions:
- * - User data (profiles, inboxes, emails, api_keys) is strictly private and only accessible to the owning user.
- * - Admin settings can be read and written by trusted server environments.
- * - Listing of blocked and allowed domains is publicly allowed. Listing of user-owned collections is restricted to the owner.
- * - Write access to the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection is completely denied. The intended design is that these can only be written via a trusted backend.
- * - The rules do not validate the data shape or types beyond what's necessary for authorization (e.g., ownership checks).
+ * Admin-only actions are controlled via a custom claim.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Enforces read and write access to user profiles based on user ID.
-     * @path /users/{userId}
-     */
-    match /users/{userId} {
-      function isSignedIn() { return request.auth != null; }
-      function isOwner(userId) { return request.auth.uid == userId; }
-      function isExistingOwner(userId) { return isOwner(userId) && resource != null; }
+    //============================================
+    // Helper Functions
+    //============================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // In production, this claim must be set on the user via a trusted backend.
+      return isSignedIn() && request.auth.token.isAdmin == true;
+    }
+
+    function isExistingOwner(userId) { 
+      return isOwner(userId) && resource != null; 
+    }
+
+    //============================================
+    // User Data
+    //============================================
+    match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
+      // Only admins can list all users for the dashboard.
+      allow list: if isAdmin();
 
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
@@ -83,8 +81,30 @@ service cloud.firestore {
       }
     }
 
+    //============================================
+    // Public & Admin Collections
+    //============================================
+    
+    match /plans/{planId} {
+      // Anyone can read plans for the pricing page.
+      allow get, list: if true;
+      // Only admins can change plans.
+      allow write: if isAdmin();
+    }
+
+    match /allowed_domains/{allowedDomainId} {
+      // Anyone can read the list of domains available.
+      allow get, list: if true;
+      // Only admins can manage the domain pool.
+      allow write: if isAdmin();
+    }
+    
+    match /admin_settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
     /**
-     * @description Denies all access to API key usage logs.
+     * @description Denies all access to API key usage logs. Intended for backend writes only.
      * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
      */
     match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
@@ -92,61 +112,19 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows public read access to blocked IP addresses, but denies all write access.
-     * @path /blocked_ips/{blockedIpId}
+     * @description Publicly readable collections for blocklists. Writable only by admins.
+     * @path /blocked_ips/{blockedIpId}, /blocked_domains/{blockedDomainId}
      */
     match /blocked_ips/{blockedIpId} {
       allow get: if true;
       allow list: if true;
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
-    /**
-     * @description Allows public read access to blocked domains, but denies all write access.
-     * @path /blocked_domains/{blockedDomainId}
-     */
     match /blocked_domains/{blockedDomainId} {
       allow get: if true;
       allow list: if true;
-      allow write: if false;
-    }
-    
-    /**
-     * @description Allows public read access to allowed domains. Admin can write.
-     * @path /allowed_domains/{allowedDomainId}
-     */
-    match /allowed_domains/{allowedDomainId} {
-      function isSignedIn() { return request.auth != null; }
-
-      allow get: if true;
-      allow list: if true;
-      // In production, restrict to admins via custom claims
-      allow write: if isSignedIn(); 
-    }
-    
-    /**
-     * @description Allows server-side access to manage admin settings.
-     * @path /admin_settings/{settingId}
-     */
-    match /admin_settings/{settingId} {
-      // This rule allows server-side actions (which can bypass rules or act as unauthenticated)
-      // and authenticated clients to read/write settings.
-      // In a production app with specific admin roles, this would be locked down further
-      // e.g. allow write: if request.auth.token.isAdmin == true;
-      allow read, write: if true;
-    }
-
-    /**
-     * @description Allows public read access to plans. Admins can write.
-     * @path /plans/{planId}
-     */
-    match /plans/{planId} {
-      function isSignedIn() { return request.auth != null; }
-
-      allow get: if true;
-      allow list: if true;
-      // In production, restrict to admins via custom claims
-      allow write: if isSignedIn(); 
+      allow write: if isAdmin();
     }
   }
 }
