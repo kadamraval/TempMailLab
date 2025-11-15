@@ -76,7 +76,7 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div>
+    <div className="space-y-4">
        <div className="flex items-center justify-between gap-4 py-4">
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -86,7 +86,7 @@ export function DataTable<TData, TValue>({
                     onChange={(event) =>
                         table.getColumn(filterColumn)?.setFilterValue(event.target.value)
                     }
-                    className="pl-10 pr-4"
+                    className="pl-10 pr-4 bg-background"
                 />
             </div>
              <div className="flex items-center gap-2">
@@ -151,9 +151,10 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="[&_td]:text-center"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="text-center">
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

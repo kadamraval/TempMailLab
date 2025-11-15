@@ -15,15 +15,7 @@ import {
   PanelLeft
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ModeToggle } from "./mode-toggle"
 import { useUser } from "@/firebase"
@@ -103,16 +94,11 @@ export function AdminHeader() {
                 </SheetContent>
             </Sheet>
 
-            <div className="relative ml-auto flex-1 md:grow-0">
-                <h1 className="text-xl font-semibold">Dashboard</h1>
+            <div className="flex-1">
+                 <h1 className="text-xl font-semibold">Dashboard</h1>
             </div>
-            <div className="relative ml-auto flex-1 md:grow-0"></div>
 
-            <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="rounded-full">
-                    <Bell className="h-5 w-5" />
-                    <span className="sr-only">Toggle notifications</span>
-                </Button>
+            <div className="flex items-center gap-4">
                 <ModeToggle />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -140,4 +126,3 @@ export function AdminHeader() {
         </header>
     );
 }
-

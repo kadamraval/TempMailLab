@@ -1,7 +1,6 @@
 
 'use client';
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DataTable } from "@/components/admin/data-table";
 import { getPlanColumns } from "./columns";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
@@ -81,21 +80,13 @@ export default function AdminPackagesPage() {
 
   return (
     <>
-        <Card>
-            <CardHeader>
-                <CardTitle>Manage Plans</CardTitle>
-                <CardDescription>View, create, and manage user subscription plans.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <DataTable 
-                    columns={columns} 
-                    data={plans || []} 
-                    filterColumn="name" 
-                    onAdd={handleAdd}
-                    addLabel="Add Plan"
-                />
-            </CardContent>
-        </Card>
+        <DataTable 
+            columns={columns} 
+            data={plans || []} 
+            filterColumn="name" 
+            onAdd={handleAdd}
+            addLabel="Add Plan"
+        />
 
         {/* Add/Edit Dialog */}
         <PlanDialog

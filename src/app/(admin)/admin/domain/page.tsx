@@ -11,7 +11,7 @@ import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, doc, deleteDoc } from "firebase/firestore";
 import type { AllowedDomain } from "./allowed-columns";
 import type { BlockedDomain } from "./blocked-columns";
-import { AddAllowedDomainDialog } from "./add-allowed-domain";
+import { AddAllowedDomainDialog } from './add-allowed-domain';
 import { EditAllowedDomainDialog } from './edit-allowed-domain';
 import {
   AlertDialog,
@@ -94,26 +94,10 @@ export default function AdminDomainPage() {
             </div>
         </div>
         <TabsContent value="allowed">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Allowed Domains</CardTitle>
-                    <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable columns={allowedColumns} data={allowedDomains || []} filterColumn="domain" />
-                </CardContent>
-            </Card>
+             <DataTable columns={allowedColumns} data={allowedDomains || []} filterColumn="domain" />
         </TabsContent>
         <TabsContent value="blocked">
-                <Card>
-                <CardHeader>
-                    <CardTitle>Blocked Domains</CardTitle>
-                    <CardDescription>Emails from these domains will be rejected by the system.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
-                </CardContent>
-            </Card>
+             <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
         </TabsContent>
     </Tabs>
 

@@ -51,22 +51,12 @@ export const getPlanColumns = (
   },
   {
     accessorKey: "name",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => <div className="min-w-[120px] font-medium">{row.getValue("name")}</div>
+    header: "Name",
+    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>
   },
   {
     accessorKey: "price",
-    header: () => <div className="text-right">Price</div>,
+    header: "Price",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("price"))
       const cycle = row.original.cycle;
@@ -75,7 +65,7 @@ export const getPlanColumns = (
         currency: "USD",
       }).format(amount)
 
-      return <div className="text-right font-medium">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
+      return <div className="font-medium">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
     },
   },
   {
