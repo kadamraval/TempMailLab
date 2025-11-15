@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart } from "lucide-react"
+import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 
@@ -52,7 +52,12 @@ export const getPlanColumns = (
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => <div className="font-medium text-left">{row.getValue("name")}</div>
+    cell: ({ row }) => (
+        <div className="font-medium text-left flex items-center gap-2">
+            {row.getValue("name")}
+            {row.original.name.toLowerCase() === 'default' && <Lock className="h-3 w-3 text-muted-foreground" />}
+        </div>
+    )
   },
   {
     accessorKey: "price",
@@ -129,6 +134,7 @@ export const getPlanColumns = (
     id: "actions",
     cell: ({ row }) => {
       const plan = row.original
+      const isDefaultPlan = plan.name.toLowerCase() === 'default';
 
       return (
         <DropdownMenu>
@@ -147,7 +153,13 @@ export const getPlanColumns = (
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onEdit(plan)}>Edit Plan</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(plan)} className="text-red-600">Delete Plan</DropdownMenuItem>
+            <DropdownMenuItem 
+                onClick={() => onDelete(plan)} 
+                className="text-red-600"
+                disabled={isDefaultPlan}
+            >
+                Delete Plan
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )

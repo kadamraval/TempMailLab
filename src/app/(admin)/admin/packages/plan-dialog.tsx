@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, Info } from "lucide-react"
+import { Loader2, Info, Lock } from "lucide-react"
 import { useFirestore } from "@/firebase"
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 
 interface PlanDialogProps {
     plan: Plan | null;
@@ -93,6 +94,7 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const firestore = useFirestore()
   const { toast } = useToast()
+  const isDefaultPlan = plan?.name.toLowerCase() === 'default';
 
   const defaultValues: z.infer<typeof dialogFormSchema> = {
     name: "",
@@ -176,6 +178,12 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
           <DialogDescription>
             {plan ? "Update the details for this subscription plan." : "Fill out the form to create a new subscription plan."}
           </DialogDescription>
+          {isDefaultPlan && (
+            <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
+                <Lock className="h-3 w-3" />
+                You are editing the non-deletable Default plan.
+            </Badge>
+          )}
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -189,7 +197,8 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
                         <FormField control={form.control} name="name" render={({ field }) => (
                             <FormItem className="md:col-span-1">
                                 <FormLabel>Plan Name</FormLabel>
-                                <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
+                                <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
+                                {isDefaultPlan && <FormDescription>The 'Default' plan name cannot be changed.</FormDescription>}
                                 <FormMessage />
                             </FormItem>
                         )} />
@@ -203,7 +212,7 @@ export function PlanDialog({ plan, isOpen, onClose }: PlanDialogProps) {
                         <FormField control={form.control} name="cycle" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Billing Cycle</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a cycle" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="monthly">Monthly</SelectItem>

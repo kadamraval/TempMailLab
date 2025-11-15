@@ -46,6 +46,14 @@ export default function AdminPackagesPage() {
     };
 
     const handleDelete = (plan: Plan) => {
+        if (plan.name.toLowerCase() === 'default') {
+            toast({
+                title: "Cannot Delete",
+                description: "The Default plan is essential for system operation and cannot be deleted.",
+                variant: "destructive",
+            });
+            return;
+        }
         setDeletingPlan(plan);
     };
 
@@ -69,7 +77,7 @@ export default function AdminPackagesPage() {
     };
 
     // Memoize columns to prevent re-creation on every render
-    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), []);
+    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
 
     if (isLoading) {
         return (

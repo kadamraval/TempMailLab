@@ -113,20 +113,42 @@ export function PricingSection() {
     const { data: dbPlans, isLoading } = useCollection<Plan>(plansQuery);
 
     const currentPlans = React.useMemo(() => {
-        const activeDbPlans = dbPlans?.filter(p => p.status === 'active' && p.cycle === billingCycle).map(planToDisplayPlan) || [];
+        const activeDbPlans = dbPlans
+            ?.filter(p => p.status === 'active' && p.cycle === billingCycle && p.name.toLowerCase() !== 'default')
+            .map(planToDisplayPlan) || [];
+            
         if (activeDbPlans.length > 0) {
-            return activeDbPlans.sort((a,b) => a.price - b.price);
+            // Check for a free plan to override the default hardcoded one
+            const hasFreePlan = activeDbPlans.some(p => p.price === 0);
+            const basePlans = billingCycle === 'monthly' ? defaultPlans.monthly : defaultPlans.yearly;
+
+            // If there's a free plan from DB, remove the hardcoded free plan
+            const filteredBase = hasFreePlan ? basePlans.filter(p => p.price !== 0) : basePlans;
+            
+            // Combine DB plans with any remaining hardcoded plans (like a premium fallback)
+            const combined = [...activeDbPlans];
+            
+            filteredBase.forEach(bp => {
+                if (!combined.some(p => p.name.toLowerCase() === bp.name.toLowerCase())) {
+                    combined.push(bp);
+                }
+            });
+
+            return combined.sort((a,b) => a.price - b.price);
         }
+
+        // Fallback to hardcoded plans if DB is empty or has no active plans for the cycle
         return billingCycle === 'monthly' ? defaultPlans.monthly : defaultPlans.yearly;
     }, [dbPlans, billingCycle]);
 
     const featureLabels: {[key: string]: (value: any) => string} = {
         maxInboxes: (v) => `${v} Active Inbox${v > 1 ? 'es' : ''}`,
-        inboxLifetime: (v) => `${v > 60 ? v/60 : v} ${v > 60 ? 'Hour' : 'Minute'} Inbox Lifetime`,
+        inboxLifetime: (v) => `${v >= 60 ? v/60 : v} ${v >= 60 ? (v/60 > 1 ? 'Hours' : 'Hour') : 'Minute'} Inbox Lifetime`,
         allowPremiumDomains: (v) => v ? "Premium Domains" : "Standard Domains",
         noAds: (v) => v ? "No Ads" : "Ad-supported",
         customDomains: (v) => v > 0 ? `${v} Custom Domain${v > 1 ? 's' : ''}` : "No Custom Domains",
         apiAccess: (v) => v ? "Developer API Access" : "No API Access",
+        emailForwarding: (v) => v ? "Email Forwarding" : "No Forwarding",
     }
     
     return (
@@ -176,14 +198,17 @@ export function PricingSection() {
                                 </CardHeader>
                                 <CardContent className="p-6 flex-grow">
                                     <ul className="space-y-4">
-                                        {Object.entries(plan.features).map(([key, value]) => (
-                                            <li key={key} className="flex items-center gap-3">
-                                                <Check className="w-5 h-5 text-green-500 shrink-0" />
-                                                <span className="text-muted-foreground">
-                                                    {featureLabels[key] ? featureLabels[key](value) : `${key}: ${value}`}
-                                                </span>
-                                            </li>
-                                        ))}
+                                        {Object.entries(plan.features).map(([key, value]) => {
+                                            if (!featureLabels[key]) return null;
+                                            return (
+                                                <li key={key} className="flex items-center gap-3">
+                                                    <Check className="w-5 h-5 text-green-500 shrink-0" />
+                                                    <span className="text-muted-foreground">
+                                                        {featureLabels[key](value)}
+                                                    </span>
+                                                </li>
+                                            )
+                                        })}
                                     </ul>
                                 </CardContent>
                                 <CardFooter className="p-6 mt-auto">
