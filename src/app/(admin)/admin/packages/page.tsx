@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { DataTable } from "@/components/admin/data-table";
 import { getPlanColumns } from "./columns";
@@ -34,25 +34,25 @@ export default function AdminPackagesPage() {
     const { data: plans, isLoading } = useCollection<Plan>(plansQuery);
 
     // Handlers for CRUD actions
-    const handleAdd = () => {
+    const handleAdd = useCallback(() => {
         router.push('/admin/packages/add');
-    };
+    }, [router]);
 
-    const handleEdit = (plan: Plan) => {
+    const handleEdit = useCallback((plan: Plan) => {
         router.push(`/admin/packages/edit/${plan.id}`);
-    };
+    }, [router]);
 
-    const handleDelete = (plan: Plan) => {
+    const handleDelete = useCallback((plan: Plan) => {
         if (plan.name.toLowerCase() === 'default') {
             toast({
-                title: "Cannot Delete",
-                description: "The Default plan is essential for system operation and cannot be deleted.",
+                title: "Action Not Allowed",
+                description: "The 'Default' plan is a system-critical fallback and cannot be deleted.",
                 variant: "destructive",
             });
             return;
         }
         setDeletingPlan(plan);
-    };
+    }, [toast]);
 
     const confirmDelete = async () => {
         if (!deletingPlan || !firestore) return;

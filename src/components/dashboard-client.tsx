@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from 'next/link';
 import { Copy, RefreshCw, Loader2, Clock, Trash2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,11 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { useFirestore, useUser, useAuth, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
-import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
+import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc, orderBy, limit } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
-import { seedDefaultPlan } from "@/app/(admin)/admin/packages/seed";
 
 function generateRandomString(length: number) {
   let result = '';
@@ -47,11 +46,6 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // Seed the default plan on initial load to prevent race conditions.
-    seedDefaultPlan();
-  }, []);
-
   // --- Start of Plan Fetching Logic ---
   useEffect(() => {
     async function fetchPlan() {
@@ -59,38 +53,53 @@ export function DashboardClient() {
 
         setArePlansLoading(true);
         try {
-            let planId = 'default'; // Default for guests
             let fetchedPlan: Plan | null = null;
             
             // For signed-in, non-anonymous users, check for a custom plan
             if (user && !user.isAnonymous) {
                 const userDoc = await getDoc(doc(firestore, 'users', user.uid));
                 if (userDoc.exists() && userDoc.data().planId) {
-                    planId = userDoc.data().planId;
+                    const planId = userDoc.data().planId;
+                    const planDoc = await getDoc(doc(firestore, 'plans', planId));
+                    if (planDoc.exists()) {
+                         fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                    } else {
+                        console.warn(`User plan with ID '${planId}' not found. Falling back to public plan.`);
+                    }
                 }
             }
 
-            const planDoc = await getDoc(doc(firestore, 'plans', planId));
-            if (planDoc.exists()) {
-                fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-            } else {
-                 // Fallback to default if user's plan doesn't exist or user is a guest
-                 if (planId !== 'default') {
-                    console.warn(`Plan with ID '${planId}' not found. Falling back to default plan.`);
-                 }
-                const defaultPlanDoc = await getDoc(doc(firestore, 'plans', 'default'));
-                if (defaultPlanDoc.exists()) {
-                    fetchedPlan = { id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan;
+            // If no user-specific plan was found, fetch the public free plan
+            if (!fetchedPlan) {
+                // 1. Prioritize a plan named "Free"
+                const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
+                const freePlanSnap = await getDocs(freePlanQuery);
+                
+                if (!freePlanSnap.empty) {
+                    const planDoc = freePlanSnap.docs[0];
+                    fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
-                    throw new Error("Default plan not found in the database. Please ensure it has been seeded.");
+                    // 2. If no "Free" plan, fall back to the absolute cheapest plan (likely free)
+                    console.warn("No 'Free' plan found. Falling back to the cheapest available plan.");
+                    const cheapestPlanQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
+                    const cheapestPlanSnap = await getDocs(cheapestPlanQuery);
+                    
+                    if (!cheapestPlanSnap.empty) {
+                        const planDoc = cheapestPlanSnap.docs[0];
+                        fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                    } else {
+                         throw new Error("No subscription plans are configured in the database. Please add a plan in the admin panel.");
+                    }
                 }
             }
+            
             setUserPlan(fetchedPlan);
-        } catch (error) {
+
+        } catch (error: any) {
             console.error("Failed to fetch plan:", error);
             toast({
-                title: "Error Loading Plan",
-                description: "Could not load subscription details. Some features might be unavailable.",
+                title: "Error Loading Configuration",
+                description: error.message || "Could not load subscription details. Please contact support.",
                 variant: "destructive",
             });
         } finally {

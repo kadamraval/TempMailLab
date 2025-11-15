@@ -6,23 +6,18 @@ import { collection, getCountFromServer } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import type { Plan } from "./packages/data";
-import { seedDefaultPlan } from "./packages/seed";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
     const [userCount, setUserCount] = useState(0);
     const [userCountLoading, setUserCountLoading] = useState(true);
     
-    // Ensure the default plan exists on page load
-    useEffect(() => {
-        seedDefaultPlan();
-    }, []);
-
     useEffect(() => {
         if (!firestore) return;
         const fetchUserCount = async () => {
             setUserCountLoading(true);
             try {
+                // Securely count users on the server
                 const usersCol = collection(firestore, "users");
                 const snapshot = await getCountFromServer(usersCol);
                 setUserCount(snapshot.data().count);
