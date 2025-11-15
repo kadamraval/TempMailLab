@@ -16,16 +16,19 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      // In production, this claim must be set on the user via a trusted backend.
       return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
     //============================================
-    // Public Collections
+    // Rule Definitions
     //============================================
 
+    //--- Public Collections ---//
     match /plans/{planId} {
-      // DEBUG: Temporarily allow all access to isolate the problem.
-      allow read, write: if true;
+      // Anyone can read plans for the pricing page. Admins can write.
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
     
     match /allowed_domains/{allowedDomainId} {
@@ -39,32 +42,30 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    //============================================
-    // User-Owned Collections
-    //============================================
-
+    //--- User Data Collections ---//
     match /users/{userId} {
-      // A user can read/write their own document. Admins have full access.
+      // A user can manage their own document. Admins have full access.
       allow get, update, delete: if isOwner(userId) || isAdmin();
-      // Allow users to create their own user document.
+      // Users can create their own document.
       allow create: if isOwner(userId);
-      // Admins can list all users.
+      // Only Admins can list all users.
       allow list: if isAdmin();
     }
 
-    match /users/{userId}/inboxes/{inboxId} {
-      // Users can only access their own inboxes.
-      allow read, write, delete: if isOwner(userId);
+    match /inboxes/{inboxId} {
+      // Users can only access inboxes where the document's userId field matches their own UID.
+      allow read, write: if isOwner(resource.data.userId);
     }
     
-    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
-        // Users can only access emails within their own inboxes.
-        allow read, write, delete: if isOwner(userId);
+    match /emails/{emailId} {
+      // To access an email, a user must own the parent inbox.
+      // This requires a 'get' call in the rule.
+      allow read, write: if isSignedIn() && get(/databases/$(database)/documents/inboxes/$(resource.data.inboxId)).data.userId == request.auth.uid;
     }
 
-    match /users/{userId}/api_keys/{apiKeyId} {
+    match /api_keys/{apiKeyId} {
       // Users can only manage their own API keys.
-      allow read, write, delete: if isOwner(userId);
+      allow read, write: if isOwner(resource.data.userId);
     }
   }
 }
