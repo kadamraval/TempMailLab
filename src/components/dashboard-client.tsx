@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
-import { Skeleton } from "./ui/skeleton";
 import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc, orderBy, limit } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
@@ -46,7 +45,6 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  // --- Start of Plan Fetching Logic ---
   useEffect(() => {
     async function fetchPlan() {
         if (isUserLoading || !firestore) return;
@@ -66,29 +64,31 @@ export function DashboardClient() {
                 }
             }
 
-            // Fallback for guests or if user plan not found
             if (!fetchedPlan) {
-                const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
-                const freePlanSnap = await getDocs(freePlanQuery);
-                
-                if (!freePlanSnap.empty) {
-                    const planDoc = freePlanSnap.docs[0];
-                    fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                } else {
-                    const defaultPlanRef = doc(firestore, "plans", "default");
-                    const defaultPlanDoc = await getDoc(defaultPlanRef);
-                    if (defaultPlanDoc.exists()) {
-                        fetchedPlan = { id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan;
-                    } else {
-                         toast({
-                            title: "Configuration Error",
-                            description: "No default or free subscription plans are configured. Please contact support.",
-                            variant: "destructive",
-                        });
-                    }
-                }
+                 const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
+                 const freePlanSnap = await getDocs(freePlanQuery);
+                 if (!freePlanSnap.empty) {
+                     const planDoc = freePlanSnap.docs[0];
+                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                 } else {
+                     // Fallback to the lowest priced plan if "Free" doesn't exist
+                     const allPlansQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
+                     const allPlansSnap = await getDocs(allPlansQuery);
+                     if (!allPlansSnap.empty) {
+                         const planDoc = allPlansSnap.docs[0];
+                         fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                     }
+                 }
             }
             
+            if (!fetchedPlan) {
+                 toast({
+                    title: "Configuration Error",
+                    description: "No subscription plans are configured. Please contact support.",
+                    variant: "destructive",
+                });
+            }
+
             setUserPlan(fetchedPlan);
 
         } catch (error: any) {
@@ -108,7 +108,6 @@ export function DashboardClient() {
     }
     fetchPlan();
   }, [user, isUserLoading, firestore, toast]);
-  // --- End of Plan Fetching Logic ---
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -155,8 +154,7 @@ export function DashboardClient() {
         setIsRefreshing(true);
     }
     
-    // Ensure user exists before fetching, which may lead to a write
-    ensureAnonymousUser();
+    await ensureAnonymousUser();
 
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
@@ -204,24 +202,22 @@ export function DashboardClient() {
   }, [currentInbox, toast, ensureAnonymousUser, inboxEmails]);
 
 
-  const handleGenerateEmail = useCallback(async (isInitialLoad = false) => {
-    if (!isInitialLoad && isGenerating) return;
+  const handleGenerateEmail = useCallback(async () => {
+    if (isGenerating || arePlansLoading) return;
 
-    if (arePlansLoading || !userPlan) {
-        if (!isInitialLoad) {
-          toast({
+    // This is a key user action, ensure anonymous user exists.
+    await ensureAnonymousUser();
+
+    if (!userPlan) {
+        toast({
             title: "Configuration not loaded",
-            description: "Plans are still loading, please try again in a moment.",
+            description: "Subscription plans are not available. Please try again in a moment.",
             variant: "destructive",
-          });
-        }
+        });
         return;
     }
     
     setIsGenerating(true);
-
-    // This is a key user action, ensure anonymous user exists.
-    ensureAnonymousUser();
 
     try {
       const domainsQuery = query(
@@ -270,7 +266,7 @@ export function DashboardClient() {
   
   useEffect(() => {
     if (!arePlansLoading && !currentInbox) {
-        handleGenerateEmail(true);
+        handleGenerateEmail();
     }
   }, [arePlansLoading, currentInbox, handleGenerateEmail]);
 
@@ -310,8 +306,7 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
-    // This is a key user action, ensure anonymous user exists.
-    ensureAnonymousUser();
+    await ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
       title: "Copied!",
@@ -334,7 +329,7 @@ export function DashboardClient() {
         title: "Inbox Cleared",
         description: "A new address can be generated.",
     });
-    handleGenerateEmail(false);
+    handleGenerateEmail();
   };
 
   const formatTime = (seconds: number) => {
@@ -357,7 +352,10 @@ export function DashboardClient() {
             <span>{formatTime(countdown)}</span>
           </div>
 
-          <div className="flex-grow flex items-center justify-center">
+          <div 
+            onClick={handleCopyEmail}
+            className="flex-grow flex items-center justify-center font-mono text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
+            >
             {isGenerating || !currentInbox ? (
                  <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -365,15 +363,13 @@ export function DashboardClient() {
                 </div>
             ) : (
               <>
-                <p className="font-mono text-lg text-foreground">{currentInbox.emailAddress}</p>
-                <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
-                  <Copy className="h-5 w-5" />
-                </Button>
+                <span>{currentInbox.emailAddress}</span>
+                <Copy className="h-5 w-5 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
               </>
             )}
           </div>
           
-          <Button onClick={() => handleGenerateEmail(false)} variant="outline" disabled={isGenerating || arePlansLoading}>
+          <Button onClick={() => handleGenerateEmail()} variant="outline" disabled={isGenerating || arePlansLoading}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             New Address
           </Button>
@@ -418,3 +414,5 @@ export function DashboardClient() {
     </Card>
   );
 }
+
+    
