@@ -75,18 +75,16 @@ export function DashboardClient() {
                     const planDoc = freePlanSnap.docs[0];
                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
-                    // If no "Free" plan, find the cheapest as a last resort
-                    const cheapestPlanQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
-                    const cheapestPlanSnap = await getDocs(cheapestPlanQuery);
-                    
-                    if (!cheapestPlanSnap.empty) {
-                        const planDoc = cheapestPlanSnap.docs[0];
-                        fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                    // If no "Free" plan, look for the "Default" plan as a last resort
+                    const defaultPlanRef = doc(firestore, "plans", "default");
+                    const defaultPlanDoc = await getDoc(defaultPlanRef);
+                    if (defaultPlanDoc.exists()) {
+                        fetchedPlan = { id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan;
                     } else {
                          // This is a critical failure state for the app.
                          toast({
                             title: "Configuration Error",
-                            description: "No subscription plans are configured in the database. Please contact support.",
+                            description: "No default or free subscription plans are configured. Please contact support.",
                             variant: "destructive",
                         });
                     }
@@ -97,11 +95,16 @@ export function DashboardClient() {
 
         } catch (error: any) {
             console.error("Failed to fetch plan:", error);
-            toast({
-                title: "Error Loading Configuration",
-                description: "Could not load subscription details. Please contact support.",
-                variant: "destructive",
-            });
+            // This is a Firestore security rule error or network error
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'plans', operation: 'list' }));
+            } else {
+                toast({
+                    title: "Error Loading Configuration",
+                    description: "Could not load subscription details. Please try again later.",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setArePlansLoading(false);
         }
@@ -439,3 +442,5 @@ export function DashboardClient() {
     </Card>
   );
 }
+
+    
