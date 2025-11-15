@@ -60,6 +60,9 @@ export function DashboardClient() {
         setArePlansLoading(true);
         try {
             let planId = 'default'; // Default for guests
+            let fetchedPlan: Plan | null = null;
+            
+            // For signed-in, non-anonymous users, check for a custom plan
             if (user && !user.isAnonymous) {
                 const userDoc = await getDoc(doc(firestore, 'users', user.uid));
                 if (userDoc.exists() && userDoc.data().planId) {
@@ -69,21 +72,25 @@ export function DashboardClient() {
 
             const planDoc = await getDoc(doc(firestore, 'plans', planId));
             if (planDoc.exists()) {
-                setUserPlan({ id: planDoc.id, ...planDoc.data() } as Plan);
+                fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
             } else {
-                // Fallback to default if user's plan doesn't exist
+                 // Fallback to default if user's plan doesn't exist or user is a guest
+                 if (planId !== 'default') {
+                    console.warn(`Plan with ID '${planId}' not found. Falling back to default plan.`);
+                 }
                 const defaultPlanDoc = await getDoc(doc(firestore, 'plans', 'default'));
                 if (defaultPlanDoc.exists()) {
-                    setUserPlan({ id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan);
+                    fetchedPlan = { id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan;
                 } else {
-                    throw new Error("Default plan not found.");
+                    throw new Error("Default plan not found in the database. Please ensure it has been seeded.");
                 }
             }
+            setUserPlan(fetchedPlan);
         } catch (error) {
             console.error("Failed to fetch plan:", error);
             toast({
-                title: "Error",
-                description: "Could not load subscription details.",
+                title: "Error Loading Plan",
+                description: "Could not load subscription details. Some features might be unavailable.",
                 variant: "destructive",
             });
         } finally {
@@ -189,13 +196,19 @@ export function DashboardClient() {
 
   const handleGenerateEmail = useCallback(async () => {
     if (isGenerating || arePlansLoading) return;
+    
+    if (!userPlan) {
+        toast({
+            title: "Plan Not Loaded",
+            description: "Subscription details are still loading. Please wait a moment and try again.",
+            variant: "destructive",
+        });
+        return;
+    }
+    
     setIsGenerating(true);
 
     try {
-        if (!userPlan) {
-            throw new Error("Could not determine a subscription plan. Please try again.");
-        }
-        
         // This logic will run if a user is already signed in (including anonymous)
         if (auth?.currentUser) {
            const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
