@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock, Headset } from "lucide-react"
+import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock, Code, Fingerprint } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 import { cn } from "@/lib/utils"
@@ -109,25 +109,23 @@ export const getPlanColumns = (
     cell: ({ row }) => <FeatureCell value={row.original.features.apiAccess} />
   },
   {
-    accessorKey: "features.usageAnalytics",
-    header: "Analytics",
-    cell: ({ row }) => {
-       const hasAnalytics = row.original.features.usageAnalytics;
-       return (
-        <div className="flex justify-start">
-            {hasAnalytics ? <BarChart className="h-5 w-5 text-blue-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
-        </div>
-       )
-    }
+    accessorKey: "features.noAds",
+    header: "No Ads",
+    cell: ({ row }) => <FeatureCell value={row.original.features.noAds} />
   },
   {
-    accessorKey: "features.prioritySupport",
-    header: "Support",
+    accessorKey: "features.customDomains",
+    header: "Domains",
     cell: ({ row }) => {
-       const hasSupport = row.original.features.prioritySupport;
+       const customDomains = row.original.features.customDomains;
        return (
         <div className="flex justify-start">
-            {hasSupport ? <Headset className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+            {customDomains > 0 ? 
+                <div className="flex items-center gap-1">
+                    <Fingerprint className="h-5 w-5 text-blue-500" />
+                    <span>{customDomains}</span>
+                </div>
+             : <XCircle className="h-5 w-5 text-red-500" />}
         </div>
        )
     }
