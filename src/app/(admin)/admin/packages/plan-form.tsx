@@ -44,38 +44,50 @@ const formSchemaToSubmit = planSchema.omit({ id: true, createdAt: true });
 
 const featureTooltips: Record<string, string> = {
   // Inbox
-  maxInboxes: "Maximum number of active temporary inboxes a user can have at one time.",
-  inboxLifetime: "The duration in minutes that a temporary inbox will remain active before it is automatically deleted.",
-  customDomains: "Number of custom domains a user can connect to receive emails on their own domain.",
-  allowPremiumDomains: "Grants access to a pool of shorter, more memorable premium domains for email generation.",
+  maxInboxes: "Max number of active inboxes a user can have at one time.",
+  inboxLifetime: "Duration in minutes an inbox exists before being purged. 0 for unlimited.",
+  customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
+  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
+  allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
+  inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
   
   // Email
+  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
-  emailForwarding: "Allows users to automatically forward incoming temporary emails to a real, verified email address.",
-  exportEmails: "Allows users to export their emails from their inboxes, for example as a CSV or EML files.",
-  
-  // Storage
-  maxEmailsPerInbox: "Maximum number of emails that will be stored in a single inbox. Older emails will be deleted.",
-  searchableHistory: "Enables server-side search of email history. Without this, users may only be able to filter currently loaded emails on the client.",
+  sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
+  linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
+  exportEmails: "Allow users to download single emails (as .eml) or bulk export (as .zip).",
 
+  // Storage
+  maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. 0 for unlimited.",
+  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
+  searchableHistory: "Enables server-side full-text search of email history.",
+  dataRetentionDays: "The number of days emails are kept, even if the inbox expires (for premium accounts). 0 for forever.",
+  
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
+  twoFactorAuth: "Enable Two-Factor Authentication (2FA) for securing user accounts.",
+  spamFilteringLevel: "The level of spam filtering applied to incoming emails.",
+  virusScanning: "Automatically scan all incoming attachments for malware.",
+  auditLogs: "For team/business accounts, a log of actions taken by team members.",
 
   // API
-  apiAccess: "Grants access to the developer API for programmatic use of the service.",
-  apiRateLimit: "The number of API requests a user can make per minute.",
+  apiAccess: "Grant access to the developer REST API for programmatic use.",
+  apiRateLimit: "Number of API requests a user can make per minute. 0 for unlimited.",
   webhooks: "Allow incoming emails to be forwarded to a user-defined webhook URL for automation.",
-
+  
   // Support
   prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
+  dedicatedAccountManager: "Assign a dedicated account manager for high-value enterprise clients.",
 
   // General
-  noAds: "Removes all advertisements from the user interface for a cleaner experience.",
-  teamMembers: "The number of team members a user can invite to share their plan features.",
-  usageAnalytics: "Grants access to a dashboard for viewing detailed usage statistics and analytics.",
+  noAds: "Removes all advertisements from the user interface.",
+  browserExtension: "Grant access to the Chrome/Firefox browser extension.",
+  teamMembers: "Number of team members a user can invite to share their plan features.",
+  customBranding: "For enterprise clients, allow white-labeling of the interface.",
+  usageAnalytics: "Grant access to a dashboard for viewing detailed usage statistics.",
 };
-
 
 const FormLabelWithTooltip = ({ label, tooltipText }: { label: string; tooltipText: string }) => (
   <div className="flex items-center gap-2">
@@ -110,6 +122,19 @@ const FeatureSwitch = ({ name, label, control }: { name: any, label: string, con
     />
 );
 
+const FeatureInput = ({ name, label, control, ...props }: { name: any, label: string, control: any, [key: string]: any }) => (
+    <FormField
+        control={control}
+        name={name}
+        render={({ field }) => (
+            <FormItem>
+                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.')[1]]} />
+                <FormControl><Input {...props} {...field} /></FormControl>
+                <FormMessage />
+            </FormItem>
+        )}
+    />
+);
 
 export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -126,21 +151,34 @@ export function PlanForm({ plan }: PlanFormProps) {
     features: {
         maxInboxes: 1,
         inboxLifetime: 10,
+        customPrefix: false,
         customDomains: 0,
         allowPremiumDomains: false,
+        inboxLocking: false,
+        emailForwarding: false,
         allowAttachments: false,
         maxAttachmentSize: 5,
-        emailForwarding: false,
+        sourceCodeView: false,
+        linkSanitization: false,
         exportEmails: false,
         maxEmailsPerInbox: 25,
+        totalStorageQuota: 0,
         searchableHistory: false,
+        dataRetentionDays: 0,
         passwordProtection: false,
+        twoFactorAuth: false,
+        spamFilteringLevel: "basic",
+        virusScanning: false,
+        auditLogs: false,
         apiAccess: false,
         apiRateLimit: 0,
         webhooks: false,
         prioritySupport: false,
+        dedicatedAccountManager: false,
         noAds: false,
+        browserExtension: false,
         teamMembers: 0,
+        customBranding: false,
         usageAnalytics: false,
     }
   }
@@ -205,168 +243,169 @@ export function PlanForm({ plan }: PlanFormProps) {
                         </Badge>
                     )}
                 </CardHeader>
-                <CardContent>
-                    <div className="space-y-8 py-4">
-                        {/* Basic Info */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Basic Information</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem className="md:col-span-1">
-                                        <FormLabel>Plan Name</FormLabel>
-                                        <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
-                                        {isDefaultPlan && <FormDescription>The 'Default' plan name cannot be changed.</FormDescription>}
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="price" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Price (USD)</FormLabel>
-                                        <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="cycle" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Billing Cycle</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a cycle" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="monthly">Monthly</SelectItem>
-                                                <SelectItem value="yearly">Yearly</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Inbox Features */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Inbox Features</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="features.maxInboxes" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Max Active Inboxes" tooltipText={featureTooltips.maxInboxes} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="features.inboxLifetime" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Inbox Lifetime (minutes)" tooltipText={featureTooltips.inboxLifetime} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="features.customDomains" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Custom Domains" tooltipText={featureTooltips.customDomains} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                               <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Email Features */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Email Features</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               <FormField control={form.control} name="features.maxAttachmentSize" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Max Attachment Size (MB)" tooltipText={featureTooltips.maxAttachmentSize} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
-                                <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
-                                <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Storage Features */}
-                         <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="features.maxEmailsPerInbox" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Max Emails Per Inbox" tooltipText={featureTooltips.maxEmailsPerInbox} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FeatureSwitch name="features.searchableHistory" label="Searchable History" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Security Features */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Security</h3>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* API Features */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">API & Automation</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="features.apiRateLimit" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="API Rate Limit (req/min)" tooltipText={featureTooltips.apiRateLimit} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FeatureSwitch name="features.apiAccess" label="API Access" control={form.control} />
-                                <FeatureSwitch name="features.webhooks" label="Webhooks" control={form.control} />
-                            </div>
-                        </div>
-                        
-                        <Separator />
-
-                        {/* Support Features */}
-                        <div className="space-y-4">
-                             <h3 className="text-lg font-medium tracking-tight">Support</h3>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* General Features */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">General & Team Features</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="features.teamMembers" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Team Members" tooltipText={featureTooltips.teamMembers} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
-                                <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-                        
-                        {/* Status */}
-                        <div>
-                            <h3 className="text-lg font-medium tracking-tight">Plan Status</h3>
-                            <FormField
-                            control={form.control}
-                            name="status"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3 pt-4">
-                                <FormControl>
-                                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
-                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="active" /></FormControl>
-                                            <FormLabel className="font-normal">Active</FormLabel>
-                                        </FormItem>
-                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="archived" /></FormControl>
-                                            <FormLabel className="font-normal">Archived</FormLabel>
-                                        </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormDescription>
-                                    Archived plans will not be available for new subscriptions but will remain for existing users.
-                                </FormDescription>
-                                <FormMessage />
+                <CardContent className="space-y-8 py-4">
+                    {/* --- Basic Information --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Basic Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="name" render={({ field }) => (
+                                <FormItem className="md:col-span-1">
+                                    <FormLabel>Plan Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
+                                    {isDefaultPlan && <FormDescription>The 'Default' plan name cannot be changed.</FormDescription>}
+                                    <FormMessage />
                                 </FormItem>
-                            )}
-                            />
+                            )} />
+                            <FormField control={form.control} name="price" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Price (USD)</FormLabel>
+                                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="cycle" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Billing Cycle</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a cycle" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="monthly">Monthly</SelectItem>
+                                            <SelectItem value="yearly">Yearly</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
                         </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- Inbox Features --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Inbox Features</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.maxInboxes" label="Max Active Inboxes" control={form.control} type="number" />
+                            <FeatureInput name="features.inboxLifetime" label="Inbox Lifetime (minutes)" control={form.control} type="number" />
+                            <FeatureInput name="features.customDomains" label="Custom Domains" control={form.control} type="number" />
+                            <FeatureSwitch name="features.customPrefix" label="Customizable Prefix" control={form.control} />
+                            <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
+                            <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- Email Features --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Email Features</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.maxAttachmentSize" label="Max Attachment Size (MB)" control={form.control} type="number" />
+                            <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
+                            <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
+                            <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
+                            <FeatureSwitch name="features.sourceCodeView" label="Source Code View" control={form.control} />
+                            <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- Storage & Data --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.maxEmailsPerInbox" label="Max Emails Per Inbox" control={form.control} type="number" />
+                            <FeatureInput name="features.totalStorageQuota" label="Total Storage Quota (MB)" control={form.control} type="number" />
+                            <FeatureInput name="features.dataRetentionDays" label="Data Retention (Days)" control={form.control} type="number" />
+                            <FeatureSwitch name="features.searchableHistory" label="Searchable History" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- Security & Privacy --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Security & Privacy</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField control={form.control} name="features.spamFilteringLevel" render={({ field }) => (
+                                <FormItem>
+                                     <FormLabelWithTooltip label="Spam Filtering Level" tooltipText={featureTooltips.spamFilteringLevel} />
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a level" /></SelectTrigger></FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            <SelectItem value="basic">Basic</SelectItem>
+                                            <SelectItem value="aggressive">Aggressive</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </FormItem>
+                            )} />
+                            <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
+                            <FeatureSwitch name="features.twoFactorAuth" label="Two-Factor Auth (Account)" control={form.control} />
+                            <FeatureSwitch name="features.virusScanning" label="Virus Scanning" control={form.control} />
+                            <FeatureSwitch name="features.auditLogs" label="Audit Logs" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- API & Automation --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">API & Automation</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.apiRateLimit" label="API Rate Limit (req/min)" control={form.control} type="number" />
+                            <FeatureSwitch name="features.apiAccess" label="API Access" control={form.control} />
+                            <FeatureSwitch name="features.webhooks" label="Webhooks" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+                    
+                    {/* --- Support --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Support</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
+                            <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- General Features --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">General & Team Features</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
+                            <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
+                            <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
+                            <FeatureSwitch name="features.browserExtension" label="Browser Extension Access" control={form.control} />
+                             <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+                    
+                    {/* --- Plan Status --- */}
+                    <div>
+                        <h3 className="text-lg font-medium tracking-tight">Plan Status</h3>
+                        <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3 pt-4">
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
+                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                        <FormControl><RadioGroupItem value="active" /></FormControl>
+                                        <FormLabel className="font-normal">Active</FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                        <FormControl><RadioGroupItem value="archived" /></FormControl>
+                                        <FormLabel className="font-normal">Archived</FormLabel>
+                                    </FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            <FormDescription>
+                                Archived plans will not be available for new subscriptions but will remain for existing users.
+                            </FormDescription>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                     </div>
                 </CardContent>
                 <CardFooter className="border-t px-6 py-4">
@@ -383,5 +422,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
-    
