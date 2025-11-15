@@ -50,12 +50,14 @@ export function DashboardClient() {
 
   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || !user || user.isAnonymous) return null;
-      return doc(firestore, 'plans', 'premium'); 
+      // This needs to be more dynamic based on the user's actual plan
+      const userPlanId = (user as any).planId || 'default';
+      return doc(firestore, 'plans', userPlanId); 
   }, [firestore, user]);
   const { data: userPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
 
   const userPlan = useMemo(() => {
-      if (user && !user.isAnonymous) {
+      if (user && !user.isAnonymous && userPlanData) {
           return userPlanData;
       }
       return defaultPlan;
@@ -74,6 +76,21 @@ export function DashboardClient() {
         sessionIdRef.current = sid;
     }
   }, []);
+
+  const ensureAnonymousUser = useCallback(async () => {
+    if (auth && !auth.currentUser) {
+        try {
+            await signInAnonymously(auth);
+            toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
+        } catch (error) {
+            console.error("Anonymous sign-in failed:", error);
+            toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
+            return false;
+        }
+    }
+    return true;
+  }, [auth, toast]);
+
 
   const clearCountdown = () => {
     if (countdownIntervalRef.current) {
@@ -102,19 +119,30 @@ export function DashboardClient() {
         }
         
         if (result.emails && result.emails.length > 0) {
-            setInboxEmails(prevEmails => {
-                const existingIds = new Set(prevEmails.map(e => e.id));
-                const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-                
-                if (newEmails.length > 0) {
-                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-                } else if (!isAutoRefresh) {
-                    toast({ title: "Inbox refreshed", description: "No new emails found." });
+            const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
+
+            if (hasNewEmails) {
+                // This is the first time we've seen emails, create the user
+                if(inboxEmails.length === 0) {
+                    ensureAnonymousUser();
                 }
 
-                const allEmails = [...prevEmails, ...newEmails];
-                return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-            });
+                setInboxEmails(prevEmails => {
+                    const existingIds = new Set(prevEmails.map(e => e.id));
+                    const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
+                    
+                    if (newEmails.length > 0) {
+                        toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+                    } else if (!isAutoRefresh) {
+                        toast({ title: "Inbox refreshed", description: "No new emails found." });
+                    }
+    
+                    const allEmails = [...prevEmails, ...newEmails];
+                    return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+                });
+            } else if (!isAutoRefresh) {
+                toast({ title: "Inbox refreshed", description: "No new emails found." });
+            }
         } else {
             if (!isAutoRefresh) {
                 toast({ title: "Inbox refreshed", description: "No new emails found." });
@@ -131,7 +159,7 @@ export function DashboardClient() {
             setIsRefreshing(false);
         }
     }
-  }, [currentInbox, toast]);
+  }, [currentInbox, toast, ensureAnonymousUser, inboxEmails]);
 
 
   const handleGenerateEmail = useCallback(async () => {
@@ -143,22 +171,21 @@ export function DashboardClient() {
     setIsGenerating(true);
 
     try {
-        let currentUser = auth.currentUser;
-        if (!currentUser) {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-            toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
+        // Only ensure user exists if they are generating a *new* address after the first one
+        if (currentInbox) {
+           const userExists = await ensureAnonymousUser();
+           if (!userExists) {
+                setIsGenerating(false);
+                return;
+           }
         }
         
-        if (!currentUser) {
-          throw new Error("Authentication failed. Please try again.");
-        }
-
         if (!userPlan) {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
 
-        if (activeInboxes.length >= userPlan.features.maxInboxes) {
+        // Check inbox limit only if a user exists
+        if (auth.currentUser && activeInboxes.length >= userPlan.features.maxInboxes) {
             toast({
                 title: "Inbox Limit Reached",
                 description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
@@ -203,8 +230,10 @@ export function DashboardClient() {
         
         if (sessionIdRef.current && emailAddress) {
             const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
-            if (result.emails) {
+            if (result.emails && result.emails.length > 0) {
                 setInboxEmails(result.emails);
+                // If emails are found immediately, create the anonymous user
+                ensureAnonymousUser();
             }
         }
         
@@ -228,7 +257,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh]);
+  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser]);
   
   useEffect(() => {
     if (currentInbox) {
@@ -252,8 +281,9 @@ export function DashboardClient() {
     return () => clearCountdown();
   }, [currentInbox, toast, countdown]);
 
-  const handleCopyEmail = () => {
+  const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
+    await ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
       title: "Copied!",
@@ -396,3 +426,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
