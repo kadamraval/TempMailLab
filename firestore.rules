@@ -3,14 +3,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- DEBUGGING MODE: ALL RULES ARE TEMPORARILY DISABLED ---
-    // The original rules have been commented out to identify the source of a permissions error.
-    // This allows all reads and writes. DO NOT leave this in production.
-    match /{document=**} {
-      allow read, write: if true;
-    }
-
-    /*
     //============================================
     // Helper Functions
     //============================================
@@ -81,6 +73,5 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
     }
-    */
   }
 }
