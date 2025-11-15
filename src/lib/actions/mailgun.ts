@@ -8,7 +8,7 @@ import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 
 async function getMailgunSettings() {
-    const { firestore } = initializeFirebase();
+    const { firestore } = initializeFirebase(); // This will throw if not configured
     const settingsRef = firestore.collection("admin_settings").doc("mailgun");
     const settingsSnap = await settingsRef.get();
 
@@ -74,6 +74,12 @@ export async function fetchEmailsFromServerAction(
 
     } catch (error: any) {
         console.error("Error in fetchEmailsFromServerAction:", error);
+         // Provide a more specific error message if initialization failed.
+        if (error.message.includes("Firebase Admin SDK is not available")) {
+            return {
+                error: "Server-side Firebase is not configured. Cannot fetch emails."
+            }
+        }
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }

@@ -1,4 +1,3 @@
-
 'use server';
 
 import { initializeFirebase } from '@/firebase/server-init';
@@ -32,6 +31,12 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
 
   } catch (error: any) {
     console.error('Error in signUp server action:', error);
+    // Provide a more specific error message if initialization failed.
+    if (error.message.includes("Firebase Admin SDK is not available")) {
+        return {
+            error: "Server-side Firebase is not configured. User record could not be created."
+        }
+    }
     return {
       error: 'Could not create or verify user record in the database.',
     };
