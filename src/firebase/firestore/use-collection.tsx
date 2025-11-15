@@ -64,20 +64,17 @@ export function useCollection<T = any>(
   const { isUserLoading } = useUser();
 
   useEffect(() => {
-    // "Hide" the problem: If auth is loading, turn data fetching "off" by doing nothing.
     if (isUserLoading) {
-      setIsLoading(true); // Keep showing a loading state.
+      setIsLoading(true);
       return;
     }
     
-    // If the query itself isn't ready, we are not loading, so we set state and return.
     if (!memoizedTargetRefOrQuery) {
         setIsLoading(false);
         setData(null);
         return;
     }
     
-    // "Show" the solution: Auth is ready, and we have a query. Now we can safely fetch.
     setIsLoading(true);
 
     const unsubscribe = onSnapshot(

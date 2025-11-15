@@ -50,20 +50,17 @@ export function useDoc<T = any>(
   const { isUserLoading } = useUser();
 
   useEffect(() => {
-    // "Hide" the problem: If auth is loading, turn data fetching "off" by doing nothing.
     if (isUserLoading) {
-      setIsLoading(true); // Keep showing a loading state.
+      setIsLoading(true); 
       return;
     }
     
-    // If the doc ref itself isn't ready, we are not loading.
     if (!memoizedDocRef) {
         setIsLoading(false);
         setData(null);
         return;
     }
 
-    // "Show" the solution: Auth is ready, and we have a ref. Now we can safely fetch.
     setIsLoading(true);
 
     const unsubscribe = onSnapshot(
