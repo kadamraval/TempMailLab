@@ -19,7 +19,7 @@ import { type Plan } from "@/app/(admin)/admin/packages/data";
 
 function generateRandomString(length: number) {
   let result = '';
-  const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const characters = 'abcdefghijklmnopqrstuvwxyz012349';
   const charactersLength = characters.length;
   for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -50,7 +50,6 @@ export function DashboardClient() {
 
   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || !user || user.isAnonymous) return null;
-      // This needs to be more dynamic based on the user's actual plan
       const userPlanId = (user as any).planId || 'default';
       return doc(firestore, 'plans', userPlanId); 
   }, [firestore, user]);
@@ -163,7 +162,9 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating || arePlansLoading) {
+    if (isGenerating) return;
+
+    if (arePlansLoading) {
       toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
       return;
     }
@@ -256,8 +257,10 @@ export function DashboardClient() {
   }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser, arePlansLoading]);
   
   useEffect(() => {
+    clearCountdown();
+    clearRefreshInterval();
+
     if (currentInbox) {
-        clearCountdown(); // Clear any existing timer
         setCountdown(Math.floor((currentInbox.expiresAt - Date.now()) / 1000));
         
         countdownIntervalRef.current = setInterval(() => {
@@ -276,9 +279,14 @@ export function DashboardClient() {
                 setCountdown(newCountdown);
             }
         }, 1000);
+
+        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
     }
-    return () => clearCountdown();
-  }, [currentInbox, toast]);
+    return () => {
+        clearCountdown();
+        clearRefreshInterval();
+    };
+  }, [currentInbox, toast, handleRefresh]);
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
@@ -357,8 +365,8 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
-            {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
+            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {currentInbox ? "New Address" : "Get Address"}
           </Button>
         </div>
