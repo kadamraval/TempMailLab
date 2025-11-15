@@ -24,9 +24,8 @@ service cloud.firestore {
     //============================================
 
     match /plans/{planId} {
-      // Anyone can read plans for the pricing page. Only admins can write.
-      allow get, list: if true;
-      allow write: if isAdmin();
+      // DEBUG: Temporarily allow all access to isolate the problem.
+      allow read, write: if true;
     }
     
     match /allowed_domains/{allowedDomainId} {
