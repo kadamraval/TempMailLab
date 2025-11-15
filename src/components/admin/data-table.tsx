@@ -66,7 +66,7 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0">
       <DataTableToolbar 
         table={table}
         filterColumn={filterColumn}

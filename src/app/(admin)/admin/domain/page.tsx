@@ -21,7 +21,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
-import { DataTableToolbar } from '@/components/admin/data-table-toolbar';
 
 export default function AdminDomainPage() {
     const firestore = useFirestore();

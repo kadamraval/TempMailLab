@@ -53,7 +53,7 @@ export default function AdminDashboardPage() {
                 />
             ))}
         </div>
-        <div>
+        <div className="mt-8">
             {/* The main data table for the dashboard can go here */}
         </div>
     </>
