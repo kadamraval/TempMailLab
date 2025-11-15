@@ -203,67 +203,53 @@ export function DashboardClient() {
   }, [currentInbox, toast, ensureAnonymousUser, inboxEmails]);
 
 
-  const handleGenerateEmail = useCallback(async () => {
+  const handleGenerateEmail = async () => {
     if (isGenerating || arePlansLoading) return;
-    
-    if (!userPlan) {
-        toast({
-            title: "Plan Not Loaded",
-            description: "Subscription details are still loading. Please wait a moment and try again.",
-            variant: "destructive",
-        });
-        return;
-    }
 
+    if (!userPlan) {
+      toast({
+        title: "Configuration not loaded",
+        description: "Plans are still loading, please try again in a moment.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsGenerating(true);
-    // Non-blocking: trigger anonymous sign-in but don't wait for it
+
+    // This function will run in the background if needed, but we don't wait for it.
     ensureAnonymousUser();
 
     try {
-        // This logic will run if a user is already signed in (including anonymous)
-        if (auth?.currentUser) {
-           const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
-           const userInboxes = await getDocs(inboxesCollection);
-           if(userInboxes.docs.length >= userPlan.features.maxInboxes) {
-                toast({
-                    title: "Inbox Limit Reached",
-                    description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
-                    variant: "destructive"
-                });
-                setIsGenerating(false);
-                return;
-           }
-        }
+      const domainsQuery = query(
+        collection(firestore, "allowed_domains"),
+        where("tier", "in", ["free", "premium"]) // Fetch all domains for simplicity
+      );
+      const domainsSnapshot = await getDocs(domainsQuery);
+      const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
 
-        setSelectedEmail(null);
-        setInboxEmails([]);
+      if (allowedDomains.length === 0) {
+        throw new Error("No domains configured by the administrator.");
+      }
 
-        const userTier = (user && !user.isAnonymous && userPlan.features.allowPremiumDomains) ? 'premium' : 'free';
-        const domainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "in", [userTier, "free"]));
-        const domainsSnapshot = await getDocs(domainsQuery);
-        
-        let allowedDomains = domainsSnapshot.docs.map(doc => doc.data().domain);
+      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+      const newInbox = {
+        emailAddress,
+        expiresAt: Date.now() + userPlan.features.inboxLifetime * 60 * 1000,
+      };
 
-        if (allowedDomains.length === 0) {
-            throw new Error(`No domains configured by the administrator.`);
-        }
+      // --- IMMEDIATE UI UPDATE ---
+      // This is the most critical part. We update the UI state right away.
+      setCurrentInbox(newInbox);
+      setSelectedEmail(null);
+      setInboxEmails([]);
 
-        const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-        const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-        
-        const newInbox = { 
-            emailAddress,
-            expiresAt: Date.now() + (userPlan.features.inboxLifetime * 60 * 1000) 
-        };
-        
-        // This is the critical change: update UI state immediately
-        setCurrentInbox(newInbox);
-        
-        // Initial fetch after generating
-        handleRefresh(true);
-        
+      // Trigger an initial refresh in the background.
+      handleRefresh(true);
+
     } catch (error: any) {
-        if (error.code === 'permission-denied') {
+       if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: 'allowed_domains',
                 operation: 'list',
@@ -278,9 +264,9 @@ export function DashboardClient() {
             });
         }
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }, [firestore, auth, user, toast, userPlan, isGenerating, ensureAnonymousUser, handleRefresh, arePlansLoading]);
+  };
   
   useEffect(() => {
     clearCountdown();
@@ -453,5 +439,3 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    
