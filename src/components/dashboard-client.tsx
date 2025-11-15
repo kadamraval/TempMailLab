@@ -28,8 +28,7 @@ function generateRandomString(length: number) {
 }
 
 export function DashboardClient() {
-  const [activeInboxes, setActiveInboxes] = useState<any[]>([]);
-  const [currentInbox, setCurrentInbox] = useState<any | null>(null);
+  const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -121,7 +120,6 @@ export function DashboardClient() {
             const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
 
             if (hasNewEmails) {
-                // EVENT: First email received. Create the user.
                 if(inboxEmails.length === 0) {
                     await ensureAnonymousUser();
                 }
@@ -162,18 +160,11 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating) return;
-
-    if (arePlansLoading) {
-      toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
-      return;
-    }
-
+    if (isGenerating || arePlansLoading) return;
     setIsGenerating(true);
 
     try {
-        // EVENT: User clicks "New Address" again. Create the user.
-        if (currentInbox || activeInboxes.length > 0) {
+        if (currentInbox) {
            const userExists = await ensureAnonymousUser();
            if (!userExists) {
                 setIsGenerating(false);
@@ -185,8 +176,8 @@ export function DashboardClient() {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
 
-        // Check inbox limit only if a user exists
-        if (auth?.currentUser && activeInboxes.length >= userPlan.features.maxInboxes) {
+        // Check inbox limit only if a user exists and it's not the first inbox
+        if (auth?.currentUser && currentInbox && (await getDocs(collection(firestore, 'users', auth.currentUser.uid, 'inboxes'))).docs.length >= userPlan.features.maxInboxes) {
             toast({
                 title: "Inbox Limit Reached",
                 description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
@@ -200,18 +191,13 @@ export function DashboardClient() {
         setInboxEmails([]);
 
         const userTier = (user && !user.isAnonymous && userPlan.features.allowPremiumDomains) ? 'premium' : 'free';
-        const domainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
+        const domainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "in", [userTier, "free"]));
         const domainsSnapshot = await getDocs(domainsQuery);
         
         let allowedDomains = domainsSnapshot.docs.map(doc => doc.data().domain);
 
         if (allowedDomains.length === 0) {
-            const freeDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", "free"));
-            const freeSnapshot = await getDocs(freeDomainsQuery);
-            allowedDomains = freeSnapshot.docs.map(doc => doc.data().domain);
-            if (freeSnapshot.empty) {
-              throw new Error(`No domains configured by the administrator.`);
-            }
+            throw new Error(`No domains configured by the administrator.`);
         }
 
         const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
@@ -223,13 +209,11 @@ export function DashboardClient() {
         };
         
         setCurrentInbox(newInbox);
-        setActiveInboxes(prev => [...prev, newInbox]);
         
         if (sessionIdRef.current && emailAddress) {
             const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
             if (result.emails && result.emails.length > 0) {
                 setInboxEmails(result.emails);
-                // EVENT: Emails found on first fetch. Create the user.
                 ensureAnonymousUser();
             }
         }
@@ -254,7 +238,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser, arePlansLoading]);
+  }, [firestore, auth, user, toast, userPlan, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser, arePlansLoading]);
   
   useEffect(() => {
     clearCountdown();
@@ -272,7 +256,6 @@ export function DashboardClient() {
                     variant: "destructive"
                 });
                 setCurrentInbox(null);
-                setActiveInboxes(prev => prev.filter(inbox => inbox.emailAddress !== currentInbox.emailAddress));
                 clearRefreshInterval();
                 clearCountdown();
             } else {
@@ -290,7 +273,6 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
-    // EVENT: User clicks "Copy Address". Create the user.
     await ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
@@ -365,7 +347,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {currentInbox ? "New Address" : "Get Address"}
           </Button>
