@@ -3,8 +3,8 @@
  *
  * Core Philosophy:
  * This ruleset enforces a strict separation between public and private data.
- * - Public data (like '/plans') is readable by anyone to allow for public pricing pages.
- * - Private user data (like '/users/{userId}') is strictly owned and accessible only by the authenticated user.
+ * - Public collections (/plans, /allowed_domains) are readable by anyone to allow for public pages.
+ * - Private user data (/users/{userId}) is strictly owned and accessible only by the authenticated user.
  * - Admin write access is controlled by a custom claim `isAdmin`.
  */
 rules_version = '2';
@@ -23,6 +23,7 @@ service cloud.firestore {
     }
     
     function isAdmin() {
+      // In production, this claim must be set on the user via a trusted backend.
       return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
@@ -43,26 +44,27 @@ service cloud.firestore {
       // Only admins can manage the domain pool.
       allow write: if isAdmin();
     }
+    
+    match /admin_settings/{settingId} {
+        // Only admins can read or write sensitive third-party API keys.
+        allow read, write: if isAdmin();
+    }
 
     //============================================
     // Private User Data
     //============================================
 
     match /users/{userId} {
-      // A user can get their own document.
-      allow get: if isOwner(userId);
-
-      // Nobody can list all users.
-      allow list: if false;
-
+      // Admins can list users for the admin dashboard. Other users cannot.
+      allow list: if isAdmin();
+      // A user can get their own document. Admins can also get any user doc.
+      allow get: if isOwner(userId) || isAdmin();
       // A user can create their own document, ensuring the ID matches.
-      allow create: if isOwner(userId) && request.resource.data.uid == userId;
-      
-      // A user can update their own document.
-      allow update: if isOwner(userId);
-      
-      // A user can delete their own document.
-      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // A user can update their own document. Admins can also update user docs.
+      allow update: if isOwner(userId) || isAdmin();
+      // A user can delete their own document. Admins can also delete users.
+      allow delete: if isOwner(userId) || isAdmin();
 
       // --- Nested User Subcollections ---
       
@@ -78,19 +80,13 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
     }
-
-    //============================================
-    // Admin & System Collections
-    //============================================
-
-    match /admin_settings/{settingId} {
-      // Only admins can read or write sensitive third-party API keys.
-      allow read, write: if isAdmin();
-    }
     
     // Default deny all other collections.
     match /{path=**} {
-      allow read, write: if false;
+        // This is a catch-all to ensure any path not explicitly matched
+        // is denied by default. It's good practice but redundant if all
+        // top-level collections are covered.
+        allow read, write: if false;
     }
   }
 }
