@@ -80,13 +80,5 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
     }
-    
-    // Default deny all other collections.
-    match /{path=**} {
-        // This is a catch-all to ensure any path not explicitly matched
-        // is denied by default. It's good practice but redundant if all
-        // top-level collections are covered.
-        allow read, write: if false;
-    }
   }
 }
