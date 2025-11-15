@@ -1,5 +1,6 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -13,10 +14,8 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
+
     function isAdmin() {
-      // In production, this claim must be set on the user via a trusted backend.
-      // For development, you can set this manually in the Firebase console.
       return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
@@ -25,53 +24,48 @@ service cloud.firestore {
     //============================================
 
     match /plans/{planId} {
-      // Anyone can read plans for the pricing page.
+      // Anyone can read plans for the pricing page. Only admins can write.
       allow get, list: if true;
-      // Only admins can change plans.
       allow write: if isAdmin();
     }
     
     match /allowed_domains/{allowedDomainId} {
-      // Anyone can read the list of domains available.
-      allow get, list: if true;
-      // Only admins can manage the domain pool.
+      // Authenticated users can read the list of domains. Only admins can write.
+      allow get, list: if isSignedIn();
       allow write: if isAdmin();
     }
     
     match /admin_settings/{settingId} {
-        // Only admins can read or write sensitive third-party API keys.
-        allow read, write: if isAdmin();
+      // Only admins can read or write sensitive third-party API keys.
+      allow read, write: if isAdmin();
     }
 
     //============================================
-    // Private User Data
+    // User-Owned Collections
     //============================================
 
     match /users/{userId} {
-      // Admins can list users for the admin dashboard. Other users cannot.
+      // A user can read/write their own document. Admins have full access.
+      allow get, update, delete: if isOwner(userId) || isAdmin();
+      // Allow users to create their own user document.
+      allow create: if isOwner(userId);
+      // Admins can list all users.
       allow list: if isAdmin();
-      // A user can get their own document. Admins can also get any user doc.
-      allow get: if isOwner(userId) || isAdmin();
-      // A user can create their own document, ensuring the ID matches.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // A user can update their own document. Admins can also update user docs.
-      allow update: if isOwner(userId) || isAdmin();
-      // A user can delete their own document. Admins can also delete users.
-      allow delete: if isOwner(userId) || isAdmin();
+    }
 
-      // --- Nested User Subcollections ---
-      
-      match /inboxes/{inboxId} {
-        allow read, write: if isOwner(userId);
+    match /users/{userId}/inboxes/{inboxId} {
+      // Users can only access their own inboxes.
+      allow read, write, delete: if isOwner(userId);
+    }
+    
+    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
+        // Users can only access emails within their own inboxes.
+        allow read, write, delete: if isOwner(userId);
+    }
 
-        match /emails/{emailId} {
-          allow read, write: if isOwner(userId);
-        }
-      }
-      
-      match /api_keys/{apiKeyId} {
-        allow read, write: if isOwner(userId);
-      }
+    match /users/{userId}/api_keys/{apiKeyId} {
+      // Users can only manage their own API keys.
+      allow read, write, delete: if isOwner(userId);
     }
   }
 }
