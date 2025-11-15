@@ -64,10 +64,9 @@ export function useCollection<T = any>(
   const { isUserLoading } = useUser();
 
   useEffect(() => {
-    // **THE FIX**: This is the "hide" part of our strategy.
-    // If auth is still loading, do nothing. Don't even try to set up a listener.
+    // "Hide" the problem: If auth is loading, turn data fetching "off" by doing nothing.
     if (isUserLoading) {
-      setIsLoading(true);
+      setIsLoading(true); // Keep showing a loading state.
       return;
     }
     
@@ -78,7 +77,7 @@ export function useCollection<T = any>(
         return;
     }
     
-    // **THE "SHOW" PART**: Auth is ready, and we have a query. Now we can safely fetch.
+    // "Show" the solution: Auth is ready, and we have a query. Now we can safely fetch.
     setIsLoading(true);
 
     const unsubscribe = onSnapshot(
