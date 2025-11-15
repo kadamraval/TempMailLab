@@ -107,7 +107,7 @@ export function useCollection<T = any>(
   }, [memoizedTargetRefOrQuery, isUserLoading]); // Re-run if the target query/reference OR auth loading state changes.
   
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    console.warn('The query/reference passed to useCollection was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedTargetRefOrQuery);
   }
 
   // Ensure isLoading is true if auth is loading, regardless of local loading state

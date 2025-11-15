@@ -87,6 +87,10 @@ export function useDoc<T = any>(
     return () => unsubscribe();
   }, [memoizedDocRef, isUserLoading]); // Re-run if the docRef OR auth loading state changes.
 
+  if(memoizedDocRef && !(memoizedDocRef as any).__memo) {
+    console.warn('The document reference passed to useDoc was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedDocRef);
+  }
+
   // Ensure isLoading is true if auth is loading, regardless of local loading state
   return { data, isLoading: isLoading || isUserLoading, error };
 }

@@ -24,6 +24,7 @@ service cloud.firestore {
     
     function isAdmin() {
       // In production, this claim must be set on the user via a trusted backend.
+      // For development, you can set this manually in the Firebase console.
       return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
@@ -60,7 +61,7 @@ service cloud.firestore {
       // A user can get their own document. Admins can also get any user doc.
       allow get: if isOwner(userId) || isAdmin();
       // A user can create their own document, ensuring the ID matches.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
       // A user can update their own document. Admins can also update user docs.
       allow update: if isOwner(userId) || isAdmin();
       // A user can delete their own document. Admins can also delete users.
@@ -79,14 +80,6 @@ service cloud.firestore {
       match /api_keys/{apiKeyId} {
         allow read, write: if isOwner(userId);
       }
-    }
-    
-    // Default deny all other collections.
-    match /{path=**} {
-        // This is a catch-all to ensure any path not explicitly matched
-        // is denied by default. It's good practice but redundant if all
-        // top-level collections are covered.
-        allow read, write: if false;
     }
   }
 }
