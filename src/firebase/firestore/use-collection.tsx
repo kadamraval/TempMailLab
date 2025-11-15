@@ -62,6 +62,8 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // If the query is null or undefined, do nothing. The component calling this hook
+    // is responsible for waiting for dependencies (like user auth) to be ready.
     if (!memoizedTargetRefOrQuery) {
         setIsLoading(false);
         setData(null);
@@ -81,7 +83,8 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      async (error: FirestoreError) => {
+      (error: FirestoreError) => {
+        // The path can be retrieved differently for collections and queries
         const path = memoizedTargetRefOrQuery.type === 'collection' 
             ? (memoizedTargetRefOrQuery as CollectionReference).path 
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
@@ -94,7 +97,7 @@ export function useCollection<T = any>(
         setError(contextualError);
         setData(null);
         setIsLoading(false);
-
+        // Globally emit the rich, contextual error for debugging
         errorEmitter.emit('permission-error', contextualError);
       }
     );

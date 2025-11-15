@@ -48,6 +48,8 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // If the docRef is null or undefined, do nothing. The component calling this hook
+    // is responsible for waiting for dependencies (like user auth) to be ready.
     if (!memoizedDocRef) {
         setIsLoading(false);
         setData(null);

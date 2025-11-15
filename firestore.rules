@@ -20,8 +20,8 @@ function isAdmin() {
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // PUBLIC & ANONYMOUS READ-ONLY ACCESS
-    // Anyone can read plans and allowed domains
+    // PUBLIC-READABLE COLLECTIONS
+    // Anyone, authenticated or not, can read these collections.
     match /plans/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -35,19 +35,20 @@ service cloud.firestore {
     // USER-SPECIFIC DATA
     // Users can only create their own user document and can read/write their own sub-collections.
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId);
-      // Allow user creation if the user is authenticated and is the owner.
+      // A user can create their own document.
       allow create: if isOwner(userId);
-    }
-    
-    match /users/{userId}/{document=**} {
-      allow read, write: if isOwner(userId);
+      // A user can only read, update, or delete their own document.
+      allow get, update, delete: if isOwner(userId);
+      
+      // A user can list their own subcollections.
+      match /{allPaths=**} {
+        allow read, write: if isOwner(userId);
+      }
     }
     
     // ADMIN-ONLY ACCESS
-    // These collections can only be written to by an admin.
+    // These collections can only be accessed by an admin.
     match /admin_settings/{settingId} {
-       // Allow server-side actions to read/write settings. Deny client reads/writes.
        allow read, write: if isAdmin();
     }
   }
