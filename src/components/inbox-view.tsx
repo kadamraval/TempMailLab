@@ -50,7 +50,7 @@ export function InboxView({ inbox, onSelectEmail, onRefresh, isRefreshing, onDel
             </Button>
             <Button onClick={onDelete} variant="ghost" size="sm">
                 <Trash2 className="mr-2 h-4 w-4" />
-                Clear Inbox
+                Clear
             </Button>
         </div>
         
@@ -84,3 +84,6 @@ export function InboxView({ inbox, onSelectEmail, onRefresh, isRefreshing, onDel
     </div>
   );
 }
+
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { PricingSection } from "@/components/pricing-section";
@@ -11,16 +12,19 @@ import type { Plan } from "@/app/(admin)/admin/packages/data";
 export default function PricingPage() {
   const firestore = useFirestore();
 
+  // This query is now simpler and correct for public fetching.
   const plansQuery = useMemoFirebase(() => {
       if (!firestore) return null;
       return query(
           collection(firestore, "plans"), 
-          where("status", "==", "active"),
-          where("name", "!=", "Default")
+          where("status", "==", "active")
       );
   }, [firestore]);
   
   const { data: plans, isLoading } = useCollection<Plan>(plansQuery);
+
+  // Exclude the 'Default' plan from the user-facing pricing page
+  const displayPlans = plans?.filter(plan => plan.name !== 'Default') || [];
 
   if (isLoading) {
     return (
@@ -32,10 +36,12 @@ export default function PricingPage() {
 
   return (
     <>
-      <PricingSection plans={plans || []} />
+      <PricingSection plans={displayPlans} />
       <div className="border-t">
-        <PricingComparisonTable plans={plans || []} />
+        <PricingComparisonTable plans={displayPlans} />
       </div>
     </>
   );
 }
+
+    

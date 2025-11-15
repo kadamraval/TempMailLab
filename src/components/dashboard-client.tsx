@@ -47,20 +47,24 @@ export function DashboardClient() {
   const defaultPlanRef = useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'default') : null, [firestore]);
   const { data: defaultPlan, isLoading: isDefaultPlanLoading } = useDoc<Plan>(defaultPlanRef);
 
+  // This will hold the plan for a logged-in (non-anonymous) user
   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || !user || user.isAnonymous) return null;
       // This is a placeholder for a real user plan lookup
       const userPlanId = (user as any).planId || 'default'; 
       return doc(firestore, 'plans', userPlanId); 
   }, [firestore, user]);
-  const { data: userPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
+  const { data: loggedInUserPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
 
+  // Determine the correct plan to use
   const userPlan = useMemo(() => {
-      if (user && !user.isAnonymous && userPlanData) {
-          return userPlanData;
+      // If a real user is logged in and their plan is loaded, use it.
+      if (user && !user.isAnonymous && loggedInUserPlanData) {
+          return loggedInUserPlanData;
       }
+      // For guests or anonymous users, always use the default plan.
       return defaultPlan;
-  }, [user, userPlanData, defaultPlan]);
+  }, [user, loggedInUserPlanData, defaultPlan]);
   
   const arePlansLoading = isUserLoading || isDefaultPlanLoading || (!!user && !user.isAnonymous && isUserPlanLoading);
   // --- End of Plan Fetching Logic ---
@@ -160,16 +164,19 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating || arePlansLoading || !firestore) return;
+    if (isGenerating || !userPlan || !firestore) return;
     setIsGenerating(true);
 
     try {
+        // This check is now robust. It waits for the plan to be loaded.
         if (!userPlan) {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
         
         // Defer user creation, but check inbox limits if a user *already* exists.
         if (auth?.currentUser && currentInbox) {
+           // Ensure anonymous user on subsequent generations
+           await ensureAnonymousUser();
            const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
            const userInboxes = await getDocs(inboxesCollection);
            if(userInboxes.docs.length >= userPlan.features.maxInboxes) {
@@ -181,8 +188,6 @@ export function DashboardClient() {
                 setIsGenerating(false);
                 return;
            }
-           // Also ensure anonymous user on subsequent generations
-           await ensureAnonymousUser();
         }
 
         setSelectedEmail(null);
@@ -229,7 +234,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, isGenerating, arePlansLoading, currentInbox, ensureAnonymousUser, handleRefresh]);
+  }, [firestore, auth, user, toast, userPlan, isGenerating, currentInbox, ensureAnonymousUser, handleRefresh]);
   
   useEffect(() => {
     clearCountdown();
@@ -285,10 +290,12 @@ export function DashboardClient() {
   const handleBackToInbox = () => setSelectedEmail(null);
 
   const handleDeleteInbox = async () => {
+    setCurrentInbox(null);
     setInboxEmails([]);
+    setSelectedEmail(null);
     toast({
         title: "Inbox Cleared",
-        description: "Messages cleared successfully.",
+        description: "A new address can be generated.",
     });
   };
 
@@ -299,7 +306,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (arePlansLoading && !defaultPlan) {
+  if (isUserLoading || (arePlansLoading && !userPlan)) {
      return (
         <Card className="min-h-[480px] flex flex-col">
             <CardHeader className="border-b p-4 text-center">
@@ -343,7 +350,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || (arePlansLoading && !userPlan) || !userPlan}>
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || !userPlan}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {currentInbox ? "New Address" : "Get Address"}
           </Button>
@@ -401,5 +408,4 @@ export function DashboardClient() {
   );
 }
 
-    
     
