@@ -58,12 +58,13 @@ export function useCollection<T = any>(
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
 
+  const { isUserLoading } = useUser();
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { isUserLoading } = useUser();
 
   useEffect(() => {
+    // Wait for authentication to be ready before fetching data.
     if (isUserLoading) {
       setIsLoading(true);
       return;
