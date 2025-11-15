@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from 'next/link';
 import { Copy, RefreshCw, Loader2, Clock, Trash2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -332,3 +333,5 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     </div>
   );
 }
+
+    
