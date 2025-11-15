@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock } from "lucide-react"
+import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock, Headset } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 
@@ -119,7 +119,14 @@ export const getPlanColumns = (
   {
     accessorKey: "features.prioritySupport",
     header: "Support",
-    cell: ({ row }) => <FeatureCell value={row.original.features.prioritySupport} />
+    cell: ({ row }) => {
+       const hasSupport = row.original.features.prioritySupport;
+       return (
+        <div className="flex justify-start">
+            {hasSupport ? <Headset className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
+        </div>
+       )
+    }
   },
   {
     accessorKey: "createdAt",

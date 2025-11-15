@@ -12,37 +12,37 @@ export const planSchema = z.object({
   status: z.enum(["active", "archived"]),
   
   features: z.object({
-    // Core Usage
+    // 1. Inbox Features
     maxInboxes: z.coerce.number().int().min(1, "Must have at least 1 inbox."),
-    maxEmailsPerInbox: z.coerce.number().int().min(1, "Must store at least 1 email."),
     inboxLifetime: z.coerce.number().int().min(1, "Lifetime must be at least 1 minute."),
-    
-    // Domains
     customDomains: z.coerce.number().int().min(0, "Cannot be negative."),
     allowPremiumDomains: z.boolean().default(false),
-
-    // Advanced Features
-    emailForwarding: z.boolean().default(false),
-    noAds: z.boolean().default(false),
-
-    // Security
-    passwordProtection: z.boolean().default(false),
+    
+    // 2. Email Features
     allowAttachments: z.boolean().default(false),
     maxAttachmentSize: z.coerce.number().int().min(0, "Cannot be negative."),
+    emailForwarding: z.boolean().default(false),
+    exportEmails: z.boolean().default(false),
+
+    // 3. Storage & Data Management
+    maxEmailsPerInbox: z.coerce.number().int().min(1, "Must store at least 1 email."),
+    searchableHistory: z.boolean().default(false),
     
-    // API & Automation
+    // 4. Security & Privacy
+    passwordProtection: z.boolean().default(false),
+    
+    // 5. API & Automation
     apiAccess: z.boolean().default(false),
     apiRateLimit: z.coerce.number().int().min(0, "Cannot be negative."),
     webhooks: z.boolean().default(false),
-
-    // Teams
-    teamMembers: z.coerce.number().int().min(0, "Cannot be negative."),
-
-    // Support, Analytics & Data
+    
+    // 6. Support
     prioritySupport: z.boolean().default(false),
+
+    // 7. General (User Experience, Account & Team)
+    noAds: z.boolean().default(false),
+    teamMembers: z.coerce.number().int().min(0, "Cannot be negative."),
     usageAnalytics: z.boolean().default(false),
-    exportEmails: z.boolean().default(false),
-    searchableHistory: z.boolean().default(false),
   }),
 
   createdAt: z.custom<Timestamp>().optional()

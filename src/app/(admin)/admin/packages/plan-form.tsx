@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -44,24 +43,37 @@ interface PlanFormProps {
 const formSchemaToSubmit = planSchema.omit({ id: true, createdAt: true });
 
 const featureTooltips: Record<string, string> = {
+  // Inbox
   maxInboxes: "Maximum number of active temporary inboxes a user can have at one time.",
-  maxEmailsPerInbox: "Maximum number of emails that will be stored in a single inbox. Older emails will be deleted.",
   inboxLifetime: "The duration in minutes that a temporary inbox will remain active before it is automatically deleted.",
-  customDomains: "The number of custom domains a user can connect to receive emails on their own domain.",
+  customDomains: "Number of custom domains a user can connect to receive emails on their own domain.",
   allowPremiumDomains: "Grants access to a pool of shorter, more memorable premium domains for email generation.",
-  emailForwarding: "Allows users to automatically forward incoming temporary emails to a real, verified email address.",
-  apiAccess: "Grants access to the developer API for programmatic use of the service.",
-  noAds: "Removes all advertisements from the user interface for a cleaner experience.",
-  passwordProtection: "Allow users to secure their temporary inboxes with a password.",
+  
+  // Email
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
+  emailForwarding: "Allows users to automatically forward incoming temporary emails to a real, verified email address.",
+  exportEmails: "Allows users to export their emails from their inboxes, for example as a CSV or EML files.",
+  
+  // Storage
+  maxEmailsPerInbox: "Maximum number of emails that will be stored in a single inbox. Older emails will be deleted.",
+  searchableHistory: "Enables server-side search of email history. Without this, users may only be able to filter currently loaded emails on the client.",
+
+  // Security
+  passwordProtection: "Allow users to secure their temporary inboxes with a password.",
+
+  // API
+  apiAccess: "Grants access to the developer API for programmatic use of the service.",
   apiRateLimit: "The number of API requests a user can make per minute.",
   webhooks: "Allow incoming emails to be forwarded to a user-defined webhook URL for automation.",
-  teamMembers: "The number of team members a user can invite to share their plan features.",
+
+  // Support
   prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
+
+  // General
+  noAds: "Removes all advertisements from the user interface for a cleaner experience.",
+  teamMembers: "The number of team members a user can invite to share their plan features.",
   usageAnalytics: "Grants access to a dashboard for viewing detailed usage statistics and analytics.",
-  exportEmails: "Allows users to export their emails from their inboxes, for example as a CSV or EML files.",
-  searchableHistory: "Enables server-side search of email history. Without this, users may only be able to filter currently loaded emails on the client.",
 };
 
 
@@ -111,23 +123,23 @@ export function PlanForm({ plan }: PlanFormProps) {
     status: "active",
     features: {
         maxInboxes: 1,
-        maxEmailsPerInbox: 25,
-        inboxLifetime: 60,
+        inboxLifetime: 10,
         customDomains: 0,
         allowPremiumDomains: false,
-        emailForwarding: false,
-        apiAccess: false,
-        noAds: false,
-        passwordProtection: false,
-        allowAttachments: true,
+        allowAttachments: false,
         maxAttachmentSize: 5,
+        emailForwarding: false,
+        exportEmails: false,
+        maxEmailsPerInbox: 25,
+        searchableHistory: false,
+        passwordProtection: false,
+        apiAccess: false,
         apiRateLimit: 0,
         webhooks: false,
-        teamMembers: 0,
         prioritySupport: false,
+        noAds: false,
+        teamMembers: 0,
         usageAnalytics: false,
-        exportEmails: false,
-        searchableHistory: false,
     }
   }
 
@@ -232,54 +244,54 @@ export function PlanForm({ plan }: PlanFormProps) {
 
                         {/* Core Usage Features */}
                         <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Core Usage Limits</h3>
+                            <h3 className="text-lg font-medium tracking-tight">Inbox, Email & Storage Limits</h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name="features.maxInboxes" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="Max Active Inboxes" tooltipText={featureTooltips.maxInboxes} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="features.maxEmailsPerInbox" render={({ field }) => (
-                                    <FormItem><FormLabelWithTooltip label="Max Emails Per Inbox" tooltipText={featureTooltips.maxEmailsPerInbox} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
                                 <FormField control={form.control} name="features.inboxLifetime" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="Inbox Lifetime (minutes)" tooltipText={featureTooltips.inboxLifetime} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                            </div>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Feature Flags</h3>
-                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                <FeatureSwitch name="features.allowPremiumDomains" label="Premium Domains" control={form.control} />
-                                <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
-                                <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
-                                <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
-                                <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
-                                <FeatureSwitch name="features.apiAccess" label="API Access" control={form.control} />
-                                <FeatureSwitch name="features.webhooks" label="Webhooks" control={form.control} />
-                                <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
-                                <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
-                                <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
-                                <FeatureSwitch name="features.searchableHistory" label="Searchable History" control={form.control} />
-                            </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Feature Limits */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium tracking-tight">Feature Limits</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                 <FormField control={form.control} name="features.maxEmailsPerInbox" render={({ field }) => (
+                                    <FormItem><FormLabelWithTooltip label="Max Emails Per Inbox" tooltipText={featureTooltips.maxEmailsPerInbox} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
                                 <FormField control={form.control} name="features.customDomains" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="Custom Domains" tooltipText={featureTooltips.customDomains} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="features.maxAttachmentSize" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="Max Attachment Size (MB)" tooltipText={featureTooltips.maxAttachmentSize} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={form.control} name="features.apiRateLimit" render={({ field }) => (
+                                 <FormField control={form.control} name="features.apiRateLimit" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="API Rate Limit (req/min)" tooltipText={featureTooltips.apiRateLimit} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
+                            </div>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-medium tracking-tight">Feature Toggles</h3>
+                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                <FeatureSwitch name="features.allowPremiumDomains" label="Premium Domains" control={form.control} />
+                                <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
+                                <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
+                                <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
+                                <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
+                                <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
+                                <FeatureSwitch name="features.searchableHistory" label="Searchable History" control={form.control} />
+                                <FeatureSwitch name="features.apiAccess" label="API Access" control={form.control} />
+                                <FeatureSwitch name="features.webhooks" label="Webhooks" control={form.control} />
+                                <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
+                                <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Teams */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-medium tracking-tight">Teams</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <FormField control={form.control} name="features.teamMembers" render={({ field }) => (
                                     <FormItem><FormLabelWithTooltip label="Team Members" tooltipText={featureTooltips.teamMembers} /><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -332,5 +344,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
-    
