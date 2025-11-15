@@ -1,9 +1,8 @@
+
 "use client";
 
-import { useUser, useAuth } from "@/firebase";
+import { useUser } from "@/firebase";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import { signInAnonymously } from "firebase/auth";
 import { FeaturesSection } from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";
 import { Testimonials } from "@/components/testimonials";
@@ -30,16 +29,6 @@ const sections = [
 
 export default function HomePage() {
   const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-
-  useEffect(() => {
-    if (!isUserLoading && !user && auth) {
-      signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-      });
-    }
-  }, [user, isUserLoading, auth]);
-
 
   if (isUserLoading) {
     return (
@@ -62,7 +51,7 @@ export default function HomePage() {
               Temporary Email Address
             </h1>
           </div>
-          {user ? <div className="mt-8"><DashboardClient /></div> : <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
+          <div className="mt-8"><DashboardClient /></div>
         </main>
       </div>
       {sections.map((Section, index) => {

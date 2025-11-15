@@ -1,11 +1,49 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are insecure and for debugging only.
-    // They allow public read and write access to your entire database.
-    match /{document=**} {
-      allow read, write: if true;
+    
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
+
+    // Helper function to check for admin role
+    function isAdmin() {
+      // In a real app, this would check for a custom claim.
+      // For now, we'll allow any authenticated user to act as admin for simplicity.
+      return request.auth != null;
+    }
+
+    // Users can only read/write their own user document.
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    match /users/{userId}/inboxes/{inboxId} {
+        allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
+        allow read, write: if isOwner(userId);
+    }
+    
+    // Public collections can be read by anyone.
+    match /plans/{planId} {
+        allow get, list: if true;
+        allow create, update, delete: if isAdmin();
+    }
+
+    match /allowed_domains/{domainId} {
+       allow get, list: if true;
+       allow create, update, delete: if isAdmin();
+    }
+    
+    // Admin-only collections.
+    match /admin_settings/{settingId} {
+      allow read, write: if isAdmin();
+    }
+
   }
 }
