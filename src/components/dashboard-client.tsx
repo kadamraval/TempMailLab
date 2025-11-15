@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from 'next/link';
-import { Copy, RefreshCw, Loader2, Clock, Trash2, ShieldAlert } from "lucide-react";
+import { Copy, RefreshCw, Loader2, Clock, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(true); // Start in generating state
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
@@ -66,8 +66,8 @@ export function DashboardClient() {
                 }
             }
 
+            // Fallback for guests or if user plan not found
             if (!fetchedPlan) {
-                // Prioritize "Free" plan for guests/fallback
                 const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
                 const freePlanSnap = await getDocs(freePlanQuery);
                 
@@ -75,13 +75,11 @@ export function DashboardClient() {
                     const planDoc = freePlanSnap.docs[0];
                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
-                    // If no "Free" plan, look for the "Default" plan as a last resort
                     const defaultPlanRef = doc(firestore, "plans", "default");
                     const defaultPlanDoc = await getDoc(defaultPlanRef);
                     if (defaultPlanDoc.exists()) {
                         fetchedPlan = { id: defaultPlanDoc.id, ...defaultPlanDoc.data() } as Plan;
                     } else {
-                         // This is a critical failure state for the app.
                          toast({
                             title: "Configuration Error",
                             description: "No default or free subscription plans are configured. Please contact support.",
@@ -95,7 +93,6 @@ export function DashboardClient() {
 
         } catch (error: any) {
             console.error("Failed to fetch plan:", error);
-            // This is a Firestore security rule error or network error
             if (error.code === 'permission-denied') {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'plans', operation: 'list' }));
             } else {
@@ -168,7 +165,6 @@ export function DashboardClient() {
             const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
 
             if (hasNewEmails) {
-                // Ensure user exists when first email arrives
                 ensureAnonymousUser();
 
                 setInboxEmails(prevEmails => {
@@ -206,27 +202,30 @@ export function DashboardClient() {
   }, [currentInbox, toast, ensureAnonymousUser, inboxEmails]);
 
 
-  const handleGenerateEmail = async () => {
-    if (isGenerating || arePlansLoading) return;
+  const handleGenerateEmail = useCallback(async (isInitialLoad = false) => {
+    if (!isInitialLoad && isGenerating) return;
 
-    if (!userPlan) {
-      toast({
-        title: "Configuration not loaded",
-        description: "Plans are still loading, please try again in a moment.",
-        variant: "destructive",
-      });
-      return;
+    // This is the gatekeeper. Don't generate anything until plans are loaded.
+    if (arePlansLoading || !userPlan) {
+        if (!isInitialLoad) {
+          toast({
+            title: "Configuration not loaded",
+            description: "Plans are still loading, please try again in a moment.",
+            variant: "destructive",
+          });
+        }
+        return;
     }
     
     setIsGenerating(true);
 
-    // This function will run in the background if needed, but we don't wait for it.
+    // Ensure user exists, but don't wait for it to finish.
     ensureAnonymousUser();
 
     try {
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
-        where("tier", "in", ["free", "premium"]) // Fetch all domains for simplicity
+        where("tier", "in", userPlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
       );
       const domainsSnapshot = await getDocs(domainsQuery);
       const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
@@ -242,13 +241,10 @@ export function DashboardClient() {
         expiresAt: Date.now() + userPlan.features.inboxLifetime * 60 * 1000,
       };
 
-      // --- IMMEDIATE UI UPDATE ---
-      // This is the most critical part. We update the UI state right away.
       setCurrentInbox(newInbox);
       setSelectedEmail(null);
       setInboxEmails([]);
 
-      // Trigger an initial refresh in the background.
       handleRefresh(true);
 
     } catch (error: any) {
@@ -269,8 +265,16 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [arePlansLoading, userPlan, firestore, toast, ensureAnonymousUser, isGenerating, handleRefresh]);
   
+  // This effect runs once on mount to generate the initial email.
+  useEffect(() => {
+    // We wait until plans are loaded before trying to generate an email.
+    if (!arePlansLoading && !currentInbox) {
+        handleGenerateEmail(true);
+    }
+  }, [arePlansLoading, currentInbox, handleGenerateEmail]);
+
   useEffect(() => {
     clearCountdown();
     clearRefreshInterval();
@@ -296,11 +300,9 @@ export function DashboardClient() {
             }
         }, 1000);
 
-        // Start auto-refresh interval
         refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
     }
     
-    // Cleanup on unmount or when currentInbox changes
     return () => {
         clearCountdown();
         clearRefreshInterval();
@@ -309,7 +311,7 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
-    ensureAnonymousUser(); // Ensure user exists on copy action
+    ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
       title: "Copied!",
@@ -332,6 +334,8 @@ export function DashboardClient() {
         title: "Inbox Cleared",
         description: "A new address can be generated.",
     });
+    // Immediately generate a new one
+    handleGenerateEmail(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -340,24 +344,6 @@ export function DashboardClient() {
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
-
-  if (arePlansLoading) {
-     return (
-        <Card className="min-h-[480px] flex flex-col">
-            <CardHeader className="border-b p-4 text-center">
-                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                     <Skeleton className="h-8 w-24 rounded-md" />
-                     <Skeleton className="h-6 w-64 rounded-md" />
-                     <Skeleton className="h-10 w-36 rounded-md" />
-                 </div>
-            </CardHeader>
-            <CardContent className="p-6 flex-grow flex flex-col items-center justify-center text-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground mt-4">Initializing session...</p>
-            </CardContent>
-        </Card>
-     )
-  }
 
   if (selectedEmail) {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
@@ -373,45 +359,36 @@ export function DashboardClient() {
           </div>
 
           <div className="flex-grow flex items-center justify-center">
-            {currentInbox ? (
+            {isGenerating || !currentInbox ? (
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Generating address...</span>
+                </div>
+            ) : (
               <>
                 <p className="font-mono text-lg text-foreground">{currentInbox.emailAddress}</p>
                 <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
                   <Copy className="h-5 w-5" />
                 </Button>
               </>
-            ) : (
-              <p className="text-muted-foreground">Your temporary inbox will appear here</p>
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+          <Button onClick={() => handleGenerateEmail(false)} variant="outline" disabled={isGenerating || arePlansLoading}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            {currentInbox ? "New Address" : "Get Address"}
+            New Address
           </Button>
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
-        {!currentInbox ? (
-          <div className="min-h-[400px] p-6 flex-grow flex flex-col items-center justify-center text-center">
-            <div className="flex flex-col items-center gap-4 text-muted-foreground">
-              <ShieldAlert className="h-16 w-16 text-primary/50" />
-              <h3 className="text-2xl font-semibold tracking-tight text-foreground">Protect Your Privacy</h3>
-              <p className="max-w-md">
-                Click the "Get Address" button to generate a free, disposable email address. Keep your real inbox safe from spam and phishing attempts.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <InboxView 
+         <InboxView 
             inbox={inboxEmails} 
             onSelectEmail={handleSelectEmail} 
             onRefresh={() => handleRefresh(false)}
             isRefreshing={isRefreshing}
             onDelete={handleDeleteInbox}
           />
-        )}
       </CardContent>
 
       {!user && (
@@ -442,5 +419,3 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    
