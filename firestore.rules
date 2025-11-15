@@ -13,7 +13,6 @@ function isOwner(userId) {
 function isAdmin() {
   // In a real app, this would be more secure, e.g., checking a custom claim
   // For now, we assume an admin has a specific property in their user document
-  // This is a placeholder and should be secured before production.
   return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 }
 
@@ -35,12 +34,14 @@ service cloud.firestore {
     // USER-SPECIFIC DATA
     // Users can only create their own user document and can read/write their own sub-collections.
     match /users/{userId} {
-      // A user can create their own document.
+      // A user can create their own user document if it doesn't exist
       allow create: if isOwner(userId);
       // A user can only read, update, or delete their own document.
       allow get, update, delete: if isOwner(userId);
+      // Admins can list all users
+      allow list: if isAdmin();
       
-      // A user can list their own subcollections.
+      // A user can read and write to their own subcollections.
       match /{allPaths=**} {
         allow read, write: if isOwner(userId);
       }

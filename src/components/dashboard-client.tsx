@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from 'next/link';
 import { Copy, RefreshCw, Loader2, Clock, Trash2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
@@ -38,10 +38,10 @@ function getSessionId() {
 }
 
 interface DashboardClientProps {
-    userPlan?: Plan | null;
+    initialPlan?: Plan | null;
 }
 
-export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps) {
+export function DashboardClient({ initialPlan }: DashboardClientProps) {
   const [activeInboxes, setActiveInboxes] = useState<any[]>([]);
   const [currentInbox, setCurrentInbox] = useState<any | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
@@ -59,22 +59,18 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  // Fetch all plans to determine premium status
+  // Fetch all active plans
   const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
   const { data: allPlans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
 
   const userPlan = useMemo(() => {
-    if (initialPlan) return initialPlan; // Use plan passed via props if available
-    if (!allPlans || !user) {
-        // If there's no real user, find the default plan for anonymous users
-        return allPlans?.find(p => p.name.toLowerCase() === 'default') || null;
+    if (!user || user.isAnonymous) {
+        return initialPlan || allPlans?.find(p => p.name.toLowerCase() === 'default') || null;
     }
-    // This is a placeholder for real subscription logic
-    if (user && !user.isAnonymous) {
-      return allPlans.find(p => p.name.toLowerCase() === 'premium') || allPlans.find(p => p.name.toLowerCase() === 'default');
-    }
-    return allPlans.find(p => p.name.toLowerCase() === 'default');
-  }, [initialPlan, allPlans, user]);
+    // This is placeholder logic for a real logged-in user.
+    // You would typically look up their subscription plan ID from their user document.
+    return allPlans?.find(p => p.name.toLowerCase() === 'premium') || initialPlan;
+  }, [user, allPlans, initialPlan]);
   
   useEffect(() => {
     sessionIdRef.current = getSessionId();
@@ -140,77 +136,78 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (!firestore || !userPlan) {
+    if (!firestore || !auth || isGenerating) {
       toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
       return;
     }
-    
-    // Step 1: Ensure user is authenticated
-    if (!user) {
-        try {
-            await signInAnonymously(auth);
-            // The useUser hook will update the user state, and we'll retry on the next render.
-            // For now, we show a toast and let the user click again.
-            toast({ title: "Ready!", description: "Your secure session is created. Click 'New Address' again to generate your email." });
-            return;
-        } catch (error) {
-            toast({ title: "Authentication Failed", description: "Could not create a secure session.", variant: "destructive" });
-            return;
-        }
-    }
-
-    if (activeInboxes.length >= userPlan.features.maxInboxes) {
-        toast({
-            title: "Inbox Limit Reached",
-            description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
-            variant: "destructive"
-        });
-        return;
-    }
 
     setIsGenerating(true);
-    setSelectedEmail(null);
-    setInboxEmails([]);
-    setCurrentInbox(null);
-    clearCountdown();
-    clearRefreshInterval();
 
     try {
-      const userTier = userPlan.features.allowPremiumDomains ? 'premium' : 'free';
-      const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
-      const querySnapshot = await getDocs(allowedDomainsQuery);
-      
-      let allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
-
-      if (allowedDomains.length === 0) {
-        const freeDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", "free"));
-        const freeSnapshot = await getDocs(freeDomainsQuery);
-        allowedDomains = freeSnapshot.docs.map(doc => doc.data().domain);
-        if (freeSnapshot.empty) {
-          throw new Error(`No domains configured by the administrator.`);
+        // Step 1: Ensure user is authenticated (anonymously if not logged in)
+        let currentUser = user;
+        if (!currentUser) {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+            toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
         }
-      }
 
-      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      
-      const newInbox = { 
-        emailAddress,
-        expiresAt: Date.now() + (userPlan.features.inboxLifetime * 60 * 1000) 
-      };
-      
-      setCurrentInbox(newInbox);
-      setActiveInboxes(prev => [...prev, newInbox]);
-      setCountdown(userPlan.features.inboxLifetime * 60);
-      
-      if (sessionIdRef.current && emailAddress) {
-          const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
-          if (result.emails) {
-              setInboxEmails(result.emails);
-          }
-      }
-      
-      refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        if (!userPlan) {
+            throw new Error("Could not determine a subscription plan. Please try again.");
+        }
+
+        // TODO: This should be a Firestore query in a real app
+        if (activeInboxes.length >= userPlan.features.maxInboxes) {
+            toast({
+                title: "Inbox Limit Reached",
+                description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
+                variant: "destructive"
+            });
+            return;
+        }
+
+        setSelectedEmail(null);
+        setInboxEmails([]);
+        setCurrentInbox(null);
+        clearCountdown();
+        clearRefreshInterval();
+
+        // Step 2: Generate the new inbox
+        const userTier = userPlan.features.allowPremiumDomains ? 'premium' : 'free';
+        const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
+        const querySnapshot = await getDocs(allowedDomainsQuery);
+        
+        let allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
+
+        if (allowedDomains.length === 0) {
+            const freeDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", "free"));
+            const freeSnapshot = await getDocs(freeDomainsQuery);
+            allowedDomains = freeSnapshot.docs.map(doc => doc.data().domain);
+            if (freeSnapshot.empty) {
+            throw new Error(`No domains configured by the administrator.`);
+            }
+        }
+
+        const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+        const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+        
+        const newInbox = { 
+            emailAddress,
+            expiresAt: Date.now() + (userPlan.features.inboxLifetime * 60 * 1000) 
+        };
+        
+        setCurrentInbox(newInbox);
+        setActiveInboxes(prev => [...prev, newInbox]);
+        setCountdown(userPlan.features.inboxLifetime * 60);
+        
+        if (sessionIdRef.current && emailAddress) {
+            const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
+            if (result.emails) {
+                setInboxEmails(result.emails);
+            }
+        }
+        
+        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
 
     } catch (error: any) {
         if (error.code === 'permission-denied') {
@@ -228,9 +225,9 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
             });
         }
     } finally {
-      setIsGenerating(false);
+      setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, activeInboxes, handleRefresh]);
+  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh]);
   
   useEffect(() => {
     if (currentInbox) {
@@ -300,8 +297,8 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
                         <span>00:00</span>
                     </div>
                     <p className="text-muted-foreground">Your temporary inbox will appear here</p>
-                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
-                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || isLoadingPlans || isUserLoading}>
+                        {(isGenerating || isLoadingPlans || isUserLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         New Address
                     </Button>
                  </div>
@@ -333,7 +330,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     <div className="space-y-8">
       <Card>
           <CardHeader className="border-b p-4">
-            {(isLoading || isUserLoading) ? (
+            {(isUserLoading || isLoadingPlans) ? (
               <div className="flex items-center justify-between">
                 <Skeleton className="h-6 w-24 rounded-md" />
                 <Skeleton className="h-10 w-1/2 rounded-md" />
