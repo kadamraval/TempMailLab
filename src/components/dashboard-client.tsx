@@ -55,7 +55,6 @@ export function DashboardClient() {
         try {
             let fetchedPlan: Plan | null = null;
             
-            // For signed-in, non-anonymous users, check for a custom plan
             if (user && !user.isAnonymous) {
                 const userDoc = await getDoc(doc(firestore, 'users', user.uid));
                 if (userDoc.exists() && userDoc.data().planId) {
@@ -63,15 +62,11 @@ export function DashboardClient() {
                     const planDoc = await getDoc(doc(firestore, 'plans', planId));
                     if (planDoc.exists()) {
                          fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                    } else {
-                        console.warn(`User plan with ID '${planId}' not found. Falling back to public plan.`);
                     }
                 }
             }
 
-            // If no user-specific plan was found, fetch the public free plan
             if (!fetchedPlan) {
-                // 1. Prioritize a plan named "Free"
                 const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
                 const freePlanSnap = await getDocs(freePlanQuery);
                 
@@ -79,8 +74,6 @@ export function DashboardClient() {
                     const planDoc = freePlanSnap.docs[0];
                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
-                    // 2. If no "Free" plan, fall back to the absolute cheapest plan (likely free)
-                    console.warn("No 'Free' plan found. Falling back to the cheapest available plan.");
                     const cheapestPlanQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
                     const cheapestPlanSnap = await getDocs(cheapestPlanQuery);
                     
@@ -214,8 +207,9 @@ export function DashboardClient() {
         });
         return;
     }
-    
+
     setIsGenerating(true);
+    await ensureAnonymousUser();
 
     try {
         // This logic will run if a user is already signed in (including anonymous)
@@ -231,9 +225,6 @@ export function DashboardClient() {
                 setIsGenerating(false);
                 return;
            }
-        } else {
-            // This is the first action for a guest, so we create an anonymous user
-            await ensureAnonymousUser();
         }
 
         setSelectedEmail(null);
