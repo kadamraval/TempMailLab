@@ -154,6 +154,9 @@ export function DashboardClient() {
     if (!isAutoRefresh) {
         setIsRefreshing(true);
     }
+    
+    // Ensure user exists before fetching, which may lead to a write
+    ensureAnonymousUser();
 
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
@@ -165,7 +168,6 @@ export function DashboardClient() {
             const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
 
             if (hasNewEmails) {
-                ensureAnonymousUser();
 
                 setInboxEmails(prevEmails => {
                     const existingIds = new Set(prevEmails.map(e => e.id));
@@ -205,7 +207,6 @@ export function DashboardClient() {
   const handleGenerateEmail = useCallback(async (isInitialLoad = false) => {
     if (!isInitialLoad && isGenerating) return;
 
-    // This is the gatekeeper. Don't generate anything until plans are loaded.
     if (arePlansLoading || !userPlan) {
         if (!isInitialLoad) {
           toast({
@@ -219,7 +220,7 @@ export function DashboardClient() {
     
     setIsGenerating(true);
 
-    // Ensure user exists, but don't wait for it to finish.
+    // This is a key user action, ensure anonymous user exists.
     ensureAnonymousUser();
 
     try {
@@ -267,9 +268,7 @@ export function DashboardClient() {
     }
   }, [arePlansLoading, userPlan, firestore, toast, ensureAnonymousUser, isGenerating, handleRefresh]);
   
-  // This effect runs once on mount to generate the initial email.
   useEffect(() => {
-    // We wait until plans are loaded before trying to generate an email.
     if (!arePlansLoading && !currentInbox) {
         handleGenerateEmail(true);
     }
@@ -311,6 +310,7 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
+    // This is a key user action, ensure anonymous user exists.
     ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
@@ -334,7 +334,6 @@ export function DashboardClient() {
         title: "Inbox Cleared",
         description: "A new address can be generated.",
     });
-    // Immediately generate a new one
     handleGenerateEmail(false);
   };
 
