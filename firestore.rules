@@ -4,77 +4,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    //============================================
-    // Helper Functions
-    //============================================
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // In production, this claim must be set on the user via a trusted backend.
-      return isSignedIn() && request.auth.token.isAdmin == true;
-    }
-
-    //============================================
-    // Rule Definitions
-    //============================================
-
-    //--- Public Collections ---//
-    
-    // Rule for the collection itself
-    match /plans {
-        // Anyone can list all the plans for pricing pages.
-        allow list: if true;
-    }
-
-    // Rule for individual documents within the collection
+    // This is a temporary, minimal ruleset for debugging.
+    // It locks down the entire database except for the 'plans' collection
+    // to confirm if this rules file is being correctly applied.
     match /plans/{planId} {
-      // Anyone can read a single plan.
-      allow get: if true;
-      // Only admins can create, update, or delete plans.
-      allow write: if isAdmin();
-    }
-    
-    match /allowed_domains/{allowedDomainId} {
-      // Authenticated users can read the list of domains. Only admins can write.
-      allow get, list: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /admin_settings/{settingId} {
-      // Only admins can read or write sensitive third-party API keys.
-      allow read, write: if isAdmin();
-    }
-
-    //--- User Data Collections ---//
-    match /users/{userId} {
-      // A user can manage their own document. Admins have full access.
-      allow get, update, delete: if isOwner(userId) || isAdmin();
-      // Users can create their own document.
-      allow create: if isOwner(userId);
-      // Only Admins can list all users.
-      allow list: if isAdmin();
-    }
-
-    match /inboxes/{inboxId} {
-      // Users can only access inboxes where the document's userId field matches their own UID.
-      allow read, write: if isOwner(resource.data.userId);
-    }
-    
-    match /emails/{emailId} {
-      // To access an email, a user must own the parent inbox.
-      // This requires a 'get' call in the rule.
-      allow read, write: if isSignedIn() && get(/databases/$(database)/documents/inboxes/$(resource.data.inboxId)).data.userId == request.auth.uid;
-    }
-
-    match /api_keys/{apiKeyId} {
-      // Users can only manage their own API keys.
-      allow read, write: if isOwner(resource.data.userId);
+        allow read, write: if true;
     }
   }
 }
