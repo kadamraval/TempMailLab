@@ -1,49 +1,33 @@
 
 'use client';
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
-import type { Plan } from "./packages/data";
 
 export default function AdminDashboardPage() {
-    const firestore = useFirestore();
-
-    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
-    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
-
-    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
-    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
-    
-    const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
-    const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
-
-    const activePlans = plans?.filter(p => p.status === 'active');
-
     const stats = [
         {
             title: "Total Users",
-            value: users?.length ?? 0,
+            value: 0,
             icon: <Users className="h-4 w-4 text-muted-foreground" />,
-            loading: usersLoading,
+            loading: true,
         },
         {
             title: "Active Plans",
-            value: activePlans?.length ?? 0,
+            value: 0,
             icon: <Package className="h-4 w-4 text-muted-foreground" />,
-            loading: plansLoading,
+            loading: true,
         },
         {
             title: "Allowed Domains",
-            value: domains?.length ?? 0,
+            value: 0,
             icon: <Globe className="h-4 w-4 text-muted-foreground" />,
-            loading: domainsLoading,
+            loading: true,
         },
         {
             title: "API Status",
-            value: "Active",
+            value: "...",
             icon: <Activity className="h-4 w-4 text-muted-foreground" />,
-            loading: false,
+            loading: true,
         },
     ];
 
