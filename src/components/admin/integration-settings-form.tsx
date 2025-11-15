@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { useFirestore, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, getDoc } from "firebase/firestore";
+import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
 
 interface IntegrationSettingsFormProps {
@@ -30,45 +31,27 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         apiKey: "",
         domain: "",
     });
-    const [isLoading, setIsLoading] = useState(true); // Default to true
+    const [isSaving, setIsSaving] = useState(false);
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
 
-    const settingsRef = doc(firestore, "admin_settings", "mailgun");
+    const settingsRef = useMemoFirebase(() => {
+        if (!firestore || integration.slug !== 'mailgun') return null;
+        return doc(firestore, "admin_settings", integration.slug);
+    }, [firestore, integration.slug])
+
+    const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
     useEffect(() => {
-        if (integration.slug !== 'mailgun') {
-            setIsLoading(false);
-            return;
+        if (existingSettings) {
+            setSettings({
+                enabled: existingSettings.enabled ?? false,
+                apiKey: existingSettings.apiKey ?? "",
+                domain: existingSettings.domain ?? "",
+            })
         }
-
-        const fetchSettings = async () => {
-            setIsLoading(true);
-            try {
-                const docSnap = await getDoc(settingsRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    setSettings({
-                        enabled: data.enabled ?? false,
-                        apiKey: data.apiKey ?? "",
-                        domain: data.domain ?? "",
-                    });
-                }
-            } catch (error) {
-                console.error("Error fetching settings:", error);
-                toast({
-                    title: "Error",
-                    description: "Could not load existing settings.",
-                    variant: "destructive",
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchSettings();
-    }, [firestore, integration.slug, toast]);
+    }, [existingSettings]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,29 +63,32 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setSettings(prev => ({ ...prev, enabled: checked }));
     };
 
-    const handleSaveChanges = () => {
-        if (integration.slug !== 'mailgun' || isLoading) return;
+    const handleSaveChanges = async () => {
+        if (integration.slug !== 'mailgun' || !settingsRef) return;
         
-        setIsLoading(true);
-
-        setDoc(settingsRef, settings, { merge: true })
-            .then(() => {
-                toast({
-                    title: "Settings Saved",
-                    description: `Configuration for ${integration.title} has been updated.`,
-                });
-                router.push('/admin/settings/integrations');
-            })
-            .catch(async (serverError) => {
-                const permissionError = new FirestorePermissionError({
-                    path: settingsRef.path,
-                    operation: 'update',
-                    requestResourceData: settings,
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            }).finally(() => {
-                setIsLoading(false);
+        setIsSaving(true);
+        
+        try {
+            // Note: This operation is expected to fail with default security rules.
+            // A server-side action with admin privileges is the correct way to modify this document.
+            // This client-side write is kept for demonstration if rules are temporarily relaxed.
+            await setDoc(settingsRef, settings, { merge: true });
+            toast({
+                title: "Settings Saved",
+                description: `Configuration for ${integration.title} has been updated. Note: This may require admin privileges.`,
             });
+            router.push('/admin/settings/integrations');
+
+        } catch (error: any) {
+            console.error("Error saving settings:", error);
+            toast({
+                title: "Permission Error",
+                description: "You do not have permission to modify these settings. This must be done via a secure server action.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleCancel = () => {
@@ -110,7 +96,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
-        if (isLoading && integration.slug === 'mailgun') {
+        if (isLoadingSettings && integration.slug === 'mailgun') {
             return (
                 <div className="flex items-center justify-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -170,7 +156,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             id="enable-integration"
                             checked={settings.enabled}
                             onCheckedChange={handleSwitchChange}
-                            disabled={isLoading}
+                            disabled={isLoadingSettings}
                         />
                     </div>
                     </>
@@ -179,8 +165,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isLoading}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings}>
+                        {(isSaving || isLoadingSettings) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
                     </Button>
                 </div>

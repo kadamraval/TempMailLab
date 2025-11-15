@@ -1,24 +1,25 @@
 
 'use server';
 
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 
-async function getMailgunSettings(firestore: any) {
-    const settingsRef = doc(firestore, "admin_settings", "mailgun");
-    const settingsSnap = await getDoc(settingsRef);
+async function getMailgunSettings() {
+    const { firestore } = initializeFirebase();
+    const settingsRef = firestore.collection("admin_settings").doc("mailgun");
+    const settingsSnap = await settingsRef.get();
 
-    if (!settingsSnap.exists()) {
+    if (!settingsSnap.exists) {
         throw new Error("Mailgun integration settings not found. Please configure them in the admin panel.");
     }
 
     const settings = settingsSnap.data();
     
-    if (!settings.apiKey || !settings.domain) {
+    if (!settings || !settings.apiKey || !settings.domain) {
         throw new Error("Mailgun settings are incomplete. Please check the admin panel.");
     }
     
@@ -35,11 +36,9 @@ export async function fetchEmailsFromServerAction(
     if (!sessionId || !emailAddress) {
         return { error: 'Invalid session or email address provided.' };
     }
-
-    const { firestore } = initializeFirebase();
     
     try {
-        const { apiKey, domain } = await getMailgunSettings(firestore);
+        const { apiKey, domain } = await getMailgunSettings();
 
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
