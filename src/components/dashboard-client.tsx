@@ -34,7 +34,6 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
-  const [arePlansLoading, setArePlansLoading] = useState(true);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -45,69 +44,63 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    async function fetchPlan() {
-        if (isUserLoading || !firestore) return;
+  const fetchPlan = useCallback(async () => {
+    if (!firestore) return;
+    try {
+      let fetchedPlan: Plan | null = null;
+      
+      if (user && !user.isAnonymous) {
+          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+          if (userDoc.exists() && userDoc.data().planId) {
+              const planId = userDoc.data().planId;
+              const planDoc = await getDoc(doc(firestore, 'plans', planId));
+              if (planDoc.exists()) {
+                   fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+              }
+          }
+      }
 
-        setArePlansLoading(true);
-        try {
-            let fetchedPlan: Plan | null = null;
-            
-            if (user && !user.isAnonymous) {
-                const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-                if (userDoc.exists() && userDoc.data().planId) {
-                    const planId = userDoc.data().planId;
-                    const planDoc = await getDoc(doc(firestore, 'plans', planId));
-                    if (planDoc.exists()) {
-                         fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                    }
-                }
-            }
+      if (!fetchedPlan) {
+           const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
+           const freePlanSnap = await getDocs(freePlanQuery);
+           if (!freePlanSnap.empty) {
+               const planDoc = freePlanSnap.docs[0];
+               fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+           } else {
+               // Fallback to the lowest priced plan if "Free" doesn't exist
+               const allPlansQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
+               const allPlansSnap = await getDocs(allPlansQuery);
+               if (!allPlansSnap.empty) {
+                   const planDoc = allPlansSnap.docs[0];
+                   fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+               }
+           }
+      }
+      
+      if (!fetchedPlan) {
+           toast({
+              title: "Configuration Error",
+              description: "No subscription plans are configured. Please contact support.",
+              variant: "destructive",
+          });
+      }
 
-            if (!fetchedPlan) {
-                 const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
-                 const freePlanSnap = await getDocs(freePlanQuery);
-                 if (!freePlanSnap.empty) {
-                     const planDoc = freePlanSnap.docs[0];
-                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                 } else {
-                     // Fallback to the lowest priced plan if "Free" doesn't exist
-                     const allPlansQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
-                     const allPlansSnap = await getDocs(allPlansQuery);
-                     if (!allPlansSnap.empty) {
-                         const planDoc = allPlansSnap.docs[0];
-                         fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                     }
-                 }
-            }
-            
-            if (!fetchedPlan) {
-                 toast({
-                    title: "Configuration Error",
-                    description: "No subscription plans are configured. Please contact support.",
-                    variant: "destructive",
-                });
-            }
+      setUserPlan(fetchedPlan);
+      return fetchedPlan;
 
-            setUserPlan(fetchedPlan);
-
-        } catch (error: any) {
-            console.error("Failed to fetch plan:", error);
-            if (error.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'plans', operation: 'list' }));
-            } else {
-                toast({
-                    title: "Error Loading Configuration",
-                    description: "Could not load subscription details. Please try again later.",
-                    variant: "destructive",
-                });
-            }
-        } finally {
-            setArePlansLoading(false);
+    } catch (error: any) {
+        console.error("Failed to fetch plan:", error);
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'plans', operation: 'list' }));
+        } else {
+            toast({
+                title: "Error Loading Configuration",
+                description: "Could not load subscription details. Please try again later.",
+                variant: "destructive",
+            });
         }
     }
-    fetchPlan();
-  }, [user, isUserLoading, firestore, toast]);
+  }, [user, firestore, toast]);
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -203,12 +196,15 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating || arePlansLoading) return;
+    if (isGenerating) return;
 
     // This is a key user action, ensure anonymous user exists.
     await ensureAnonymousUser();
+    
+    // Fetch the latest plan before generating.
+    const plan = userPlan || await fetchPlan();
 
-    if (!userPlan) {
+    if (!plan) {
         toast({
             title: "Configuration not loaded",
             description: "Subscription plans are not available. Please try again in a moment.",
@@ -222,7 +218,7 @@ export function DashboardClient() {
     try {
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
-        where("tier", "in", userPlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+        where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
       );
       const domainsSnapshot = await getDocs(domainsQuery);
       const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
@@ -235,7 +231,7 @@ export function DashboardClient() {
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
       const newInbox = {
         emailAddress,
-        expiresAt: Date.now() + userPlan.features.inboxLifetime * 60 * 1000,
+        expiresAt: Date.now() + plan.features.inboxLifetime * 60 * 1000,
       };
 
       setCurrentInbox(newInbox);
@@ -262,13 +258,13 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false);
     }
-  }, [arePlansLoading, userPlan, firestore, toast, ensureAnonymousUser, isGenerating, handleRefresh]);
+  }, [isGenerating, userPlan, firestore, toast, ensureAnonymousUser, handleRefresh, fetchPlan]);
   
   useEffect(() => {
-    if (!arePlansLoading && !currentInbox) {
+    if (!isUserLoading && !currentInbox) {
         handleGenerateEmail();
     }
-  }, [arePlansLoading, currentInbox, handleGenerateEmail]);
+  }, [isUserLoading, currentInbox, handleGenerateEmail]);
 
   useEffect(() => {
     clearCountdown();
@@ -369,7 +365,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={() => handleGenerateEmail()} variant="outline" disabled={isGenerating || arePlansLoading}>
+          <Button onClick={() => handleGenerateEmail()} variant="outline" disabled={isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             New Address
           </Button>
