@@ -11,8 +11,9 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 
@@ -45,11 +46,13 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
   const [currentInbox, setCurrentInbox] = useState<any | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [countdown, setCountdown] = useState(600); 
+  const [countdown, setCountdown] = useState(0); 
   const firestore = useFirestore();
-  const { user } = useUser();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,19 +60,26 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
   const sessionIdRef = useRef<string | null>(null);
 
   // Fetch all plans to determine premium status
-  const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
+  const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
   const { data: allPlans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
 
   const userPlan = useMemo(() => {
-    if (initialPlan) return initialPlan; // Use plan passed via props if available (for anonymous)
-    if (isLoadingPlans || !allPlans || !user) return null;
+    if (initialPlan) return initialPlan; // Use plan passed via props if available
+    if (!allPlans || !user) {
+        // If there's no real user, find the default plan for anonymous users
+        return allPlans?.find(p => p.name.toLowerCase() === 'default') || null;
+    }
     // This is a placeholder for real subscription logic
     if (user && !user.isAnonymous) {
       return allPlans.find(p => p.name.toLowerCase() === 'premium') || allPlans.find(p => p.name.toLowerCase() === 'default');
     }
     return allPlans.find(p => p.name.toLowerCase() === 'default');
-  }, [initialPlan, allPlans, user, isLoadingPlans]);
+  }, [initialPlan, allPlans, user]);
   
+  useEffect(() => {
+    sessionIdRef.current = getSessionId();
+  }, []);
+
   const clearCountdown = () => {
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
@@ -131,8 +141,22 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
 
   const handleGenerateEmail = useCallback(async () => {
     if (!firestore || !userPlan) {
-      toast({ title: "Error", description: "Application is not ready.", variant: "destructive" });
+      toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
       return;
+    }
+    
+    // Step 1: Ensure user is authenticated
+    if (!user) {
+        try {
+            await signInAnonymously(auth);
+            // The useUser hook will update the user state, and we'll retry on the next render.
+            // For now, we show a toast and let the user click again.
+            toast({ title: "Ready!", description: "Your secure session is created. Click 'New Address' again to generate your email." });
+            return;
+        } catch (error) {
+            toast({ title: "Authentication Failed", description: "Could not create a secure session.", variant: "destructive" });
+            return;
+        }
     }
 
     if (activeInboxes.length >= userPlan.features.maxInboxes) {
@@ -144,8 +168,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
         return;
     }
 
-
-    setIsLoading(true);
+    setIsGenerating(true);
     setSelectedEmail(null);
     setInboxEmails([]);
     setCurrentInbox(null);
@@ -205,23 +228,10 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
             });
         }
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
-  }, [firestore, toast, user, handleRefresh, userPlan, activeInboxes]);
-
-  useEffect(() => {
-    sessionIdRef.current = getSessionId();
-    if (userPlan) {
-        handleGenerateEmail();
-    }
-    
-    return () => {
-        clearCountdown();
-        clearRefreshInterval();
-    }
-  }, [userPlan, handleGenerateEmail]); // Re-run when plan is loaded
-
-
+  }, [firestore, auth, user, toast, userPlan, activeInboxes, handleRefresh]);
+  
   useEffect(() => {
     if (currentInbox) {
       if (countdown <= 0) {
@@ -275,23 +285,55 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (!userPlan && isLoadingPlans) {
-     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   if (selectedEmail) {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
+  }
+
+  // Initial state before any inbox is generated
+  if (!currentInbox) {
+     return (
+        <Card className="min-h-[480px] flex flex-col">
+            <CardHeader className="border-b p-4 text-center">
+                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                     <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground invisible">
+                        <Clock className="h-4 w-4" />
+                        <span>00:00</span>
+                    </div>
+                    <p className="text-muted-foreground">Your temporary inbox will appear here</p>
+                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        New Address
+                    </Button>
+                 </div>
+            </CardHeader>
+            <CardContent className="p-6 flex-grow flex flex-col items-center justify-center text-center">
+                 <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                    <ShieldAlert className="h-16 w-16 text-primary/50" />
+                    <h3 className="text-2xl font-semibold tracking-tight text-foreground">Protect Your Privacy</h3>
+                    <p className="max-w-md">
+                        Click the &quot;New Address&quot; button to generate a free, disposable email address. Keep your real inbox safe from spam and phishing attempts.
+                    </p>
+                </div>
+            </CardContent>
+            {!user && (
+             <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
+                  <p className="text-center text-sm text-muted-foreground w-full">
+                      <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                          Log In
+                      </Link>
+                      {' '}for more features like custom domains &amp; longer inbox life.
+                  </p>
+             </CardFooter>
+            )}
+        </Card>
+     )
   }
 
   return (
     <div className="space-y-8">
       <Card>
           <CardHeader className="border-b p-4">
-            {isLoading ? (
+            {(isLoading || isUserLoading) ? (
               <div className="flex items-center justify-between">
                 <Skeleton className="h-6 w-24 rounded-md" />
                 <Skeleton className="h-10 w-1/2 rounded-md" />
@@ -311,8 +353,8 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
                       </Button>
                   </div>
                   
-                  <Button onClick={handleGenerateEmail} variant="outline">
-                     <RefreshCw className="mr-2 h-4 w-4" />
+                  <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
+                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                      New Address
                   </Button>
               </div>
@@ -327,7 +369,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
               onDelete={handleDeleteInbox}
             />
           </CardContent>
-          {user && user.isAnonymous && !userPlan?.features.noAds && (
+          {!user?.isAnonymous && !userPlan?.features.noAds && (
              <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                   <p className="text-center text-sm text-muted-foreground w-full">
                       <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">

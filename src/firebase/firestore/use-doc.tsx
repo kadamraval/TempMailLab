@@ -10,7 +10,6 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
-import { useUser } from '../provider';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -47,14 +46,8 @@ export function useDoc<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { isUserLoading } = useUser();
 
   useEffect(() => {
-    if (isUserLoading) {
-      setIsLoading(true); 
-      return;
-    }
-    
     if (!memoizedDocRef) {
         setIsLoading(false);
         setData(null);
@@ -89,7 +82,7 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef, isUserLoading]);
+  }, [memoizedDocRef]);
 
   if(memoizedDocRef && !(memoizedDocRef as any).__memo) {
     console.warn('The document reference passed to useDoc was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedDocRef);
