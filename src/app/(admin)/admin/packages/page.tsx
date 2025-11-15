@@ -69,7 +69,7 @@ export default function AdminPackagesPage() {
     };
 
     // Memoize columns to prevent re-creation on every render
-    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
+    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), []);
 
     if (isLoading) {
         return (
@@ -82,7 +82,7 @@ export default function AdminPackagesPage() {
   return (
     <>
         <Card>
-            <CardContent>
+            <CardContent className="p-0">
                 <DataTable 
                     columns={columns} 
                     data={plans || []} 

@@ -3,10 +3,6 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  Package2,
-  Bell,
-} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -25,8 +21,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 const getTitleFromPath = (pathname: string): string => {
     if (pathname === '/admin') return 'Dashboard';
     const segment = pathname.split('/admin/')[1] || '';
-    const title = segment.split('/')[0];
-    return title.charAt(0).toUpperCase() + title.slice(1).replace(/-/g, ' ');
+    const title = segment.split('/')[0].replace(/-/g, ' ');
+    // Capitalize first letter of each word
+    return title.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 
@@ -40,7 +37,7 @@ export function AdminHeader() {
     }
 
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
              <div className="flex-1">
                  <h1 className="text-xl font-semibold">{getTitleFromPath(pathname)}</h1>
             </div>

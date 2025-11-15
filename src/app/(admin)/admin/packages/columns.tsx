@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, ArrowUpDown, CheckCircle2, XCircle, Users, BarChart } from "lucide-react"
+import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 

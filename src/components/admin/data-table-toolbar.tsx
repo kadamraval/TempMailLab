@@ -28,8 +28,8 @@ export function DataTableToolbar<TData>({
   addLabel = "Add Item"
 }: DataTableToolbarProps<TData>) {
   return (
-    <div className="flex items-center justify-between gap-4 py-4">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between gap-4 p-4">
+      <div className="flex flex-1 items-center gap-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -38,12 +38,12 @@ export function DataTableToolbar<TData>({
             onChange={(event) =>
               table.getColumn(filterColumn)?.setFilterValue(event.target.value)
             }
-            className="pl-10 pr-4 bg-background h-10 w-full lg:w-[250px]"
+            className="pl-10 pr-4 h-9 bg-background w-full lg:w-[250px]"
           />
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-10 gap-1">
+            <Button variant="outline" size="sm" className="h-9 gap-1">
               <ListFilter className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Filter
@@ -59,7 +59,7 @@ export function DataTableToolbar<TData>({
             <DropdownMenuCheckboxItem>Archived</DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button size="sm" variant="outline" className="h-10 gap-1">
+        <Button size="sm" variant="outline" className="h-9 gap-1">
           <FileDown className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
             Export
@@ -67,7 +67,7 @@ export function DataTableToolbar<TData>({
         </Button>
       </div>
       {onAdd && (
-        <Button size="sm" className="h-10 gap-1" onClick={onAdd}>
+        <Button size="sm" className="h-9 gap-1" onClick={onAdd}>
           <PlusCircle className="h-3.5 w-3.5" />
           <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
             {addLabel}

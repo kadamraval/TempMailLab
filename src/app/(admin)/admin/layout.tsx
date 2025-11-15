@@ -15,9 +15,9 @@ export default function AdminLayout({
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-      <div className={`flex flex-col sm:gap-4 sm:py-4 transition-all duration-300 ${isCollapsed ? 'sm:pl-14' : 'sm:pl-64'}`}>
+      <div className={`flex flex-col transition-all duration-300 ${isCollapsed ? 'sm:pl-16' : 'sm:pl-64'}`}>
         <AdminHeader />
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
             {children}
         </main>
       </div>
