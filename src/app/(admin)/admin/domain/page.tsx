@@ -65,7 +65,7 @@ export default function AdminDomainPage() {
         }
     }
 
-    const allowedColumns = useMemo(() => getAllowedDomainColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
+    const allowedColumns = useMemo(() => getAllowedDomainColumns(handleEdit, handleDelete), []);
 
     if (isLoadingAllowed) {
         return (
