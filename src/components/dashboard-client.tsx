@@ -164,11 +164,15 @@ export function DashboardClient() {
     setIsGenerating(true);
 
     try {
+        if (!userPlan) {
+            throw new Error("Could not determine a subscription plan. Please try again.");
+        }
+        
         // Defer user creation, but check inbox limits if a user *already* exists.
         if (auth?.currentUser && currentInbox) {
            const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
            const userInboxes = await getDocs(inboxesCollection);
-           if(userPlan && userInboxes.docs.length >= userPlan.features.maxInboxes) {
+           if(userInboxes.docs.length >= userPlan.features.maxInboxes) {
                 toast({
                     title: "Inbox Limit Reached",
                     description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
@@ -179,10 +183,6 @@ export function DashboardClient() {
            }
            // Also ensure anonymous user on subsequent generations
            await ensureAnonymousUser();
-        }
-        
-        if (!userPlan) {
-            throw new Error("Could not determine a subscription plan. Please try again.");
         }
 
         setSelectedEmail(null);
@@ -299,7 +299,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (arePlansLoading) {
+  if (arePlansLoading && !defaultPlan) {
      return (
         <Card className="min-h-[480px] flex flex-col">
             <CardHeader className="border-b p-4 text-center">
@@ -343,7 +343,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || (arePlansLoading && !userPlan) || !userPlan}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {currentInbox ? "New Address" : "Get Address"}
           </Button>
@@ -401,4 +401,5 @@ export function DashboardClient() {
   );
 }
 
+    
     
