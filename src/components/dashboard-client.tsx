@@ -275,7 +275,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (!userPlan) {
+  if (!userPlan && isLoadingPlans) {
      return (
       <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -327,7 +327,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
               onDelete={handleDeleteInbox}
             />
           </CardContent>
-          {user && user.isAnonymous && !userPlan.features.noAds && (
+          {user && user.isAnonymous && !userPlan?.features.noAds && (
              <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                   <p className="text-center text-sm text-muted-foreground w-full">
                       <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
@@ -341,7 +341,3 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     </div>
   );
 }
-
-    
-
-    

@@ -61,7 +61,7 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { user, isUserLoading } = useUser(); // Get auth loading state
+  const { isUserLoading } = useUser(); // Get auth loading state
 
   useEffect(() => {
     // Wait until both the query is ready AND the user auth state is resolved.
@@ -103,7 +103,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, isUserLoading, user]); // Re-run if the target query/reference OR auth state changes.
+  }, [memoizedTargetRefOrQuery, isUserLoading]); // Re-run if the target query/reference OR auth state changes.
   
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     console.warn('The query/reference passed to useCollection was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedTargetRefOrQuery);
