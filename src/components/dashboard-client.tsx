@@ -16,6 +16,7 @@ import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
+import { seedDefaultPlan } from "@/app/(admin)/admin/packages/seed";
 
 function generateRandomString(length: number) {
   let result = '';
@@ -45,6 +46,11 @@ export function DashboardClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Seed the default plan on initial load to prevent race conditions.
+    seedDefaultPlan();
+  }, []);
 
   // --- Start of Plan Fetching Logic ---
   useEffect(() => {
@@ -336,7 +342,7 @@ export function DashboardClient() {
             </CardHeader>
             <CardContent className="p-6 flex-grow flex flex-col items-center justify-center text-center">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground mt-4">Loading components...</p>
+                <p className="text-muted-foreground mt-4">Initializing session...</p>
             </CardContent>
         </Card>
      )

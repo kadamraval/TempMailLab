@@ -37,8 +37,11 @@ export default function AdminDashboardPage() {
     }, [firestore]);
 
 
-    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
-    const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
+    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
+    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
+    
+    const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
+    const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
 
     const activePlans = plans?.filter(p => p.status === 'active');
 
