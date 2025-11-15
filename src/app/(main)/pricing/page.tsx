@@ -6,15 +6,20 @@ import { initializeFirebase } from "@/firebase/index.server";
 
 // Fetch data on the server
 async function getActivePlans() {
-  const { firestore } = initializeFirebase();
-  const plansQuery = query(
-      collection(firestore, "plans"), 
-      where("status", "==", "active")
-  );
-  
-  const querySnapshot = await getDocs(plansQuery);
-  const plans = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Plan[];
-  return plans;
+  try {
+    const { firestore } = initializeFirebase();
+    const plansQuery = query(
+        collection(firestore, "plans"), 
+        where("status", "==", "active")
+    );
+    
+    const querySnapshot = await getDocs(plansQuery);
+    const plans = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Plan[];
+    return plans;
+  } catch (error) {
+    console.error("Failed to fetch active plans:", error);
+    return []; // Return an empty array on error to prevent page crash
+  }
 }
 
 // This is now a Server Component

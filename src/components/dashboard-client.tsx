@@ -164,18 +164,15 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating || !userPlan || !firestore) return;
+    if (isGenerating || arePlansLoading) return;
     setIsGenerating(true);
 
     try {
-        // This check is now robust. It waits for the plan to be loaded.
         if (!userPlan) {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
         
-        // Defer user creation, but check inbox limits if a user *already* exists.
-        if (auth?.currentUser && currentInbox) {
-           // Ensure anonymous user on subsequent generations
+        if (auth?.currentUser) {
            await ensureAnonymousUser();
            const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
            const userInboxes = await getDocs(inboxesCollection);
@@ -234,7 +231,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, isGenerating, currentInbox, ensureAnonymousUser, handleRefresh]);
+  }, [firestore, auth, user, toast, userPlan, isGenerating, ensureAnonymousUser, handleRefresh, arePlansLoading]);
   
   useEffect(() => {
     clearCountdown();
@@ -306,7 +303,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (isUserLoading || (arePlansLoading && !userPlan)) {
+  if (arePlansLoading) {
      return (
         <Card className="min-h-[480px] flex flex-col">
             <CardHeader className="border-b p-4 text-center">
@@ -350,7 +347,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || !userPlan}>
+          <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {currentInbox ? "New Address" : "Get Address"}
           </Button>
@@ -407,5 +404,3 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    
