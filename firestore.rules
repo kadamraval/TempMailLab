@@ -1,14 +1,68 @@
 rules_version = '2';
 
+// Helper function to check for admin role
+function isAdmin() {
+  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+
+// Helper function to check ownership
+function isOwner(userId) {
+  return request.auth != null && request.auth.uid == userId;
+}
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Users: Users can read their own profile. Only admins can create/update/delete.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Inboxes: Users can only manage their own inboxes.
+    match /inboxes/{inboxId} {
+       allow read, write, delete: if isOwner(get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId);
+    }
     
-    // =====================================================================
-    // TEMPORARY DEBUGGING RULE: This makes the entire database public.
-    // This is NOT secure and is for debugging purposes only.
-    // =====================================================================
-    match /{document=**} {
-      allow read, write: if true;
+    // Emails: Users can only read emails in their own inboxes.
+    match /emails/{emailId} {
+      allow read, write, delete: if isOwner(get(/databases/$(database)/documents/emails/$(emailId)).data.userId);
+    }
+    
+    // API Keys: Users can manage their own API keys.
+    match /api_keys/{apiKeyId} {
+      allow read, create, delete: if isOwner(get(/databases/$(database)/documents/api_keys/$(apiKeyId)).data.userId);
+    }
+
+    // Usage Logs: Read-only for admins.
+    match /usage_logs/{usageLogId} {
+       allow read: if isAdmin();
+       allow write: if false; // Only server can write logs.
+    }
+
+    // Blocked IPs/Domains: Read-only for admins.
+    match /blocked_ips/{blockedIpId} {
+      allow read, write: if isAdmin();
+    }
+    match /blocked_domains/{blockedDomainId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Allowed Domains: Anyone can read, only admins can write.
+    match /allowed_domains/{allowedDomainId} {
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Plans: Anyone can read plans for the pricing page.
+    match /plans/{planId} {
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin Settings: Only accessible by admins.
+    match /admin_settings/{settingId} {
+      allow read, write: if isAdmin();
     }
   }
 }
