@@ -78,17 +78,17 @@ export function DashboardClient() {
   }, []);
 
   const ensureAnonymousUser = useCallback(async () => {
-    if (auth && !auth.currentUser) {
-        try {
-            await signInAnonymously(auth);
-            toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
-        } catch (error) {
-            console.error("Anonymous sign-in failed:", error);
-            toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
-            return false;
-        }
+    if (!auth) return false;
+    if (auth.currentUser) return true;
+    try {
+        await signInAnonymously(auth);
+        toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
+        return true;
+    } catch (error) {
+        console.error("Anonymous sign-in failed:", error);
+        toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
+        return false;
     }
-    return true;
   }, [auth, toast]);
 
 
@@ -124,7 +124,7 @@ export function DashboardClient() {
             if (hasNewEmails) {
                 // This is the first time we've seen emails, create the user
                 if(inboxEmails.length === 0) {
-                    ensureAnonymousUser();
+                    await ensureAnonymousUser();
                 }
 
                 setInboxEmails(prevEmails => {
@@ -172,7 +172,7 @@ export function DashboardClient() {
 
     try {
         // Only ensure user exists if they are generating a *new* address after the first one
-        if (currentInbox) {
+        if (currentInbox || activeInboxes.length > 0) {
            const userExists = await ensureAnonymousUser();
            if (!userExists) {
                 setIsGenerating(false);
@@ -313,10 +313,6 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (selectedEmail) {
-    return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
-  }
-
   if (arePlansLoading) {
      return (
         <Card className="min-h-[480px] flex flex-col">
@@ -335,6 +331,9 @@ export function DashboardClient() {
      )
   }
 
+  if (selectedEmail) {
+    return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
+  }
 
   if (!currentInbox) {
      return (
@@ -376,53 +375,53 @@ export function DashboardClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <Card>
-          <CardHeader className="border-b p-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{formatTime(countdown)}</span>
-                  </div>
+    <Card>
+        <CardHeader className="border-b p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{formatTime(countdown)}</span>
+                </div>
 
-                  <div className="flex-grow flex items-center justify-center">
-                      <p className="font-mono text-lg text-foreground">{currentInbox?.emailAddress}</p>
-                       <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
-                          <Copy className="h-5 w-5" />
-                      </Button>
-                  </div>
-                  
-                  <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
-                     {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                     New Address
-                  </Button>
-              </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <InboxView 
-              inbox={inboxEmails} 
-              onSelectEmail={handleSelectEmail} 
-              onRefresh={() => handleRefresh(false)}
-              isRefreshing={isRefreshing}
-              onDelete={handleDeleteInbox}
-            />
-          </CardContent>
-          {user && user.isAnonymous && !userPlan?.features.noAds && (
-             <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
-                  <p className="text-center text-sm text-muted-foreground w-full">
-                      This is a temporary anonymous session. {' '}
-                      <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
-                          Log In
-                      </Link>
-                      {' '}or{' '}
-                      <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
-                          Sign Up
-                      </Link>
-                      {' '} for more features.
-                  </p>
-             </CardFooter>
-          )}
-      </Card>
-    </div>
+                <div className="flex-grow flex items-center justify-center">
+                    <p className="font-mono text-lg text-foreground">{currentInbox?.emailAddress}</p>
+                     <Button onClick={handleCopyEmail} variant="ghost" size="icon" className="ml-2">
+                        <Copy className="h-5 w-5" />
+                    </Button>
+                </div>
+                
+                <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+                   {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                   New Address
+                </Button>
+            </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <InboxView 
+            inbox={inboxEmails} 
+            onSelectEmail={handleSelectEmail} 
+            onRefresh={() => handleRefresh(false)}
+            isRefreshing={isRefreshing}
+            onDelete={handleDeleteInbox}
+          />
+        </CardContent>
+        {user && user.isAnonymous && !userPlan?.features.noAds && (
+           <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
+                <p className="text-center text-sm text-muted-foreground w-full">
+                    This is a temporary anonymous session. {' '}
+                    <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                        Log In
+                    </Link>
+                    {' '}or{' '}
+                    <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
+                        Sign Up
+                    </Link>
+                    {' '} for more features.
+                </p>
+           </CardFooter>
+        )}
+    </Card>
   );
 }
+
+    
