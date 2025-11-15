@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Form,
@@ -39,8 +38,12 @@ const formSchema = z.object({
   }),
 })
 
-export function AddAllowedDomainDialog() {
-  const [open, setOpen] = useState(false)
+interface AddAllowedDomainDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function AddAllowedDomainDialog({ isOpen, onClose }: AddAllowedDomainDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const firestore = useFirestore()
   const { toast } = useToast()
@@ -53,6 +56,12 @@ export function AddAllowedDomainDialog() {
       tier: "free",
     },
   })
+
+  useEffect(() => {
+    if (!isOpen) {
+      form.reset();
+    }
+  }, [isOpen, form])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!firestore) return;
@@ -67,8 +76,7 @@ export function AddAllowedDomainDialog() {
         title: "Success",
         description: "Domain added successfully.",
       })
-      form.reset()
-      setOpen(false)
+      onClose()
     } catch (error: any) {
       console.error("Error adding domain:", error)
       toast({
@@ -82,13 +90,7 @@ export function AddAllowedDomainDialog() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Domain
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Allowed Domain</DialogTitle>
@@ -155,7 +157,7 @@ export function AddAllowedDomainDialog() {
               )}
             />
              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                     Cancel
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>

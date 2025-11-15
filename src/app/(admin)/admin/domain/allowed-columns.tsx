@@ -55,10 +55,12 @@ export const getAllowedDomainColumns = (
   {
     accessorKey: "domain",
     header: "Domain",
+    cell: ({ row }) => <div className="text-left">{row.getValue("domain")}</div>,
   },
   {
     accessorKey: "description",
     header: "Description",
+     cell: ({ row }) => <div className="text-left">{row.getValue("description")}</div>,
   },
   {
     accessorKey: "tier",
@@ -66,9 +68,11 @@ export const getAllowedDomainColumns = (
     cell: ({ row }) => {
       const tier = row.getValue("tier") as string
       return (
-        <Badge variant={tier === "premium" ? "default" : "secondary"} className="capitalize">
-          {tier}
-        </Badge>
+        <div className="text-left">
+            <Badge variant={tier === "premium" ? "default" : "secondary"} className="capitalize">
+              {tier}
+            </Badge>
+        </div>
       )
     },
   },
@@ -79,7 +83,7 @@ export const getAllowedDomainColumns = (
         const createdAt = row.getValue("createdAt") as any;
         // Firestore timestamp can be an object, handle it safely
         const date = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
-        return <div>{date.toLocaleDateString()}</div>
+        return <div className="text-left">{date.toLocaleDateString()}</div>
     }
   },
   {

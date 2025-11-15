@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 
 const FeatureCell = ({ value }: { value: boolean }) => (
-    <div className="flex justify-center">
+    <div className="flex justify-start">
         {value ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
     </div>
 );
@@ -52,7 +52,7 @@ export const getPlanColumns = (
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>
+    cell: ({ row }) => <div className="font-medium text-left">{row.getValue("name")}</div>
   },
   {
     accessorKey: "price",
@@ -65,7 +65,7 @@ export const getPlanColumns = (
         currency: "USD",
       }).format(amount)
 
-      return <div className="font-medium">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
+      return <div className="font-medium text-left">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
     },
   },
   {
@@ -73,12 +73,13 @@ export const getPlanColumns = (
     header: "Status",
     cell: ({ row }) => {
         const status = row.getValue("status") as string;
-        return <Badge variant={status === 'active' ? 'default' : 'secondary'} className="capitalize">{status}</Badge>
+        return <div className="text-left"><Badge variant={status === 'active' ? 'default' : 'secondary'} className="capitalize">{status}</Badge></div>
     }
   },
   {
     accessorKey: "features.maxInboxes",
     header: "Inboxes",
+    cell: ({ row }) => <div className="text-left">{row.original.features.maxInboxes}</div>,
   },
   {
     accessorKey: "features.teamMembers",
@@ -86,7 +87,7 @@ export const getPlanColumns = (
     cell: ({ row }) => {
       const teamMembers = row.original.features.teamMembers || 0;
       return (
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-start gap-1">
           <Users className="h-4 w-4 text-muted-foreground"/>
           <span>{teamMembers}</span>
         </div>
@@ -104,7 +105,7 @@ export const getPlanColumns = (
     cell: ({ row }) => {
        const hasAnalytics = row.original.features.usageAnalytics;
        return (
-        <div className="flex justify-center">
+        <div className="flex justify-start">
             {hasAnalytics ? <BarChart className="h-5 w-5 text-blue-500" /> : <XCircle className="h-5 w-5 text-red-500" />}
         </div>
        )
@@ -121,7 +122,7 @@ export const getPlanColumns = (
     cell: ({ row }) => {
         const createdAt = row.getValue("createdAt") as any;
         const date = createdAt?.toDate ? createdAt.toDate() : new Date(createdAt);
-        return <div>{date.toLocaleDateString()}</div>
+        return <div className="text-left">{date.toLocaleDateString()}</div>
     }
   },
   {

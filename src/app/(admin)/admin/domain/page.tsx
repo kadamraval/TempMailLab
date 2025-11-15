@@ -1,16 +1,12 @@
-
 'use client';
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/admin/data-table";
-import { blockedDomainColumns } from "./blocked-columns";
 import { getAllowedDomainColumns } from "./allowed-columns";
 import { Loader2 } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, doc, deleteDoc } from "firebase/firestore";
 import type { AllowedDomain } from "./allowed-columns";
-import type { BlockedDomain } from "./blocked-columns";
 import { AddAllowedDomainDialog } from './add-allowed-domain';
 import { EditAllowedDomainDialog } from './edit-allowed-domain';
 import {
@@ -24,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
+import { DataTableToolbar } from '@/components/admin/data-table-toolbar';
 
 export default function AdminDomainPage() {
     const firestore = useFirestore();
@@ -31,13 +28,12 @@ export default function AdminDomainPage() {
     const [editingDomain, setEditingDomain] = useState<AllowedDomain | null>(null);
     const [deletingDomain, setDeletingDomain] = useState<AllowedDomain | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isAddOpen, setIsAddOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    const allowedDomainsQuery = useMemoFirebase(() => collection(firestore, "allowed_domains"), [firestore]);
-    const blockedDomainsQuery = useMemoFirebase(() => collection(firestore, "blocked_domains"), [firestore]);
+    const allowedDomainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains"): null, [firestore]);
     
     const { data: allowedDomains, isLoading: isLoadingAllowed } = useCollection<AllowedDomain>(allowedDomainsQuery);
-    const { data: blockedDomains, isLoading: isLoadingBlocked } = useCollection<BlockedDomain>(blockedDomainsQuery);
 
     const handleEdit = (domain: AllowedDomain) => {
         setEditingDomain(domain);
@@ -69,11 +65,9 @@ export default function AdminDomainPage() {
         }
     }
 
-    const allowedColumns = useMemo(() => getAllowedDomainColumns(handleEdit, handleDelete), []);
+    const allowedColumns = useMemo(() => getAllowedDomainColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
 
-    const loading = isLoadingAllowed || isLoadingBlocked;
-
-    if (loading) {
+    if (isLoadingAllowed) {
         return (
             <div className="flex items-center justify-center h-96">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -83,50 +77,49 @@ export default function AdminDomainPage() {
 
   return (
     <>
-    <Tabs defaultValue="allowed">
-        <div className='flex items-center'>
-            <TabsList>
-                <TabsTrigger value="allowed">Allowed</TabsTrigger>
-                <TabsTrigger value="blocked">Blocked</TabsTrigger>
-            </TabsList>
-            <div className="ml-auto flex items-center gap-2">
-                <AddAllowedDomainDialog />
-            </div>
-        </div>
-        <TabsContent value="allowed">
-             <DataTable columns={allowedColumns} data={allowedDomains || []} filterColumn="domain" />
-        </TabsContent>
-        <TabsContent value="blocked">
-             <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
-        </TabsContent>
-    </Tabs>
+      <Card>
+        <CardContent>
+          <DataTable
+            columns={allowedColumns}
+            data={allowedDomains || []}
+            filterColumn="domain"
+            addLabel="Add Domain"
+            onAdd={() => setIsAddOpen(true)}
+          />
+        </CardContent>
+      </Card>
+      
+      <AddAllowedDomainDialog
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+      />
 
-    <EditAllowedDomainDialog
-        domain={editingDomain}
-        isOpen={isEditOpen}
-        onClose={() => {
-            setIsEditOpen(false);
-            setEditingDomain(null);
-        }}
-    />
+      <EditAllowedDomainDialog
+          domain={editingDomain}
+          isOpen={isEditOpen}
+          onClose={() => {
+              setIsEditOpen(false);
+              setEditingDomain(null);
+          }}
+      />
 
-    <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the
-                    domain <span className="font-bold">{deletingDomain?.domain}</span> and it can no longer be used for generating emails.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsDeleteOpen(false)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-                    Delete
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the
+                      domain <span className="font-bold">{deletingDomain?.domain}</span> and it can no longer be used for generating emails.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setIsDeleteOpen(false)}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                      Delete
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

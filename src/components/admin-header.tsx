@@ -2,17 +2,10 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
-  Bell,
-  Home,
-  LineChart,
-  Package,
   Package2,
-  Settings,
-  ShoppingCart,
-  Users,
-  Search,
-  PanelLeft
+  Bell,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -24,13 +17,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { ModeToggle } from "./mode-toggle"
 import { useUser } from "@/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 
+// A helper function to get a title from the path
+const getTitleFromPath = (pathname: string): string => {
+    if (pathname === '/admin') return 'Dashboard';
+    const segment = pathname.split('/admin/')[1] || '';
+    const title = segment.split('/')[0];
+    return title.charAt(0).toUpperCase() + title.slice(1).replace(/-/g, ' ');
+}
+
+
 export function AdminHeader() {
     const { user } = useUser();
+    const pathname = usePathname();
 
     const getInitials = (email: string | null | undefined) => {
         if (!email) return "U";
@@ -39,66 +41,11 @@ export function AdminHeader() {
 
     return (
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-            <Sheet>
-                <SheetTrigger asChild>
-                    <Button size="icon" variant="outline" className="sm:hidden">
-                    <PanelLeft className="h-5 w-5" />
-                    <span className="sr-only">Toggle Menu</span>
-                    </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="sm:max-w-xs">
-                    <nav className="grid gap-6 text-lg font-medium">
-                    <Link
-                        href="#"
-                        className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
-                    >
-                        <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
-                        <span className="sr-only">Temp Mailer</span>
-                    </Link>
-                    <Link
-                        href="/admin"
-                        className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                        <Home className="h-5 w-5" />
-                        Dashboard
-                    </Link>
-                    <Link
-                        href="/admin/inbox"
-                        className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                        <ShoppingCart className="h-5 w-5" />
-                        Inbox
-                    </Link>
-                    <Link
-                        href="/admin/packages"
-                        className="flex items-center gap-4 px-2.5 text-foreground"
-                    >
-                        <Package className="h-5 w-5" />
-                        Packages
-                    </Link>
-                    <Link
-                        href="/admin/users"
-                        className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                        <Users className="h-5 w-5" />
-                        Customers
-                    </Link>
-                    <Link
-                        href="/admin/settings"
-                        className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                        <LineChart className="h-5 w-5" />
-                        Settings
-                    </Link>
-                    </nav>
-                </SheetContent>
-            </Sheet>
-
-            <div className="flex-1">
-                 <h1 className="text-xl font-semibold">Dashboard</h1>
+             <div className="flex-1">
+                 <h1 className="text-xl font-semibold">{getTitleFromPath(pathname)}</h1>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
                 <ModeToggle />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

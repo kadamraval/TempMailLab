@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { PlanDialog } from './plan-dialog';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function AdminPackagesPage() {
     const firestore = useFirestore();
@@ -30,7 +31,7 @@ export default function AdminPackagesPage() {
     const [deletingPlan, setDeletingPlan] = useState<Plan | null>(null);
 
     // Fetch data from Firestore
-    const plansQuery = useMemoFirebase(() => collection(firestore, "plans"), [firestore]);
+    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
     const { data: plans, isLoading } = useCollection<Plan>(plansQuery);
 
     // Handlers for CRUD actions
@@ -68,7 +69,7 @@ export default function AdminPackagesPage() {
     };
 
     // Memoize columns to prevent re-creation on every render
-    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), []);
+    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
 
     if (isLoading) {
         return (
@@ -80,14 +81,18 @@ export default function AdminPackagesPage() {
 
   return (
     <>
-        <DataTable 
-            columns={columns} 
-            data={plans || []} 
-            filterColumn="name" 
-            onAdd={handleAdd}
-            addLabel="Add Plan"
-        />
-
+        <Card>
+            <CardContent>
+                <DataTable 
+                    columns={columns} 
+                    data={plans || []} 
+                    filterColumn="name" 
+                    onAdd={handleAdd}
+                    addLabel="Add Plan"
+                />
+            </CardContent>
+        </Card>
+        
         {/* Add/Edit Dialog */}
         <PlanDialog
             isOpen={dialogOpen}
