@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 // Helper functions to improve readability
@@ -12,7 +13,8 @@ function isOwner(userId) {
 function isAdmin() {
   // In a real app, this would be more secure, e.g., checking a custom claim
   // For now, we assume an admin has a specific property in their user document
-  return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+  // This is a placeholder and should be secured before production.
+  return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 }
 
 service cloud.firestore {
@@ -22,6 +24,7 @@ service cloud.firestore {
     // Anyone (authenticated, anonymous, or not) can read plans and allowed domains
     match /plans/{planId} {
       allow get: if true;
+      allow write: if isAdmin();
     }
     match /plans {
       allow list: if true;
@@ -29,6 +32,7 @@ service cloud.firestore {
 
     match /allowed_domains/{domainId} {
       allow get: if true;
+      allow write: if isAdmin();
     }
     match /allowed_domains {
        allow list: if true;
@@ -38,6 +42,7 @@ service cloud.firestore {
     // Users can only create their own user document and can read/write their own sub-collections.
     match /users/{userId} {
       allow get, update, delete: if isOwner(userId);
+      // Allow user creation if the user is authenticated. This is handled by client-side logic.
       allow create: if isUserAuthenticated();
     }
     
@@ -52,14 +57,5 @@ service cloud.firestore {
        allow read: if isUserAuthenticated();
        allow write: if isAdmin();
     }
-    
-    // Only admins can modify plans and allowed domains
-    match /plans/{planId} {
-      allow write: if isAdmin();
-    }
-    match /allowed_domains/{domainId} {
-      allow write: if isAdmin();
-    }
-
   }
 }
