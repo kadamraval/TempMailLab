@@ -47,17 +47,22 @@ export function useDoc<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { isUserLoading } = useUser(); // Get auth loading state
+  const { isUserLoading } = useUser();
 
   useEffect(() => {
-     // Wait until both the docRef is ready AND the user auth state is resolved.
-    if (!memoizedDocRef || isUserLoading) {
-      setIsLoading(true); // Keep loading if doc ref is not ready or auth state is pending
+    // This is the crucial fix. Wait until auth is resolved before proceeding.
+    if (isUserLoading) {
+      setIsLoading(true);
       return;
+    }
+    
+    if (!memoizedDocRef) {
+        setIsLoading(false);
+        setData(null);
+        return;
     }
 
     setIsLoading(true);
-    setError(null);
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -85,12 +90,11 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef, isUserLoading]); // Re-run if the docRef OR auth loading state changes.
+  }, [memoizedDocRef, isUserLoading]);
 
   if(memoizedDocRef && !(memoizedDocRef as any).__memo) {
     console.warn('The document reference passed to useDoc was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedDocRef);
   }
 
-  // Ensure isLoading is true if auth is loading, regardless of local loading state
-  return { data, isLoading: isLoading || isUserLoading, error };
+  return { data, isLoading, error };
 }

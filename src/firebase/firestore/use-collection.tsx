@@ -61,17 +61,24 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { isUserLoading } = useUser(); // Get auth loading state
+  const { isUserLoading } = useUser();
 
   useEffect(() => {
-    // Wait until both the query is ready AND the user auth state is resolved.
-    if (!memoizedTargetRefOrQuery || isUserLoading) {
-      setIsLoading(true); // Keep loading if query is not ready or auth state is pending
+    // This is the crucial fix. Wait until auth is resolved before proceeding.
+    if (isUserLoading) {
+      setIsLoading(true);
       return;
     }
-
+    
+    // If the query itself isn't ready, we are still loading, but don't need to return.
+    // The onSnapshot will handle the null case.
+    if (!memoizedTargetRefOrQuery) {
+        setIsLoading(false);
+        setData(null);
+        return;
+    }
+    
     setIsLoading(true);
-    setError(null);
 
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
@@ -103,12 +110,11 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, isUserLoading]); // Re-run if the target query/reference OR auth state changes.
+  }, [memoizedTargetRefOrQuery, isUserLoading]);
   
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     console.warn('The query/reference passed to useCollection was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedTargetRefOrQuery);
   }
 
-  // Ensure isLoading is true if auth is loading, regardless of local loading state
-  return { data, isLoading: isLoading || isUserLoading, error };
+  return { data, isLoading, error };
 }
