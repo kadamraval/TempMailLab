@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+import path from 'path';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -36,6 +37,18 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  webpack: (config, { isServer }) => {
+     if (!isServer) {
+       config.resolve.fallback = {
+         ...config.resolve.fallback,
+         child_process: false,
+         fs: false,
+         os: false,
+       };
+     }
+
+     return config;
+   }
 };
 
 export default nextConfig;
