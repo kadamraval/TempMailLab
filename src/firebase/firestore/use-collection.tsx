@@ -61,15 +61,28 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const { isUserLoading } = useUser(); // Get auth loading state
+  const { user, isUserLoading } = useUser(); // Get auth loading state
 
   useEffect(() => {
+    const path = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery.type === 'collection' ? (memoizedTargetRefOrQuery as CollectionReference).path : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()) : "null";
+
+    // --- START DEBUG LOGGING ---
+    console.log(`[DEBUG - useCollection]
+  - Timestamp: ${new Date().toISOString()}
+  - Query Path: ${path}
+  - Auth Loading: ${isUserLoading}
+  - User UID: ${user?.uid || 'null'}`);
+    // --- END DEBUG LOGGING ---
+
+
     // Wait until both the query is ready AND the user auth state is resolved.
     if (!memoizedTargetRefOrQuery || isUserLoading) {
+      console.log(`[DEBUG - useCollection] Waiting: Query is null or User is loading.`);
       setIsLoading(true); // Keep loading if query is not ready or auth state is pending
       return;
     }
 
+    console.log(`[DEBUG - useCollection] Proceeding to subscribe to: ${path}`);
     setIsLoading(true);
     setError(null);
 
@@ -83,13 +96,10 @@ export function useCollection<T = any>(
         setData(results);
         setError(null);
         setIsLoading(false);
+        console.log(`[DEBUG - useCollection] Success for path: ${path}. Found ${results.length} documents.`);
       },
       (error: FirestoreError) => {
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
+         console.error(`[DEBUG - useCollection] Firestore Error on path: ${path}`, error);
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
@@ -104,7 +114,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, isUserLoading]); // Re-run if the target query/reference OR auth loading state changes.
+  }, [memoizedTargetRefOrQuery, isUserLoading, user]); // Re-run if the target query/reference OR auth state changes.
   
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     console.warn('The query/reference passed to useCollection was not memoized with useMemoFirebase. This can cause infinite render loops.', memoizedTargetRefOrQuery);
