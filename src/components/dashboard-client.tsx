@@ -122,7 +122,7 @@ export function DashboardClient() {
             const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
 
             if (hasNewEmails) {
-                // This is the first time we've seen emails, create the user
+                // EVENT: First email received. Create the user.
                 if(inboxEmails.length === 0) {
                     await ensureAnonymousUser();
                 }
@@ -163,7 +163,7 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (!firestore || !auth || isGenerating || arePlansLoading) {
+    if (isGenerating || arePlansLoading) {
       toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
       return;
     }
@@ -171,7 +171,7 @@ export function DashboardClient() {
     setIsGenerating(true);
 
     try {
-        // Only ensure user exists if they are generating a *new* address after the first one
+        // EVENT: User clicks "New Address" again. Create the user.
         if (currentInbox || activeInboxes.length > 0) {
            const userExists = await ensureAnonymousUser();
            if (!userExists) {
@@ -185,7 +185,7 @@ export function DashboardClient() {
         }
 
         // Check inbox limit only if a user exists
-        if (auth.currentUser && activeInboxes.length >= userPlan.features.maxInboxes) {
+        if (auth?.currentUser && activeInboxes.length >= userPlan.features.maxInboxes) {
             toast({
                 title: "Inbox Limit Reached",
                 description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
@@ -232,7 +232,7 @@ export function DashboardClient() {
             const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
             if (result.emails && result.emails.length > 0) {
                 setInboxEmails(result.emails);
-                // If emails are found immediately, create the anonymous user
+                // EVENT: Emails found on first fetch. Create the user.
                 ensureAnonymousUser();
             }
         }
@@ -286,6 +286,7 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
+    // EVENT: User clicks "Copy Address". Create the user.
     await ensureAnonymousUser();
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
@@ -417,7 +418,5 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    
 
     
