@@ -49,7 +49,8 @@ export function DashboardClient() {
 
   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || !user || user.isAnonymous) return null;
-      const userPlanId = (user as any).planId || 'default';
+      // This is a placeholder for a real user plan lookup
+      const userPlanId = (user as any).planId || 'default'; 
       return doc(firestore, 'plans', userPlanId); 
   }, [firestore, user]);
   const { data: userPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
@@ -120,9 +121,8 @@ export function DashboardClient() {
             const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
 
             if (hasNewEmails) {
-                if(inboxEmails.length === 0) {
-                    await ensureAnonymousUser();
-                }
+                // Ensure user exists when first email arrives
+                await ensureAnonymousUser();
 
                 setInboxEmails(prevEmails => {
                     const existingIds = new Set(prevEmails.map(e => e.id));
@@ -160,31 +160,29 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (isGenerating || arePlansLoading) return;
+    if (isGenerating || arePlansLoading || !firestore) return;
     setIsGenerating(true);
 
     try {
-        if (currentInbox) {
-           const userExists = await ensureAnonymousUser();
-           if (!userExists) {
+        // Defer user creation, but check inbox limits if a user *already* exists.
+        if (auth?.currentUser && currentInbox) {
+           const inboxesCollection = collection(firestore, 'users', auth.currentUser.uid, 'inboxes');
+           const userInboxes = await getDocs(inboxesCollection);
+           if(userPlan && userInboxes.docs.length >= userPlan.features.maxInboxes) {
+                toast({
+                    title: "Inbox Limit Reached",
+                    description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
+                    variant: "destructive"
+                });
                 setIsGenerating(false);
                 return;
            }
+           // Also ensure anonymous user on subsequent generations
+           await ensureAnonymousUser();
         }
         
         if (!userPlan) {
             throw new Error("Could not determine a subscription plan. Please try again.");
-        }
-
-        // Check inbox limit only if a user exists and it's not the first inbox
-        if (auth?.currentUser && currentInbox && (await getDocs(collection(firestore, 'users', auth.currentUser.uid, 'inboxes'))).docs.length >= userPlan.features.maxInboxes) {
-            toast({
-                title: "Inbox Limit Reached",
-                description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
-                variant: "destructive"
-            });
-            setIsGenerating(false);
-            return;
         }
 
         setSelectedEmail(null);
@@ -210,16 +208,9 @@ export function DashboardClient() {
         
         setCurrentInbox(newInbox);
         
-        if (sessionIdRef.current && emailAddress) {
-            const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
-            if (result.emails && result.emails.length > 0) {
-                setInboxEmails(result.emails);
-                ensureAnonymousUser();
-            }
-        }
+        // Initial fetch after generating
+        handleRefresh(true);
         
-        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
-
     } catch (error: any) {
         if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
@@ -238,7 +229,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser, arePlansLoading]);
+  }, [firestore, auth, user, toast, userPlan, isGenerating, arePlansLoading, currentInbox, ensureAnonymousUser, handleRefresh]);
   
   useEffect(() => {
     clearCountdown();
@@ -256,6 +247,8 @@ export function DashboardClient() {
                     variant: "destructive"
                 });
                 setCurrentInbox(null);
+                setInboxEmails([]);
+                setSelectedEmail(null);
                 clearRefreshInterval();
                 clearCountdown();
             } else {
@@ -263,8 +256,11 @@ export function DashboardClient() {
             }
         }, 1000);
 
+        // Start auto-refresh interval
         refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
     }
+    
+    // Cleanup on unmount or when currentInbox changes
     return () => {
         clearCountdown();
         clearRefreshInterval();
@@ -331,7 +327,7 @@ export function DashboardClient() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className={`flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground ${!currentInbox && "invisible"}`}>
             <Clock className="h-4 w-4" />
-            <span>{currentInbox ? formatTime(countdown) : "00:00"}</span>
+            <span>{formatTime(countdown)}</span>
           </div>
 
           <div className="flex-grow flex items-center justify-center">
