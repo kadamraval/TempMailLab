@@ -1,0 +1,36 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Make the 'plans' and 'allowed_domains' collections publicly readable.
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if false; // Deny writes from client
+    }
+
+    match /allowed_domains/{domainId} {
+      allow read: if true;
+      allow write: if false; // Deny writes from client
+    }
+    
+    // Admin settings should be private and only accessible by server-side logic
+    // (which uses admin credentials and bypasses these rules).
+    match /admin_settings/{settingId} {
+        allow read, write: if false;
+    }
+
+    // --- User-specific, private collections ---
+    // Allow logged-in (including anonymous) users to read and write to their own subcollections.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Default-deny all other top-level collections not explicitly matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+    

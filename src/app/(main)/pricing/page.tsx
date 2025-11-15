@@ -1,4 +1,3 @@
-
 import { PricingSection } from "@/components/pricing-section";
 import { PricingComparisonTable } from "@/components/pricing-comparison-table";
 import { collection, query, where, getDocs } from "firebase/firestore";
