@@ -3,10 +3,10 @@
  * @fileoverview Firestore Security Rules for TempInbox application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, inboxes, emails, and API keys.
- * Only the authenticated user can access their own data. API key usage logs are associated with API keys and can only be written to.
- * Blocked IPs and domains are managed globally.
- * Admin-only actions are controlled via a custom claim.
+ * This ruleset enforces a strict separation between public and private data.
+ * - Public collections (/plans, /allowed_domains) are readable by anyone to allow for public pages.
+ * - Private user data (/users/{userId}) is strictly owned and accessible only by the authenticated user.
+ * - Admin write access is controlled by a custom claim `isAdmin`.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -28,70 +28,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.isAdmin == true;
     }
 
-    function isExistingOwner(userId) { 
-      return isOwner(userId) && resource != null; 
-    }
-
     //============================================
-    // User Data
+    // Public Collections
     //============================================
-    match /users/{userId} {
-      allow get: if isOwner(userId);
-      // Only admins can list all users for the dashboard.
-      allow list: if isAdmin();
 
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
-
-      /**
-       * @description Enforces read and write access to inboxes based on user ownership.
-       * @path /users/{userId}/inboxes/{inboxId}
-       */
-      match /inboxes/{inboxId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isExistingOwner(userId);
-        allow delete: if isExistingOwner(userId);
-
-        /**
-         * @description Enforces read and write access to emails based on user ownership of parent inbox.
-         * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
-         */
-        match /emails/{emailId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
-          allow create: if isSignedIn() && isOwner(userId);
-          allow update: if isExistingOwner(userId);
-          allow delete: if isExistingOwner(userId);
-        }
-      }
-      
-      /**
-       * @description Enforces read and write access to API keys based on user ownership.
-       * @path /users/{userId}/api_keys/{apiKeyId}
-       */
-      match /api_keys/{apiKeyId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isExistingOwner(userId);
-        allow delete: if isExistingOwner(userId);
-      }
-    }
-
-    //============================================
-    // Public & Admin Collections
-    //============================================
-    
     match /plans/{planId} {
       // Anyone can read plans for the pricing page.
       allow get, list: if true;
       // Only admins can change plans.
       allow write: if isAdmin();
     }
-
+    
     match /allowed_domains/{allowedDomainId} {
       // Anyone can read the list of domains available.
       allow get, list: if true;
@@ -100,31 +47,47 @@ service cloud.firestore {
     }
     
     match /admin_settings/{settingId} {
-      allow read, write: if isAdmin();
+        // Only admins can read or write sensitive third-party API keys.
+        allow read, write: if isAdmin();
     }
 
-    /**
-     * @description Denies all access to API key usage logs. Intended for backend writes only.
-     * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
-     */
-    match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
-      allow read, write: if false;
-    }
+    //============================================
+    // Private User Data
+    //============================================
 
-    /**
-     * @description Publicly readable collections for blocklists. Writable only by admins.
-     * @path /blocked_ips/{blockedIpId}, /blocked_domains/{blockedDomainId}
-     */
-    match /blocked_ips/{blockedIpId} {
-      allow get: if true;
-      allow list: if true;
-      allow write: if isAdmin();
-    }
+    match /users/{userId} {
+      // Admins can list users for the admin dashboard. Other users cannot.
+      allow list: if isAdmin();
+      // A user can get their own document. Admins can also get any user doc.
+      allow get: if isOwner(userId) || isAdmin();
+      // A user can create their own document, ensuring the ID matches.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // A user can update their own document. Admins can also update user docs.
+      allow update: if isOwner(userId) || isAdmin();
+      // A user can delete their own document. Admins can also delete users.
+      allow delete: if isOwner(userId) || isAdmin();
 
-    match /blocked_domains/{blockedDomainId} {
-      allow get: if true;
-      allow list: if true;
-      allow write: if isAdmin();
+      // --- Nested User Subcollections ---
+      
+      match /inboxes/{inboxId} {
+        allow read, write: if isOwner(userId);
+
+        match /emails/{emailId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+      
+      match /api_keys/{apiKeyId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Default deny all other collections.
+    match /{path=**} {
+        // This is a catch-all to ensure any path not explicitly matched
+        // is denied by default. It's good practice but redundant if all
+        // top-level collections are covered.
+        allow read, write: if false;
     }
   }
 }
