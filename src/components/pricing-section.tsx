@@ -40,13 +40,14 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
 };
 
 interface PricingSectionProps {
-    plans: Plan[];
+    plans?: Plan[] | null;
 }
 
 export function PricingSection({ plans }: PricingSectionProps) {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
     const currentPlans = React.useMemo(() => {
+        if (!plans) return [];
         return plans
             .map(p => planToDisplayPlan(p, billingCycle))
             .sort((a,b) => a.price - b.price);
@@ -90,7 +91,7 @@ export function PricingSection({ plans }: PricingSectionProps) {
                     </Label>
                 </div>
 
-                {!plans.length ? (
+                {!plans || plans.length === 0 ? (
                     <div className="flex justify-center items-center h-64">
                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
