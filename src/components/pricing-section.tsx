@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from "react";
@@ -10,140 +9,66 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 
-const defaultPlans = {
-    monthly: [
-        {
-            id: 'free',
-            name: "Free",
-            price: 0,
-            cycle: 'monthly',
-            description: "For personal and occasional use.",
-            features: {
-                maxInboxes: 1,
-                inboxLifetime: 10,
-                allowPremiumDomains: false,
-                noAds: false,
-            },
-            buttonText: "Get Started Free",
-            href: "/",
-        },
-        {
-            id: 'premium',
-            name: "Premium",
-            price: 5,
-            cycle: 'monthly',
-            description: "For power users who need more.",
-            features: {
-                maxInboxes: 25,
-                inboxLifetime: 1440, // 24 hours
-                allowPremiumDomains: true,
-                noAds: true,
-                emailForwarding: true,
-            },
-            buttonText: "Go Premium",
-            href: "/register",
-            isPrimary: true,
-        },
-    ],
-    yearly: [
-        {
-            id: 'free_yearly',
-            name: "Free",
-            price: 0,
-            cycle: 'yearly',
-            description: "For personal and occasional use.",
-            features: {
-                maxInboxes: 1,
-                inboxLifetime: 10,
-                allowPremiumDomains: false,
-                noAds: false,
-            },
-            buttonText: "Get Started Free",
-            href: "/",
-        },
-        {
-            id: 'premium_yearly',
-            name: "Premium",
-            price: 48,
-            cycle: 'yearly',
-            description: "For power users who need more.",
-            features: {
-                maxInboxes: 25,
-                inboxLifetime: 1440, // 24 hours
-                allowPremiumDomains: true,
-                noAds: true,
-                emailForwarding: true,
-            },
-            buttonText: "Go Premium",
-            href: "/register",
-            isPrimary: true,
-        },
-    ]
-}
+const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
+    let price = plan.price;
+    if (plan.cycle === 'monthly' && cycle === 'yearly') {
+        price = price * 12 * 0.8; // Apply 20% discount
+    } else if (plan.cycle === 'yearly' && cycle === 'monthly') {
+        price = plan.price / 12 / 0.8; // Reverse discount
+    }
 
-
-const planToDisplayPlan = (plan: Plan) => ({
-    id: plan.id,
-    name: plan.name,
-    price: plan.price,
-    cycle: plan.cycle,
-    description: `For ${plan.name.toLowerCase()} users.`,
-    features: {
-        maxInboxes: plan.features.maxInboxes,
-        inboxLifetime: plan.features.inboxLifetime,
-        allowPremiumDomains: plan.features.allowPremiumDomains,
-        noAds: plan.features.noAds,
-        customDomains: plan.features.customDomains,
-        apiAccess: plan.features.apiAccess
-    },
-    buttonText: `Go ${plan.name}`,
-    href: "/register",
-    isPrimary: plan.name.toLowerCase() === 'premium'
-});
-
+    return {
+        id: plan.id,
+        name: plan.name,
+        price: cycle === 'monthly' ? (plan.cycle === 'yearly' ? plan.price / 12 : plan.price) : (plan.cycle === 'monthly' ? plan.price * 12 * 0.8 : plan.price),
+        cycle: cycle,
+        description: `For ${plan.name.toLowerCase()} users.`,
+        features: {
+            maxInboxes: plan.features.maxInboxes,
+            inboxLifetime: plan.features.inboxLifetime,
+            allowPremiumDomains: plan.features.allowPremiumDomains,
+            noAds: plan.features.noAds,
+            customDomains: plan.features.customDomains,
+            apiAccess: plan.features.apiAccess
+        },
+        buttonText: `Go ${plan.name}`,
+        href: "/register",
+        isPrimary: plan.name.toLowerCase() === 'premium'
+    }
+};
 
 export function PricingSection() {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
     const firestore = useFirestore();
 
-    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
+    const plansQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, "plans"), 
+            where("status", "==", "active"),
+            where("name", "!=", "Default")
+        );
+    }, [firestore]);
     const { data: dbPlans, isLoading } = useCollection<Plan>(plansQuery);
 
     const currentPlans = React.useMemo(() => {
-        const activeDbPlans = dbPlans
-            ?.filter(p => p.status === 'active' && p.cycle === billingCycle && p.name.toLowerCase() !== 'default')
-            .map(planToDisplayPlan) || [];
-            
-        if (activeDbPlans.length > 0) {
-            // Check for a free plan to override the default hardcoded one
-            const hasFreePlan = activeDbPlans.some(p => p.price === 0);
-            const basePlans = billingCycle === 'monthly' ? defaultPlans.monthly : defaultPlans.yearly;
-
-            // If there's a free plan from DB, remove the hardcoded free plan
-            const filteredBase = hasFreePlan ? basePlans.filter(p => p.price !== 0) : basePlans;
-            
-            // Combine DB plans with any remaining hardcoded plans (like a premium fallback)
-            const combined = [...activeDbPlans];
-            
-            filteredBase.forEach(bp => {
-                if (!combined.some(p => p.name.toLowerCase() === bp.name.toLowerCase())) {
-                    combined.push(bp);
-                }
-            });
-
-            return combined.sort((a,b) => a.price - b.price);
-        }
-
-        // Fallback to hardcoded plans if DB is empty or has no active plans for the cycle
-        return billingCycle === 'monthly' ? defaultPlans.monthly : defaultPlans.yearly;
+        if (!dbPlans) return [];
+        return dbPlans
+            .map(p => planToDisplayPlan(p, billingCycle))
+            .sort((a,b) => a.price - b.price);
     }, [dbPlans, billingCycle]);
 
     const featureLabels: {[key: string]: (value: any) => string} = {
-        maxInboxes: (v) => `${v} Active Inbox${v > 1 ? 'es' : ''}`,
-        inboxLifetime: (v) => `${v >= 60 ? v/60 : v} ${v >= 60 ? (v/60 > 1 ? 'Hours' : 'Hour') : 'Minute'} Inbox Lifetime`,
+        maxInboxes: (v) => v > 0 ? `${v} Active Inbox${v > 1 ? 'es' : ''}` : 'Unlimited Inboxes',
+        inboxLifetime: (v) => {
+            if (v === 0) return 'Unlimited Inbox Lifetime';
+            const hours = v/60;
+            if (v >= 60) return `${hours} ${hours > 1 ? 'Hours' : 'Hour'} Inbox Lifetime`;
+            return `${v} Minute Inbox Lifetime`;
+        },
         allowPremiumDomains: (v) => v ? "Premium Domains" : "Standard Domains",
         noAds: (v) => v ? "No Ads" : "Ad-supported",
         customDomains: (v) => v > 0 ? `${v} Custom Domain${v > 1 ? 's' : ''}` : "No Custom Domains",
@@ -179,7 +104,7 @@ export function PricingSection() {
                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ): (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start max-w-5xl mx-auto">
                         {currentPlans.map((plan) => (
                              <Card key={plan.id} className={cn(
                                 "flex flex-col h-full rounded-2xl border",
@@ -192,7 +117,7 @@ export function PricingSection() {
                                     </div>
                                     <CardDescription className="pt-2">{plan.description}</CardDescription>
                                     <div className="flex items-baseline pt-6">
-                                        <span className="text-5xl font-bold tracking-tight">${plan.price}</span>
+                                        <span className="text-5xl font-bold tracking-tight">${plan.price > 0 ? plan.price.toFixed(2) : '0'}</span>
                                         {plan.price > 0 && <span className="text-muted-foreground ml-1">/ {plan.cycle === 'monthly' ? 'month' : 'year'}</span>}
                                     </div>
                                 </CardHeader>

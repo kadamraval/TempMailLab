@@ -1,4 +1,3 @@
-
 "use client"
 
 import type { ColumnDef } from "@tanstack/react-table"
@@ -15,6 +14,7 @@ import {
 import { MoreHorizontal, CheckCircle2, XCircle, Users, BarChart, Lock, Headset } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
+import { cn } from "@/lib/utils"
 
 const FeatureCell = ({ value }: { value: boolean }) => (
     <div className="flex justify-start">
@@ -52,12 +52,15 @@ export const getPlanColumns = (
   {
     accessorKey: "name",
     header: "Name",
-    cell: ({ row }) => (
-        <div className="font-medium text-left flex items-center gap-2">
-            {row.getValue("name")}
-            {row.original.name.toLowerCase() === 'default' && <Lock className="h-3 w-3 text-muted-foreground" />}
-        </div>
-    )
+    cell: ({ row }) => {
+        const isDefault = row.original.name.toLowerCase() === 'default';
+        return (
+            <div className={cn("font-medium text-left flex items-center gap-2", isDefault && "text-muted-foreground")}>
+                {row.getValue("name")}
+                {isDefault && <Lock className="h-3 w-3" />}
+            </div>
+        )
+    }
   },
   {
     accessorKey: "price",

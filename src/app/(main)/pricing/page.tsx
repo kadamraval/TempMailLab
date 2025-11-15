@@ -1,12 +1,15 @@
+"use client";
 
 import { PricingSection } from "@/components/pricing-section";
-import { ComparisonSection } from "@/components/comparison-section";
+import { PricingComparisonTable } from "@/components/pricing-comparison-table";
 
 export default function PricingPage() {
   return (
     <>
       <PricingSection />
-      <ComparisonSection />
+      <div className="border-t">
+        <PricingComparisonTable />
+      </div>
     </>
   );
 }
