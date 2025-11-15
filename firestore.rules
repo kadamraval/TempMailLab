@@ -18,8 +18,8 @@ function isAdmin() {
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // PUBLIC READ-ONLY ACCESS
-    // Anyone (authenticated or not) can read plans and allowed domains
+    // PUBLIC & ANONYMOUS READ-ONLY ACCESS
+    // Anyone (authenticated, anonymous, or not) can read plans and allowed domains
     match /plans/{planId} {
       allow get: if true;
     }
