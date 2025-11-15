@@ -21,6 +21,7 @@ service cloud.firestore {
     
     // PUBLIC-READABLE COLLECTIONS
     // Anyone, authenticated or not, can read these collections.
+    // Writes are restricted to administrators.
     match /plans/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -54,3 +55,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

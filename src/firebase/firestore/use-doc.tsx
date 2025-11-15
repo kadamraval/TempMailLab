@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser } from '../provider'; // Import useUser hook
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -49,8 +50,6 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // If the docRef is null or undefined, do nothing. The component calling this hook
-    // is responsible for waiting for dependencies (like user auth) to be ready.
     if (!memoizedDocRef) {
         setIsLoading(false);
         setData(null);
@@ -93,3 +92,5 @@ export function useDoc<T = any>(
 
   return { data, isLoading, error };
 }
+
+    

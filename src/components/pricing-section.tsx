@@ -47,12 +47,14 @@ export function PricingSection() {
 
     const plansQuery = useMemoFirebase(() => {
         if (!firestore) return null;
+        // This query fetches public data and should not depend on user auth state.
         return query(
             collection(firestore, "plans"), 
             where("status", "==", "active"),
             where("name", "!=", "Default")
         );
     }, [firestore]);
+    
     const { data: dbPlans, isLoading } = useCollection<Plan>(plansQuery);
 
     const currentPlans = React.useMemo(() => {
@@ -157,3 +159,5 @@ export function PricingSection() {
         </section>
     );
 }
+
+    

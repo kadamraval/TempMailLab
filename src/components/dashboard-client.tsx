@@ -11,7 +11,7 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth, useCollection, useDoc, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
@@ -37,11 +37,7 @@ function getSessionId() {
     return sessionId;
 }
 
-interface DashboardClientProps {
-    initialPlan?: Plan | null;
-}
-
-export function DashboardClient({ initialPlan }: DashboardClientProps) {
+export function DashboardClient() {
   const [activeInboxes, setActiveInboxes] = useState<any[]>([]);
   const [currentInbox, setCurrentInbox] = useState<any | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
@@ -59,18 +55,30 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  // Fetch all active plans
-  const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
-  const { data: allPlans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
+  // --- Start of Plan Fetching Logic ---
+  // Default plan reference
+  const defaultPlanRef = useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'default') : null, [firestore]);
+  const { data: defaultPlan, isLoading: isDefaultPlanLoading } = useDoc<Plan>(defaultPlanRef);
 
+  // User-specific plan reference (this will be null for guests)
+  const userPlanRef = useMemoFirebase(() => {
+      if (!firestore || !user || user.isAnonymous) return null;
+      // In a real app, you'd get the planId from the user document: `user.planId`
+      // For this example, we assume a logged-in user has the "premium" plan.
+      return doc(firestore, 'plans', 'premium'); 
+  }, [firestore, user]);
+  const { data: userPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
+
+  // Determine the final plan to use
   const userPlan = useMemo(() => {
-    if (!user || user.isAnonymous) {
-        return initialPlan || allPlans?.find(p => p.name.toLowerCase() === 'default') || null;
-    }
-    // This is placeholder logic for a real logged-in user.
-    // You would typically look up their subscription plan ID from their user document.
-    return allPlans?.find(p => p.name.toLowerCase() === 'premium') || initialPlan;
-  }, [user, allPlans, initialPlan]);
+      if (user && !user.isAnonymous) {
+          return userPlanData; // Use the logged-in user's plan
+      }
+      return defaultPlan; // Otherwise, use the default plan
+  }, [user, userPlanData, defaultPlan]);
+  
+  const arePlansLoading = isDefaultPlanLoading || isUserPlanLoading;
+  // --- End of Plan Fetching Logic ---
   
   useEffect(() => {
     sessionIdRef.current = getSessionId();
@@ -144,19 +152,23 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
     setIsGenerating(true);
 
     try {
-        // Step 1: Ensure user is authenticated (anonymously if not logged in)
+        // Step 1: ON-DEMAND Authentication. If user is a guest, sign them in anonymously.
         let currentUser = user;
         if (!currentUser) {
             const userCredential = await signInAnonymously(auth);
             currentUser = userCredential.user;
             toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
         }
+        
+        // Now currentUser is guaranteed to be available
+        if (!currentUser) {
+          throw new Error("Authentication failed. Please try again.");
+        }
 
         if (!userPlan) {
             throw new Error("Could not determine a subscription plan. Please try again.");
         }
 
-        // TODO: This should be a Firestore query in a real app
         if (activeInboxes.length >= userPlan.features.maxInboxes) {
             toast({
                 title: "Inbox Limit Reached",
@@ -172,19 +184,18 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
         clearCountdown();
         clearRefreshInterval();
 
-        // Step 2: Generate the new inbox
-        const userTier = userPlan.features.allowPremiumDomains ? 'premium' : 'free';
-        const allowedDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
-        const querySnapshot = await getDocs(allowedDomainsQuery);
+        const userTier = (user && !user.isAnonymous && userPlan.features.allowPremiumDomains) ? 'premium' : 'free';
+        const domainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
+        const domainsSnapshot = await getDocs(domainsQuery);
         
-        let allowedDomains = querySnapshot.docs.map(doc => doc.data().domain);
+        let allowedDomains = domainsSnapshot.docs.map(doc => doc.data().domain);
 
         if (allowedDomains.length === 0) {
             const freeDomainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", "free"));
             const freeSnapshot = await getDocs(freeDomainsQuery);
             allowedDomains = freeSnapshot.docs.map(doc => doc.data().domain);
             if (freeSnapshot.empty) {
-            throw new Error(`No domains configured by the administrator.`);
+              throw new Error(`No domains configured by the administrator.`);
             }
         }
 
@@ -297,8 +308,8 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
                         <span>00:00</span>
                     </div>
                     <p className="text-muted-foreground">Your temporary inbox will appear here</p>
-                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || isLoadingPlans || isUserLoading}>
-                        {(isGenerating || isLoadingPlans || isUserLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading || isUserLoading}>
+                        {(isGenerating || arePlansLoading || isUserLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         New Address
                     </Button>
                  </div>
@@ -330,7 +341,7 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
     <div className="space-y-8">
       <Card>
           <CardHeader className="border-b p-4">
-            {(isUserLoading || isLoadingPlans) ? (
+            {(isUserLoading || arePlansLoading) ? (
               <div className="flex items-center justify-between">
                 <Skeleton className="h-6 w-24 rounded-md" />
                 <Skeleton className="h-10 w-1/2 rounded-md" />
@@ -380,3 +391,5 @@ export function DashboardClient({ initialPlan }: DashboardClientProps) {
     </div>
   );
 }
+
+    

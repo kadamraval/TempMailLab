@@ -8,21 +8,14 @@ import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { user, isUserLoading: isUserAuthLoading } = useUser();
+  const { isUserLoading: isUserAuthLoading } = useUser();
   const firestore = useFirestore();
 
-  // Try to get the default plan for guest users.
-  // Logged-in users' plans will be determined within DashboardClient based on their user record.
-  const defaultPlanRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // We only fetch the default plan here. If a user is logged in, DashboardClient will handle it.
-    return doc(firestore, 'plans', 'default');
-  }, [firestore]);
-
-  const { data: defaultPlan, isLoading: isPlanLoading } = useDoc<Plan>(defaultPlanRef);
-
-  // Show a loader while we're checking auth status or fetching the essential default plan
-  if (isUserAuthLoading || isPlanLoading) {
+  // This page simply shows the dashboard client. 
+  // All logic for fetching plans, including the default plan for guests, is now handled inside DashboardClient.
+  // This simplifies the page and ensures the loader only shows for the auth check.
+  
+  if (isUserAuthLoading) {
     return (
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
@@ -34,7 +27,9 @@ export default function DashboardPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-       <DashboardClient initialPlan={defaultPlan} />
+       <DashboardClient />
     </main>
   );
 }
+
+    
