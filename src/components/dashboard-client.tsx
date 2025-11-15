@@ -67,6 +67,7 @@ export function DashboardClient() {
             }
 
             if (!fetchedPlan) {
+                // Prioritize "Free" plan for guests/fallback
                 const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
                 const freePlanSnap = await getDocs(freePlanQuery);
                 
@@ -74,6 +75,7 @@ export function DashboardClient() {
                     const planDoc = freePlanSnap.docs[0];
                     fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                 } else {
+                    // If no "Free" plan, find the cheapest as a last resort
                     const cheapestPlanQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
                     const cheapestPlanSnap = await getDocs(cheapestPlanQuery);
                     
@@ -81,7 +83,12 @@ export function DashboardClient() {
                         const planDoc = cheapestPlanSnap.docs[0];
                         fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
                     } else {
-                         throw new Error("No subscription plans are configured in the database. Please add a plan in the admin panel.");
+                         // This is a critical failure state for the app.
+                         toast({
+                            title: "Configuration Error",
+                            description: "No subscription plans are configured in the database. Please contact support.",
+                            variant: "destructive",
+                        });
                     }
                 }
             }
@@ -92,7 +99,7 @@ export function DashboardClient() {
             console.error("Failed to fetch plan:", error);
             toast({
                 title: "Error Loading Configuration",
-                description: error.message || "Could not load subscription details. Please contact support.",
+                description: "Could not load subscription details. Please contact support.",
                 variant: "destructive",
             });
         } finally {
@@ -159,7 +166,7 @@ export function DashboardClient() {
 
             if (hasNewEmails) {
                 // Ensure user exists when first email arrives
-                await ensureAnonymousUser();
+                ensureAnonymousUser();
 
                 setInboxEmails(prevEmails => {
                     const existingIds = new Set(prevEmails.map(e => e.id));
@@ -209,7 +216,8 @@ export function DashboardClient() {
     }
 
     setIsGenerating(true);
-    await ensureAnonymousUser();
+    // Non-blocking: trigger anonymous sign-in but don't wait for it
+    ensureAnonymousUser();
 
     try {
         // This logic will run if a user is already signed in (including anonymous)
@@ -248,6 +256,7 @@ export function DashboardClient() {
             expiresAt: Date.now() + (userPlan.features.inboxLifetime * 60 * 1000) 
         };
         
+        // This is the critical change: update UI state immediately
         setCurrentInbox(newInbox);
         
         // Initial fetch after generating
@@ -311,7 +320,7 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
-    await ensureAnonymousUser();
+    ensureAnonymousUser(); // Ensure user exists on copy action
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
       title: "Copied!",
