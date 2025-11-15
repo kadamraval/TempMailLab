@@ -11,7 +11,7 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { Skeleton } from "./ui/skeleton";
-import { useFirestore, useUser, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc } from "firebase/firestore";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
@@ -190,12 +190,20 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
       refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
 
     } catch (error: any) {
-      console.error("Error generating new inbox:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Could not generate a new email address.",
-        variant: "destructive",
-      });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: 'allowed_domains',
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+             console.error("Error generating new inbox:", error);
+            toast({
+                title: "Error",
+                description: error.message || "Could not generate a new email address.",
+                variant: "destructive",
+            });
+        }
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +219,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
         clearCountdown();
         clearRefreshInterval();
     }
-  }, [userPlan]); // Re-run when plan is loaded
+  }, [userPlan, handleGenerateEmail]); // Re-run when plan is loaded
 
 
   useEffect(() => {
@@ -333,5 +341,7 @@ export function DashboardClient({ userPlan: initialPlan }: DashboardClientProps)
     </div>
   );
 }
+
+    
 
     
