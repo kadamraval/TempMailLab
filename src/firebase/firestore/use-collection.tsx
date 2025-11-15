@@ -64,20 +64,21 @@ export function useCollection<T = any>(
   const { isUserLoading } = useUser();
 
   useEffect(() => {
-    // This is the crucial fix. Wait until auth is resolved before proceeding.
+    // **THE FIX**: This is the "hide" part of our strategy.
+    // If auth is still loading, do nothing. Don't even try to set up a listener.
     if (isUserLoading) {
       setIsLoading(true);
       return;
     }
     
-    // If the query itself isn't ready, we are still loading, but don't need to return.
-    // The onSnapshot will handle the null case.
+    // If the query itself isn't ready, we are not loading, so we set state and return.
     if (!memoizedTargetRefOrQuery) {
         setIsLoading(false);
         setData(null);
         return;
     }
     
+    // **THE "SHOW" PART**: Auth is ready, and we have a query. Now we can safely fetch.
     setIsLoading(true);
 
     const unsubscribe = onSnapshot(
