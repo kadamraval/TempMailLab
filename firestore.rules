@@ -25,15 +25,24 @@ service cloud.firestore {
     //============================================
 
     //--- Public Collections ---//
+    
+    // Rule for the collection itself
+    match /plans {
+        // Anyone can list all the plans for pricing pages.
+        allow list: if true;
+    }
+
+    // Rule for individual documents within the collection
     match /plans/{planId} {
-      // Anyone can read plans for the pricing page. Admins can write.
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      // Anyone can read a single plan.
+      allow get: if true;
+      // Only admins can create, update, or delete plans.
+      allow write: if isAdmin();
     }
     
     match /allowed_domains/{allowedDomainId} {
       // Authenticated users can read the list of domains. Only admins can write.
-      allow get, list: if isSignedIn();
+      allow get, list: if true;
       allow write: if isAdmin();
     }
     
