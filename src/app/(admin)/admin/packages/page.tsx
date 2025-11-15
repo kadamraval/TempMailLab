@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { DataTable } from "@/components/admin/data-table";
 import { getPlanColumns } from "./columns";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
@@ -18,16 +19,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { PlanDialog } from './plan-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function AdminPackagesPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const router = useRouter();
 
     // State for CRUD operations
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
     const [deletingPlan, setDeletingPlan] = useState<Plan | null>(null);
 
     // Fetch data from Firestore
@@ -36,13 +35,11 @@ export default function AdminPackagesPage() {
 
     // Handlers for CRUD actions
     const handleAdd = () => {
-        setSelectedPlan(null);
-        setDialogOpen(true);
+        router.push('/admin/packages/add');
     };
 
     const handleEdit = (plan: Plan) => {
-        setSelectedPlan(plan);
-        setDialogOpen(true);
+        router.push(`/admin/packages/edit/${plan.id}`);
     };
 
     const handleDelete = (plan: Plan) => {
@@ -77,7 +74,7 @@ export default function AdminPackagesPage() {
     };
 
     // Memoize columns to prevent re-creation on every render
-    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
+    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), []);
 
     if (isLoading) {
         return (
@@ -101,13 +98,6 @@ export default function AdminPackagesPage() {
             </CardContent>
         </Card>
         
-        {/* Add/Edit Dialog */}
-        <PlanDialog
-            isOpen={dialogOpen}
-            onClose={() => setDialogOpen(false)}
-            plan={selectedPlan}
-        />
-
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={!!deletingPlan} onOpenChange={(open) => !open && setDeletingPlan(null)}>
             <AlertDialogContent>
