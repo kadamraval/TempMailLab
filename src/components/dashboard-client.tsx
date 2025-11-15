@@ -197,9 +197,6 @@ export function DashboardClient() {
 
         setSelectedEmail(null);
         setInboxEmails([]);
-        setCurrentInbox(null);
-        clearCountdown();
-        clearRefreshInterval();
 
         const userTier = (user && !user.isAnonymous && userPlan.features.allowPremiumDomains) ? 'premium' : 'free';
         const domainsQuery = query(collection(firestore, "allowed_domains"), where("tier", "==", userTier));
@@ -226,7 +223,6 @@ export function DashboardClient() {
         
         setCurrentInbox(newInbox);
         setActiveInboxes(prev => [...prev, newInbox]);
-        setCountdown(userPlan.features.inboxLifetime * 60);
         
         if (sessionIdRef.current && emailAddress) {
             const result = await fetchEmailsFromServerAction(sessionIdRef.current, emailAddress);
@@ -418,7 +414,5 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    
 
     
