@@ -74,7 +74,7 @@ export default function AdminPackagesPage() {
     };
 
     // Memoize columns to prevent re-creation on every render
-    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), []);
+    const columns = useMemo(() => getPlanColumns(handleEdit, handleDelete), [handleEdit, handleDelete]);
 
     if (isLoading) {
         return (
