@@ -6,6 +6,7 @@ import { collection, getCountFromServer } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import type { Plan } from "./packages/data";
+import { seedDefaultPlan } from "./packages/seed";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
@@ -13,16 +14,22 @@ export default function AdminDashboardPage() {
     const [userCountLoading, setUserCountLoading] = useState(true);
     
     useEffect(() => {
+        // Ensure the default plan exists on admin dashboard load.
+        seedDefaultPlan();
+    }, []);
+    
+    useEffect(() => {
         if (!firestore) return;
         const fetchUserCount = async () => {
             setUserCountLoading(true);
             try {
-                // Securely count users on the server
+                // This is an admin-only operation, but we'll use getCountFromServer for performance.
+                // In a real production app, this might be a server-side-only fetch.
                 const usersCol = collection(firestore, "users");
                 const snapshot = await getCountFromServer(usersCol);
                 setUserCount(snapshot.data().count);
             } catch (error) {
-                console.error("Error fetching user count:", error);
+                console.error("Error fetching user count (permissions may be restrictive):", error);
                 setUserCount(0); // Set to 0 on error
             } finally {
                 setUserCountLoading(false);

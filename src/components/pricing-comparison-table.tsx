@@ -102,7 +102,7 @@ const FeatureCell = ({ value }: { value: any }) => {
 };
 
 interface PricingComparisonTableProps {
-  plans: Plan[];
+  plans?: Plan[];
   removeBorder?: boolean;
 }
 
