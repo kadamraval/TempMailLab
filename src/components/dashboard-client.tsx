@@ -163,7 +163,7 @@ export function DashboardClient() {
 
 
   const handleGenerateEmail = useCallback(async () => {
-    if (!firestore || !auth || isGenerating) {
+    if (!firestore || !auth || isGenerating || arePlansLoading) {
       toast({ title: "Error", description: "Application is not ready. Please try again in a moment.", variant: "destructive" });
       return;
     }
@@ -257,7 +257,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false)
     }
-  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser]);
+  }, [firestore, auth, user, toast, userPlan, activeInboxes, isGenerating, handleRefresh, currentInbox, ensureAnonymousUser, arePlansLoading]);
   
   useEffect(() => {
     if (currentInbox) {
@@ -392,8 +392,8 @@ export function DashboardClient() {
                       </Button>
                   </div>
                   
-                  <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating}>
-                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+                     {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                      New Address
                   </Button>
               </div>
@@ -426,5 +426,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
