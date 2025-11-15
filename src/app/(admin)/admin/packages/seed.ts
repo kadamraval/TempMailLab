@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 
 export async function seedDefaultPlan() {
@@ -11,10 +11,11 @@ export async function seedDefaultPlan() {
     const docSnap = await getDoc(defaultPlanRef);
 
     if (docSnap.exists()) {
-      console.log('Default plan already exists.');
+      // Default plan already exists, do nothing.
       return { success: true, message: 'Default plan already exists.' };
     }
 
+    // Default plan does not exist, so we create it.
     const defaultPlanData = {
         name: "Default",
         price: 0,
@@ -62,7 +63,9 @@ export async function seedDefaultPlan() {
 
   } catch (error: any) {
     console.error('Error seeding default plan:', error);
+    // Don't re-throw, just log and return error state
     return {
+      success: false,
       error: 'Could not seed the default plan.',
     };
   }

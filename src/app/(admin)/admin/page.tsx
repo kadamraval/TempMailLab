@@ -1,13 +1,21 @@
 
 'use client';
+import { useEffect } from "react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import type { Plan } from "./packages/data";
+import { seedDefaultPlan } from "./packages/seed";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
+    
+    // Ensure the default plan exists on page load
+    useEffect(() => {
+        seedDefaultPlan();
+    }, []);
+
     const { data: users, isLoading: usersLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
     const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
