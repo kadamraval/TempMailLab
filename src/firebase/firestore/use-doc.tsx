@@ -49,7 +49,7 @@ export function useDoc<T = any>(
   useEffect(() => {
     // If the docRef is not ready yet, set loading and wait.
     if (!memoizedDocRef) {
-        setIsLoading(true);
+        setIsLoading(true); // Explicitly set loading to true while waiting for docRef
         setData(null);
         setError(null);
         return;

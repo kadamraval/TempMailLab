@@ -4,7 +4,6 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Make the 'plans' collection publicly readable for pricing pages.
-    // Deny all write operations to the public.
     match /plans/{planId} {
       allow read: if true;
       allow write: if false; // Secure: No public writes
@@ -14,10 +13,7 @@ service cloud.firestore {
     // Allow users to create their own profile upon sign-up.
     // Allow users to update their own profile, but not change critical fields.
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-      // Deny delete to prevent users from deleting their own accounts through Firestore.
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
     }
 
@@ -25,7 +21,7 @@ service cloud.firestore {
     // Only admins should be able to write/edit these.
     match /allowed_domains/{domainId} {
         allow read: if true;
-        allow write: if false; // Simplified: Deny all writes for now.
+        allow write: if false; // Deny all writes for now.
     }
     
     // Admin settings should be private and only accessible by server-side logic

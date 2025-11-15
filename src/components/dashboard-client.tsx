@@ -27,22 +27,11 @@ function generateRandomString(length: number) {
   return result;
 }
 
-function getSessionId() {
-    if (typeof window === 'undefined') return null;
-    let sessionId = localStorage.getItem('tempinbox_session_id');
-    if (!sessionId) {
-        sessionId = generateRandomString(20);
-        localStorage.setItem('tempinbox_session_id', sessionId);
-    }
-    return sessionId;
-}
-
 export function DashboardClient() {
   const [activeInboxes, setActiveInboxes] = useState<any[]>([]);
   const [currentInbox, setCurrentInbox] = useState<any | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0); 
@@ -56,32 +45,34 @@ export function DashboardClient() {
   const sessionIdRef = useRef<string | null>(null);
 
   // --- Start of Plan Fetching Logic ---
-  // Default plan reference
   const defaultPlanRef = useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'default') : null, [firestore]);
   const { data: defaultPlan, isLoading: isDefaultPlanLoading } = useDoc<Plan>(defaultPlanRef);
 
-  // User-specific plan reference (this will be null for guests)
   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || !user || user.isAnonymous) return null;
-      // In a real app, you'd get the planId from the user document: `user.planId`
-      // For this example, we assume a logged-in user has the "premium" plan.
       return doc(firestore, 'plans', 'premium'); 
   }, [firestore, user]);
   const { data: userPlanData, isLoading: isUserPlanLoading } = useDoc<Plan>(userPlanRef);
 
-  // Determine the final plan to use
   const userPlan = useMemo(() => {
       if (user && !user.isAnonymous) {
-          return userPlanData; // Use the logged-in user's plan
+          return userPlanData;
       }
-      return defaultPlan; // Otherwise, use the default plan
+      return defaultPlan;
   }, [user, userPlanData, defaultPlan]);
   
-  const arePlansLoading = isDefaultPlanLoading || isUserPlanLoading;
+  const arePlansLoading = isUserLoading || isDefaultPlanLoading || (!!user && !user.isAnonymous && isUserPlanLoading);
   // --- End of Plan Fetching Logic ---
   
   useEffect(() => {
-    sessionIdRef.current = getSessionId();
+    if (typeof window !== 'undefined') {
+        let sid = localStorage.getItem('tempinbox_session_id');
+        if (!sid) {
+            sid = generateRandomString(20);
+            localStorage.setItem('tempinbox_session_id', sid);
+        }
+        sessionIdRef.current = sid;
+    }
   }, []);
 
   const clearCountdown = () => {
@@ -152,15 +143,13 @@ export function DashboardClient() {
     setIsGenerating(true);
 
     try {
-        // Step 1: ON-DEMAND Authentication. If user is a guest, sign them in anonymously.
-        let currentUser = user;
+        let currentUser = auth.currentUser;
         if (!currentUser) {
             const userCredential = await signInAnonymously(auth);
             currentUser = userCredential.user;
             toast({ title: "Secure Session Created", description: "Your anonymous session has started." });
         }
         
-        // Now currentUser is guaranteed to be available
         if (!currentUser) {
           throw new Error("Authentication failed. Please try again.");
         }
@@ -175,6 +164,7 @@ export function DashboardClient() {
                 description: `Your plan allows for ${userPlan.features.maxInboxes} active inbox(es).`,
                 variant: "destructive"
             });
+            setIsGenerating(false);
             return;
         }
 
@@ -297,7 +287,25 @@ export function DashboardClient() {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
   }
 
-  // Initial state before any inbox is generated
+  if (arePlansLoading) {
+     return (
+        <Card className="min-h-[480px] flex flex-col">
+            <CardHeader className="border-b p-4 text-center">
+                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                     <Skeleton className="h-8 w-24 rounded-md" />
+                     <Skeleton className="h-6 w-64 rounded-md" />
+                     <Skeleton className="h-10 w-36 rounded-md" />
+                 </div>
+            </CardHeader>
+            <CardContent className="p-6 flex-grow flex flex-col items-center justify-center text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground mt-4">Loading components...</p>
+            </CardContent>
+        </Card>
+     )
+  }
+
+
   if (!currentInbox) {
      return (
         <Card className="min-h-[480px] flex flex-col">
@@ -308,8 +316,8 @@ export function DashboardClient() {
                         <span>00:00</span>
                     </div>
                     <p className="text-muted-foreground">Your temporary inbox will appear here</p>
-                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading || isUserLoading}>
-                        {(isGenerating || arePlansLoading || isUserLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    <Button onClick={handleGenerateEmail} variant="outline" disabled={isGenerating || arePlansLoading}>
+                        {(isGenerating || arePlansLoading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                         New Address
                     </Button>
                  </div>
@@ -341,13 +349,6 @@ export function DashboardClient() {
     <div className="space-y-8">
       <Card>
           <CardHeader className="border-b p-4">
-            {(isUserLoading || arePlansLoading) ? (
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-6 w-24 rounded-md" />
-                <Skeleton className="h-10 w-1/2 rounded-md" />
-                <Skeleton className="h-10 w-32 rounded-md" />
-              </div>
-            ) : (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground">
                       <Clock className="h-4 w-4" />
@@ -366,7 +367,6 @@ export function DashboardClient() {
                      New Address
                   </Button>
               </div>
-            )}
           </CardHeader>
           <CardContent className="p-0">
             <InboxView 
@@ -377,13 +377,18 @@ export function DashboardClient() {
               onDelete={handleDeleteInbox}
             />
           </CardContent>
-          {!user?.isAnonymous && !userPlan?.features.noAds && (
+          {user && user.isAnonymous && !userPlan?.features.noAds && (
              <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                   <p className="text-center text-sm text-muted-foreground w-full">
+                      This is a temporary anonymous session. {' '}
                       <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
                           Log In
                       </Link>
-                      {' '}for more features like custom domains &amp; longer inbox life.
+                      {' '}or{' '}
+                      <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
+                          Sign Up
+                      </Link>
+                      {' '} for more features.
                   </p>
              </CardFooter>
           )}
@@ -391,5 +396,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

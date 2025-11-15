@@ -9,8 +9,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 
 const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
@@ -41,28 +39,18 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
     }
 };
 
-export function PricingSection() {
-    const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
-    const firestore = useFirestore();
+interface PricingSectionProps {
+    plans: Plan[];
+}
 
-    const plansQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        // This query fetches public data and should not depend on user auth state.
-        return query(
-            collection(firestore, "plans"), 
-            where("status", "==", "active"),
-            where("name", "!=", "Default")
-        );
-    }, [firestore]);
-    
-    const { data: dbPlans, isLoading } = useCollection<Plan>(plansQuery);
+export function PricingSection({ plans }: PricingSectionProps) {
+    const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
     const currentPlans = React.useMemo(() => {
-        if (!dbPlans) return [];
-        return dbPlans
+        return plans
             .map(p => planToDisplayPlan(p, billingCycle))
             .sort((a,b) => a.price - b.price);
-    }, [dbPlans, billingCycle]);
+    }, [plans, billingCycle]);
 
     const featureLabels: {[key: string]: (value: any) => string} = {
         maxInboxes: (v) => v > 0 ? `${v} Active Inbox${v > 1 ? 'es' : ''}` : 'Unlimited Inboxes',
@@ -102,7 +90,7 @@ export function PricingSection() {
                     </Label>
                 </div>
 
-                {isLoading ? (
+                {!plans.length ? (
                     <div className="flex justify-center items-center h-64">
                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
@@ -159,5 +147,3 @@ export function PricingSection() {
         </section>
     );
 }
-
-    

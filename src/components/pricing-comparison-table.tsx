@@ -1,12 +1,10 @@
 
 "use client"
 
-import React, { useState } from "react";
-import { Check, X, Loader2, Info } from "lucide-react";
+import React from "react";
+import { Check, X, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -102,29 +100,15 @@ const FeatureCell = ({ value }: { value: any }) => {
     return <X className="h-6 w-6 text-red-500 mx-auto" />;
 };
 
-export function PricingComparisonTable({ removeBorder }: { removeBorder?: boolean }) {
-    const firestore = useFirestore();
-    const plansQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(
-            collection(firestore, "plans"), 
-            where("status", "==", "active"),
-            where("name", "!=", "Default")
-        );
-    }, [firestore]);
-    const { data: plans, isLoading } = useCollection<Plan>(plansQuery);
+interface PricingComparisonTableProps {
+  plans: Plan[];
+  removeBorder?: boolean;
+}
 
+export function PricingComparisonTable({ plans, removeBorder }: PricingComparisonTableProps) {
     const sortedPlans = React.useMemo(() => {
         return plans ? [...plans].sort((a, b) => a.price - b.price) : [];
     }, [plans]);
-
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        )
-    }
 
   return (
     <Card className={cn(removeBorder && "border-0 shadow-none")}>
