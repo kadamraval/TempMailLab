@@ -64,25 +64,12 @@ export function useCollection<T = any>(
   const { user, isUserLoading } = useUser(); // Get auth loading state
 
   useEffect(() => {
-    const path = memoizedTargetRefOrQuery ? (memoizedTargetRefOrQuery.type === 'collection' ? (memoizedTargetRefOrQuery as CollectionReference).path : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()) : "null";
-
-    // --- START DEBUG LOGGING ---
-    console.log(`[DEBUG - useCollection]
-  - Timestamp: ${new Date().toISOString()}
-  - Query Path: ${path}
-  - Auth Loading: ${isUserLoading}
-  - User UID: ${user?.uid || 'null'}`);
-    // --- END DEBUG LOGGING ---
-
-
     // Wait until both the query is ready AND the user auth state is resolved.
     if (!memoizedTargetRefOrQuery || isUserLoading) {
-      console.log(`[DEBUG - useCollection] Waiting: Query is null or User is loading.`);
       setIsLoading(true); // Keep loading if query is not ready or auth state is pending
       return;
     }
 
-    console.log(`[DEBUG - useCollection] Proceeding to subscribe to: ${path}`);
     setIsLoading(true);
     setError(null);
 
@@ -96,18 +83,20 @@ export function useCollection<T = any>(
         setData(results);
         setError(null);
         setIsLoading(false);
-        console.log(`[DEBUG - useCollection] Success for path: ${path}. Found ${results.length} documents.`);
       },
-      (error: FirestoreError) => {
-         console.error(`[DEBUG - useCollection] Firestore Error on path: ${path}`, error);
+      async (error: FirestoreError) => {
+        const path = memoizedTargetRefOrQuery.type === 'collection' 
+            ? (memoizedTargetRefOrQuery as CollectionReference).path 
+            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+        
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
-        })
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
         errorEmitter.emit('permission-error', contextualError);
       }
