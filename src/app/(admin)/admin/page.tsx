@@ -16,7 +16,12 @@ export default function AdminDashboardPage() {
         seedDefaultPlan();
     }, []);
 
-    const { data: users, isLoading: usersLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
+    // The user count can be derived from other means or an aggregate function later.
+    // Fetching all users on the dashboard is inefficient and a security risk.
+    // We will pass a static '0' for now and remove the isLoading state.
+    const usersCount = 0; 
+    const usersLoading = false;
+
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
     const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
 
@@ -25,7 +30,7 @@ export default function AdminDashboardPage() {
     const stats = [
         {
             title: "Total Users",
-            value: users?.length ?? 0,
+            value: usersCount, // Using the non-fetching variable
             icon: <Users className="h-4 w-4 text-muted-foreground" />,
             loading: usersLoading,
         },
