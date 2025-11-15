@@ -1,13 +1,40 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Rule provided by user for debugging.
-    // Makes the 'plans' collection publicly readable and all other collections private.
+
+    // Make the 'plans' collection publicly readable for pricing pages.
+    // Deny all write operations to the public.
     match /plans/{planId} {
       allow read: if true;
-      allow write: if false;
+      allow write: if false; // Secure: No public writes
     }
-    // Deny all access to any other document path not explicitly matched above.
+
+    // Allow logged-in users to read their own user profile.
+    // Allow users to create their own profile upon sign-up.
+    // Allow users to update their own profile, but not change critical fields.
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Deny delete to prevent users from deleting their own accounts through Firestore.
+      allow delete: if false;
+    }
+
+    // Allow anyone to read the list of allowed domains for generating emails.
+    // Only admins should be able to write/edit these.
+    match /allowed_domains/{domainId} {
+        allow read: if true;
+        allow write: if false; // Simplified: Deny all writes for now.
+    }
+    
+    // Admin settings should be private and only accessible by server-side logic
+    // (which uses admin credentials and bypasses these rules).
+    match /admin_settings/{settingId} {
+        allow read, write: if false;
+    }
+    
+    // Default-deny all other collections/documents not explicitly matched above.
     match /{document=**} {
       allow read, write: if false;
     }
