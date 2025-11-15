@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
-import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc, orderBy, limit } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
@@ -30,10 +30,11 @@ export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isGenerating, setIsGenerating] = useState(true); // Start in generating state
+  const [isGenerating, setIsGenerating] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -44,13 +45,13 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  const fetchPlan = useCallback(async () => {
-    if (!firestore) return;
+  const fetchPlan = useCallback(async (currentAuthUser: any) => {
+    if (!firestore) return null;
     try {
       let fetchedPlan: Plan | null = null;
       
-      if (user && !user.isAnonymous) {
-          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      if (currentAuthUser && !currentAuthUser.isAnonymous) {
+          const userDoc = await getDoc(doc(firestore, 'users', currentAuthUser.uid));
           if (userDoc.exists() && userDoc.data().planId) {
               const planId = userDoc.data().planId;
               const planDoc = await getDoc(doc(firestore, 'plans', planId));
@@ -61,47 +62,79 @@ export function DashboardClient() {
       }
 
       if (!fetchedPlan) {
-           const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
-           const freePlanSnap = await getDocs(freePlanQuery);
-           if (!freePlanSnap.empty) {
-               const planDoc = freePlanSnap.docs[0];
+           const defaultPlanQuery = query(collection(firestore, "plans"), where("name", "==", "Default"), limit(1));
+           const defaultPlanSnap = await getDocs(defaultPlanQuery);
+           if (!defaultPlanSnap.empty) {
+               const planDoc = defaultPlanSnap.docs[0];
                fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
            } else {
-               // Fallback to the lowest priced plan if "Free" doesn't exist
-               const allPlansQuery = query(collection(firestore, "plans"), orderBy("price", "asc"), limit(1));
-               const allPlansSnap = await getDocs(allPlansQuery);
-               if (!allPlansSnap.empty) {
-                   const planDoc = allPlansSnap.docs[0];
-                   fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-               }
+                const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
+                const freePlanSnap = await getDocs(freePlanQuery);
+                if(!freePlanSnap.empty){
+                    const planDoc = freePlanSnap.docs[0];
+                    fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+                } else {
+                     throw new Error("Default or Free plan not found in the database. Please ensure one has been seeded.");
+                }
            }
       }
-      
-      if (!fetchedPlan) {
-           toast({
-              title: "Configuration Error",
-              description: "No subscription plans are configured. Please contact support.",
-              variant: "destructive",
-          });
-      }
-
       setUserPlan(fetchedPlan);
       return fetchedPlan;
 
     } catch (error: any) {
         console.error("Failed to fetch plan:", error);
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'plans', operation: 'list' }));
+         toast({
+            title: "Error Loading Configuration",
+            description: error.message || "Could not load subscription details.",
+            variant: "destructive",
+        });
+        return null;
+    }
+  }, [firestore, toast]);
+  
+  const handleGenerateEmail = useCallback(async (plan: Plan) => {
+    setIsGenerating(true);
+    try {
+      const domainsQuery = query(
+        collection(firestore, "allowed_domains"),
+        where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+      );
+      const domainsSnapshot = await getDocs(domainsQuery);
+      const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
+
+      if (allowedDomains.length === 0) {
+        throw new Error("No domains configured by the administrator.");
+      }
+
+      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+      
+      const newInbox = {
+        emailAddress,
+        expiresAt: Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000,
+      };
+
+      setCurrentInbox(newInbox);
+      setSelectedEmail(null);
+      setInboxEmails([]);
+
+    } catch (error: any) {
+       if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'allowed_domains', operation: 'list' }));
         } else {
+            console.error("Error generating new inbox:", error);
             toast({
-                title: "Error Loading Configuration",
-                description: "Could not load subscription details. Please try again later.",
+                title: "Error",
+                description: error.message || "Could not generate a new email address.",
                 variant: "destructive",
             });
         }
+    } finally {
+      setIsGenerating(false);
+      setIsLoading(false);
     }
-  }, [user, firestore, toast]);
-  
+  }, [firestore, toast]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
         let sid = localStorage.getItem('tempinbox_session_id');
@@ -111,18 +144,29 @@ export function DashboardClient() {
         }
         sessionIdRef.current = sid;
     }
-  }, []);
+
+    if (!isUserLoading && !userPlan) {
+        fetchPlan(user).then(plan => {
+            if (plan && !currentInbox) {
+                handleGenerateEmail(plan);
+            } else if (plan) {
+                setIsLoading(false);
+            }
+        });
+    }
+  }, [isUserLoading, user, userPlan, fetchPlan, handleGenerateEmail, currentInbox]);
+
 
   const ensureAnonymousUser = useCallback(async () => {
-    if (!auth) return false;
-    if (auth.currentUser) return true;
+    if (!auth) return null;
+    if (auth.currentUser) return auth.currentUser;
     try {
-        await signInAnonymously(auth);
-        return true;
+        const userCredential = await signInAnonymously(auth);
+        return userCredential.user;
     } catch (error) {
         console.error("Anonymous sign-in failed:", error);
         toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
-        return false;
+        return null;
     }
   }, [auth, toast]);
 
@@ -143,128 +187,51 @@ export function DashboardClient() {
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
-    if (!isAutoRefresh) {
-        setIsRefreshing(true);
-    }
     
-    await ensureAnonymousUser();
+    // Ensure user exists before any server action
+    const currentUser = await ensureAnonymousUser();
+    if (!currentUser) return;
 
+    if (!isAutoRefresh) setIsRefreshing(true);
+    
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
-        if (result.error) {
-          throw new Error(result.error);
-        }
+        if (result.error) throw new Error(result.error);
         
         if (result.emails && result.emails.length > 0) {
-            const hasNewEmails = result.emails.some(newEmail => !inboxEmails.some(existing => existing.id === newEmail.id));
-
-            if (hasNewEmails) {
-
-                setInboxEmails(prevEmails => {
-                    const existingIds = new Set(prevEmails.map(e => e.id));
-                    const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-                    
-                    if (newEmails.length > 0) {
-                        toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-                    } else if (!isAutoRefresh) {
-                        toast({ title: "Inbox refreshed", description: "No new emails found." });
-                    }
-    
-                    const allEmails = [...prevEmails, ...newEmails];
-                    return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-                });
-            } else if (!isAutoRefresh) {
-                toast({ title: "Inbox refreshed", description: "No new emails found." });
-            }
-        } else {
-            if (!isAutoRefresh) {
-                toast({ title: "Inbox refreshed", description: "No new emails found." });
-            }
-        }
-    } catch (error: any)
-    {
+            setInboxEmails(prevEmails => {
+                const existingIds = new Set(prevEmails.map(e => e.id));
+                const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
+                
+                if (newEmails.length > 0) {
+                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+                }
+                const allEmails = [...prevEmails, ...newEmails];
+                return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+            });
+        } 
+        if (!isAutoRefresh) toast({ title: "Inbox refreshed", description: "No new emails found." });
+        
+    } catch (error: any) {
         console.error("Error fetching emails:", error);
         if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "Could not refresh inbox.", variant: "destructive" });
         }
     } finally {
-        if (!isAutoRefresh) {
-            setIsRefreshing(false);
-        }
+        if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, ensureAnonymousUser, inboxEmails]);
+  }, [currentInbox, toast, ensureAnonymousUser]);
 
-
-  const handleGenerateEmail = useCallback(async () => {
+  const handleNewAddressClick = useCallback(async () => {
     if (isGenerating) return;
-
-    // This is a key user action, ensure anonymous user exists.
-    await ensureAnonymousUser();
+    const currentUser = await ensureAnonymousUser();
+    if (!currentUser) return;
     
-    // Fetch the latest plan before generating.
-    const plan = userPlan || await fetchPlan();
-
-    if (!plan) {
-        toast({
-            title: "Configuration not loaded",
-            description: "Subscription plans are not available. Please try again in a moment.",
-            variant: "destructive",
-        });
-        return;
+    const plan = userPlan || await fetchPlan(currentUser);
+    if (plan) {
+        handleGenerateEmail(plan);
     }
-    
-    setIsGenerating(true);
-
-    try {
-      const domainsQuery = query(
-        collection(firestore, "allowed_domains"),
-        where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
-      );
-      const domainsSnapshot = await getDocs(domainsQuery);
-      const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
-
-      if (allowedDomains.length === 0) {
-        throw new Error("No domains configured by the administrator.");
-      }
-
-      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      const newInbox = {
-        emailAddress,
-        expiresAt: Date.now() + plan.features.inboxLifetime * 60 * 1000,
-      };
-
-      setCurrentInbox(newInbox);
-      setSelectedEmail(null);
-      setInboxEmails([]);
-
-      handleRefresh(true);
-
-    } catch (error: any) {
-       if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: 'allowed_domains',
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        } else {
-             console.error("Error generating new inbox:", error);
-            toast({
-                title: "Error",
-                description: error.message || "Could not generate a new email address.",
-                variant: "destructive",
-            });
-        }
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [isGenerating, userPlan, firestore, toast, ensureAnonymousUser, handleRefresh, fetchPlan]);
-  
-  useEffect(() => {
-    if (!isUserLoading && !currentInbox) {
-        handleGenerateEmail();
-    }
-  }, [isUserLoading, currentInbox, handleGenerateEmail]);
+  }, [isGenerating, userPlan, ensureAnonymousUser, fetchPlan, handleGenerateEmail]);
 
   useEffect(() => {
     clearCountdown();
@@ -302,7 +269,14 @@ export function DashboardClient() {
 
   const handleCopyEmail = async () => {
     if (!currentInbox?.emailAddress) return;
-    await ensureAnonymousUser();
+    const currentUser = await ensureAnonymousUser();
+    if (!currentUser) return;
+
+    if (!userPlan) {
+      const plan = await fetchPlan(currentUser);
+      if (plan) handleGenerateEmail(plan);
+    }
+
     navigator.clipboard.writeText(currentInbox.emailAddress);
     toast({
       title: "Copied!",
@@ -318,14 +292,11 @@ export function DashboardClient() {
   const handleBackToInbox = () => setSelectedEmail(null);
 
   const handleDeleteInbox = async () => {
-    setCurrentInbox(null);
-    setInboxEmails([]);
-    setSelectedEmail(null);
+    await handleNewAddressClick();
     toast({
         title: "Inbox Cleared",
-        description: "A new address can be generated.",
+        description: "A new address has been generated.",
     });
-    handleGenerateEmail();
   };
 
   const formatTime = (seconds: number) => {
@@ -334,6 +305,14 @@ export function DashboardClient() {
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+  
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   if (selectedEmail) {
     return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
@@ -365,7 +344,7 @@ export function DashboardClient() {
             )}
           </div>
           
-          <Button onClick={() => handleGenerateEmail()} variant="outline" disabled={isGenerating}>
+          <Button onClick={handleNewAddressClick} variant="outline" disabled={isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             New Address
           </Button>
