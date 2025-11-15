@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 // Helper functions to improve readability
@@ -21,20 +22,14 @@ service cloud.firestore {
     
     // PUBLIC & ANONYMOUS READ-ONLY ACCESS
     // Anyone can read plans and allowed domains
-    match /plans/{planId} {
-      allow get: if true;
+    match /plans/{document=**} {
+      allow read: if true;
       allow write: if isAdmin();
-    }
-    match /plans {
-      allow list: if true;
     }
 
-    match /allowed_domains/{domainId} {
-      allow get: if true;
-      allow write: if isAdmin();
-    }
-    match /allowed_domains {
-       allow list: if true;
+    match /allowed_domains/{document=**} {
+       allow read: if true;
+       allow write: if isAdmin();
     }
 
     // USER-SPECIFIC DATA
