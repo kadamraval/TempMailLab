@@ -1,59 +1,15 @@
-
 rules_version = '2';
-
-// Helper functions to improve readability
-function isUserAuthenticated() {
-  return request.auth != null;
-}
-
-function isOwner(userId) {
-  return request.auth.uid == userId;
-}
-
-function isAdmin() {
-  // In a real app, this would be more secure, e.g., checking a custom claim
-  // For now, we assume an admin has a specific property in their user document
-  return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-}
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // PUBLIC-READABLE COLLECTIONS
-    // Anyone, authenticated or not, can read these collections.
-    // Writes are restricted to administrators.
-    match /plans/{document=**} {
+    // Rule provided by user for debugging.
+    // Makes the 'plans' collection publicly readable and all other collections private.
+    match /plans/{planId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if false;
     }
-
-    match /allowed_domains/{document=**} {
-       allow read: if true;
-       allow write: if isAdmin();
-    }
-
-    // USER-SPECIFIC DATA
-    // Users can only create their own user document and can read/write their own sub-collections.
-    match /users/{userId} {
-      // A user can create their own user document if it doesn't exist
-      allow create: if isOwner(userId);
-      // A user can only read, update, or delete their own document.
-      allow get, update, delete: if isOwner(userId);
-      // Admins can list all users
-      allow list: if isAdmin();
-      
-      // A user can read and write to their own subcollections.
-      match /{allPaths=**} {
-        allow read, write: if isOwner(userId);
-      }
-    }
-    
-    // ADMIN-ONLY ACCESS
-    // These collections can only be accessed by an admin.
-    match /admin_settings/{settingId} {
-       allow read, write: if isAdmin();
+    // Deny all access to any other document path not explicitly matched above.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
-
-    
