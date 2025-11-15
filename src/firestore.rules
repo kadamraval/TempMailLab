@@ -1,137 +1,96 @@
-
 /**
  * @fileoverview Firestore Security Rules for TempInbox application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles, inboxes, emails, and API keys.
- * Only the authenticated user can access their own data. API key usage logs are associated with API keys and can only be written to.
- * Blocked IPs and domains are managed globally.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles.
- * - /users/{userId}/inboxes/{inboxId}: Stores temporary inboxes for each user.
- * - /users/{userId}/inboxes/{inboxId}/emails/{emailId}: Stores emails received in a temporary inbox.
- * - /users/{userId}/api_keys/{apiKeyId}: Stores API keys for developers.
- * - /api_keys/{apiKeyId}/usage_logs/{usageLogId}: Stores usage logs per API key.
- * - /blocked_ips/{blockedIpId}: Stores blocked IP addresses (global).
- * - /blocked_domains/{blockedDomainId}: Stores blocked sender domains (global).
- * - /allowed_domains/{allowedDomainId}: Stores domains allowed for temp email generation (global).
- * - /admin_settings/{settingId}: Stores global admin settings like API keys.
- *
- * Key Security Decisions:
- * - User data (profiles, inboxes, emails, api_keys) is strictly private and only accessible to the owning user.
- * - Admin settings can be read and written by any authenticated user. In a production app, this should be restricted to admin users via custom claims.
- * - Listing of blocked and allowed domains is publicly allowed. Listing of user-owned collections is restricted to the owner.
- * - Write access to the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection is completely denied. The intended design is that these can only be written via a trusted backend.
- * - The rules do not validate the data shape or types beyond what's necessary for authorization (e.g., ownership checks).
+ * This ruleset enforces a strict separation between public and private data.
+ * - Public data (like '/plans') is readable by anyone to allow for public pricing pages.
+ * - Private user data (like '/users/{userId}') is strictly owned and accessible only by the authenticated user.
+ * - Admin write access is controlled by a custom claim `isAdmin`.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Enforces read and write access to user profiles based on user ID.
-     * @path /users/{userId}
-     */
-    match /users/{userId} {
-      function isSignedIn() { return request.auth != null; }
-      function isOwner(userId) { return request.auth.uid == userId; }
-      function isExistingOwner(userId) { return isOwner(userId) && resource != null; }
+    //============================================
+    // Helper Functions
+    //============================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.isAdmin == true;
+    }
+
+    //============================================
+    // Public Collections
+    //============================================
+
+    match /plans/{planId} {
+      // Anyone can read plans for the pricing page.
+      allow get, list: if true;
+      // Only admins can change plans.
+      allow write: if isAdmin();
+    }
+    
+    match /allowed_domains/{allowedDomainId} {
+      // Anyone can read the list of domains available.
+      allow get, list: if true;
+      // Only admins can manage the domain pool.
+      allow write: if isAdmin();
+    }
+
+    //============================================
+    // Private User Data
+    //============================================
+
+    match /users/{userId} {
+      // A user can get their own document.
       allow get: if isOwner(userId);
+
+      // Nobody can list all users.
       allow list: if false;
 
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      // A user can create their own document, ensuring the ID matches.
+      allow create: if isOwner(userId) && request.resource.data.uid == userId;
+      
+      // A user can update their own document.
+      allow update: if isOwner(userId);
+      
+      // A user can delete their own document.
+      allow delete: if isOwner(userId);
 
-      /**
-       * @description Enforces read and write access to inboxes based on user ownership.
-       * @path /users/{userId}/inboxes/{inboxId}
-       */
+      // --- Nested User Subcollections ---
+      
       match /inboxes/{inboxId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isExistingOwner(userId);
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId);
 
-        /**
-         * @description Enforces read and write access to emails based on user ownership of parent inbox.
-         * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
-         */
         match /emails/{emailId} {
-          allow get: if isOwner(userId);
-          allow list: if isOwner(userId);
-          allow create: if isSignedIn() && isOwner(userId);
-          allow update: if isExistingOwner(userId);
-          allow delete: if isExistingOwner(userId);
+          allow read, write: if isOwner(userId);
         }
       }
       
-      /**
-       * @description Enforces read and write access to API keys based on user ownership.
-       * @path /users/{userId}/api_keys/{apiKeyId}
-       */
       match /api_keys/{apiKeyId} {
-        allow get: if isOwner(userId);
-        allow list: if isOwner(userId);
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isExistingOwner(userId);
-        allow delete: if isExistingOwner(userId);
+        allow read, write: if isOwner(userId);
       }
     }
 
-    /**
-     * @description Denies all access to API key usage logs.
-     * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
-     */
-    match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
-      allow read, write: if false;
-    }
+    //============================================
+    // Admin & System Collections
+    //============================================
 
-    /**
-     * @description Allows public read access to blocked IP addresses, but denies all write access.
-     * @path /blocked_ips/{blockedIpId}
-     */
-    match /blocked_ips/{blockedIpId} {
-      allow get: if true;
-      allow list: if true;
-      allow write: if false;
-    }
-
-    /**
-     * @description Allows public read access to blocked domains, but denies all write access.
-     * @path /blocked_domains/{blockedDomainId}
-     */
-    match /blocked_domains/{blockedDomainId} {
-      allow get: if true;
-      allow list: if true;
-      allow write: if false;
-    }
-    
-    /**
-     * @description Allows public read access to allowed domains. Admin can write.
-     * @path /allowed_domains/{allowedDomainId}
-     */
-    match /allowed_domains/{allowedDomainId} {
-      function isSignedIn() { return request.auth != null; }
-
-      allow get: if true;
-      allow list: if true;
-      // In production, restrict to admins via custom claims
-      allow write: if isSignedIn(); 
-    }
-    
-    /**
-     * @description Allows any authenticated user to manage admin settings.
-     * @path /admin_settings/{settingId}
-     */
     match /admin_settings/{settingId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-      allow read, write: if isSignedIn();
+      // Only admins can read or write sensitive third-party API keys.
+      allow read, write: if isAdmin();
+    }
+    
+    // Default deny all other collections.
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }

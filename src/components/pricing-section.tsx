@@ -1,119 +1,133 @@
-
 "use client"
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Plan } from "@/app/(admin)/admin/packages/data";
 
-const plans = {
+const defaultPlans = {
     monthly: [
         {
+            id: 'free',
             name: "Free",
-            price: "$0",
+            price: 0,
+            cycle: 'monthly',
             description: "For personal and occasional use.",
-            features: [
-                "1 Active Inbox",
-                "10 Minute Inbox Lifetime",
-                "Standard Domains",
-                "Basic Spam Filtering",
-            ],
+            features: {
+                maxInboxes: 1,
+                inboxLifetime: 10,
+                allowPremiumDomains: false,
+                noAds: false,
+            },
             buttonText: "Get Started Free",
             href: "/",
         },
         {
+            id: 'premium',
             name: "Premium",
-            price: "$5",
-            priceCycle: "/ month",
+            price: 5,
+            cycle: 'monthly',
             description: "For power users who need more.",
-            features: [
-                "25 Active Inboxes",
-                "24 Hour Inbox Lifetime",
-                "Premium & Custom Domains",
-                "Advanced Spam Filtering",
-                "Email Forwarding",
-                "No Ads",
-            ],
+            features: {
+                maxInboxes: 25,
+                inboxLifetime: 1440, // 24 hours
+                allowPremiumDomains: true,
+                noAds: true,
+                emailForwarding: true,
+            },
             buttonText: "Go Premium",
             href: "/register",
             isPrimary: true,
         },
-        {
-            name: "Pro",
-            price: "$15",
-            priceCycle: "/ month",
-            description: "For businesses and developers.",
-            features: [
-                "Unlimited Inboxes",
-                "7 Day Inbox Lifetime",
-                "Unlimited Custom Domains",
-                "Password Protected Inboxes",
-                "Team Member Access",
-                "Developer API Access",
-            ],
-            buttonText: "Go Pro",
-            href: "/register",
-        }
     ],
     yearly: [
-         {
+        {
+            id: 'free_yearly',
             name: "Free",
-            price: "$0",
+            price: 0,
+            cycle: 'yearly',
             description: "For personal and occasional use.",
-            features: [
-                "1 Active Inbox",
-                "10 Minute Inbox Lifetime",
-                "Standard Domains",
-                "Basic Spam Filtering",
-            ],
+            features: {
+                maxInboxes: 1,
+                inboxLifetime: 10,
+                allowPremiumDomains: false,
+                noAds: false,
+            },
             buttonText: "Get Started Free",
             href: "/",
         },
         {
+            id: 'premium_yearly',
             name: "Premium",
-            price: "$48",
-            priceCycle: "/ year",
+            price: 48,
+            cycle: 'yearly',
             description: "For power users who need more.",
-            features: [
-                "25 Active Inboxes",
-                "24 Hour Inbox Lifetime",
-                "Premium & Custom Domains",
-                "Advanced Spam Filtering",
-                "Email Forwarding",
-                "No Ads",
-            ],
+            features: {
+                maxInboxes: 25,
+                inboxLifetime: 1440, // 24 hours
+                allowPremiumDomains: true,
+                noAds: true,
+                emailForwarding: true,
+            },
             buttonText: "Go Premium",
             href: "/register",
             isPrimary: true,
         },
-        {
-            name: "Pro",
-            price: "$144",
-            priceCycle: "/ year",
-            description: "For businesses and developers.",
-            features: [
-                "Unlimited Inboxes",
-                "7 Day Inbox Lifetime",
-                "Unlimited Custom Domains",
-                "Password Protected Inboxes",
-                "Team Member Access",
-                "Developer API Access",
-            ],
-            buttonText: "Go Pro",
-            href: "/register",
-        }
     ]
 }
 
+
+const planToDisplayPlan = (plan: Plan) => ({
+    id: plan.id,
+    name: plan.name,
+    price: plan.price,
+    cycle: plan.cycle,
+    description: `For ${plan.name.toLowerCase()} users.`,
+    features: {
+        maxInboxes: plan.features.maxInboxes,
+        inboxLifetime: plan.features.inboxLifetime,
+        allowPremiumDomains: plan.features.allowPremiumDomains,
+        noAds: plan.features.noAds,
+        customDomains: plan.features.customDomains,
+        apiAccess: plan.features.apiAccess
+    },
+    buttonText: `Go ${plan.name}`,
+    href: "/register",
+    isPrimary: plan.name.toLowerCase() === 'premium'
+});
+
+
 export function PricingSection() {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+    const firestore = useFirestore();
 
-    const currentPlans = plans[billingCycle];
+    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
+    const { data: dbPlans, isLoading } = useCollection<Plan>(plansQuery);
 
+    const currentPlans = React.useMemo(() => {
+        const activeDbPlans = dbPlans?.filter(p => p.status === 'active' && p.cycle === billingCycle).map(planToDisplayPlan) || [];
+        if (activeDbPlans.length > 0) {
+            return activeDbPlans.sort((a,b) => a.price - b.price);
+        }
+        return billingCycle === 'monthly' ? defaultPlans.monthly : defaultPlans.yearly;
+    }, [dbPlans, billingCycle]);
+
+    const featureLabels: {[key: string]: (value: any) => string} = {
+        maxInboxes: (v) => `${v} Active Inbox${v > 1 ? 'es' : ''}`,
+        inboxLifetime: (v) => `${v > 60 ? v/60 : v} ${v > 60 ? 'Hour' : 'Minute'} Inbox Lifetime`,
+        allowPremiumDomains: (v) => v ? "Premium Domains" : "Standard Domains",
+        noAds: (v) => v ? "No Ads" : "Ad-supported",
+        customDomains: (v) => v > 0 ? `${v} Custom Domain${v > 1 ? 's' : ''}` : "No Custom Domains",
+        apiAccess: (v) => v ? "Developer API Access" : "No API Access",
+    }
+    
     return (
         <section id="pricing" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
@@ -137,41 +151,49 @@ export function PricingSection() {
                     </Label>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    {currentPlans.map((plan) => (
-                         <Card key={plan.name} className={cn(
-                            "flex flex-col h-full rounded-2xl border",
-                            plan.isPrimary && "border-2 border-primary shadow-lg"
-                         )}>
-                             <CardHeader className="p-6">
-                                <div className="flex justify-between items-start">
-                                    <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                                    {plan.isPrimary && <div className="text-primary bg-primary/10 px-3 py-1 rounded-full text-sm font-semibold">POPULAR</div>}
-                                </div>
-                                <CardDescription className="pt-2">{plan.description}</CardDescription>
-                                <div className="flex items-baseline pt-6">
-                                    <span className="text-5xl font-bold tracking-tight">{plan.price}</span>
-                                    {plan.priceCycle && <span className="text-muted-foreground ml-1">{plan.priceCycle}</span>}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-6 flex-grow">
-                                <ul className="space-y-4">
-                                    {plan.features.map((feature) => (
-                                        <li key={feature} className="flex items-center gap-3">
-                                            <Check className="w-5 h-5 text-green-500 shrink-0" />
-                                            <span className="text-muted-foreground">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                            <CardFooter className="p-6 mt-auto">
-                                <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
-                                    <Link href={plan.href}>{plan.buttonText}</Link>
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    ))}
-                </div>
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ): (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                        {currentPlans.map((plan) => (
+                             <Card key={plan.id} className={cn(
+                                "flex flex-col h-full rounded-2xl border",
+                                plan.isPrimary && "border-2 border-primary shadow-lg"
+                             )}>
+                                 <CardHeader className="p-6">
+                                    <div className="flex justify-between items-start">
+                                        <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                                        {plan.isPrimary && <div className="text-primary bg-primary/10 px-3 py-1 rounded-full text-sm font-semibold">POPULAR</div>}
+                                    </div>
+                                    <CardDescription className="pt-2">{plan.description}</CardDescription>
+                                    <div className="flex items-baseline pt-6">
+                                        <span className="text-5xl font-bold tracking-tight">${plan.price}</span>
+                                        {plan.price > 0 && <span className="text-muted-foreground ml-1">/ {plan.cycle === 'monthly' ? 'month' : 'year'}</span>}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-6 flex-grow">
+                                    <ul className="space-y-4">
+                                        {Object.entries(plan.features).map(([key, value]) => (
+                                            <li key={key} className="flex items-center gap-3">
+                                                <Check className="w-5 h-5 text-green-500 shrink-0" />
+                                                <span className="text-muted-foreground">
+                                                    {featureLabels[key] ? featureLabels[key](value) : `${key}: ${value}`}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter className="p-6 mt-auto">
+                                    <Button asChild className="w-full" size="lg" variant={plan.isPrimary ? "default" : "outline"}>
+                                        <Link href={plan.href}>{plan.buttonText}</Link>
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                )}
                  <div className="mt-12 text-center">
                     <Button asChild variant="ghost">
                         <Link href="/pricing">
