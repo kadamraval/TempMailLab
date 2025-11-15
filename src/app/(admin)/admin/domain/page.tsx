@@ -83,47 +83,39 @@ export default function AdminDomainPage() {
 
   return (
     <>
-    <Card>
-        <CardHeader>
-            <CardTitle>Domain Management</CardTitle>
-            <CardDescription>
-                Manage allowed domains for generating temporary emails and blocked domains for spam filtering.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Tabs defaultValue="allowed">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="allowed">Allowed Domains</TabsTrigger>
-                    <TabsTrigger value="blocked">Blocked Domains</TabsTrigger>
-                </TabsList>
-                <TabsContent value="allowed">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle>Allowed Domains</CardTitle>
-                                <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
-                            </div>
-                            <AddAllowedDomainDialog />
-                        </CardHeader>
-                        <CardContent>
-                            <DataTable columns={allowedColumns} data={allowedDomains || []} filterColumn="domain" />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="blocked">
-                     <Card>
-                        <CardHeader>
-                            <CardTitle>Blocked Domains</CardTitle>
-                            <CardDescription>Emails from these domains will be rejected by the system.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-        </CardContent>
-    </Card>
+    <Tabs defaultValue="allowed">
+        <div className='flex items-center'>
+            <TabsList>
+                <TabsTrigger value="allowed">Allowed</TabsTrigger>
+                <TabsTrigger value="blocked">Blocked</TabsTrigger>
+            </TabsList>
+            <div className="ml-auto flex items-center gap-2">
+                <AddAllowedDomainDialog />
+            </div>
+        </div>
+        <TabsContent value="allowed">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Allowed Domains</CardTitle>
+                    <CardDescription>Domains used by the system to generate temporary email addresses.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable columns={allowedColumns} data={allowedDomains || []} filterColumn="domain" />
+                </CardContent>
+            </Card>
+        </TabsContent>
+        <TabsContent value="blocked">
+                <Card>
+                <CardHeader>
+                    <CardTitle>Blocked Domains</CardTitle>
+                    <CardDescription>Emails from these domains will be rejected by the system.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable columns={blockedDomainColumns} data={blockedDomains || []} filterColumn="domain" />
+                </CardContent>
+            </Card>
+        </TabsContent>
+    </Tabs>
 
     <EditAllowedDomainDialog
         domain={editingDomain}

@@ -1,4 +1,4 @@
-// @/components/admin/data-table.tsx
+
 "use client"
 
 import * as React from "react"
@@ -31,19 +31,25 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { FileUp, FileDown, Trash2 } from "lucide-react"
+import { FileDown, ListFilter, PlusCircle, Search } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   filterColumn: string
+  onAdd?: () => void;
+  addLabel?: string;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   filterColumn,
+  onAdd,
+  addLabel = "Add Item"
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
@@ -71,44 +77,54 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
-      <div className="flex items-center justify-between py-4 gap-2 flex-wrap">
-        <div className="flex gap-2">
-           <Input
-            placeholder={`Filter by ${filterColumn}...`}
-            value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-                table.getColumn(filterColumn)?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-            />
-        </div>
-        <div className="flex items-center gap-2">
-            {Object.keys(rowSelection).length > 0 && (
-                 <Button variant="destructive" size="sm">
-                    <Trash2 className="mr-2 h-4 w-4"/>
-                    Delete ({Object.keys(rowSelection).length})
-                </Button>
-            )}
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="ml-auto">
-                    Actions
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                        <FileUp className="mr-2 h-4 w-4" />
-                        Import
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                        <FileDown className="mr-2 h-4 w-4" />
+       <div className="flex items-center justify-between gap-4 py-4">
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder={`Filter by ${filterColumn}...`}
+                    value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""}
+                    onChange={(event) =>
+                        table.getColumn(filterColumn)?.setFilterValue(event.target.value)
+                    }
+                    className="pl-10 pr-4"
+                />
+            </div>
+             <div className="flex items-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-10 gap-1">
+                            <ListFilter className="h-3.5 w-3.5" />
+                            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                                Filter
+                            </span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                         <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+                         <DropdownMenuSeparator />
+                         <DropdownMenuCheckboxItem checked>
+                            Active
+                         </DropdownMenuCheckboxItem>
+                         <DropdownMenuCheckboxItem>Archived</DropdownMenuCheckboxItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="sm" variant="outline" className="h-10 gap-1">
+                    <FileDown className="h-3.5 w-3.5" />
+                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                         Export
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-            
-        </div>
-      </div>
+                    </span>
+                </Button>
+                {onAdd && (
+                    <Button size="sm" className="h-10 gap-1" onClick={onAdd}>
+                        <PlusCircle className="h-3.5 w-3.5" />
+                         <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                            {addLabel}
+                        </span>
+                    </Button>
+                )}
+            </div>
+       </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -116,7 +132,7 @@ export function DataTable<TData, TValue>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="text-center">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -137,7 +153,7 @@ export function DataTable<TData, TValue>({
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className="text-center">
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

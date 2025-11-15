@@ -7,7 +7,7 @@ import { getPlanColumns } from "./columns";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, doc, deleteDoc } from "firebase/firestore";
 import { type Plan } from './data';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { PlanDialog } from './plan-dialog';
-import { Button } from '@/components/ui/button';
 
 export default function AdminPackagesPage() {
     const firestore = useFirestore();
@@ -83,18 +82,18 @@ export default function AdminPackagesPage() {
   return (
     <>
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Manage Plans</CardTitle>
-                    <CardDescription>View, create, and manage user subscription plans.</CardDescription>
-                </div>
-                <Button onClick={handleAdd}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Plan
-                </Button>
+            <CardHeader>
+                <CardTitle>Manage Plans</CardTitle>
+                <CardDescription>View, create, and manage user subscription plans.</CardDescription>
             </CardHeader>
             <CardContent>
-                <DataTable columns={columns} data={plans || []} filterColumn="name" />
+                <DataTable 
+                    columns={columns} 
+                    data={plans || []} 
+                    filterColumn="name" 
+                    onAdd={handleAdd}
+                    addLabel="Add Plan"
+                />
             </CardContent>
         </Card>
 

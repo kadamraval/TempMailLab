@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { AdminHeader } from '@/components/admin-header';
 
 export default function AdminLayout({
   children,
@@ -12,13 +13,14 @@ export default function AdminLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-      <main className={`flex-1 transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'} p-4 sm:p-6 lg:p-8`}>
-        <div className="container mx-auto py-8">
+      <div className={`flex flex-col sm:gap-4 sm:py-4 sm:pl-14 transition-all duration-300 ${isCollapsed ? 'sm:pl-14' : 'sm:pl-64'}`}>
+        <AdminHeader />
+        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
             {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
