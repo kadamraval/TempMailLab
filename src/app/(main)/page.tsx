@@ -28,7 +28,7 @@ const sections = [
 ];
 
 export default function HomePage() {
-  const { user, isUserLoading } = useUser();
+  const { isUserLoading } = useUser();
 
   if (isUserLoading) {
     return (
