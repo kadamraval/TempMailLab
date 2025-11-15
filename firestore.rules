@@ -13,10 +13,10 @@ function isOwner(userId) {
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users: Users can read their own profile. Only admins can create/update/delete.
+    // Users: Logged-in users can read their own profile. Admins can do anything.
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list, create, update, delete: if isAdmin();
     }
 
     // Inboxes: Users can only manage their own inboxes.
@@ -24,7 +24,7 @@ service cloud.firestore {
        allow read, write, delete: if isOwner(get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId);
     }
     
-    // Emails: Users can only read emails in their own inboxes.
+    // Emails: Users can only manage emails in their own inboxes.
     match /emails/{emailId} {
       allow read, write, delete: if isOwner(get(/databases/$(database)/documents/emails/$(emailId)).data.userId);
     }
@@ -34,35 +34,35 @@ service cloud.firestore {
       allow read, create, delete: if isOwner(get(/databases/$(database)/documents/api_keys/$(apiKeyId)).data.userId);
     }
 
-    // Usage Logs: Read-only for admins.
+    // Usage Logs: Read-only for admins. Writes are server-side only.
     match /usage_logs/{usageLogId} {
        allow read: if isAdmin();
-       allow write: if false; // Only server can write logs.
+       allow write: if false; 
     }
 
-    // Blocked IPs/Domains: Read-only for admins.
+    // Admin-only collections
     match /blocked_ips/{blockedIpId} {
       allow read, write: if isAdmin();
     }
     match /blocked_domains/{blockedDomainId} {
       allow read, write: if isAdmin();
     }
-
-    // Allowed Domains: Anyone can read, only admins can write.
-    match /allowed_domains/{allowedDomainId} {
-      allow get, list: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Plans: Anyone can read plans for the pricing page.
-    match /plans/{planId} {
-      allow get, list: if true;
-      allow write: if isAdmin();
-    }
-
-    // Admin Settings: Only accessible by admins.
     match /admin_settings/{settingId} {
       allow read, write: if isAdmin();
+    }
+
+    // --- Public & Semi-Public Collections ---
+
+    // Allowed Domains: Anyone can read, only admins can write.
+    match /allowed_domains/{domainId} {
+      allow list, get: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Plans: Anyone can read plans for the pricing page. Admins can write.
+    match /plans/{planId} {
+      allow list, get: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }
