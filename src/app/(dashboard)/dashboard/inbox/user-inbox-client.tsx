@@ -200,11 +200,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
-    // Do not proceed if user state is still loading.
     if (isUserLoading) return;
     
-    // This logic ensures we use the real user if they are logged in, or create an anonymous one if not.
-    // It correctly waits for the initial user state to be resolved.
     const currentUser = user || await ensureAnonymousUser();
     if (!currentUser) {
         if (!isAutoRefresh) toast({ title: "Authentication Error", description: "Could not establish a user session to refresh inbox.", variant: "destructive" });
@@ -221,6 +218,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             throw new Error(result.error);
         }
         
+        // If successful, clear any previous server error
         setServerError(null);
         
         if (result.emails && result.emails.length > 0) {

@@ -9,8 +9,10 @@ import type { Email } from '@/types';
 
 async function getMailgunSettings() {
     const { firestore, error: adminError } = getFirebaseAdmin();
+    
     if (adminError) {
         // This is a configuration error on the server, re-throw it to be caught by the main action.
+        // This error now originates from a non-crashing initialization.
         throw adminError;
     }
     
@@ -19,7 +21,7 @@ async function getMailgunSettings() {
         const settingsSnap = await settingsRef.get();
 
         if (!settingsSnap.exists) {
-            throw new Error("Mailgun integration settings not found in the database.");
+            throw new Error("Mailgun integration settings not found in the database. Please configure it in the admin panel.");
         }
 
         const settings = settingsSnap.data();
@@ -83,8 +85,10 @@ export async function fetchEmailsFromServerAction(
         return { success: true, emails };
 
     } catch (error: any) {
-        console.error("Error in fetchEmailsFromServerAction:", error.message);
-        // We will return any error message thrown from getMailgunSettings or mailgun-js
+        // Log the actual error on the server for debugging
+        console.error("[MAILGUN_ACTION_ERROR]", error.message);
+        // Return a generic but informative message to the client.
+        // The specific FIREBASE_SERVICE_ACCOUNT message will be passed through from the error thrown by getFirebaseAdmin.
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }

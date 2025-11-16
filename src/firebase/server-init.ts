@@ -22,7 +22,7 @@ function initializeAdmin() {
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!serviceAccountString) {
       initializationError = new Error('Firebase Admin SDK service account is not set in environment variables (FIREBASE_SERVICE_ACCOUNT). Server-side actions that require admin privileges will fail.');
-      console.warn(initializationError.message);
+      console.warn(`[SERVER_INIT_WARNING] ${initializationError.message}`);
       return;
     }
 
@@ -31,12 +31,10 @@ function initializeAdmin() {
       serviceAccount = JSON.parse(serviceAccountString);
     } catch (e) {
       initializationError = new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.');
-       console.error("CRITICAL: Firebase Admin SDK initialization failed:", initializationError.message);
+      console.error(`[SERVER_INIT_ERROR] ${initializationError.message}`);
       return;
     }
 
-    // Use an existing app if it's there, otherwise initialize a new one.
-    // This handles Next.js hot-reloading in development.
     const existingApp = getApps().length > 0 ? getApp() : null;
     adminApp = existingApp || initializeApp({ credential: cert(serviceAccount) });
     
@@ -45,7 +43,7 @@ function initializeAdmin() {
 
   } catch (error: any) {
     initializationError = error;
-    console.error("CRITICAL: Firebase Admin SDK initialization failed:", error.message);
+    console.error("[SERVER_INIT_ERROR] Critical Firebase Admin SDK initialization failed:", error.message);
   }
 }
 
