@@ -72,10 +72,10 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const settingsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore]);
-  const { data: mailgunSettings, isLoading: isLoadingSettings, error: settingsError } = useDoc(settingsRef);
+  }, [firestore, user]);
+  const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -173,16 +173,14 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !mailgunSettings?.enabled) {
-      if (mailgunSettings && !mailgunSettings.enabled) {
+      if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
-        if (!isAutoRefresh && serverError !== errorMsg) {
-          toast({
-            title: "Refresh Disabled",
-            description: errorMsg,
-            variant: "default",
-          });
-        }
         setServerError(errorMsg);
+        toast({
+          title: "Refresh Disabled",
+          description: errorMsg,
+          variant: "default",
+        });
       }
       return;
     }
@@ -196,7 +194,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
         
       if (result.error) {
-        if(result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
+        // This specific error means the server is not configured, which is a permanent state
+        if (result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
             const errorMsg = "Server is not configured for email fetching. Please contact support.";
             setServerError(errorMsg);
             if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
@@ -234,7 +233,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, mailgunSettings, serverError]);
+  }, [currentInbox, toast, mailgunSettings]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -343,9 +342,9 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
        {serverError && (
           <Alert variant="destructive">
             <ServerCrash className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                {serverError}
+                {serverError} Email refreshing is disabled.
             </AlertDescription>
           </Alert>
         )}

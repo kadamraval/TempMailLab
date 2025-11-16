@@ -3,20 +3,41 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from 'next/link';
-import { Copy, RefreshCw, Loader2, Clock, Trash2 } from "lucide-react";
+import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle, ServerCrash } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
-import { InboxView } from "./inbox-view";
-import { EmailView } from "./email-view";
-import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
+import { EmailView } from "@/components/email-view";
+import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
-import { signInAnonymously, type User } from "firebase/auth";
+import { type User } from "firebase/auth";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ServerCrash } from "lucide-react";
+
+
+const EnvelopeLoader = () => (
+    <div className="relative w-20 h-20">
+        <svg className="w-full h-full" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 25 L40 50 L70 25 L70 60 H10 V25Z" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/50"/>
+            <rect x="18" y="30" width="44" height="0" fill="hsl(var(--primary))" className="animate-[expand_1.5s_ease-out_infinite]" style={{ animationDelay: '0.2s' }}/>
+            <path d="M10 25 L40 50 L70 25" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+            <path d="M10 60 L40 35 L70 60" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+        <style jsx>{`
+            @keyframes expand {
+                0% { height: 0; y: 30; opacity: 0; }
+                40% { height: 20px; y: 10px; opacity: 1; }
+                80% { height: 20px; y: 10px; opacity: 1; }
+                100% { height: 0; y: 30; opacity: 0; }
+            }
+        `}</style>
+    </div>
+);
+
 
 function generateRandomString(length: number) {
   let result = '';
@@ -50,12 +71,11 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Securely get Mailgun settings from Firestore
   const settingsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore]);
-  const { data: mailgunSettings, isLoading: isLoadingSettings, error: settingsError } = useDoc(settingsRef);
+  }, [firestore, user]);
+  const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -152,39 +172,57 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
-        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
-             toast({ title: "Refresh Failed", description: "Email fetching is disabled by the administrator.", variant: "destructive" });
-        }
-        return;
+    if (!currentInbox?.emailAddress || !mailgunSettings?.enabled) {
+      if (!isAutoRefresh) {
+        const errorMsg = 'Email fetching is currently disabled by the administrator.';
+        setServerError(errorMsg);
+        toast({
+          title: "Refresh Disabled",
+          description: errorMsg,
+          variant: "default",
+        });
+      }
+      return;
     }
 
-    if (!isAutoRefresh) setIsRefreshing(true);
+    if (!isAutoRefresh) {
+      setIsRefreshing(true);
+    }
     
     try {
-        const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
-        const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
+      const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
+      const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
         
-        if (result.error) {
-            throw new Error(result.error);
+      if (result.error) {
+        if (result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
+            const errorMsg = "Server is not configured for email fetching. Please contact support.";
+            setServerError(errorMsg);
+            if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+            if (!isAutoRefresh) {
+              toast({ title: 'Server Error', description: errorMsg, variant: 'destructive'});
+            }
+        } else {
+          throw new Error(result.error);
         }
-        
+      } else {
         setServerError(null);
+      }
         
-        if (result.emails && result.emails.length > 0) {
-            setInboxEmails(prevEmails => {
-                const existingIds = new Set(prevEmails.map(e => e.id));
-                const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-                if (newEmails.length > 0 && !isAutoRefresh) {
-                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-                }
-                const allEmails = [...prevEmails, ...newEmails];
-                return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-            });
-        } 
-        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) {
-            toast({ title: "Inbox refreshed", description: "No new emails found." });
+      if (result.emails && result.emails.length > 0) {
+        setInboxEmails(prevEmails => {
+          const existingIds = new Set(prevEmails.map(e => e.id));
+          const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
+          if (newEmails.length > 0 && !isAutoRefresh) {
+            toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+          }
+          const allEmails = [...prevEmails, ...newEmails];
+          return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+        });
+      } else {
+        if (!isAutoRefresh) {
+          toast({ title: "Inbox refreshed", description: "No new emails found." });
         }
+      }
         
     } catch (error: any) {
         if (!isAutoRefresh) {
@@ -195,7 +233,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
   }, [currentInbox, toast, mailgunSettings]);
-
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -221,23 +258,15 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             }
         }, 1000);
 
-        if (mailgunSettings?.enabled) {
-          handleRefresh(true);
-          refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
-        }
+        handleRefresh(true);
+        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
     }
     return () => {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, mailgunSettings]);
+  }, [currentInbox, toast, handleRefresh]);
 
-  useEffect(() => {
-    if (settingsError) {
-        setServerError("Could not load mail configuration. Email fetching is disabled.");
-        console.error("Mailgun settings fetch error:", settingsError);
-    }
-  }, [settingsError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -255,8 +284,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     toast({ title: "Inbox Cleared", description: "A new address has been generated." });
   };
 
-  const handleBackToInbox = () => setSelectedEmail(null);
-
   const formatTime = (seconds: number) => {
     if (seconds <= 0) return "00:00";
     const minutes = Math.floor(seconds / 60);
@@ -266,93 +293,132 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   
   if (isLoading || isUserLoading || isLoadingSettings) {
     return (
-        <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
+        <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
   }
 
-  if (selectedEmail) {
-    return <EmailView email={selectedEmail} onBack={handleBackToInbox} />;
-  }
-
   return (
-    <Card>
-      <CardHeader className="border-b p-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className={`flex items-center gap-2 text-sm font-mono bg-secondary px-3 py-1.5 rounded-md text-muted-foreground ${!currentInbox && "invisible"}`}>
-            <Clock className="h-4 w-4" />
-            <span>{formatTime(countdown)}</span>
-          </div>
+     <div className="flex flex-col h-full space-y-4">
+      <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
+        <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>{formatTime(countdown)}</span>
+        </div>
+        
+        <div 
+          onClick={handleCopyEmail}
+          className="flex-grow flex items-center justify-center font-mono text-base md:text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
+        >
+          {isGenerating || !currentInbox ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Generating...</span>
+            </div>
+          ) : (
+            <>
+              <span className="truncate">{currentInbox.emailAddress}</span>
+              <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </>
+          )}
+        </div>
 
-          <div 
-            onClick={handleCopyEmail}
-            className="flex-grow flex items-center justify-center font-mono text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
-            >
-            {isGenerating || !currentInbox ? (
-                 <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Generating address...</span>
-                </div>
-            ) : (
-              <>
-                <span>{currentInbox.emailAddress}</span>
-                <Copy className="h-5 w-5 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </>
-            )}
-          </div>
-          
-          <Button onClick={handleNewAddressClick} variant="outline" disabled={isGenerating}>
-            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            New Address
+        <div className="flex items-center gap-2">
+          <Button onClick={handleNewAddressClick} variant="outline" size="sm" disabled={isGenerating}>
+            <PlusCircle className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">New</span>
+          </Button>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+          <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-        {serverError && (
-          <Alert variant="destructive" className="mt-4">
+      </div>
+
+       {serverError && (
+          <Alert variant="destructive">
             <ServerCrash className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                {serverError}
+                {serverError} Email refreshing is disabled.
             </AlertDescription>
           </Alert>
         )}
-      </CardHeader>
 
-      <CardContent className="p-0">
-         <InboxView 
-            inbox={inboxEmails} 
-            onSelectEmail={handleSelectEmail} 
-            onRefresh={() => handleRefresh(false)}
-            isRefreshing={isRefreshing}
-            onDelete={handleDeleteInbox}
-          />
-      </CardContent>
-
-      {!user && (
-        <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
-          <p className="text-center text-sm text-muted-foreground w-full">
-            <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
-              Log In
-            </Link>
-            {' '}for more features like custom domains &amp; longer inbox life.
-          </p>
-        </CardFooter>
-      )}
-      {user && user.isAnonymous && (
-           <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
-                <p className="text-center text-sm text-muted-foreground w-full">
-                    This is a temporary anonymous session. {' '}
-                    <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
-                        Log In
-                    </Link>
-                    {' '}or{' '}
-                    <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
-                        Sign Up
-                    </Link>
-                    {' '} for more features.
-                </p>
-           </CardFooter>
-        )}
-    </Card>
+      <div className="flex-1">
+        <Card className="h-full">
+            <CardContent className="p-0 h-full">
+                <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
+                <div className="flex flex-col border-r">
+                    <ScrollArea className="flex-1">
+                    {inboxEmails.length === 0 ? (
+                        <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                            <EnvelopeLoader />
+                            <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+                            <p className="text-sm">New messages will appear here automatically.</p>
+                        </div>
+                    ) : (
+                        <div className="p-2 space-y-1">
+                        {inboxEmails.map(email => (
+                            <button
+                            key={email.id}
+                            onClick={() => handleSelectEmail(email)}
+                            className={cn(
+                                "w-full text-left p-3 rounded-md border-b border-transparent transition-colors flex items-center gap-4",
+                                selectedEmail?.id === email.id ? 'bg-muted' : 'hover:bg-muted/50',
+                                !email.read && "font-semibold bg-card"
+                            )}
+                            >
+                                <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
+                                <div className="flex-grow overflow-hidden">
+                                  <div className="truncate font-medium">{email.senderName}</div>
+                                  <div className={cn("truncate text-sm", !email.read ? 'text-foreground' : 'text-muted-foreground')}>{email.subject}</div>
+                                </div>
+                            </button>
+                        ))}
+                        </div>
+                    )}
+                    </ScrollArea>
+                </div>
+                <div className="col-span-1 hidden md:block">
+                    {selectedEmail ? (
+                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
+                        <Inbox className="h-16 w-16 mb-4" />
+                        <h3 className="text-xl font-semibold">Select an email to read</h3>
+                        <p>Your messages will appear here.</p>
+                    </div>
+                    )}
+                </div>
+                {selectedEmail && (
+                    <div className="md:hidden absolute inset-0 bg-background z-10">
+                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    </div>
+                )}
+                </div>
+            </CardContent>
+            {user && user.isAnonymous && (
+                <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
+                    <p className="text-center text-sm text-muted-foreground w-full">
+                        This is a temporary anonymous session. {' '}
+                        <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                            Log In
+                        </Link>
+                        {' '}or{' '}
+                        <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
+                            Sign Up
+                        </Link>
+                        {' '} for more features.
+                    </p>
+                </CardFooter>
+            )}
+        </Card>
+      </div>
+    </div>
   );
 }
+
