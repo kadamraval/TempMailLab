@@ -12,8 +12,16 @@ import { revalidatePath } from 'next/cache';
  * This is a system-critical plan that serves as a fallback.
  */
 export async function seedFreePlan() {
+  const { firestore, error: adminError } = getFirebaseAdmin();
+  
+  if (adminError) {
+    // Log the configuration warning but don't throw an error,
+    // allowing the app to run without admin features.
+    console.warn("Skipping free plan seed:", adminError.message);
+    return { success: false, error: adminError.message };
+  }
+
   try {
-    const { firestore } = getFirebaseAdmin();
     // The document ID 'free' is the unique identifier for this system plan.
     const freePlanRef = firestore.collection('plans').doc('free');
     const docSnap = await freePlanRef.get();
@@ -74,10 +82,6 @@ export async function seedFreePlan() {
     return { success: true, message: 'Free plan seeded successfully.' };
 
   } catch (error: any) {
-    if (error.message.includes("not configured")) {
-        console.warn("Server-side Firebase not configured, skipping free plan seed.");
-        return { success: false, error: error.message };
-    }
     console.error('Error seeding free plan:', error);
     return {
       success: false,
@@ -100,8 +104,13 @@ export async function deletePlanAction(planId: string) {
     return { error: 'The system-critical "Free" plan cannot be deleted.' };
   }
 
+  const { firestore, error: adminError } = getFirebaseAdmin();
+  if (adminError) {
+    console.error('Error in deletePlanAction:', adminError.message);
+    return { error: adminError.message };
+  }
+
   try {
-    const { firestore } = getFirebaseAdmin();
     const planRef = firestore.collection('plans').doc(planId);
     
     await planRef.delete();
@@ -112,9 +121,6 @@ export async function deletePlanAction(planId: string) {
     return { success: true, message: 'Plan deleted successfully.' };
   } catch (error: any) {
     console.error('Error in deletePlanAction:', error);
-    if (error.message.includes("not configured")) {
-        return { error: error.message };
-    }
     return {
       error: 'Could not delete the plan from the database.',
     };

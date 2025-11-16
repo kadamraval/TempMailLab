@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -10,8 +11,14 @@ import { getFirebaseAdmin } from '@/firebase/server-init';
  * @param isNewUser A boolean to check if it's a new user creation.
  */
 export async function signUp(uid: string, email: string | null, isNewUser: boolean) {
+  const { firestore, error: adminError } = getFirebaseAdmin();
+
+  if (adminError) {
+    console.error('Error in signUp server action:', adminError.message);
+    return { error: adminError.message };
+  }
+  
   try {
-    const { firestore } = getFirebaseAdmin();
     const userRef = firestore.collection('users').doc(uid);
     const docSnap = await userRef.get();
 
@@ -31,9 +38,6 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
 
   } catch (error: any) {
     console.error('Error in signUp server action:', error);
-    if (error.message.includes("not configured")) {
-        return { error: error.message };
-    }
     return {
       error: 'Could not create or verify user record in the database.',
     };

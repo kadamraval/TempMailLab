@@ -8,9 +8,13 @@ import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 
 async function getMailgunSettings() {
+    const { firestore, error: adminError } = getFirebaseAdmin();
+    if (adminError) {
+        // This is a configuration error on the server, re-throw it to be caught by the main action.
+        throw adminError;
+    }
+    
     try {
-        // This will throw an error if the admin SDK is not configured, which is caught by the main action.
-        const { firestore } = getFirebaseAdmin();
         const settingsRef = firestore.collection("admin_settings").doc("mailgun");
         const settingsSnap = await settingsRef.get();
 
@@ -29,8 +33,7 @@ async function getMailgunSettings() {
             domain: settings.domain,
         };
     } catch (error: any) {
-        // Re-throw any error to be handled by the caller.
-        // This centralizes error handling in the main server action.
+        // Re-throw any other error to be handled by the caller.
         throw error;
     }
 }
