@@ -29,14 +29,11 @@ export default function PricingPage() {
         )
     }
 
-    // Filter out the 'Free' plan before passing to children components
-    const displayPlans = plans?.filter(p => p.name.toLowerCase() !== 'free') || [];
-
     return (
         <>
-            <PricingSection plans={displayPlans} />
+            <PricingSection plans={plans || []} />
             <div className="border-t">
-                <PricingComparisonTable plans={displayPlans} />
+                <PricingComparisonTable plans={plans || []} />
             </div>
         </>
     );

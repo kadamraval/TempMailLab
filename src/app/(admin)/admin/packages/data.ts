@@ -7,7 +7,9 @@ import type { Timestamp } from "firebase/firestore"
 // This schema now reflects the comprehensive feature list from our deep research.
 export const planSchema = z.object({
   id: z.string().optional(), // Optional for new plans
-  name: z.string().min(1, "Plan name is required."),
+  name: z.string().min(1, "Plan name is required.").refine(val => val.toLowerCase() !== 'free', {
+    message: "The name 'Free' is reserved for the system plan and cannot be used."
+  }),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   cycle: z.enum(["monthly", "yearly"]),
   status: z.enum(["active", "archived"]),

@@ -34,7 +34,7 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
             customDomains: plan.features.customDomains,
             apiAccess: plan.features.apiAccess
         },
-        buttonText: `Go ${plan.name}`,
+        buttonText: plan.price > 0 ? `Go ${plan.name}` : 'Get Started',
         href: "/register",
         isPrimary: plan.name.toLowerCase() === 'premium'
     }
