@@ -11,7 +11,7 @@ import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
-import { signInAnonymously } from "firebase/auth";
+import { signInAnonymously, type User } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -74,7 +74,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
   }, [plans]);
 
-  const getPlanForUser = useCallback(async (currentAuthUser: any): Promise<Plan | null> => {
+  const getPlanForUser = useCallback(async (currentAuthUser: User | null): Promise<Plan | null> => {
     if (!firestore || plans.length === 0) return null;
 
     if (currentAuthUser && !currentAuthUser.isAnonymous) {
@@ -151,31 +151,36 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         sessionIdRef.current = sid;
     }
-
-    if (!isUserLoading && plans.length > 0 && !userPlan) {
-        let effectiveUser = user;
-        
-        // If no user is logged in, create an anonymous session for the inbox.
-        if (!effectiveUser && auth) {
-            signInAnonymously(auth).then(cred => {
-                 getPlanForUser(cred.user).then(plan => {
-                    if (plan) setUserPlan(plan);
-                 });
-            }).catch(() => {
-                toast({ title: "Session Error", description: "Could not create a secure anonymous session.", variant: "destructive"});
-                setIsLoading(false);
-            });
-        } else {
-            getPlanForUser(effectiveUser).then(plan => {
-                if (plan) {
-                    setUserPlan(plan);
-                } else {
-                    toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
-                    setIsLoading(false);
-                }
-            });
+  
+    // Wait until auth state is resolved and plans are loaded
+    if (isUserLoading || plans.length === 0) return;
+  
+    // If a plan is already set, do nothing.
+    if (userPlan) return;
+  
+    const determineUserAndPlan = async () => {
+      // If a real user is logged in
+      if (user) {
+        const plan = await getPlanForUser(user);
+        if (plan) setUserPlan(plan);
+      } else if (auth) {
+        // Only if there is no real user, proceed with anonymous
+        try {
+          const cred = await signInAnonymously(auth);
+          const plan = await getPlanForUser(cred.user);
+          if (plan) setUserPlan(plan);
+        } catch {
+          toast({ title: "Session Error", description: "Could not create a secure anonymous session.", variant: "destructive"});
+          setIsLoading(false);
         }
-    }
+      } else {
+        // Fallback if auth is not ready
+        setIsLoading(false);
+      }
+    };
+  
+    determineUserAndPlan();
+  
   }, [isUserLoading, user, plans, userPlan, getPlanForUser, auth, toast]);
 
   useEffect(() => {
@@ -199,6 +204,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
+        // The server action now correctly uses the identity of the logged-in user (if any)
+        // or the implicitly created anonymous user.
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
         if (result.error) {
             if (result.error.includes("FIREBASE_SERVICE_ACCOUNT") && !isAutoRefresh) {
