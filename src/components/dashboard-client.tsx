@@ -11,7 +11,7 @@ import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
 import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError, useMemoFirebase } from "@/firebase";
-import { getDocs, query, collection, where, addDoc, serverTimestamp, getDoc, doc, orderBy, limit } from "firebase/firestore";
+import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
@@ -50,34 +50,34 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const sessionIdRef = useRef<string | null>(null);
 
   const findPlan = useCallback((planName: string) => {
-      return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
+    return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
   }, [plans]);
 
-  const getPlanForUser = useCallback(async (currentAuthUser: any) => {
-      if (!firestore) return findPlan('Default');
+  const getPlanForUser = useCallback(async (currentAuthUser: any): Promise<Plan | null> => {
+    if (!firestore || plans.length === 0) return null;
 
-      if (currentAuthUser && !currentAuthUser.isAnonymous) {
-          try {
-              const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists() && userDoc.data().planId) {
-                  const planId = userDoc.data().planId;
-                  const planDocRef = doc(firestore, 'plans', planId);
-                  const planDoc = await getDoc(planDocRef);
-                  if (planDoc.exists()) {
-                      return { id: planDoc.id, ...planDoc.data() } as Plan;
-                  }
-              }
-          } catch (e) {
-             // This might fail due to security rules if the user doc isn't created yet, fall back.
-             console.warn("Could not fetch user-specific plan, falling back to Free/Default.");
+    // For a logged-in (non-anonymous) user
+    if (currentAuthUser && !currentAuthUser.isAnonymous) {
+      try {
+        const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().planId) {
+          const planId = userDoc.data().planId;
+          const planDocRef = doc(firestore, 'plans', planId);
+          const planDoc = await getDoc(planDocRef);
+          if (planDoc.exists()) {
+            return { id: planDoc.id, ...planDoc.data() } as Plan;
           }
+        }
+      } catch (e) {
+        console.warn("Could not fetch user-specific plan, falling back.");
       }
-      
-      return findPlan('Free') || findPlan('Default');
-
-  }, [firestore, findPlan]);
-  
+    }
+    
+    // For anonymous users or as a fallback for logged-in users
+    // Prefer the user-created "Free" plan. If not found, use the system "Default" plan.
+    return findPlan('Free') || findPlan('Default');
+  }, [firestore, plans, findPlan]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
@@ -144,8 +144,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                     setIsLoading(false);
                 }
             } else {
-                // This case happens if no plans are found at all.
-                toast({ title: "Configuration Error", description: "No subscription plans found.", variant: "destructive"});
+                toast({ title: "Configuration Error", description: "No subscription plans found. Please add a 'Free' or 'Default' plan.", variant: "destructive"});
                 setIsLoading(false);
             }
         });
@@ -184,7 +183,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
-    // An anonymous user is only needed for the server action.
     const currentUser = await ensureAnonymousUser();
     if (!currentUser) return;
 
@@ -200,7 +198,9 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                 const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
                 
                 if (newEmails.length > 0) {
-                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+                    if (!isAutoRefresh) { // Only toast on manual refresh
+                        toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+                    }
                 }
                 const allEmails = [...prevEmails, ...newEmails];
                 return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());

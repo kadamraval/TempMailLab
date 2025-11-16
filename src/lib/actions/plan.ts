@@ -11,9 +11,16 @@ export async function seedDefaultPlan() {
     const docSnap = await defaultPlanRef.get();
 
     if (docSnap.exists) {
-      return { success: true, message: 'Default plan already exists.' };
+      // Check if the name is correct, and update it if not.
+      if (docSnap.data()?.name !== 'Default') {
+        await defaultPlanRef.update({ name: 'Default' });
+        console.log('Corrected plan name to "Default".');
+        return { success: true, message: 'Default plan name corrected.' };
+      }
+      return { success: true, message: 'Default plan already exists and is correct.' };
     }
 
+    // If the document doesn't exist, create it with the correct "Default" name.
     const defaultPlanData = {
         name: "Default",
         price: 0,
@@ -60,7 +67,6 @@ export async function seedDefaultPlan() {
     return { success: true, message: 'Default plan seeded successfully.' };
 
   } catch (error: any) {
-    // Gracefully fail in environments without server-side credentials
     if (error.message.includes("not configured")) {
         console.warn("Server-side Firebase not configured, skipping default plan seed.");
         return { success: false, error: error.message };
