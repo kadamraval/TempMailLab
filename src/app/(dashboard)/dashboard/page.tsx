@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useUser } from "@/firebase";
@@ -24,7 +23,7 @@ export default function DashboardPage() {
         </div>
         <div>
             <Button asChild>
-                <Link href="/">Back to Inbox Generator</Link>
+                <Link href="/">Back to Home</Link>
             </Button>
         </div>
     </div>
