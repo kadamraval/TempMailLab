@@ -9,32 +9,41 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 let adminApp: App | null = null;
 let adminAuth: Auth | null = null;
 let adminFirestore: Firestore | null = null;
+let initializationError: Error | null = null;
 
 function initializeAdmin() {
-  if (adminApp) {
-    return; // Already initialized
+  if (adminApp || initializationError) {
+    return; // Already initialized or failed trying
   }
 
-  const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccountString) {
-    // This is a critical configuration error. The server action cannot function without it.
-    throw new Error('Firebase Admin SDK service account is not set in environment variables (FIREBASE_SERVICE_ACCOUNT).');
-  }
-
-  let serviceAccount: ServiceAccount;
   try {
-    serviceAccount = JSON.parse(serviceAccountString);
-  } catch (e) {
-    throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.');
-  }
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccountString) {
+      // This is a critical configuration error. The server action cannot function without it.
+      throw new Error('Firebase Admin SDK service account is not set in environment variables (FIREBASE_SERVICE_ACCOUNT).');
+    }
 
-  // Use an existing app if it's there, otherwise initialize a new one.
-  // This handles Next.js hot-reloading in development.
-  const existingApp = getApps().length > 0 ? getApp() : null;
-  adminApp = existingApp || initializeApp({ credential: cert(serviceAccount) });
-  
-  adminAuth = getAuth(adminApp);
-  adminFirestore = getFirestore(adminApp);
+    let serviceAccount: ServiceAccount;
+    try {
+      serviceAccount = JSON.parse(serviceAccountString);
+    } catch (e) {
+      throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.');
+    }
+
+    // Use an existing app if it's there, otherwise initialize a new one.
+    // This handles Next.js hot-reloading in development.
+    const existingApp = getApps().length > 0 ? getApp() : null;
+    adminApp = existingApp || initializeApp({ credential: cert(serviceAccount) });
+    
+    adminAuth = getAuth(adminApp);
+    adminFirestore = getFirestore(adminApp);
+
+  } catch (error: any) {
+    // If initialization fails, we store the error and prevent future attempts.
+    initializationError = error;
+    console.error("CRITICAL: Firebase Admin SDK initialization failed:", error.message);
+    // We don't re-throw here, getFirebaseAdmin will handle it.
+  }
 }
 
 /**
@@ -43,15 +52,20 @@ function initializeAdmin() {
  * the existing instances on subsequent calls.
  *
  * @returns An object containing the initialized Firebase Admin App, Auth, and Firestore instances.
- * @throws {Error} If the Admin SDK is not configured (i.e., FIREBASE_SERVICE_ACCOUNT is not set or is invalid).
+ * @throws {Error} If the Admin SDK failed to initialize.
  */
 export function getFirebaseAdmin() {
   // The initialization is done lazily on the first request.
-  if (!adminApp) {
+  if (!adminApp && !initializationError) {
     initializeAdmin();
   }
+
+  // If there was an error during initialization, we throw it on every subsequent call.
+  if (initializationError) {
+    throw initializationError;
+  }
   
-  // Since initializeAdmin() throws if it fails, we can be sure these are non-null here.
+  // If initialization was successful, we can be sure these are non-null.
   return {
     app: adminApp!,
     auth: adminAuth!,
