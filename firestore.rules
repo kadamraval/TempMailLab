@@ -7,13 +7,13 @@ service cloud.firestore {
 
     // Allow anyone to read the list of plans and individual plan documents.
     match /plans/{planId} {
-      allow get, list: if true;
+      allow read: if true;
       allow write: if false; // Deny all client-side writes.
     }
 
     // Allow anyone to read the list of allowed domains and individual domain documents.
     match /allowed_domains/{domainId} {
-      allow get, list: if true;
+      allow read: if true;
       allow write: if false; // Deny all client-side writes.
     }
     
