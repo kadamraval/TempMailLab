@@ -14,13 +14,13 @@ async function getMailgunSettings() {
         const settingsSnap = await settingsRef.get();
 
         if (!settingsSnap.exists) {
-            throw new Error("Mailgun integration settings not found in the database. Please configure them in the admin panel.");
+            throw new Error("Mailgun integration settings not found. Please configure them in the admin panel.");
         }
 
         const settings = settingsSnap.data();
         
         if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
-            throw new Error("Mailgun integration is not enabled or its settings are incomplete. Please check the admin panel.");
+            throw new Error("Mailgun integration is not enabled or is incomplete. Please check the admin panel.");
         }
         
         return {
@@ -28,11 +28,11 @@ async function getMailgunSettings() {
             domain: settings.domain,
         };
     } catch (error: any) {
-        // If initialization fails due to missing credentials, catch it here and re-throw a specific message.
+        // If initialization fails due to missing credentials, throw a clear error.
         if (error.message.includes("FIREBASE_SERVICE_ACCOUNT")) {
-            throw new Error("Server actions are not configured. Please set the FIREBASE_SERVICE_ACCOUNT in your environment to enable administrative features like fetching emails.");
+            throw new Error("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
         }
-        // Re-throw other errors (e.g., Mailgun settings not found)
+        // Re-throw other specific errors (e.g., Mailgun settings not found)
         throw error;
     }
 }
@@ -82,7 +82,7 @@ export async function fetchEmailsFromServerAction(
         return { success: true, emails };
 
     } catch (error: any) {
-        console.error("Error in fetchEmailsFromServerAction:", error);
+        console.error("Error in fetchEmailsFromServerAction:", error.message);
         // We will return any error message thrown from getMailgunSettings or mailgun-js
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from 'next/link';
-import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle } from "lucide-react";
+import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle, ServerCrash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,8 @@ import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 const EnvelopeLoader = () => (
     <div className="relative w-20 h-20">
@@ -60,6 +62,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [serverError, setServerError] = useState<string | null>(null);
+
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -99,6 +103,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
+    setServerError(null); // Clear any previous server errors
     try {
       if (!firestore) throw new Error("Database connection not available.");
 
@@ -194,23 +199,31 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
+    // If we're still waiting on the main user object to load, wait before refreshing.
+    if (isUserLoading) return;
+    
     // For anonymous users, ensure a session exists. For logged-in users, the `user` object will be present.
     if (!user) {
         await ensureAnonymousUser();
     }
-    // If we're still waiting on the main user object to load, wait before refreshing.
-    if (isUserLoading) return;
 
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
+        
         if (result.error) {
             // Re-throw the error from the server to be caught by the catch block
             throw new Error(result.error);
         }
         
+        // If we get a successful response, clear any previous server error
+        setServerError(null);
+        clearRefreshInterval(); // Ensure interval is cleared on success
+        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+
+
         if (result.emails && result.emails.length > 0) {
             setInboxEmails(prevEmails => {
                 const existingIds = new Set(prevEmails.map(e => e.id));
@@ -222,10 +235,17 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                 return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
             });
         } 
-        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) toast({ title: "Inbox refreshed", description: "No new emails found." });
+        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) {
+            toast({ title: "Inbox refreshed", description: "No new emails found." });
+        }
         
     } catch (error: any) {
         if (!isAutoRefresh) toast({ title: "Refresh Failed", description: error.message, variant: "destructive" });
+        
+        // This is a critical error from the server, likely config-related.
+        // Stop auto-refreshing to prevent spamming failed requests.
+        setServerError(error.message);
+        clearRefreshInterval();
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
@@ -254,13 +274,17 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                 setCountdown(newCountdown);
             }
         }, 1000);
-        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+
+        if (!serverError) {
+          handleRefresh(true); // Initial fetch
+          refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        }
     }
     return () => {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh]);
+  }, [currentInbox, toast, handleRefresh, serverError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -331,6 +355,16 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
           </Button>
         </div>
       </div>
+
+       {serverError && (
+          <Alert variant="destructive">
+            <ServerCrash className="h-4 w-4" />
+            <AlertTitle>Server Configuration Error</AlertTitle>
+            <AlertDescription>
+                {serverError} Auto-refresh has been disabled.
+            </AlertDescription>
+          </Alert>
+        )}
 
       <div className="flex-1">
         <Card className="h-full">
