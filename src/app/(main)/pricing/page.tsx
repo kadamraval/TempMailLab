@@ -13,11 +13,10 @@ export default function PricingPage() {
 
     const plansQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Fetch all active plans except the system's 'Default' plan.
+        // Fetch all active plans. The "Default" plan should be filtered out by the display components.
         return query(
             collection(firestore, "plans"),
-            where("status", "==", "active"),
-            where("name", "!=", "Default") 
+            where("status", "==", "active")
         );
     }, [firestore]);
 
@@ -31,14 +30,15 @@ export default function PricingPage() {
         )
     }
 
+    // Filter out the 'Default' plan before passing to children components
+    const displayPlans = plans?.filter(p => p.name !== 'Default') || [];
+
     return (
         <>
-            <PricingSection plans={plans || []} />
+            <PricingSection plans={displayPlans} />
             <div className="border-t">
-                <PricingComparisonTable plans={plans || []} />
+                <PricingComparisonTable plans={displayPlans} />
             </div>
         </>
     );
 }
-
-    

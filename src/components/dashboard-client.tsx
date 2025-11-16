@@ -26,11 +26,15 @@ function generateRandomString(length: number) {
   return result;
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+  plans: Plan[];
+}
+
+export function DashboardClient({ plans }: DashboardClientProps) {
   const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isGenerating, setIsGenerating] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
@@ -45,52 +49,35 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  const fetchPlan = useCallback(async (currentAuthUser: any) => {
-    if (!firestore) return null;
-    try {
-      let fetchedPlan: Plan | null = null;
-      
+  const findPlan = useCallback((planName: string) => {
+      return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
+  }, [plans]);
+
+  const getPlanForUser = useCallback(async (currentAuthUser: any) => {
+      if (!firestore) return findPlan('Default');
+
       if (currentAuthUser && !currentAuthUser.isAnonymous) {
-          const userDoc = await getDoc(doc(firestore, 'users', currentAuthUser.uid));
-          if (userDoc.exists() && userDoc.data().planId) {
-              const planId = userDoc.data().planId;
-              const planDoc = await getDoc(doc(firestore, 'plans', planId));
-              if (planDoc.exists()) {
-                   fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
+          try {
+              const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists() && userDoc.data().planId) {
+                  const planId = userDoc.data().planId;
+                  const planDocRef = doc(firestore, 'plans', planId);
+                  const planDoc = await getDoc(planDocRef);
+                  if (planDoc.exists()) {
+                      return { id: planDoc.id, ...planDoc.data() } as Plan;
+                  }
               }
+          } catch (e) {
+             // This might fail due to security rules if the user doc isn't created yet, fall back.
+             console.warn("Could not fetch user-specific plan, falling back to Free/Default.");
           }
       }
+      
+      return findPlan('Free') || findPlan('Default');
 
-      if (!fetchedPlan) {
-           const freePlanQuery = query(collection(firestore, "plans"), where("name", "==", "Free"), limit(1));
-           const freePlanSnap = await getDocs(freePlanQuery);
-           if(!freePlanSnap.empty){
-               const planDoc = freePlanSnap.docs[0];
-               fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-           } else {
-                const defaultPlanQuery = query(collection(firestore, "plans"), where("name", "==", "Default"), limit(1));
-                const defaultPlanSnap = await getDocs(defaultPlanQuery);
-                if(!defaultPlanSnap.empty){
-                    const planDoc = defaultPlanSnap.docs[0];
-                    fetchedPlan = { id: planDoc.id, ...planDoc.data() } as Plan;
-                } else {
-                     throw new Error("Default or Free plan not found in the database. Please ensure one has been seeded.");
-                }
-           }
-      }
-      setUserPlan(fetchedPlan);
-      return fetchedPlan;
-
-    } catch (error: any) {
-        console.error("Failed to fetch plan:", error);
-         toast({
-            title: "Error Loading Configuration",
-            description: error.message || "Could not load subscription details.",
-            variant: "destructive",
-        });
-        return null;
-    }
-  }, [firestore, toast]);
+  }, [firestore, findPlan]);
+  
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
@@ -147,16 +134,23 @@ export function DashboardClient() {
         sessionIdRef.current = sid;
     }
 
-    if (!isUserLoading && !userPlan) {
-        fetchPlan(user).then(plan => {
-            if (plan && !currentInbox) {
-                handleGenerateEmail(plan);
-            } else if (plan) {
+    if (!isUserLoading && plans.length > 0 && !userPlan) {
+        getPlanForUser(user).then(plan => {
+             if (plan) {
+                setUserPlan(plan);
+                if (!currentInbox) {
+                    handleGenerateEmail(plan);
+                } else {
+                    setIsLoading(false);
+                }
+            } else {
+                // This case happens if no plans are found at all.
+                toast({ title: "Configuration Error", description: "No subscription plans found.", variant: "destructive"});
                 setIsLoading(false);
             }
         });
     }
-  }, [isUserLoading, user, userPlan, fetchPlan, handleGenerateEmail, currentInbox]);
+  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox, toast]);
 
 
   const ensureAnonymousUser = useCallback(async () => {
@@ -190,7 +184,7 @@ export function DashboardClient() {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
-    // Ensure user exists before any server action
+    // An anonymous user is only needed for the server action.
     const currentUser = await ensureAnonymousUser();
     if (!currentUser) return;
 
@@ -225,15 +219,9 @@ export function DashboardClient() {
   }, [currentInbox, toast, ensureAnonymousUser]);
 
   const handleNewAddressClick = useCallback(async () => {
-    if (isGenerating) return;
-    const currentUser = await ensureAnonymousUser();
-    if (!currentUser) return;
-    
-    const plan = userPlan || await fetchPlan(currentUser);
-    if (plan) {
-        handleGenerateEmail(plan);
-    }
-  }, [isGenerating, userPlan, ensureAnonymousUser, fetchPlan, handleGenerateEmail]);
+    if (isGenerating || !userPlan) return;
+    handleGenerateEmail(userPlan);
+  }, [isGenerating, userPlan, handleGenerateEmail]);
 
   useEffect(() => {
     clearCountdown();
@@ -270,16 +258,6 @@ export function DashboardClient() {
   }, [currentInbox, toast, handleRefresh]);
 
   const handleCopyEmail = async () => {
-    const currentUser = await ensureAnonymousUser();
-    if (!currentUser) return;
-
-    if (!userPlan) {
-      const plan = await fetchPlan(currentUser);
-       if (plan && !currentInbox) {
-          await handleGenerateEmail(plan);
-       }
-    }
-    
     if (!currentInbox?.emailAddress) return;
 
     navigator.clipboard.writeText(currentInbox.emailAddress);
@@ -311,7 +289,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return (
         <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -394,5 +372,3 @@ export function DashboardClient() {
     </Card>
   );
 }
-
-    

@@ -26,8 +26,7 @@ export default function HomePage() {
     if (!firestore) return null;
     return query(
         collection(firestore, "plans"),
-        where("status", "==", "active"),
-        where("name", "!=", "Default")
+        where("status", "==", "active")
     );
   }, [firestore]);
 
@@ -67,7 +66,7 @@ export default function HomePage() {
               Temporary Email Address
             </h1>
           </div>
-          <div className="mt-8"><DashboardClient /></div>
+          <div className="mt-8"><DashboardClient plans={plans || []} /></div>
         </main>
       </div>
       {sections.map((Section, index) => {
