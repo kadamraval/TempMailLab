@@ -1,7 +1,7 @@
 
 'use server';
 
-import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirebaseAdmin } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 
@@ -13,7 +13,7 @@ import { revalidatePath } from 'next/cache';
  */
 export async function seedFreePlan() {
   try {
-    const { firestore } = await initializeFirebaseAdmin();
+    const { firestore } = getFirebaseAdmin();
     // The document ID 'free' is the unique identifier for this system plan.
     const freePlanRef = firestore.collection('plans').doc('free');
     const docSnap = await freePlanRef.get();
@@ -101,7 +101,7 @@ export async function deletePlanAction(planId: string) {
   }
 
   try {
-    const { firestore } = await initializeFirebaseAdmin();
+    const { firestore } = getFirebaseAdmin();
     const planRef = firestore.collection('plans').doc(planId);
     
     await planRef.delete();

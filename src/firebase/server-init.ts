@@ -1,61 +1,60 @@
 
-import { initializeApp, getApps, getApp, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-let app: App;
-let auth: Auth;
-let firestore: Firestore;
-let isInitialized = false;
+// This is a singleton pattern to ensure we only initialize Firebase Admin once.
+// It is crucial for serverless environments where function instances can be reused.
 
-async function initialize() {
-    if (isInitialized) {
-        return;
-    }
+let adminApp: App | null = null;
+let adminAuth: Auth | null = null;
+let adminFirestore: Firestore | null = null;
 
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
-    // Check if the service account key is available in environment variables
-    if (serviceAccountString) {
-        try {
-            const serviceAccount = JSON.parse(serviceAccountString);
-            
-            // Use an existing app if it's there, otherwise initialize a new one
-            if (!getApps().length) {
-                app = initializeApp({
-                    credential: cert(serviceAccount),
-                });
-            } else {
-                app = getApp();
-            }
+function initializeAdmin() {
+  if (adminApp) {
+    return; // Already initialized
+  }
 
-            auth = getAuth(app);
-            firestore = getFirestore(app);
-            isInitialized = true;
-        } catch (e: any) {
-             console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid JSON string.", e.message);
-             // isInitialized remains false
-        }
-    }
-    // No 'else' block means if the env var is not set, isInitialized remains false
+  const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountString) {
+    // This is a critical configuration error. The server action cannot function without it.
+    throw new Error('Firebase Admin SDK service account is not set in environment variables (FIREBASE_SERVICE_ACCOUNT).');
+  }
+
+  let serviceAccount: ServiceAccount;
+  try {
+    serviceAccount = JSON.parse(serviceAccountString);
+  } catch (e) {
+    throw new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.');
+  }
+
+  // Use an existing app if it's there, otherwise initialize a new one.
+  // This handles Next.js hot-reloading in development.
+  const existingApp = getApps().length > 0 ? getApp() : null;
+  adminApp = existingApp || initializeApp({ credential: cert(serviceAccount) });
+  
+  adminAuth = getAuth(adminApp);
+  adminFirestore = getFirestore(adminApp);
 }
 
 /**
- * Initializes and/or returns the server-side Firebase Admin SDK instances.
- * This function ensures that initialization only happens once.
- * It now returns a promise to handle the async nature of initialization.
+ * Provides access to the initialized Firebase Admin SDK instances.
+ * This function will initialize the SDK on its first call and return
+ * the existing instances on subsequent calls.
  *
- * @returns A promise that resolves to an object containing the Firebase Admin App, Auth, and Firestore instances.
+ * @returns An object containing the initialized Firebase Admin App, Auth, and Firestore instances.
  * @throws {Error} If the Admin SDK is not configured (i.e., FIREBASE_SERVICE_ACCOUNT is not set or is invalid).
  */
-export async function initializeFirebaseAdmin() {
-    await initialize(); // Ensure initialization is complete
-
-    if (!isInitialized) {
-        throw new Error("Server-side Firebase is not configured. Please set the FIREBASE_SERVICE_ACCOUNT environment variable.");
-    }
-    
-    return { app, auth, firestore };
+export function getFirebaseAdmin() {
+  // The initialization is done lazily on the first request.
+  if (!adminApp) {
+    initializeAdmin();
+  }
+  
+  // Since initializeAdmin() throws if it fails, we can be sure these are non-null here.
+  return {
+    app: adminApp!,
+    auth: adminAuth!,
+    firestore: adminFirestore!,
+  };
 }
-
-    

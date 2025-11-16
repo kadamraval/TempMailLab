@@ -1,6 +1,6 @@
 'use server';
 
-import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirebaseAdmin } from '@/firebase/server-init';
 
 /**
  * Creates or updates a user document in Firestore after a client-side sign-up or first-time Google login.
@@ -11,7 +11,7 @@ import { initializeFirebaseAdmin } from '@/firebase/server-init';
  */
 export async function signUp(uid: string, email: string | null, isNewUser: boolean) {
   try {
-    const { firestore } = await initializeFirebaseAdmin();
+    const { firestore } = getFirebaseAdmin();
     const userRef = firestore.collection('users').doc(uid);
     const docSnap = await userRef.get();
 

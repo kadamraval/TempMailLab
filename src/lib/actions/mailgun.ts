@@ -1,7 +1,7 @@
 
 'use server';
 
-import { initializeFirebaseAdmin } from '@/firebase/server-init';
+import { getFirebaseAdmin } from '@/firebase/server-init';
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
@@ -9,7 +9,8 @@ import type { Email } from '@/types';
 
 async function getMailgunSettings() {
     try {
-        const { firestore } = await initializeFirebaseAdmin();
+        // This will throw an error if the admin SDK is not configured, which is caught by the main action.
+        const { firestore } = getFirebaseAdmin();
         const settingsRef = firestore.collection("admin_settings").doc("mailgun");
         const settingsSnap = await settingsRef.get();
 
@@ -28,12 +29,8 @@ async function getMailgunSettings() {
             domain: settings.domain,
         };
     } catch (error: any) {
-        // This will catch both the initialization error and specific firestore/config errors
-        if (error.message.includes("Server-side Firebase is not configured")) {
-            // Provide a user-friendly error message that guides the admin.
-            throw new Error("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
-        }
-        // Re-throw other specific errors (e.g., Mailgun settings not found)
+        // Re-throw any error to be handled by the caller.
+        // This centralizes error handling in the main server action.
         throw error;
     }
 }
@@ -88,7 +85,3 @@ export async function fetchEmailsFromServerAction(
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }
-
-    
-
-    

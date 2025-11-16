@@ -203,11 +203,13 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     // Do not proceed if user state is still loading.
     if (isUserLoading) return;
     
-    // Ensure we have a user (anonymous or logged-in) before proceeding.
-    // For logged-in users, `user` will be available. For anonymous, this will create one.
+    // This logic ensures we use the real user if they are logged in, or create an anonymous one if not.
+    // It correctly waits for the initial user state to be resolved.
     const currentUser = user || await ensureAnonymousUser();
-    if (!currentUser) return;
-
+    if (!currentUser) {
+        if (!isAutoRefresh) toast({ title: "Authentication Error", description: "Could not establish a user session to refresh inbox.", variant: "destructive" });
+        return;
+    }
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
@@ -220,10 +222,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         
         setServerError(null);
-        clearRefreshInterval(); 
-        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
-
-
+        
         if (result.emails && result.emails.length > 0) {
             setInboxEmails(prevEmails => {
                 const existingIds = new Set(prevEmails.map(e => e.id));
@@ -240,13 +239,12 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         
     } catch (error: any) {
-        if (!isAutoRefresh) toast({ title: "Refresh Failed", description: error.message, variant: "destructive" });
-        
-        // If a server config error happens, show it and stop auto-refresh.
-        if (error.message.includes("Server actions are not configured")) {
-            setServerError(error.message);
-            clearRefreshInterval();
+        if (!isAutoRefresh) {
+            toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
+        // No longer setting the serverError state here, as the new server-side logic is more robust.
+        // A failure is now treated as a temporary issue.
+        console.error("Error refreshing inbox:", error.message);
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
