@@ -153,34 +153,37 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     }
 
     if (!isUserLoading && plans.length > 0 && !userPlan) {
-        getPlanForUser(user).then(plan => {
-             if (plan) {
-                setUserPlan(plan);
-                if (!currentInbox) {
-                    handleGenerateEmail(plan);
+        let effectiveUser = user;
+        
+        // If no user is logged in, create an anonymous session for the inbox.
+        if (!effectiveUser && auth) {
+            signInAnonymously(auth).then(cred => {
+                 getPlanForUser(cred.user).then(plan => {
+                    if (plan) setUserPlan(plan);
+                 });
+            }).catch(() => {
+                toast({ title: "Session Error", description: "Could not create a secure anonymous session.", variant: "destructive"});
+                setIsLoading(false);
+            });
+        } else {
+            getPlanForUser(effectiveUser).then(plan => {
+                if (plan) {
+                    setUserPlan(plan);
                 } else {
+                    toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
                     setIsLoading(false);
                 }
-            } else {
-                toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
-                setIsLoading(false);
-            }
-        });
+            });
+        }
     }
-  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox, toast]);
+  }, [isUserLoading, user, plans, userPlan, getPlanForUser, auth, toast]);
 
-  const ensureAnonymousUser = useCallback(async () => {
-    if (!auth) return null;
-    if (auth.currentUser) return auth.currentUser;
-    try {
-        const userCredential = await signInAnonymously(auth);
-        return userCredential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in failed:", error);
-        toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
-        return null;
+  useEffect(() => {
+    if (userPlan && !currentInbox) {
+      handleGenerateEmail(userPlan);
     }
-  }, [auth, toast]);
+  }, [userPlan, currentInbox, handleGenerateEmail]);
+
 
   const clearCountdown = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -191,11 +194,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
+    if (!currentInbox?.emailAddress || !sessionIdRef.current || isUserLoading) return;
     
-    const currentUser = await ensureAnonymousUser();
-    if (!currentUser) return;
-
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
@@ -227,7 +227,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, ensureAnonymousUser]);
+  }, [currentInbox, toast, isUserLoading]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
