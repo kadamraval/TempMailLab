@@ -9,7 +9,7 @@ import { LayoutDashboard, Settings, CreditCard, Inbox } from "lucide-react"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/", label: "Inboxes", icon: Inbox },
+  { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
   { href: "/settings", label: "Settings", icon: Settings },
   { href: "/billing", label: "Billing", icon: CreditCard },
 ];
