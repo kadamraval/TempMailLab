@@ -1,3 +1,4 @@
+
 'use server';
 
 import { initializeFirebaseAdmin } from '@/firebase/server-init';
@@ -7,24 +8,33 @@ import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 
 async function getMailgunSettings() {
-    const { firestore } = await initializeFirebaseAdmin();
-    const settingsRef = firestore.collection("admin_settings").doc("mailgun");
-    const settingsSnap = await settingsRef.get();
+    try {
+        const { firestore } = await initializeFirebaseAdmin();
+        const settingsRef = firestore.collection("admin_settings").doc("mailgun");
+        const settingsSnap = await settingsRef.get();
 
-    if (!settingsSnap.exists) {
-        throw new Error("Mailgun integration settings not found. Please configure them in the admin panel.");
-    }
+        if (!settingsSnap.exists) {
+            throw new Error("Mailgun integration settings not found in the database. Please configure them in the admin panel.");
+        }
 
-    const settings = settingsSnap.data();
-    
-    if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
-        throw new Error("Mailgun integration is not enabled or settings are incomplete. Please check the admin panel.");
+        const settings = settingsSnap.data();
+        
+        if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
+            throw new Error("Mailgun integration is not enabled or its settings are incomplete. Please check the admin panel.");
+        }
+        
+        return {
+            apiKey: settings.apiKey,
+            domain: settings.domain,
+        };
+    } catch (error: any) {
+        // If initialization fails due to missing credentials, catch it here and re-throw a specific message.
+        if (error.message.includes("FIREBASE_SERVICE_ACCOUNT")) {
+            throw new Error("Server actions are not configured. Please set the FIREBASE_SERVICE_ACCOUNT in your environment to enable administrative features like fetching emails.");
+        }
+        // Re-throw other errors (e.g., Mailgun settings not found)
+        throw error;
     }
-    
-    return {
-        apiKey: settings.apiKey,
-        domain: settings.domain,
-    };
 }
 
 export async function fetchEmailsFromServerAction(
@@ -73,9 +83,7 @@ export async function fetchEmailsFromServerAction(
 
     } catch (error: any) {
         console.error("Error in fetchEmailsFromServerAction:", error);
-        if (error.message.includes("not configured")) {
-            return { error: error.message };
-        }
+        // We will return any error message thrown from getMailgunSettings or mailgun-js
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }

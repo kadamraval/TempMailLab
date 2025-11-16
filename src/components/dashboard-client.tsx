@@ -189,7 +189,23 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
-        if (result.error) throw new Error(result.error);
+        if (result.error) {
+            // Check for the specific server configuration error
+            if (result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
+                 if (!isAutoRefresh) {
+                    toast({
+                        title: "Server Action Required",
+                        description: "Email fetching is disabled. Please configure server credentials in the admin panel.",
+                        variant: "destructive",
+                        duration: 10000,
+                    });
+                 }
+                 // Stop trying to refresh if the server isn't configured
+                 clearRefreshInterval();
+                 return; 
+            }
+            throw new Error(result.error);
+        }
         
         if (result.emails && result.emails.length > 0) {
             setInboxEmails(prevEmails => {
