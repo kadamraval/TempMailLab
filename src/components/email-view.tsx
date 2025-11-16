@@ -11,17 +11,20 @@ import { Separator } from "./ui/separator";
 interface EmailViewProps {
   email: Email;
   onBack: () => void;
+  showBackButton?: boolean;
 }
 
-export function EmailView({ email, onBack }: EmailViewProps) {
+export function EmailView({ email, onBack, showBackButton = true }: EmailViewProps) {
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
             <CardTitle className="flex-grow truncate pr-4">{email.subject}</CardTitle>
-            <Button variant="outline" size="sm" onClick={onBack}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Inbox
-            </Button>
+            {showBackButton && (
+              <Button variant="outline" size="sm" onClick={onBack}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Inbox
+              </Button>
+            )}
         </div>
         <div className="text-sm text-muted-foreground pt-2">
           <p><strong>From:</strong> {email.senderName}</p>
@@ -29,25 +32,25 @@ export function EmailView({ email, onBack }: EmailViewProps) {
         </div>
       </CardHeader>
       <Separator />
-      <CardContent className="pt-6">
-        <Tabs defaultValue={email.htmlContent ? "html" : "text"} className="w-full">
+      <CardContent className="pt-6 flex-1 flex flex-col">
+        <Tabs defaultValue={email.htmlContent ? "html" : "text"} className="w-full flex-1 flex flex-col">
           <TabsList>
             <TabsTrigger value="html" disabled={!email.htmlContent}>HTML</TabsTrigger>
             <TabsTrigger value="text" disabled={!email.textContent}>Plain Text</TabsTrigger>
           </TabsList>
-          <TabsContent value="html">
-            <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-white text-black">
+          <TabsContent value="html" className="flex-1 mt-4">
+            <div className="border rounded-md h-full bg-white text-black">
                 {email.htmlContent ? (
                      <iframe
                         srcDoc={email.htmlContent}
-                        className="w-full h-[500px] border-0"
+                        className="w-full h-full border-0"
                         sandbox="allow-same-origin"
                      />
-                ) : <p>No HTML view available.</p>}
+                ) : <p className="p-4">No HTML view available.</p>}
             </div>
           </TabsContent>
-          <TabsContent value="text">
-            <div className="mt-4 p-4 border rounded-md min-h-[300px] bg-muted/30 whitespace-pre-wrap font-mono text-sm">
+          <TabsContent value="text" className="flex-1 mt-4">
+            <div className="p-4 border rounded-md h-full bg-muted/30 whitespace-pre-wrap font-mono text-sm overflow-auto">
               {email.textContent || 'No plain text view available.'}
             </div>
           </TabsContent>

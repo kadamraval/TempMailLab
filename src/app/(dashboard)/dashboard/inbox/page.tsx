@@ -2,14 +2,14 @@
 
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
-import { DashboardClient } from "@/components/dashboard-client";
+import { UserInboxClient } from "./user-inbox-client"; // Use the new dedicated component
 import { collection, query, where } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
-
 
 export default function UserInboxPage() {
   const firestore = useFirestore();
 
+  // This data fetching remains the same
   const plansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -28,7 +28,8 @@ export default function UserInboxPage() {
     );
   }
   
+  // Render the new UserInboxClient instead of the generic DashboardClient
   return (
-    <DashboardClient plans={plans || []} />
+    <UserInboxClient plans={plans || []} />
   );
 }
