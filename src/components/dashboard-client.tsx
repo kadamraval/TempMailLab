@@ -73,9 +73,8 @@ export function DashboardClient({ plans }: DashboardClientProps) {
       }
     }
     
-    // For anonymous users or as a fallback for logged-in users.
-    // Prioritize a user-created "Free" plan. If it doesn't exist, use the system "Default" plan.
-    return findPlan('Free') || findPlan('Default');
+    // For anonymous users or as a fallback for logged-in users, always use the Free plan.
+    return findPlan('free');
   }, [firestore, plans, findPlan]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
@@ -143,7 +142,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                     setIsLoading(false);
                 }
             } else {
-                toast({ title: "Configuration Error", description: "No subscription plans found. Please add a 'Free' or 'Default' plan.", variant: "destructive"});
+                toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
                 setIsLoading(false);
             }
         });

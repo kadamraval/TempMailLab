@@ -29,8 +29,8 @@ export default function PricingPage() {
         )
     }
 
-    // Filter out the 'Default' plan before passing to children components
-    const displayPlans = plans?.filter(p => p.name.toLowerCase() !== 'default') || [];
+    // Filter out the 'Free' plan before passing to children components
+    const displayPlans = plans?.filter(p => p.name.toLowerCase() !== 'free') || [];
 
     return (
         <>

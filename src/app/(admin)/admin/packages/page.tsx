@@ -46,10 +46,10 @@ export default function AdminPackagesPage() {
     }, [router]);
 
     const handleDelete = useCallback((plan: Plan) => {
-        if (plan.name.toLowerCase() === 'default') {
+        if (plan.name.toLowerCase() === 'free') {
             toast({
                 title: "Action Not Allowed",
-                description: "The 'Default' plan is a system-critical fallback and cannot be deleted.",
+                description: "The 'Free' plan is a system-critical fallback and cannot be deleted.",
                 variant: "destructive",
             });
             return;

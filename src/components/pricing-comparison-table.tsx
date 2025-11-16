@@ -109,7 +109,6 @@ interface PricingComparisonTableProps {
 export function PricingComparisonTable({ plans, removeBorder }: PricingComparisonTableProps) {
     const sortedPlans = React.useMemo(() => {
         if (!plans) return [];
-        // The plans are pre-filtered by the parent page, just sort them.
         return [...plans].sort((a, b) => a.price - b.price);
     }, [plans]);
 

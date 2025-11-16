@@ -2,7 +2,7 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { DotBackground } from '@/components/dot-background';
-import { seedDefaultPlan } from '@/lib/actions/plan';
+import { seedFreePlan } from '@/lib/actions/plans';
 
 export default async function MainLayout({
   children,
@@ -10,8 +10,8 @@ export default async function MainLayout({
   children: React.ReactNode;
 }>) {
   
-  // Ensure the default plan exists on application startup.
-  await seedDefaultPlan();
+  // Ensure the free plan exists on application startup.
+  await seedFreePlan();
 
   return (
     <div className="relative flex flex-col min-h-screen">

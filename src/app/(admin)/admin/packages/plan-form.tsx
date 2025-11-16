@@ -141,7 +141,7 @@ export function PlanForm({ plan }: PlanFormProps) {
   const firestore = useFirestore()
   const { toast } = useToast()
   const router = useRouter()
-  const isDefaultPlan = plan?.name.toLowerCase() === 'default';
+  const isFreePlan = plan?.name.toLowerCase() === 'free';
 
   const defaultValues: z.infer<typeof formSchemaToSubmit> = {
     name: "",
@@ -236,10 +236,10 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <CardDescription>
                         {plan ? "Update the details for this subscription plan." : "Fill out the form to create a new subscription plan."}
                     </CardDescription>
-                    {isDefaultPlan && (
+                    {isFreePlan && (
                         <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                             <Lock className="h-3 w-3" />
-                            You are editing the non-deletable Default plan.
+                            You are editing the non-deletable Free plan.
                         </Badge>
                     )}
                 </CardHeader>
@@ -251,8 +251,8 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FormField control={form.control} name="name" render={({ field }) => (
                                 <FormItem className="md:col-span-1">
                                     <FormLabel>Plan Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
-                                    {isDefaultPlan && <FormDescription>The 'Default' plan name cannot be changed.</FormDescription>}
+                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isFreePlan} /></FormControl>
+                                    {isFreePlan && <FormDescription>The 'Free' plan name cannot be changed.</FormDescription>}
                                     <FormMessage />
                                 </FormItem>
                             )} />

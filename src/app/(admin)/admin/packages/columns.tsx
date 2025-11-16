@@ -54,11 +54,11 @@ export const getPlanColumns = (
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => {
-        const isDefault = row.original.name.toLowerCase() === 'default';
+        const isFreePlan = row.original.name.toLowerCase() === 'free';
         return (
-            <div className={cn("font-medium text-left flex items-center gap-2", isDefault && "text-muted-foreground")}>
+            <div className={cn("font-medium text-left flex items-center gap-2", isFreePlan && "text-muted-foreground")}>
                 {row.getValue("name")}
-                {isDefault && <Lock className="h-3 w-3" />}
+                {isFreePlan && <Lock className="h-3 w-3" />}
             </div>
         )
     }
@@ -127,7 +127,7 @@ export const getPlanColumns = (
     id: "actions",
     cell: ({ row }) => {
       const plan = row.original
-      const isDefaultPlan = plan.name.toLowerCase() === 'default';
+      const isFreePlan = plan.name.toLowerCase() === 'free';
 
       return (
         <DropdownMenu>
@@ -149,7 +149,7 @@ export const getPlanColumns = (
             <DropdownMenuItem 
                 onClick={() => onDelete(plan)} 
                 className="text-red-600 focus:text-red-600"
-                disabled={isDefaultPlan}
+                disabled={isFreePlan}
             >
                 Delete Plan
             </DropdownMenuItem>
