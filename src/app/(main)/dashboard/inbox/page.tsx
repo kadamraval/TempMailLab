@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { DashboardClient } from "@/components/dashboard-client";
 import { collection, query, where } from "firebase/firestore";
@@ -9,7 +9,6 @@ import type { Plan } from "@/app/(admin)/admin/packages/data";
 
 
 export default function UserInboxPage() {
-  const { isUserLoading } = useUser();
   const firestore = useFirestore();
 
   const plansQuery = useMemoFirebase(() => {
@@ -22,7 +21,7 @@ export default function UserInboxPage() {
 
   const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
   
-  if (isUserLoading || isLoadingPlans) {
+  if (isLoadingPlans) {
     return (
       <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin" />
