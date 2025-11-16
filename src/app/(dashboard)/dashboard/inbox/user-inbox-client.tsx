@@ -204,7 +204,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     
     // For anonymous users, ensure a session exists. For logged-in users, the `user` object will be present.
     if (!user) {
-        await ensureAnonymousUser();
+        const anonUser = await ensureAnonymousUser();
+        if (!anonUser) return;
     }
 
 
@@ -244,8 +245,10 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         
         // This is a critical error from the server, likely config-related.
         // Stop auto-refreshing to prevent spamming failed requests.
-        setServerError(error.message);
-        clearRefreshInterval();
+        if (error.message.includes("Server actions are not configured")) {
+            setServerError(error.message);
+            clearRefreshInterval();
+        }
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
@@ -439,3 +442,5 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
+
+    

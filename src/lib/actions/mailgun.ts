@@ -14,13 +14,13 @@ async function getMailgunSettings() {
         const settingsSnap = await settingsRef.get();
 
         if (!settingsSnap.exists) {
-            throw new Error("Mailgun integration settings not found. Please configure them in the admin panel.");
+            throw new Error("Mailgun integration settings not found in the database.");
         }
 
         const settings = settingsSnap.data();
         
         if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
-            throw new Error("Mailgun integration is not enabled or is incomplete. Please check the admin panel.");
+            throw new Error("Mailgun integration is not fully configured or is disabled in the admin panel.");
         }
         
         return {
@@ -28,8 +28,9 @@ async function getMailgunSettings() {
             domain: settings.domain,
         };
     } catch (error: any) {
-        // If initialization fails due to missing credentials, throw a clear error.
+        // This will catch both the initialization error and specific firestore/config errors
         if (error.message.includes("FIREBASE_SERVICE_ACCOUNT")) {
+            // Provide a user-friendly error message that guides the admin.
             throw new Error("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
         }
         // Re-throw other specific errors (e.g., Mailgun settings not found)
@@ -87,3 +88,5 @@ export async function fetchEmailsFromServerAction(
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }
+
+    
