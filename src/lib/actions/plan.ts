@@ -7,22 +7,24 @@ import { FieldValue } from 'firebase-admin/firestore';
 export async function seedDefaultPlan() {
   try {
     const { firestore } = await initializeFirebaseAdmin();
+    // The document ID 'default' is the unique identifier for this system plan.
     const defaultPlanRef = firestore.collection('plans').doc('default');
     const docSnap = await defaultPlanRef.get();
 
     if (docSnap.exists) {
-      // Check if the name is correct, and update it if not.
+      // If the plan exists, ensure its name is "Default".
+      // This corrects any previous state where it might have been named "Free".
       if (docSnap.data()?.name !== 'Default') {
         await defaultPlanRef.update({ name: 'Default' });
-        console.log('Corrected plan name to "Default".');
+        console.log('Corrected system plan name to "Default".');
         return { success: true, message: 'Default plan name corrected.' };
       }
       return { success: true, message: 'Default plan already exists and is correct.' };
     }
 
-    // If the document doesn't exist, create it with the correct "Default" name.
+    // If the document does not exist, create it with the correct "Default" name.
     const defaultPlanData = {
-        name: "Default",
+        name: "Default", // Explicitly set the name to "Default".
         price: 0,
         cycle: "monthly",
         status: "active",
@@ -63,7 +65,7 @@ export async function seedDefaultPlan() {
     };
 
     await defaultPlanRef.set(defaultPlanData);
-    console.log('Successfully seeded the default plan.');
+    console.log('Successfully seeded the "Default" plan.');
     return { success: true, message: 'Default plan seeded successfully.' };
 
   } catch (error: any) {
