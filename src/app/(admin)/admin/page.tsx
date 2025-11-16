@@ -1,4 +1,3 @@
-
 'use client';
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
@@ -13,7 +12,7 @@ export default function AdminDashboardPage() {
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
     const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
 
-    const activePlans = plans?.filter(p => p.status === 'active');
+    const activePlans = useMemo(() => plans?.filter(p => p.status === 'active'), [plans]);
 
     const stats = [
         {
