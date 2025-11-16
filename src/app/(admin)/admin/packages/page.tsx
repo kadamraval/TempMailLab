@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DataTable } from "@/components/admin/data-table";
 import { getPlanColumns } from "./columns";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc, deleteDoc } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { type Plan } from './data';
 import { Loader2 } from 'lucide-react';
 import {
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
+import { deletePlanAction } from '@/lib/actions/plans';
+import { Button } from '@/components/ui/button';
 
 export default function AdminPackagesPage() {
     const firestore = useFirestore();
@@ -28,6 +30,7 @@ export default function AdminPackagesPage() {
 
     // State for CRUD operations
     const [deletingPlan, setDeletingPlan] = useState<Plan | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Fetch data from Firestore
     const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
@@ -55,9 +58,13 @@ export default function AdminPackagesPage() {
     }, [toast]);
 
     const confirmDelete = async () => {
-        if (!deletingPlan || !firestore) return;
+        if (!deletingPlan) return;
+        setIsDeleting(true);
         try {
-            await deleteDoc(doc(firestore, "plans", deletingPlan.id));
+            const result = await deletePlanAction(deletingPlan.id);
+            if (result.error) {
+                throw new Error(result.error);
+            }
             toast({
                 title: "Success",
                 description: "Plan deleted successfully."
@@ -69,6 +76,7 @@ export default function AdminPackagesPage() {
                 variant: "destructive",
             });
         } finally {
+            setIsDeleting(false);
             setDeletingPlan(null);
         }
     };
@@ -110,8 +118,15 @@ export default function AdminPackagesPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-                        Delete
+                    <AlertDialogAction asChild>
+                        <Button
+                            onClick={confirmDelete}
+                            className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Delete
+                        </Button>
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
