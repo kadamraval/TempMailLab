@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -12,7 +13,7 @@ import { EmailView } from "./email-view";
 import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously, type User } from "firebase/auth";
-import { fetchEmailsAction } from "@/lib/actions/mailgun";
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ServerCrash } from "lucide-react";
@@ -43,12 +44,18 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Securely get Mailgun settings from Firestore
+  const settingsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, "admin_settings", "mailgun");
+  }, [firestore]);
+  const { data: mailgunSettings, isLoading: isLoadingSettings, error: settingsError } = useDoc(settingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -145,12 +152,18 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress) return;
+    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
+        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
+             toast({ title: "Refresh Failed", description: "Email fetching is disabled by the administrator.", variant: "destructive" });
+        }
+        return;
+    }
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const result = await fetchEmailsAction(currentInbox.emailAddress);
+        const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
+        const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
         
         if (result.error) {
             throw new Error(result.error);
@@ -174,7 +187,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         }
         
     } catch (error: any) {
-        setServerError(error.message);
         if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
@@ -182,7 +194,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast]);
+  }, [currentInbox, toast, mailgunSettings]);
 
 
   const handleNewAddressClick = useCallback(async () => {
@@ -209,7 +221,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             }
         }, 1000);
 
-        if (!serverError) {
+        if (mailgunSettings?.enabled) {
           handleRefresh(true);
           refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
         }
@@ -218,7 +230,14 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, serverError]);
+  }, [currentInbox, toast, handleRefresh, mailgunSettings]);
+
+  useEffect(() => {
+    if (settingsError) {
+        setServerError("Could not load mail configuration. Email fetching is disabled.");
+        console.error("Mailgun settings fetch error:", settingsError);
+    }
+  }, [settingsError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -245,7 +264,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading) {
+  if (isLoading || isUserLoading || isLoadingSettings) {
     return (
         <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -291,7 +310,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         {serverError && (
           <Alert variant="destructive" className="mt-4">
             <ServerCrash className="h-4 w-4" />
-            <AlertTitle>Server Configuration Error</AlertTitle>
+            <AlertTitle>Error</AlertTitle>
             <AlertDescription>
                 {serverError}
             </AlertDescription>
@@ -337,5 +356,3 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     </Card>
   );
 }
-
-    
