@@ -9,10 +9,10 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useAuth } from "@/firebase";
+import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously, type User } from "firebase/auth";
-import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -64,7 +64,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
 
-
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
@@ -72,7 +71,10 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
+
+  // Fetch Mailgun settings directly using the client SDK
+  const mailgunSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'mailgun') : null, [firestore]);
+  const { data: mailgunSettings, isLoading: isLoadingMailgunSettings } = useDoc(mailgunSettingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -80,7 +82,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   const getPlanForUser = useCallback(async (currentAuthUser: User | null): Promise<Plan | null> => {
     if (!firestore || plans.length === 0) return null;
-
     if (currentAuthUser && !currentAuthUser.isAnonymous) {
       try {
         const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
@@ -97,18 +98,15 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         console.warn("Could not fetch user-specific plan, falling back.");
       }
     }
-    
     return findPlan('free');
   }, [firestore, plans, findPlan]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
-    setServerError(null); // Clear any previous server errors
+    setServerError(null);
     try {
       if (!firestore) throw new Error("Database connection not available.");
-      // Forcing a read from `allowed_domains` which requires auth.
-      // This is safe because `handleGenerateEmail` is only called after `getPlanForUser`
-      // which itself depends on `isUserLoading` being false.
+      
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -133,9 +131,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       setInboxEmails([]);
 
     } catch (error: any) {
-        // We don't re-throw a permission error here because reading from 'allowed_domains'
-        // is not something a normal user does. It's a system check. A failure here
-        // is an administrative configuration problem, not a user permission issue.
         console.error("Error generating new inbox:", error);
         toast({
             title: "Error",
@@ -147,31 +142,9 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       setIsLoading(false);
     }
   }, [firestore, toast]);
-  
-  const ensureAnonymousUser = useCallback(async () => {
-    if (!auth) return null;
-    if (auth.currentUser) return auth.currentUser;
-    try {
-        const userCredential = await signInAnonymously(auth);
-        return userCredential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in failed:", error);
-        toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
-        return null;
-    }
-  }, [auth, toast]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        let sid = localStorage.getItem('tempinbox_session_id');
-        if (!sid) {
-            sid = generateRandomString(20);
-            localStorage.setItem('tempinbox_session_id', sid);
-        }
-        sessionIdRef.current = sid;
-    }
-
-    if (!isUserLoading && plans.length > 0 && !userPlan) {
+    if (!isUserLoading && !isLoadingMailgunSettings && plans.length > 0 && !userPlan) {
         getPlanForUser(user).then(plan => {
              if (plan) {
                 setUserPlan(plan);
@@ -186,7 +159,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             }
         });
     }
-  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox, toast]);
+  }, [isUserLoading, isLoadingMailgunSettings, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -198,27 +171,30 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
-    
-    if (isUserLoading) return;
-    
-    const currentUser = user || await ensureAnonymousUser();
-    if (!currentUser) {
-        if (!isAutoRefresh) toast({ title: "Authentication Error", description: "Could not establish a user session to refresh inbox.", variant: "destructive" });
+    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
+        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
+            toast({ title: "Feature Disabled", description: "Email fetching is currently disabled by the administrator.", variant: "destructive" });
+        }
+        return;
+    }
+
+    const { apiKey, domain } = mailgunSettings;
+
+    if (!apiKey || !domain) {
+        setServerError("Mailgun integration is not fully configured. API Key and Domain are required.");
+        clearRefreshInterval();
         return;
     }
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
+        const result = await fetchEmailsWithCredentialsAction(apiKey, domain, currentInbox.emailAddress);
         
         if (result.error) {
-            // Re-throw the error from the server to be caught by the catch block
             throw new Error(result.error);
         }
         
-        // If successful, clear any previous server error
         setServerError(null);
         
         if (result.emails && result.emails.length > 0) {
@@ -237,17 +213,14 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         
     } catch (error: any) {
-        if (error.message.includes('FIREBASE_SERVICE_ACCOUNT')) {
-            setServerError("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
-            clearRefreshInterval(); // Stop trying to refresh
-        } else if (!isAutoRefresh) {
+        if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
         console.error("Error refreshing inbox:", error.message);
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, user, ensureAnonymousUser, isUserLoading]);
+  }, [currentInbox, mailgunSettings, toast]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -273,8 +246,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             }
         }, 1000);
 
-        if (!serverError) {
-          handleRefresh(true); // Initial fetch
+        if (!serverError && mailgunSettings && mailgunSettings.enabled) {
+          handleRefresh(true);
           refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
         }
     }
@@ -282,7 +255,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, serverError]);
+  }, [currentInbox, toast, handleRefresh, serverError, mailgunSettings]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -307,7 +280,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading) {
+  if (isLoading || isUserLoading || isLoadingMailgunSettings) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-250px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -345,7 +318,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError || !mailgunSettings?.enabled}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">

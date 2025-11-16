@@ -1,56 +1,23 @@
 
 'use server';
 
-import { getFirebaseAdmin } from '@/firebase/server-init';
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 
-async function getMailgunSettings() {
-    const { firestore, error: adminError } = getFirebaseAdmin();
-    
-    if (adminError) {
-        // This is a configuration error on the server, re-throw it to be caught by the main action.
-        // This error now originates from a non-crashing initialization.
-        throw adminError;
-    }
-    
-    try {
-        const settingsRef = firestore.collection("admin_settings").doc("mailgun");
-        const settingsSnap = await settingsRef.get();
-
-        if (!settingsSnap.exists) {
-            throw new Error("Mailgun integration settings not found in the database. Please configure it in the admin panel.");
-        }
-
-        const settings = settingsSnap.data();
-        
-        if (!settings || !settings.enabled || !settings.apiKey || !settings.domain) {
-            throw new Error("Mailgun integration is not fully configured or is disabled in the admin panel.");
-        }
-        
-        return {
-            apiKey: settings.apiKey,
-            domain: settings.domain,
-        };
-    } catch (error: any) {
-        // Re-throw any other error to be handled by the caller.
-        throw error;
-    }
-}
-
-export async function fetchEmailsFromServerAction(
-    sessionId: string,
+// This is a new, simplified server action that takes credentials as arguments.
+// It no longer depends on the Firebase Admin SDK to fetch settings.
+export async function fetchEmailsWithCredentialsAction(
+    apiKey: string,
+    domain: string,
     emailAddress: string
-) {
-    if (!sessionId || !emailAddress) {
-        return { error: 'Invalid session or email address provided.' };
+): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
+    if (!apiKey || !domain || !emailAddress) {
+        return { success: false, error: 'Missing required credentials or email address.' };
     }
-    
-    try {
-        const { apiKey, domain } = await getMailgunSettings();
 
+    try {
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
@@ -85,10 +52,7 @@ export async function fetchEmailsFromServerAction(
         return { success: true, emails };
 
     } catch (error: any) {
-        // Log the actual error on the server for debugging
         console.error("[MAILGUN_ACTION_ERROR]", error.message);
-        // Return a generic but informative message to the client.
-        // The specific FIREBASE_SERVICE_ACCOUNT message will be passed through from the error thrown by getFirebaseAdmin.
-        return { error: error.message || 'An unexpected error occurred while fetching emails.' };
+        return { success: false, error: 'An unexpected error occurred while fetching emails.' };
     }
 }

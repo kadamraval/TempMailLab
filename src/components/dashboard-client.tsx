@@ -10,11 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
-import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
-import { signInAnonymously } from "firebase/auth";
-import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
+import { signInAnonymously, type User } from "firebase/auth";
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ServerCrash } from "lucide-react";
 
 function generateRandomString(length: number) {
   let result = '';
@@ -39,6 +41,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const [countdown, setCountdown] = useState(0);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -47,15 +50,17 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
+
+  // Fetch Mailgun settings directly using the client SDK
+  const mailgunSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'mailgun') : null, [firestore]);
+  const { data: mailgunSettings, isLoading: isLoadingMailgunSettings } = useDoc(mailgunSettingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
   }, [plans]);
 
-  const getPlanForUser = useCallback(async (currentAuthUser: any): Promise<Plan | null> => {
+  const getPlanForUser = useCallback(async (currentAuthUser: User | null): Promise<Plan | null> => {
     if (!firestore || plans.length === 0) return null;
-
     if (currentAuthUser && !currentAuthUser.isAnonymous) {
       try {
         const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
@@ -72,16 +77,15 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         console.warn("Could not fetch user-specific plan, falling back.");
       }
     }
-    
-    // For anonymous users or as a fallback for logged-in users, always use the Free plan.
     return findPlan('free');
   }, [firestore, plans, findPlan]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
+    setServerError(null);
     try {
       if (!firestore) throw new Error("Database connection not available.");
-
+      
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -106,16 +110,12 @@ export function DashboardClient({ plans }: DashboardClientProps) {
       setInboxEmails([]);
 
     } catch (error: any) {
-       if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'allowed_domains', operation: 'list' }));
-        } else {
-            console.error("Error generating new inbox:", error);
-            toast({
-                title: "Error",
-                description: error.message || "Could not generate a new email address.",
-                variant: "destructive",
-            });
-        }
+        console.error("Error generating new inbox:", error);
+        toast({
+            title: "Error",
+            description: error.message || "Could not generate a new email address.",
+            variant: "destructive",
+        });
     } finally {
       setIsGenerating(false);
       setIsLoading(false);
@@ -123,16 +123,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   }, [firestore, toast]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        let sid = localStorage.getItem('tempinbox_session_id');
-        if (!sid) {
-            sid = generateRandomString(20);
-            localStorage.setItem('tempinbox_session_id', sid);
-        }
-        sessionIdRef.current = sid;
-    }
-
-    if (!isUserLoading && plans.length > 0 && !userPlan) {
+    if (!isUserLoading && !isLoadingMailgunSettings && plans.length > 0 && !userPlan) {
         getPlanForUser(user).then(plan => {
              if (plan) {
                 setUserPlan(plan);
@@ -142,95 +133,74 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                     setIsLoading(false);
                 }
             } else {
-                toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
+                setServerError("No subscription plans are configured. A default 'Free' plan is required for the application to function.");
                 setIsLoading(false);
             }
         });
     }
-  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox, toast]);
-
-
-  const ensureAnonymousUser = useCallback(async () => {
-    if (!auth) return null;
-    if (auth.currentUser) return auth.currentUser;
-    try {
-        const userCredential = await signInAnonymously(auth);
-        return userCredential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in failed:", error);
-        toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
-        return null;
-    }
-  }, [auth, toast]);
+  }, [isUserLoading, isLoadingMailgunSettings, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
   };
   
   const clearRefreshInterval = () => {
-    if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-        refreshIntervalRef.current = null;
-    }
+    if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
-    
-    const currentUser = await ensureAnonymousUser();
-    if (!currentUser) return;
+    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
+        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
+            toast({ title: "Feature Disabled", description: "Email fetching is currently disabled by the administrator.", variant: "destructive" });
+        }
+        return;
+    }
+
+    const { apiKey, domain } = mailgunSettings;
+
+    if (!apiKey || !domain) {
+        setServerError("Mailgun integration is not fully configured. API Key and Domain are required.");
+        clearRefreshInterval();
+        return;
+    }
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
+        const result = await fetchEmailsWithCredentialsAction(apiKey, domain, currentInbox.emailAddress);
+        
         if (result.error) {
-            // Check for the specific server configuration error
-            if (result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
-                 if (!isAutoRefresh) {
-                    toast({
-                        title: "Server Action Required",
-                        description: "Email fetching is disabled. Please configure server credentials in the admin panel.",
-                        variant: "destructive",
-                        duration: 10000,
-                    });
-                 }
-                 // Stop trying to refresh if the server isn't configured
-                 clearRefreshInterval();
-                 return; 
-            }
             throw new Error(result.error);
         }
+        
+        setServerError(null);
         
         if (result.emails && result.emails.length > 0) {
             setInboxEmails(prevEmails => {
                 const existingIds = new Set(prevEmails.map(e => e.id));
                 const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-                
-                if (newEmails.length > 0) {
-                    if (!isAutoRefresh) { // Only toast on manual refresh
-                        toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-                    }
+                if (newEmails.length > 0 && !isAutoRefresh) {
+                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
                 }
                 const allEmails = [...prevEmails, ...newEmails];
                 return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
             });
         } 
-        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) toast({ title: "Inbox refreshed", description: "No new emails found." });
+        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) {
+            toast({ title: "Inbox refreshed", description: "No new emails found." });
+        }
         
     } catch (error: any) {
-        console.error("Error fetching emails:", error);
         if (!isAutoRefresh) {
-            toast({ title: "Refresh Failed", description: error.message || "Could not refresh inbox.", variant: "destructive" });
+            toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
+        console.error("Error refreshing inbox:", error.message);
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, ensureAnonymousUser]);
+  }, [currentInbox, mailgunSettings, toast]);
+
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -240,18 +210,12 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   useEffect(() => {
     clearCountdown();
     clearRefreshInterval();
-
     if (currentInbox) {
         setCountdown(Math.floor((currentInbox.expiresAt - Date.now()) / 1000));
-        
         countdownIntervalRef.current = setInterval(() => {
             const newCountdown = Math.floor((currentInbox.expiresAt - Date.now()) / 1000);
             if (newCountdown <= 0) {
-                toast({
-                    title: "Session Expired",
-                    description: "Your temporary email has expired. Please generate a new one.",
-                    variant: "destructive"
-                });
+                toast({ title: "Session Expired", description: "Your temporary email has expired.", variant: "destructive"});
                 setCurrentInbox(null);
                 setInboxEmails([]);
                 setSelectedEmail(null);
@@ -262,39 +226,34 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             }
         }, 1000);
 
-        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        if (!serverError && mailgunSettings && mailgunSettings.enabled) {
+          handleRefresh(true);
+          refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        }
     }
-    
     return () => {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh]);
+  }, [currentInbox, toast, handleRefresh, serverError, mailgunSettings]);
 
-  const handleCopyEmail = async () => {
+  const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
-
     navigator.clipboard.writeText(currentInbox.emailAddress);
-    toast({
-      title: "Copied!",
-      description: "Email address copied to clipboard.",
-    });
+    toast({ title: "Copied!", description: "Email address copied to clipboard." });
   };
 
   const handleSelectEmail = (email: Email) => {
     setSelectedEmail(email);
     setInboxEmails(emails => emails.map(e => e.id === email.id ? {...e, read: true} : e));
   };
-
-  const handleBackToInbox = () => setSelectedEmail(null);
-
+  
   const handleDeleteInbox = async () => {
     await handleNewAddressClick();
-    toast({
-        title: "Inbox Cleared",
-        description: "A new address has been generated.",
-    });
+    toast({ title: "Inbox Cleared", description: "A new address has been generated." });
   };
+
+  const handleBackToInbox = () => setSelectedEmail(null);
 
   const formatTime = (seconds: number) => {
     if (seconds <= 0) return "00:00";
@@ -346,6 +305,15 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             New Address
           </Button>
         </div>
+        {serverError && (
+          <Alert variant="destructive" className="mt-4">
+            <ServerCrash className="h-4 w-4" />
+            <AlertTitle>Server Configuration Error</AlertTitle>
+            <AlertDescription>
+                {serverError}
+            </AlertDescription>
+          </Alert>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
@@ -386,3 +354,5 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     </Card>
   );
 }
+
+    
