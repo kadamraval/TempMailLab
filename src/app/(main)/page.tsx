@@ -32,12 +32,15 @@ export default function HomePage() {
 
   const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
   
+  // Filter out the 'Default' plan before passing to children components
+  const displayPlans = plans?.filter(p => p.name !== 'Default') || [];
+
   const sections = [
     { component: UseCasesSection, hasCard: true },
     { component: FeaturesSection, hasCard: false },
     { component: ExclusiveFeatures, hasCard: false },
     { component: ComparisonSection, hasCard: true },
-    { component: PricingSection, hasCard: false, props: { plans: plans || [] } },
+    { component: PricingSection, hasCard: false, props: { plans: displayPlans } },
     { component: BlogSection, hasCard: true },
     { component: Testimonials, hasCard: false },
     { component: FaqSection, hasCard: true },

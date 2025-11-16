@@ -13,7 +13,6 @@ export default function PricingPage() {
 
     const plansQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        // Fetch all active plans. The "Default" plan should be filtered out by the display components.
         return query(
             collection(firestore, "plans"),
             where("status", "==", "active")
