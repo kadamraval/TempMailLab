@@ -272,107 +272,107 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-        {/* Sub-header Bar */}
-        <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
-            <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>{formatTime(countdown)}</span>
+      {/* Sub-header Bar: A separate wrapper */}
+      <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
+        <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>{formatTime(countdown)}</span>
+        </div>
+        
+        <div 
+          onClick={handleCopyEmail}
+          className="flex-grow flex items-center justify-center font-mono text-base md:text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
+        >
+          {isGenerating || !currentInbox ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Generating...</span>
             </div>
-            
-            <div 
-                onClick={handleCopyEmail}
-                className="flex-grow flex items-center justify-center font-mono text-base md:text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
-            >
-                {isGenerating || !currentInbox ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Generating...</span>
-                    </div>
-                ) : (
-                <>
-                    <span className="truncate">{currentInbox.emailAddress}</span>
-                    <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-                </>
-                )}
-            </div>
-
-            <div className="flex items-center gap-2">
-                <Button onClick={handleNewAddressClick} variant="outline" size="sm" disabled={isGenerating}>
-                    <PlusCircle className="h-4 w-4 md:mr-2" />
-                    <span className="hidden md:inline">New</span>
-                </Button>
-                <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing}>
-                    {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                </Button>
-                <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                </Button>
-            </div>
+          ) : (
+            <>
+              <span className="truncate">{currentInbox.emailAddress}</span>
+              <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </>
+          )}
         </div>
 
-        {/* Two-panel Inbox Card */}
-        <Card className="flex-1">
-            <CardContent className="p-0 h-full">
-                <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-[calc(100vh-350px)]">
-                    {/* Left Pane: Inbox List */}
-                    <div className="flex flex-col border-r">
-                        <ScrollArea className="flex-1">
-                            {inboxEmails.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center text-center p-6 text-muted-foreground h-full">
-                                    <Inbox className="h-10 w-10 mb-4" />
-                                    <p className="font-semibold">Inbox is Empty</p>
-                                    <p className="text-xs">Waiting for new emails...</p>
-                                </div>
-                            ) : (
-                                <div className="p-2 space-y-1">
-                                    {inboxEmails.map(email => (
-                                        <button
-                                            key={email.id}
-                                            onClick={() => handleSelectEmail(email)}
-                                            className={cn(
-                                                "w-full text-left p-3 rounded-md border-b border-transparent text-sm transition-colors",
-                                                selectedEmail?.id === email.id ? 'bg-muted' : 'hover:bg-muted/50',
-                                            )}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <div className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
-                                                <div className="flex-1 overflow-hidden">
-                                                    <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                                                    <p className={cn("truncate", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleNewAddressClick} variant="outline" size="sm" disabled={isGenerating}>
+            <PlusCircle className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">New</span>
+          </Button>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing}>
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          </Button>
+          <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-                    {/* Right Pane: Email View */}
-                    <div className="col-span-1 hidden md:block">
-                        {selectedEmail ? (
-                            <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
-                                <Inbox className="h-16 w-16 mb-4" />
-                                <h3 className="text-xl font-semibold">Select an email to read</h3>
-                                <p>Your messages will appear here.</p>
+      {/* Two-panel Inbox Card: A separate wrapper */}
+      <div className="flex-1">
+        <Card className="h-full">
+          <CardContent className="p-0 h-full">
+            <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-[calc(100vh-350px)]">
+              {/* Left Pane: Inbox List */}
+              <div className="flex flex-col border-r">
+                <ScrollArea className="flex-1">
+                  {inboxEmails.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-center p-6 text-muted-foreground h-full">
+                      <Inbox className="h-10 w-10 mb-4" />
+                      <p className="font-semibold">Inbox is Empty</p>
+                      <p className="text-xs">Waiting for new emails...</p>
+                    </div>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {inboxEmails.map(email => (
+                        <button
+                          key={email.id}
+                          onClick={() => handleSelectEmail(email)}
+                          className={cn(
+                            "w-full text-left p-3 rounded-md border-b border-transparent text-sm transition-colors",
+                            selectedEmail?.id === email.id ? 'bg-muted' : 'hover:bg-muted/50',
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
+                            <div className="flex-1 overflow-hidden">
+                              <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
+                              <p className={cn("truncate", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
                             </div>
-                        )}
+                          </div>
+                        </button>
+                      ))}
                     </div>
+                  )}
+                </ScrollArea>
+              </div>
 
-                     {/* Mobile View for selected email */}
-                     {selectedEmail && (
-                        <div className="md:hidden absolute inset-0 bg-background z-10">
-                             <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
-                        </div>
-                     )}
+              {/* Right Pane: Email View */}
+              <div className="col-span-1 hidden md:block">
+                {selectedEmail ? (
+                  <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
+                    <Inbox className="h-16 w-16 mb-4" />
+                    <h3 className="text-xl font-semibold">Select an email to read</h3>
+                    <p>Your messages will appear here.</p>
+                  </div>
+                )}
+              </div>
 
+              {/* Mobile View for selected email */}
+              {selectedEmail && (
+                <div className="md:hidden absolute inset-0 bg-background z-10">
+                  <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
                 </div>
-            </CardContent>
+              )}
+
+            </div>
+          </CardContent>
         </Card>
+      </div>
     </div>
   );
 }
-
-    
