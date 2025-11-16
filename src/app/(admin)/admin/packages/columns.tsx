@@ -148,7 +148,7 @@ export const getPlanColumns = (
             <DropdownMenuItem onClick={() => onEdit(plan)}>Edit Plan</DropdownMenuItem>
             <DropdownMenuItem 
                 onClick={() => onDelete(plan)} 
-                className="text-red-600"
+                className="text-red-600 focus:text-red-600"
                 disabled={isDefaultPlan}
             >
                 Delete Plan
