@@ -56,7 +56,7 @@ export default function HomePage() {
   return (
     <>
       <div id="inbox" className="py-16 sm:py-20">
-        <main className="container mx-auto px-4">
+        <div className="container mx-auto px-4">
           <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
             <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
             <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
@@ -67,7 +67,7 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="mt-8"><DashboardClient plans={plans || []} /></div>
-        </main>
+        </div>
       </div>
       {sections.map((Section, index) => {
         const patternIndex = index % 4;
@@ -87,7 +87,7 @@ export default function HomePage() {
         }
 
         return (
-            <div key={index} className={cn(backgroundClass)}>
+            <div key={index} className={cn(backgroundClass, "z-10 relative")}>
                 <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
             </div>
         )

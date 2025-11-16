@@ -1,37 +1,39 @@
 
 "use client";
 
-import { DashboardClient } from "@/components/dashboard-client";
-import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
-import { type Plan } from "@/app/(admin)/admin/packages/data";
+import { useUser } from "@/firebase";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { isUserLoading: isUserAuthLoading } = useUser();
-  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
-  // Fetch all active plans to pass to the client
-  const plansQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, "plans"), where("status", "==", "active"));
-  }, [firestore]);
-
-  const { data: plans, isLoading: arePlansLoading } = useCollection<Plan>(plansQuery);
-
-  if (isUserAuthLoading || arePlansLoading) {
+  if (isUserLoading) {
     return (
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[480px] rounded-lg border bg-card">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </main>
+      <div className="flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
     );
   }
 
   return (
-    <main className="container mx-auto px-4 py-8">
-       <DashboardClient plans={plans || []} />
-    </main>
+    <div className="space-y-6">
+        <Card>
+            <CardHeader>
+                <CardTitle>Welcome, {user?.displayName || 'User'}!</CardTitle>
+                <CardDescription>This is your personal dashboard. Here you can manage your inboxes, settings, and subscription.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p>Dashboard content will go here. You can start by managing your temporary inboxes or checking your account settings.</p>
+            </CardContent>
+            <CardContent>
+                 <Button asChild>
+                    <Link href="/">Back to Inbox Generator</Link>
+                </Button>
+            </CardContent>
+        </Card>
+    </div>
   );
 }

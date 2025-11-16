@@ -15,13 +15,12 @@ export default async function MainLayout({
 
   return (
     <div className="relative flex flex-col min-h-screen">
-       <DotBackground>
-            <Header />
-            <main className="flex-grow">
-                {children}
-            </main>
-            <Footer />
-       </DotBackground>
+       <DotBackground />
+        <Header />
+        <main className="flex-grow z-10">
+            {children}
+        </main>
+        <Footer />
     </div>
   );
 }
