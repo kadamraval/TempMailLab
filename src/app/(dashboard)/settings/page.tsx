@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useUser } from "@/firebase";
@@ -6,9 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function UserSettingsPage() {
     const { user, isUserLoading } = useUser();
+    const [displayName, setDisplayName] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            setDisplayName(user.displayName || '');
+        }
+    }, [user]);
 
     if (isUserLoading) {
         return (
@@ -28,11 +37,11 @@ export default function UserSettingsPage() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" value={user?.email || ''} readOnly disabled />
+                        <Input id="email" type="email" defaultValue={user?.email || ''} readOnly disabled />
                     </div>
                      <div className="space-y-2">
                         <Label htmlFor="displayName">Display Name</Label>
-                        <Input id="displayName" value={user?.displayName || ''} />
+                        <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
                     </div>
                 </CardContent>
                 <CardContent>
