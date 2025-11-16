@@ -141,6 +141,19 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       setIsLoading(false);
     }
   }, [firestore, toast]);
+  
+  const ensureAnonymousUser = useCallback(async () => {
+    if (!auth) return null;
+    if (auth.currentUser) return auth.currentUser;
+    try {
+        const userCredential = await signInAnonymously(auth);
+        return userCredential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in failed:", error);
+        toast({ title: "Error", description: "Could not create a secure session.", variant: "destructive"});
+        return null;
+    }
+  }, [auth, toast]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -151,43 +164,23 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         sessionIdRef.current = sid;
     }
-  
-    // Wait until auth state is resolved and plans are loaded
-    if (isUserLoading || plans.length === 0) return;
-  
-    // If a plan is already set, do nothing.
-    if (userPlan) return;
-  
-    const determineUserAndPlan = async () => {
-      // If a real user is logged in
-      if (user) {
-        const plan = await getPlanForUser(user);
-        if (plan) setUserPlan(plan);
-      } else if (auth) {
-        // Only if there is no real user, proceed with anonymous
-        try {
-          const cred = await signInAnonymously(auth);
-          const plan = await getPlanForUser(cred.user);
-          if (plan) setUserPlan(plan);
-        } catch {
-          toast({ title: "Session Error", description: "Could not create a secure anonymous session.", variant: "destructive"});
-          setIsLoading(false);
-        }
-      } else {
-        // Fallback if auth is not ready
-        setIsLoading(false);
-      }
-    };
-  
-    determineUserAndPlan();
-  
-  }, [isUserLoading, user, plans, userPlan, getPlanForUser, auth, toast]);
 
-  useEffect(() => {
-    if (userPlan && !currentInbox) {
-      handleGenerateEmail(userPlan);
+    if (!isUserLoading && plans.length > 0 && !userPlan) {
+        getPlanForUser(user).then(plan => {
+             if (plan) {
+                setUserPlan(plan);
+                if (!currentInbox) {
+                    handleGenerateEmail(plan);
+                } else {
+                    setIsLoading(false);
+                }
+            } else {
+                toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
+                setIsLoading(false);
+            }
+        });
     }
-  }, [userPlan, currentInbox, handleGenerateEmail]);
+  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox, toast]);
 
 
   const clearCountdown = () => {
@@ -199,13 +192,17 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !sessionIdRef.current || isUserLoading) return;
+    if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
+    // For logged-in users, no need to ensure anonymous, just proceed.
+    // For anonymous users, the session is already handled.
+    if (!user) {
+        await ensureAnonymousUser();
+    }
+
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        // The server action now correctly uses the identity of the logged-in user (if any)
-        // or the implicitly created anonymous user.
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
         if (result.error) {
             if (result.error.includes("FIREBASE_SERVICE_ACCOUNT") && !isAutoRefresh) {
@@ -234,7 +231,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, isUserLoading]);
+  }, [currentInbox, toast, user, ensureAnonymousUser]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -410,5 +407,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
+
+    
 
     
