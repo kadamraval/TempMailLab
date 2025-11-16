@@ -5,14 +5,20 @@ import { Activity, Users, Package, Globe } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
 import type { Plan } from "./packages/data";
+import { useMemo } from "react";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
-    const { data: users, isLoading: usersLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
-    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
-    const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
 
-    const activePlans = plans?.filter(p => p.status === 'active');
+    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
+    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
+    const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
+
+    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
+    const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
+
+    const activePlans = useMemo(() => plans?.filter(p => p.status === 'active'), [plans]);
 
     const stats = [
         {
