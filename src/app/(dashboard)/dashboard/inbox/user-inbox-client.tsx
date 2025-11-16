@@ -2,9 +2,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from 'next/link';
 import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
@@ -15,6 +16,26 @@ import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+const EnvelopeLoader = () => (
+    <div className="relative w-20 h-20">
+        <svg className="w-full h-full" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 25 L40 50 L70 25 L70 60 H10 V25Z" stroke="currentColor" strokeWidth="3" className="text-muted-foreground/50"/>
+            <rect x="18" y="30" width="44" height="0" fill="hsl(var(--primary))" className="animate-[expand_1.5s_ease-out_infinite]" style={{ animationDelay: '0.2s' }}/>
+            <path d="M10 25 L40 50 L70 25" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+            <path d="M10 60 L40 35 L70 60" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+        <style jsx>{`
+            @keyframes expand {
+                0% { height: 0; y: 30; opacity: 0; }
+                40% { height: 20px; y: 10px; opacity: 1; }
+                80% { height: 20px; y: 10px; opacity: 1; }
+                100% { height: 0; y: 30; opacity: 0; }
+            }
+        `}</style>
+    </div>
+);
+
 
 function generateRandomString(length: number) {
   let result = '';
@@ -272,7 +293,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Sub-header Bar: A separate wrapper */}
       <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
         <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
           <Clock className="h-4 w-4" />
@@ -310,69 +330,78 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         </div>
       </div>
 
-      {/* Two-panel Inbox Card: A separate wrapper */}
       <div className="flex-1">
         <Card className="h-full">
-          <CardContent className="p-0 h-full">
-            <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-[calc(100vh-350px)]">
-              {/* Left Pane: Inbox List */}
-              <div className="flex flex-col border-r">
-                <ScrollArea className="flex-1">
-                  {inboxEmails.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center p-6 text-muted-foreground h-full">
-                      <Inbox className="h-10 w-10 mb-4" />
-                      <p className="font-semibold">Inbox is Empty</p>
-                      <p className="text-xs">Waiting for new emails...</p>
-                    </div>
-                  ) : (
-                    <div className="p-2 space-y-1">
-                      {inboxEmails.map(email => (
-                        <button
-                          key={email.id}
-                          onClick={() => handleSelectEmail(email)}
-                          className={cn(
-                            "w-full text-left p-3 rounded-md border-b border-transparent text-sm transition-colors",
-                            selectedEmail?.id === email.id ? 'bg-muted' : 'hover:bg-muted/50',
-                          )}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
-                            <div className="flex-1 overflow-hidden">
-                              <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                              <p className={cn("truncate", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </div>
-
-              {/* Right Pane: Email View */}
-              <div className="col-span-1 hidden md:block">
-                {selectedEmail ? (
-                  <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
-                    <Inbox className="h-16 w-16 mb-4" />
-                    <h3 className="text-xl font-semibold">Select an email to read</h3>
-                    <p>Your messages will appear here.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Mobile View for selected email */}
-              {selectedEmail && (
-                <div className="md:hidden absolute inset-0 bg-background z-10">
-                  <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+            <CardContent className="p-0 h-full">
+                <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
+                <div className="flex flex-col border-r">
+                    <ScrollArea className="flex-1">
+                    {inboxEmails.length === 0 ? (
+                        <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                            <EnvelopeLoader />
+                            <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+                            <p className="text-sm">New messages will appear here automatically.</p>
+                        </div>
+                    ) : (
+                        <div className="p-2 space-y-1">
+                        {inboxEmails.map(email => (
+                            <button
+                            key={email.id}
+                            onClick={() => handleSelectEmail(email)}
+                            className={cn(
+                                "w-full text-left p-3 rounded-md border-b border-transparent transition-colors flex items-center gap-4",
+                                selectedEmail?.id === email.id ? 'bg-muted' : 'hover:bg-muted/50',
+                                !email.read && "font-semibold bg-card"
+                            )}
+                            >
+                                <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
+                                <div className="grid grid-cols-5 gap-4 flex-grow items-center">
+                                    <span className="col-span-2 sm:col-span-2 truncate">{email.senderName}</span>
+                                    <span className={cn("col-span-3 sm:col-span-3 truncate", !email.read && "text-foreground")}>{email.subject}</span>
+                                </div>
+                            </button>
+                        ))}
+                        </div>
+                    )}
+                    </ScrollArea>
                 </div>
-              )}
-
-            </div>
-          </CardContent>
+                <div className="col-span-1 hidden md:block">
+                    {selectedEmail ? (
+                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
+                        <Inbox className="h-16 w-16 mb-4" />
+                        <h3 className="text-xl font-semibold">Select an email to read</h3>
+                        <p>Your messages will appear here.</p>
+                    </div>
+                    )}
+                </div>
+                {selectedEmail && (
+                    <div className="md:hidden absolute inset-0 bg-background z-10">
+                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    </div>
+                )}
+                </div>
+            </CardContent>
+            {user && user.isAnonymous && (
+                <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
+                    <p className="text-center text-sm text-muted-foreground w-full">
+                        This is a temporary anonymous session. {' '}
+                        <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                            Log In
+                        </Link>
+                        {' '}or{' '}
+                        <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
+                            Sign Up
+                        </Link>
+                        {' '} for more features.
+                    </p>
+                </CardFooter>
+            )}
         </Card>
       </div>
     </div>
   );
 }
+
+    
