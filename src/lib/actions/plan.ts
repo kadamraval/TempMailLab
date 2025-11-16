@@ -11,12 +11,15 @@ export async function seedDefaultPlan() {
     const defaultPlanRef = firestore.collection('plans').doc('default');
     const docSnap = await defaultPlanRef.get();
 
+    // The plan name MUST be 'Default'. This is the core requirement.
+    const requiredName = 'Default';
+
     if (docSnap.exists) {
       // If the plan exists, ensure its name is "Default".
       // This corrects any previous state where it might have been named "Free".
-      if (docSnap.data()?.name !== 'Default') {
-        await defaultPlanRef.update({ name: 'Default' });
-        console.log('Corrected system plan name to "Default".');
+      if (docSnap.data()?.name !== requiredName) {
+        await defaultPlanRef.update({ name: requiredName });
+        console.log(`Corrected system plan name to "${requiredName}".`);
         return { success: true, message: 'Default plan name corrected.' };
       }
       return { success: true, message: 'Default plan already exists and is correct.' };
@@ -24,7 +27,7 @@ export async function seedDefaultPlan() {
 
     // If the document does not exist, create it with the correct "Default" name.
     const defaultPlanData = {
-        name: "Default", // Explicitly set the name to "Default".
+        name: requiredName, // Explicitly set the name to "Default".
         price: 0,
         cycle: "monthly",
         status: "active",
@@ -65,7 +68,7 @@ export async function seedDefaultPlan() {
     };
 
     await defaultPlanRef.set(defaultPlanData);
-    console.log('Successfully seeded the "Default" plan.');
+    console.log(`Successfully seeded the "${requiredName}" plan.`);
     return { success: true, message: 'Default plan seeded successfully.' };
 
   } catch (error: any) {

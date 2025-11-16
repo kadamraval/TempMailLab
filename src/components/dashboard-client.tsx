@@ -49,14 +49,13 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
-  const findPlan = useCallback((planName: string) => {
+  const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
   }, [plans]);
 
   const getPlanForUser = useCallback(async (currentAuthUser: any): Promise<Plan | null> => {
     if (!firestore || plans.length === 0) return null;
 
-    // For a logged-in (non-anonymous) user
     if (currentAuthUser && !currentAuthUser.isAnonymous) {
       try {
         const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
@@ -74,8 +73,8 @@ export function DashboardClient({ plans }: DashboardClientProps) {
       }
     }
     
-    // For anonymous users or as a fallback for logged-in users
-    // Prefer the user-created "Free" plan. If not found, use the system "Default" plan.
+    // For anonymous users or as a fallback for logged-in users.
+    // Prioritize a user-created "Free" plan. If it doesn't exist, use the system "Default" plan.
     return findPlan('Free') || findPlan('Default');
   }, [firestore, plans, findPlan]);
   
