@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { InboxView } from "./inbox-view";
 import { EmailView } from "./email-view";
-import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
