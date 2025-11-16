@@ -59,10 +59,12 @@ export async function seedDefaultPlan() {
     return { success: true, message: 'Default plan seeded successfully.' };
 
   } catch (error: any) {
-    console.error('Error seeding default plan:', error);
+    // Gracefully fail in environments without server-side credentials
     if (error.message.includes("not configured")) {
+        console.warn("Server-side Firebase not configured, skipping default plan seed.");
         return { success: false, error: error.message };
     }
+    console.error('Error seeding default plan:', error);
     return {
       success: false,
       error: 'Could not seed the default plan.',
