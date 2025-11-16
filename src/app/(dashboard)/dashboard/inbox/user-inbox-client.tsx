@@ -194,22 +194,20 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
-    // For logged-in users, no need to ensure anonymous, just proceed.
-    // For anonymous users, the session is already handled.
+    // For anonymous users, ensure a session exists. For logged-in users, the `user` object will be present.
     if (!user) {
         await ensureAnonymousUser();
     }
+    // If we're still waiting on the main user object to load, wait before refreshing.
+    if (isUserLoading) return;
+
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
         const result = await fetchEmailsFromServerAction(sessionIdRef.current, currentInbox.emailAddress);
         if (result.error) {
-            if (result.error.includes("FIREBASE_SERVICE_ACCOUNT") && !isAutoRefresh) {
-                toast({ title: "Server Action Required", description: "Email fetching is disabled.", variant: "destructive", duration: 10000 });
-                clearRefreshInterval();
-                return; 
-            }
+            // Re-throw the error from the server to be caught by the catch block
             throw new Error(result.error);
         }
         
@@ -231,7 +229,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, user, ensureAnonymousUser]);
+  }, [currentInbox, toast, user, ensureAnonymousUser, isUserLoading]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -407,7 +405,3 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
-
-    
-
-    
