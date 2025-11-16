@@ -29,7 +29,7 @@ async function getMailgunSettings() {
         };
     } catch (error: any) {
         // This will catch both the initialization error and specific firestore/config errors
-        if (error.message.includes("FIREBASE_SERVICE_ACCOUNT")) {
+        if (error.message.includes("Server-side Firebase is not configured")) {
             // Provide a user-friendly error message that guides the admin.
             throw new Error("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
         }
@@ -88,5 +88,7 @@ export async function fetchEmailsFromServerAction(
         return { error: error.message || 'An unexpected error occurred while fetching emails.' };
     }
 }
+
+    
 
     

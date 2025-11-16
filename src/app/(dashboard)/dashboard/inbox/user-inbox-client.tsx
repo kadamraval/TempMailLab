@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useAuth, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useFirestore, useUser, useAuth } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously, type User } from "firebase/auth";
 import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
@@ -106,7 +106,9 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     setServerError(null); // Clear any previous server errors
     try {
       if (!firestore) throw new Error("Database connection not available.");
-
+      // Forcing a read from `allowed_domains` which requires auth.
+      // This is safe because `handleGenerateEmail` is only called after `getPlanForUser`
+      // which itself depends on `isUserLoading` being false.
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -131,16 +133,15 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       setInboxEmails([]);
 
     } catch (error: any) {
-       if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'allowed_domains', operation: 'list' }));
-        } else {
-            console.error("Error generating new inbox:", error);
-            toast({
-                title: "Error",
-                description: error.message || "Could not generate a new email address.",
-                variant: "destructive",
-            });
-        }
+        // We don't re-throw a permission error here because reading from 'allowed_domains'
+        // is not something a normal user does. It's a system check. A failure here
+        // is an administrative configuration problem, not a user permission issue.
+        console.error("Error generating new inbox:", error);
+        toast({
+            title: "Error",
+            description: error.message || "Could not generate a new email address.",
+            variant: "destructive",
+        });
     } finally {
       setIsGenerating(false);
       setIsLoading(false);
@@ -180,7 +181,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                     setIsLoading(false);
                 }
             } else {
-                toast({ title: "Configuration Error", description: "No subscription plans found. A system 'Free' plan is required.", variant: "destructive"});
+                setServerError("No subscription plans are configured. A default 'Free' plan is required for the application to function.");
                 setIsLoading(false);
             }
         });
@@ -199,14 +200,13 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !sessionIdRef.current) return;
     
-    // If we're still waiting on the main user object to load, wait before refreshing.
+    // Do not proceed if user state is still loading.
     if (isUserLoading) return;
     
-    // For anonymous users, ensure a session exists. For logged-in users, the `user` object will be present.
-    if (!user) {
-        const anonUser = await ensureAnonymousUser();
-        if (!anonUser) return;
-    }
+    // Ensure we have a user (anonymous or logged-in) before proceeding.
+    // For logged-in users, `user` will be available. For anonymous, this will create one.
+    const currentUser = user || await ensureAnonymousUser();
+    if (!currentUser) return;
 
 
     if (!isAutoRefresh) setIsRefreshing(true);
@@ -219,9 +219,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             throw new Error(result.error);
         }
         
-        // If we get a successful response, clear any previous server error
         setServerError(null);
-        clearRefreshInterval(); // Ensure interval is cleared on success
+        clearRefreshInterval(); 
         refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
 
 
@@ -243,8 +242,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } catch (error: any) {
         if (!isAutoRefresh) toast({ title: "Refresh Failed", description: error.message, variant: "destructive" });
         
-        // This is a critical error from the server, likely config-related.
-        // Stop auto-refreshing to prevent spamming failed requests.
+        // If a server config error happens, show it and stop auto-refresh.
         if (error.message.includes("Server actions are not configured")) {
             setServerError(error.message);
             clearRefreshInterval();
@@ -442,5 +440,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
+
+    
 
     
