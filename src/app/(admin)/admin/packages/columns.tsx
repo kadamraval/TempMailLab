@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, CheckCircle2, XCircle, Users, Lock, Fingerprint } from "lucide-react"
+import { MoreHorizontal, CheckCircle2, XCircle, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { type Plan } from "./data"
 import { cn } from "@/lib/utils"
@@ -85,27 +85,14 @@ export const getPlanColumns = (
         return <div className="text-left"><Badge variant={status === 'active' ? 'default' : 'secondary'} className="capitalize">{status}</Badge></div>
     }
   },
-  {
+   {
     accessorKey: "features.maxInboxes",
     header: "Inboxes",
     cell: ({ row }) => <div className="text-left">{row.original.features.maxInboxes}</div>,
   },
   {
-    accessorKey: "features.teamMembers",
-    header: "Team Seats",
-    cell: ({ row }) => {
-      const teamMembers = row.original.features.teamMembers || 0;
-      return (
-        <div className="flex items-center justify-start gap-1">
-          <Users className="h-4 w-4 text-muted-foreground"/>
-          <span>{teamMembers}</span>
-        </div>
-      )
-    }
-  },
-  {
     accessorKey: "features.apiAccess",
-    header: "API",
+    header: "API Access",
     cell: ({ row }) => <FeatureCell value={row.original.features.apiAccess} />
   },
   {
@@ -115,16 +102,13 @@ export const getPlanColumns = (
   },
   {
     accessorKey: "features.customDomains",
-    header: "Domains",
+    header: "Custom Domains",
     cell: ({ row }) => {
        const customDomains = row.original.features.customDomains;
        return (
         <div className="flex justify-start">
             {customDomains > 0 ? 
-                <div className="flex items-center gap-1">
-                    <Fingerprint className="h-5 w-5 text-blue-500" />
-                    <span>{customDomains}</span>
-                </div>
+               <span className="font-medium">{customDomains}</span>
              : <XCircle className="h-5 w-5 text-red-500" />}
         </div>
        )
