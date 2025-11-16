@@ -1,6 +1,6 @@
 'use server';
 
-import { initializeFirebase } from '@/firebase/server-init';
+import { initializeFirebaseAdmin } from '@/firebase/server-init';
 
 /**
  * Creates or updates a user document in Firestore after a client-side sign-up or first-time Google login.
@@ -11,7 +11,7 @@ import { initializeFirebase } from '@/firebase/server-init';
  */
 export async function signUp(uid: string, email: string | null, isNewUser: boolean) {
   try {
-    const { firestore } = initializeFirebase();
+    const { firestore } = await initializeFirebaseAdmin();
     const userRef = firestore.collection('users').doc(uid);
     const docSnap = await userRef.get();
 
@@ -31,11 +31,8 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
 
   } catch (error: any) {
     console.error('Error in signUp server action:', error);
-    // Provide a more specific error message if initialization failed.
-    if (error.message.includes("Firebase Admin SDK is not available")) {
-        return {
-            error: "Server-side Firebase is not configured. User record could not be created."
-        }
+    if (error.message.includes("not configured")) {
+        return { error: error.message };
     }
     return {
       error: 'Could not create or verify user record in the database.',
