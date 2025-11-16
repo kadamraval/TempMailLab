@@ -241,6 +241,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } catch (error: any) {
         if (error.message.includes('FIREBASE_SERVICE_ACCOUNT')) {
             setServerError("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
+            clearRefreshInterval(); // Stop trying to refresh
         } else if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
@@ -438,6 +439,3 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
-
-    
-    
