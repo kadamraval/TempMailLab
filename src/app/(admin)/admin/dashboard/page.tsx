@@ -1,4 +1,3 @@
-
 'use client';
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
