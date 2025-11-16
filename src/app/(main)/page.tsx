@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useUser } from "@/firebase";
+import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { Loader2 } from "lucide-react";
 import { FeaturesSection } from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";
@@ -14,23 +14,39 @@ import { ComparisonSection } from "@/components/comparison-section";
 import { ExclusiveFeatures } from "@/components/exclusive-features";
 import { BlogSection } from "@/components/blog-section";
 import { cn } from "@/lib/utils";
+import { collection, query, where } from "firebase/firestore";
+import type { Plan } from "@/app/(admin)/admin/packages/data";
 
-const sections = [
-  { component: UseCasesSection, hasCard: true },
-  { component: FeaturesSection, hasCard: false },
-  { component: ExclusiveFeatures, hasCard: false },
-  { component: ComparisonSection, hasCard: true },
-  { component: PricingSection, hasCard: false },
-  { component: BlogSection, hasCard: true },
-  { component: Testimonials, hasCard: false },
-  { component: FaqSection, hasCard: true },
-  { component: StayConnected, hasCard: false },
-];
 
 export default function HomePage() {
   const { isUserLoading } = useUser();
+  const firestore = useFirestore();
 
-  if (isUserLoading) {
+  const plansQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+        collection(firestore, "plans"),
+        where("status", "==", "active"),
+        where("name", "!=", "Default")
+    );
+  }, [firestore]);
+
+  const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
+  
+  const sections = [
+    { component: UseCasesSection, hasCard: true },
+    { component: FeaturesSection, hasCard: false },
+    { component: ExclusiveFeatures, hasCard: false },
+    { component: ComparisonSection, hasCard: true },
+    { component: PricingSection, hasCard: false, props: { plans: plans || [] } },
+    { component: BlogSection, hasCard: true },
+    { component: Testimonials, hasCard: false },
+    { component: FaqSection, hasCard: true },
+    { component: StayConnected, hasCard: false },
+  ];
+
+
+  if (isUserLoading || isLoadingPlans) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -73,7 +89,7 @@ export default function HomePage() {
 
         return (
             <div key={index} className={cn(backgroundClass)}>
-                <Section.component removeBorder={removeBorder && Section.hasCard} />
+                <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
             </div>
         )
       })}
