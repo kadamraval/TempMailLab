@@ -1,3 +1,4 @@
+
 'use client';
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
@@ -6,9 +7,12 @@ import { collection } from "firebase/firestore";
 import type { Plan } from "./packages/data";
 import { useMemo } from "react";
 
-export default function AdminDashboardPage() {
+// This component is now identical to the dashboard page to ensure consistency.
+// The primary purpose is to be the default view for `/admin`, which might be the same as `/admin/dashboard`.
+export default function AdminPage() {
     const firestore = useFirestore();
     
+    // Correctly memoized queries to prevent infinite loops.
     const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
     const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
     const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
