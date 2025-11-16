@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -271,10 +272,10 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-250px)]">
+    <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] gap-4 h-[calc(100vh-250px)]">
         {/* Left Pane: Inbox List */}
-        <Card className="col-span-1 flex flex-col">
-            <CardHeader className="p-4 border-b">
+        <div className="flex flex-col border rounded-lg bg-card text-card-foreground shadow-sm">
+            <CardHeader className="p-4 border-b space-y-3">
                 <div 
                     onClick={handleCopyEmail}
                     className="flex-grow flex items-center justify-center font-mono text-sm text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
@@ -291,7 +292,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                     </>
                     )}
                 </div>
-                <div className="flex items-center justify-between gap-2 text-sm mt-2">
+                <div className="flex items-center justify-between gap-2 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Clock className="h-4 w-4" />
                         <span>{formatTime(countdown)}</span>
@@ -336,20 +337,22 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                     </div>
                 )}
             </ScrollArea>
-        </Card>
+        </div>
 
         {/* Right Pane: Email View */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3">
+        <div className="col-span-1">
             {selectedEmail ? (
                 <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
             ) : (
-                <Card className="h-full flex flex-col items-center justify-center text-center text-muted-foreground">
+                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground border rounded-lg bg-card">
                     <Inbox className="h-16 w-16 mb-4" />
                     <h3 className="text-xl font-semibold">Select an email to read</h3>
                     <p>Your messages will appear here.</p>
-                </Card>
+                </div>
             )}
         </div>
     </div>
   );
 }
+
+    
