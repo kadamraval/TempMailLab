@@ -9,10 +9,10 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { type User } from "firebase/auth";
-import { fetchEmailsAction } from "@/lib/actions/mailgun";
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,6 +70,12 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, "admin_settings", "mailgun");
+  }, [firestore]);
+  const { data: mailgunSettings, isLoading: isLoadingSettings, error: settingsError } = useDoc(settingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -166,42 +172,59 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress) return;
-    
-    if (serverError) {
-      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+    if (!currentInbox?.emailAddress || !mailgunSettings?.enabled) {
+      if (mailgunSettings && !mailgunSettings.enabled) {
+        const errorMsg = 'Email fetching is currently disabled by the administrator.';
+        if (!isAutoRefresh && serverError !== errorMsg) {
+          toast({
+            title: "Refresh Disabled",
+            description: errorMsg,
+            variant: "default",
+          });
+        }
+        setServerError(errorMsg);
+      }
       return;
     }
 
-    if (!isAutoRefresh) setIsRefreshing(true);
+    if (!isAutoRefresh) {
+      setIsRefreshing(true);
+    }
     
     try {
-        const result = await fetchEmailsAction(currentInbox.emailAddress);
+      const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
+      const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
         
-        if (result.error) {
-           if(result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
-                setServerError("Server is not configured for email fetching. Please contact support.");
-                if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+      if (result.error) {
+        if(result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
+            const errorMsg = "Server is not configured for email fetching. Please contact support.";
+            setServerError(errorMsg);
+            if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+            if (!isAutoRefresh) {
+              toast({ title: 'Server Error', description: errorMsg, variant: 'destructive'});
             }
-            throw new Error(result.error);
+        } else {
+          throw new Error(result.error);
         }
+      } else {
+        setServerError(null); // Clear previous errors on success
+      }
         
-        setServerError(null);
-        
-        if (result.emails && result.emails.length > 0) {
-            setInboxEmails(prevEmails => {
-                const existingIds = new Set(prevEmails.map(e => e.id));
-                const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-                if (newEmails.length > 0 && !isAutoRefresh) {
-                    toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-                }
-                const allEmails = [...prevEmails, ...newEmails];
-                return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-            });
-        } 
-        if (!isAutoRefresh && (!result.emails || result.emails.length === 0)) {
-            toast({ title: "Inbox refreshed", description: "No new emails found." });
+      if (result.emails && result.emails.length > 0) {
+        setInboxEmails(prevEmails => {
+          const existingIds = new Set(prevEmails.map(e => e.id));
+          const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
+          if (newEmails.length > 0 && !isAutoRefresh) {
+            toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
+          }
+          const allEmails = [...prevEmails, ...newEmails];
+          return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+        });
+      } else {
+        if (!isAutoRefresh) {
+          toast({ title: "Inbox refreshed", description: "No new emails found." });
         }
+      }
         
     } catch (error: any) {
         if (!isAutoRefresh) {
@@ -211,7 +234,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, serverError]);
+  }, [currentInbox, toast, mailgunSettings, serverError]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -270,7 +293,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading) {
+  if (isLoading || isUserLoading || isLoadingSettings) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-250px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -401,3 +424,4 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   );
 }
 
+    
