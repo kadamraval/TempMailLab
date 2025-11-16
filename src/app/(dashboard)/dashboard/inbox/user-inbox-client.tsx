@@ -9,10 +9,10 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { type User } from "firebase/auth";
-import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
+import { fetchEmailsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -70,13 +70,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Securely get Mailgun settings from Firestore
-  const settingsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore]);
-  const { data: mailgunSettings, isLoading: isLoadingSettings, error: settingsError } = useDoc(settingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -173,20 +166,23 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
-        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
-             toast({ title: "Refresh Failed", description: "Email fetching is disabled by the administrator.", variant: "destructive" });
-        }
-        return;
+    if (!currentInbox?.emailAddress) return;
+    
+    if (serverError) {
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+      return;
     }
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
-        const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
+        const result = await fetchEmailsAction(currentInbox.emailAddress);
         
         if (result.error) {
+           if(result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
+                setServerError("Server is not configured for email fetching. Please contact support.");
+                if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+            }
             throw new Error(result.error);
         }
         
@@ -215,7 +211,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, mailgunSettings]);
+  }, [currentInbox, toast, serverError]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -241,23 +237,15 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             }
         }, 1000);
 
-        if (mailgunSettings?.enabled) {
-          handleRefresh(true);
-          refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
-        }
+        handleRefresh(true);
+        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
     }
     return () => {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, mailgunSettings]);
+  }, [currentInbox, toast, handleRefresh]);
 
-  useEffect(() => {
-    if (settingsError) {
-        setServerError("Could not load mail configuration. Email fetching is disabled.");
-        console.error("Mailgun settings fetch error:", settingsError);
-    }
-  }, [settingsError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -282,7 +270,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading || isLoadingSettings) {
+  if (isLoading || isUserLoading) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-250px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -320,7 +308,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError || !mailgunSettings?.enabled}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -364,9 +352,9 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                             )}
                             >
                                 <div className={cn("h-2 w-2 rounded-full shrink-0", !email.read ? 'bg-primary' : 'bg-transparent')}></div>
-                                <div className="grid grid-cols-5 gap-4 flex-grow items-center">
-                                    <span className="col-span-2 sm:col-span-2 truncate">{email.senderName}</span>
-                                    <span className={cn("col-span-3 sm:col-span-3 truncate", !email.read && "text-foreground")}>{email.subject}</span>
+                                <div className="flex-grow overflow-hidden">
+                                  <div className="truncate font-medium">{email.senderName}</div>
+                                  <div className={cn("truncate text-sm", !email.read ? 'text-foreground' : 'text-muted-foreground')}>{email.subject}</div>
                                 </div>
                             </button>
                         ))}
@@ -412,3 +400,4 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
+
