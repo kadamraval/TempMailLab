@@ -15,7 +15,6 @@ import { fetchEmailsFromServerAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 
 function generateRandomString(length: number) {
   let result = '';
@@ -273,8 +272,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-        {/* Sub-header */}
-        <div className="flex items-center justify-between gap-4 p-3 border bg-card rounded-lg">
+        {/* Sub-header Bar */}
+        <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
             <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 <span>{formatTime(countdown)}</span>
@@ -299,8 +298,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
             <div className="flex items-center gap-2">
                 <Button onClick={handleNewAddressClick} variant="outline" size="sm" disabled={isGenerating}>
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    New
+                    <PlusCircle className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">New</span>
                 </Button>
                 <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing}>
                     {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -311,7 +310,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             </div>
         </div>
 
-        {/* Two-way inbox card */}
+        {/* Two-panel Inbox Card */}
         <Card className="flex-1">
             <CardContent className="p-0 h-full">
                 <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-[calc(100vh-350px)]">
@@ -375,7 +374,5 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
-
-    
 
     
