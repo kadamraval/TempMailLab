@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,7 +12,7 @@ import { EmailView } from "./email-view";
 import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously, type User } from "firebase/auth";
-import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
+import { fetchEmailsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ServerCrash } from "lucide-react";
@@ -50,10 +49,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fetch Mailgun settings directly using the client SDK
-  const mailgunSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'mailgun') : null, [firestore]);
-  const { data: mailgunSettings, isLoading: isLoadingMailgunSettings } = useDoc(mailgunSettingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -123,7 +118,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   }, [firestore, toast]);
 
   useEffect(() => {
-    if (!isUserLoading && !isLoadingMailgunSettings && plans.length > 0 && !userPlan) {
+    if (!isUserLoading && plans.length > 0 && !userPlan) {
         getPlanForUser(user).then(plan => {
              if (plan) {
                 setUserPlan(plan);
@@ -138,7 +133,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             }
         });
     }
-  }, [isUserLoading, isLoadingMailgunSettings, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
+  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -150,25 +145,12 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
-        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
-            toast({ title: "Feature Disabled", description: "Email fetching is currently disabled by the administrator.", variant: "destructive" });
-        }
-        return;
-    }
-
-    const { apiKey, domain } = mailgunSettings;
-
-    if (!apiKey || !domain) {
-        setServerError("Mailgun integration is not fully configured. API Key and Domain are required.");
-        clearRefreshInterval();
-        return;
-    }
+    if (!currentInbox?.emailAddress) return;
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const result = await fetchEmailsWithCredentialsAction(apiKey, domain, currentInbox.emailAddress);
+        const result = await fetchEmailsAction(currentInbox.emailAddress);
         
         if (result.error) {
             throw new Error(result.error);
@@ -192,6 +174,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         }
         
     } catch (error: any) {
+        setServerError(error.message);
         if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
@@ -199,7 +182,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, mailgunSettings, toast]);
+  }, [currentInbox, toast]);
 
 
   const handleNewAddressClick = useCallback(async () => {
@@ -226,7 +209,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             }
         }, 1000);
 
-        if (!serverError && mailgunSettings && mailgunSettings.enabled) {
+        if (!serverError) {
           handleRefresh(true);
           refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
         }
@@ -235,7 +218,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, serverError, mailgunSettings]);
+  }, [currentInbox, toast, handleRefresh, serverError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;

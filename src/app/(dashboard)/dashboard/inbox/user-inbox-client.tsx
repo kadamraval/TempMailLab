@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -12,7 +11,7 @@ import { EmailView } from "@/components/email-view";
 import { useFirestore, useUser, useAuth, useDoc, useMemoFirebase } from "@/firebase";
 import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
 import { signInAnonymously, type User } from "firebase/auth";
-import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
+import { fetchEmailsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -71,10 +70,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fetch Mailgun settings directly using the client SDK
-  const mailgunSettingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'mailgun') : null, [firestore]);
-  const { data: mailgunSettings, isLoading: isLoadingMailgunSettings } = useDoc(mailgunSettingsRef);
 
   const findPlan = useCallback((planName: string): Plan | null => {
     return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
@@ -144,7 +139,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   }, [firestore, toast]);
 
   useEffect(() => {
-    if (!isUserLoading && !isLoadingMailgunSettings && plans.length > 0 && !userPlan) {
+    if (!isUserLoading && plans.length > 0 && !userPlan) {
         getPlanForUser(user).then(plan => {
              if (plan) {
                 setUserPlan(plan);
@@ -159,7 +154,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             }
         });
     }
-  }, [isUserLoading, isLoadingMailgunSettings, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
+  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -171,25 +166,12 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !mailgunSettings || !mailgunSettings.enabled) {
-        if (!isAutoRefresh && mailgunSettings && !mailgunSettings.enabled) {
-            toast({ title: "Feature Disabled", description: "Email fetching is currently disabled by the administrator.", variant: "destructive" });
-        }
-        return;
-    }
-
-    const { apiKey, domain } = mailgunSettings;
-
-    if (!apiKey || !domain) {
-        setServerError("Mailgun integration is not fully configured. API Key and Domain are required.");
-        clearRefreshInterval();
-        return;
-    }
+    if (!currentInbox?.emailAddress) return;
 
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
-        const result = await fetchEmailsWithCredentialsAction(apiKey, domain, currentInbox.emailAddress);
+        const result = await fetchEmailsAction(currentInbox.emailAddress);
         
         if (result.error) {
             throw new Error(result.error);
@@ -213,6 +195,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         
     } catch (error: any) {
+        setServerError(error.message);
         if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
@@ -220,7 +203,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, mailgunSettings, toast]);
+  }, [currentInbox, toast]);
 
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan) return;
@@ -246,7 +229,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             }
         }, 1000);
 
-        if (!serverError && mailgunSettings && mailgunSettings.enabled) {
+        if (!serverError) {
           handleRefresh(true);
           refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
         }
@@ -255,7 +238,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, serverError, mailgunSettings]);
+  }, [currentInbox, toast, handleRefresh, serverError]);
 
   const handleCopyEmail = () => {
     if (!currentInbox?.emailAddress) return;
@@ -280,7 +263,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading || isLoadingMailgunSettings) {
+  if (isLoading || isUserLoading) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-250px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -318,7 +301,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError || !mailgunSettings?.enabled}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">

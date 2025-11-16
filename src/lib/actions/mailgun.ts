@@ -1,23 +1,54 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
+import { getFirebaseAdmin } from '@/firebase/server-init';
 
-// This is a new, simplified server action that takes credentials as arguments.
-// It no longer depends on the Firebase Admin SDK to fetch settings.
-export async function fetchEmailsWithCredentialsAction(
-    apiKey: string,
-    domain: string,
+/**
+ * A secure server action that fetches the Mailgun credentials from admin-only
+ * Firestore documents and then retrieves emails for a given address.
+ * This action is the single, secure entry point for fetching emails.
+ * @param emailAddress The temporary email address to fetch messages for.
+ */
+export async function fetchEmailsAction(
     emailAddress: string
 ): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
-    if (!apiKey || !domain || !emailAddress) {
-        return { success: false, error: 'Missing required credentials or email address.' };
+    if (!emailAddress) {
+        return { success: false, error: 'Email address is required.' };
+    }
+    
+    // Get Firebase Admin instances. This is a secure, server-only operation.
+    const { firestore, error: adminError } = getFirebaseAdmin();
+
+    if (adminError) {
+        console.warn(`[MAILGUN_ACTION_WARNING] ${adminError.message}`);
+        return { success: false, error: adminError.message };
     }
 
     try {
+        // Fetch the Mailgun settings securely on the server.
+        const settingsDoc = await firestore.collection('admin_settings').doc('mailgun').get();
+        
+        if (!settingsDoc.exists) {
+             return { success: false, error: "Mailgun settings not found on the server." };
+        }
+        
+        const settings = settingsDoc.data();
+        const apiKey = settings?.apiKey;
+        const domain = settings?.domain;
+        const enabled = settings?.enabled;
+
+        if (!enabled) {
+            return { success: false, error: "Email fetching is disabled by the administrator." };
+        }
+
+        if (!apiKey || !domain) {
+            return { success: false, error: 'Mailgun integration is not fully configured on the server.' };
+        }
+
+        // Proceed with fetching emails using the secure credentials.
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
@@ -53,6 +84,7 @@ export async function fetchEmailsWithCredentialsAction(
 
     } catch (error: any) {
         console.error("[MAILGUN_ACTION_ERROR]", error.message);
+        // Do not expose detailed internal errors to the client.
         return { success: false, error: 'An unexpected error occurred while fetching emails.' };
     }
 }
