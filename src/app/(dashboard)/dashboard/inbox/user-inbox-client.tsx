@@ -239,11 +239,11 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         }
         
     } catch (error: any) {
-        if (!isAutoRefresh) {
+        if (error.message.includes('FIREBASE_SERVICE_ACCOUNT')) {
+            setServerError("Server actions are not configured. Email fetching is disabled until credentials are set in your environment.");
+        } else if (!isAutoRefresh) {
             toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         }
-        // No longer setting the serverError state here, as the new server-side logic is more robust.
-        // A failure is now treated as a temporary issue.
         console.error("Error refreshing inbox:", error.message);
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
@@ -346,7 +346,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -360,7 +360,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
             <ServerCrash className="h-4 w-4" />
             <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                {serverError} Auto-refresh has been disabled.
+                {serverError}
             </AlertDescription>
           </Alert>
         )}
@@ -438,7 +438,5 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
-
-    
 
     
