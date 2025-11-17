@@ -21,15 +21,9 @@ export async function signUp(
     isAnonymous: boolean,
     inboxToCreate?: Omit<Inbox, 'id' | 'userId' | 'createdAt'>
 ): Promise<{ success: boolean; error?: string }> {
-  const { firestore, error: adminError } = getFirebaseAdmin();
-
-  if (adminError || !firestore) {
-    const errorMsg = adminError?.message || 'Firestore service is not available.';
-    console.error('Error in signUp server action:', errorMsg);
-    return { success: false, error: errorMsg };
-  }
-
+  
   try {
+    const { firestore } = getFirebaseAdmin();
     const userRef = firestore.collection('users').doc(uid);
     const docSnapshot = await userRef.get();
 
@@ -67,9 +61,10 @@ export async function signUp(
     return { success: true };
   } catch (error: any) {
     console.error('Error in robust signUp server action:', error);
+    // Return the specific error message to the client for better debugging.
     return {
       success: false,
-      error: 'Could not create or update user record in the database.',
+      error: error.message || 'Could not create or update user record in the database.',
     };
   }
 }
