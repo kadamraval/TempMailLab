@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUp } from "@/lib/actions/auth"
+import { type Inbox } from "@/types"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -30,6 +31,8 @@ const formSchema = z.object({
     message: "Passwords don't match",
     path: ["confirmPassword"],
 });
+
+const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
 
 export function RegisterForm() {
   const { toast } = useToast()
@@ -45,15 +48,26 @@ export function RegisterForm() {
     },
   })
   
-  // This function is called after a successful Firebase Auth sign-in or link.
   async function handleRegistrationSuccess(finalUser: User) {
-    // This server action ensures the user document exists and is correctly configured.
-    // It's idempotent: it creates the doc if it's new, or updates it if it was anonymous.
-    const result = await signUp(finalUser.uid, finalUser.email, false); 
+    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+    let inboxToMigrate: Omit<Inbox, 'id' | 'userId' | 'createdAt'> | undefined = undefined;
+
+    if (localInboxData) {
+        const parsed: Inbox = JSON.parse(localInboxData);
+        // Only migrate if it hasn't expired
+        if (new Date(parsed.expiresAt) > new Date()) {
+             inboxToMigrate = {
+                emailAddress: parsed.emailAddress,
+                expiresAt: parsed.expiresAt,
+            };
+        }
+        localStorage.removeItem(LOCAL_INBOX_KEY);
+    }
+    
+    const result = await signUp(finalUser.uid, finalUser.email, false, inboxToMigrate); 
 
     if (result.error) {
         toast({ title: "Registration Error", description: `Could not save user profile: ${result.error}`, variant: "destructive"});
-        // Clean up the newly created user if the DB operation fails to prevent orphan auth accounts.
         await finalUser.delete();
         return;
     }
@@ -69,30 +83,13 @@ export function RegisterForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
     
-    const anonymousUser = auth.currentUser;
-
     try {
-      let finalUser: User;
-      
-      // If there's an existing anonymous user, link the new credentials to it.
-      if (anonymousUser && anonymousUser.isAnonymous) {
-        const credential = EmailAuthProvider.credential(values.email, values.password);
-        const linkResult = await linkWithCredential(anonymousUser, credential);
-        finalUser = linkResult.user;
-      } else {
-        // Otherwise, create a brand new user.
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-        finalUser = userCredential.user;
-      }
-
-      await handleRegistrationSuccess(finalUser);
-
+        await handleRegistrationSuccess(userCredential.user);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during sign up.";
         if (error.code === 'auth/email-already-in-use') {
             errorMessage = "This email address is already in use by another account.";
-        } else if (error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This account is already associated with another user. Please log in directly.";
         }
         toast({
             title: "Registration Failed",
@@ -105,20 +102,10 @@ export function RegisterForm() {
   async function handleGoogleSignIn() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
-    const anonymousUser = auth.currentUser;
     
     try {
-        let finalUser: User;
-        // If there's an existing anonymous user, link the new credentials to it.
-        if (anonymousUser && anonymousUser.isAnonymous) {
-            const result = await linkWithCredential(anonymousUser, provider);
-            finalUser = result.user;
-        } else {
-            // Otherwise, sign in with a popup to create a new user.
-            const result = await signInWithPopup(auth, provider);
-            finalUser = result.user;
-        }
-        await handleRegistrationSuccess(finalUser);
+        const result = await signInWithPopup(auth, provider);
+        await handleRegistrationSuccess(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign up with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential' || error.code === 'auth/credential-already-in-use') {

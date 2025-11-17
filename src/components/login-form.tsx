@@ -20,11 +20,14 @@ import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUp } from "@/lib/actions/auth"
+import { type Inbox } from "@/types"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 })
+
+const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
 
 interface LoginFormProps {
   redirectPath?: string;
@@ -43,16 +46,27 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
-  // This function is called after a successful Firebase Auth sign-in.
   async function handleLoginSuccess(finalUser: User) {
-    // This server action ensures the user document exists in Firestore.
-    // It's idempotent, so it's safe to call on every login.
-    const signUpResult = await signUp(finalUser.uid, finalUser.email, false);
+    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+    let inboxToMigrate: Omit<Inbox, 'id' | 'userId' | 'createdAt'> | undefined = undefined;
+
+    if (localInboxData) {
+        const parsed: Inbox = JSON.parse(localInboxData);
+        // Only migrate if it hasn't expired
+        if (new Date(parsed.expiresAt) > new Date()) {
+            inboxToMigrate = {
+                emailAddress: parsed.emailAddress,
+                expiresAt: parsed.expiresAt,
+            };
+        }
+        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
+    }
+
+    const signUpResult = await signUp(finalUser.uid, finalUser.email, false, inboxToMigrate);
     
     if (signUpResult.error) {
         toast({ title: "Login Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive"});
-        // Log out the user if the DB operation fails to avoid inconsistent state
-        if (auth) auth.signOut();
+        if (auth) await auth.signOut();
         return;
     }
     

@@ -9,16 +9,13 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
+import { useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
 import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { signInAnonymously } from "firebase/auth";
-import { signUp } from "@/lib/actions/auth";
-
 
 const EnvelopeLoader = () => (
     <div className="relative w-20 h-20">
@@ -39,7 +36,6 @@ const EnvelopeLoader = () => (
     </div>
 );
 
-
 function generateRandomString(length: number) {
   let result = '';
   const characters = 'abcdefghijklmnopqrstuvwxyz012349';
@@ -50,6 +46,8 @@ function generateRandomString(length: number) {
   return result;
 }
 
+const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
+
 export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
@@ -59,7 +57,6 @@ export function DashboardClient() {
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
@@ -67,7 +64,6 @@ export function DashboardClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // --- Data Fetching ---
   const settingsRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, "admin_settings", "mailgun");
@@ -77,120 +73,145 @@ export function DashboardClient() {
   
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // Every user, including anonymous, will have a 'free-default' planId upon creation
     const planId = (user as any)?.planId || 'free-default';
     return doc(firestore, 'plans', planId);
   }, [firestore, user]);
 
-  const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
+  const { data: freePlan, isLoading: isLoadingFreePlan } = useDoc<Plan>(useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'free-default') : null, [firestore]));
+
+  const { data: userPlan, isLoading: isLoadingUserPlan } = useDoc<Plan>(userPlanRef);
 
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
-  
-  const handleGenerateEmail = useCallback(async (plan: Plan, userId: string) => {
+
+  const handleGenerateNewLocalInbox = useCallback((plan: Plan) => {
     if (!firestore) return;
     setIsGenerating(true);
     setServerError(null);
 
+    const generate = async () => {
+        try {
+            const domainsQuery = query(
+                collection(firestore, "allowed_domains"),
+                where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+            );
+            const domainsSnapshot = await getDocs(domainsQuery);
+            const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
+            
+            if (allowedDomains.length === 0) throw new Error("No domains configured by the administrator.");
+
+            const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+            const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+            const expiresAt = new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString();
+
+            const newInboxData: InboxType = {
+                id: `local-${Date.now()}`,
+                userId: 'anonymous',
+                emailAddress,
+                createdAt: new Date().toISOString(),
+                expiresAt,
+            };
+
+            localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInboxData));
+            setCurrentInbox(newInboxData);
+            setSelectedEmail(null);
+            setInboxEmails([]);
+
+        } catch (error: any) {
+            console.error("Error generating new local inbox:", error);
+            toast({
+                title: "Error",
+                description: error.message || "Could not generate a new email address.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsGenerating(false);
+        }
+    }
+    generate();
+  }, [firestore, toast]);
+
+  const handleGenerateNewDbInbox = useCallback(async (plan: Plan, userId: string) => {
+    if (!firestore) return;
+    setIsGenerating(true);
+    setServerError(null);
     try {
-      const domainsQuery = query(
-        collection(firestore, "allowed_domains"),
-        where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
-      );
-      const domainsSnapshot = await getDocs(domainsQuery);
-      const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
+        const domainsQuery = query(
+            collection(firestore, "allowed_domains"),
+            where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+        );
+        const domainsSnapshot = await getDocs(domainsQuery);
+        const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
 
-      if (allowedDomains.length === 0) throw new Error("No domains configured by the administrator.");
-      
-      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      
-      const newInboxData: Omit<InboxType, 'id'> = {
-        userId: userId,
-        emailAddress,
-        createdAt: serverTimestamp(),
-        expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
-      };
+        if (allowedDomains.length === 0) throw new Error("No domains configured by the administrator.");
+        
+        const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+        const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+        
+        const newInboxData = {
+            userId: userId,
+            emailAddress,
+            createdAt: serverTimestamp(),
+            expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
+        };
 
-      const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+        const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
-      setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
-      setSelectedEmail(null);
-      setInboxEmails([]);
+        setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
+        setSelectedEmail(null);
+        setInboxEmails([]);
 
     } catch (error: any) {
-        console.error("Error generating new inbox:", error);
+        console.error("Error generating new DB inbox:", error);
         toast({
             title: "Error",
             description: error.message || "Could not generate a new email address.",
             variant: "destructive",
         });
     } finally {
-      setIsGenerating(false);
+        setIsGenerating(false);
     }
   }, [firestore, toast]);
   
-  // Robust anonymous session creation
-  const createAnonymousSession = useCallback(async () => {
-    if (!auth || !firestore || !userPlan) return;
-    
-    try {
-        const userCredential = await signInAnonymously(auth);
-        const anonUser = userCredential.user;
-        
-        // This is the crucial step: ensure the user document exists before doing anything else.
-        const result = await signUp(anonUser.uid, null, true);
-        if (result.error) {
-            throw new Error(result.error);
-        }
-        
-        // Now that we are sure the user exists in the database, we can create an inbox.
-        // This will be picked up by the useCollection hook.
-        await handleGenerateEmail(userPlan, anonUser.uid);
-        
-    } catch (err: any) {
-        console.error("Anonymous session creation failed", err);
-        setServerError(err.message || "Could not start an anonymous session. Please refresh the page.");
-    }
-}, [auth, firestore, userPlan, handleGenerateEmail]);
-
-
-  // Main effect to orchestrate session management
   useEffect(() => {
-      // Wait until all initial loading is complete
-      if (isUserLoading || isLoadingPlan || isLoadingSettings) {
-          return;
-      }
-      
-      // If there is no signed-in user at all, start a new anonymous session.
-      if (!user) {
-          createAnonymousSession();
-          return;
-      }
+    if (isUserLoading || isLoadingFreePlan || (user && isLoadingUserPlan)) return;
 
-      // If user exists, but we are still waiting for their inbox data
-      if (isLoadingInboxes) return;
-      
-      // If we have an active inbox from the DB, set it as the current one.
-      if (activeInboxes && activeInboxes.length > 0) {
-          if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
-              setCurrentInbox(activeInboxes[0]);
-          }
-      } else if (userPlan) { // If user exists but has no active inbox, generate one.
-          handleGenerateEmail(userPlan, user.uid);
-      }
-      
-  }, [user, isUserLoading, userPlan, isLoadingPlan, isLoadingSettings, activeInboxes, isLoadingInboxes, createAnonymousSession, currentInbox, handleGenerateEmail]);
-
+    if (!user) { // Anonymous user flow
+        const localData = localStorage.getItem(LOCAL_INBOX_KEY);
+        if (localData) {
+            const localInbox: InboxType = JSON.parse(localData);
+            // Check if expired
+            if (new Date(localInbox.expiresAt) > new Date()) {
+                setCurrentInbox(localInbox);
+            } else {
+                localStorage.removeItem(LOCAL_INBOX_KEY);
+                if (freePlan) handleGenerateNewLocalInbox(freePlan);
+            }
+        } else {
+            if (freePlan) handleGenerateNewLocalInbox(freePlan);
+        }
+    } else { // Registered user flow
+        localStorage.removeItem(LOCAL_INBOX_KEY); // Clear any old local data
+        if (!isLoadingInboxes) {
+            if (activeInboxes && activeInboxes.length > 0) {
+                if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
+                    setCurrentInbox(activeInboxes[0]);
+                }
+            } else if (userPlan) {
+                handleGenerateNewDbInbox(userPlan, user.uid);
+            }
+        }
+    }
+  }, [user, isUserLoading, freePlan, isLoadingFreePlan, userPlan, isLoadingUserPlan, activeInboxes, isLoadingInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
 
   const clearCountdown = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -259,16 +280,14 @@ export function DashboardClient() {
     setInboxEmails([]);
     setSelectedEmail(null);
 
-    try {
-      await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
-    } catch (error) {
-      console.error("Error deleting inbox document:", error);
+    if (user) { // Registered user
+        await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
+        if (userPlan) handleGenerateNewDbInbox(userPlan, user.uid);
+    } else { // Anonymous user
+        localStorage.removeItem(LOCAL_INBOX_KEY);
+        if (freePlan) handleGenerateNewLocalInbox(freePlan);
     }
-    
-    if(user && userPlan) {
-      handleGenerateEmail(userPlan, user.uid);
-    }
-  }, [firestore, currentInbox, user, userPlan, handleGenerateEmail]);
+  }, [firestore, currentInbox, user, userPlan, freePlan, handleGenerateNewDbInbox, handleGenerateNewLocalInbox]);
 
   useEffect(() => {
     clearCountdown();
@@ -317,7 +336,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingFreePlan || (user && isLoadingUserPlan) || (user && isLoadingInboxes);
   if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -326,7 +345,7 @@ export function DashboardClient() {
     );
   }
   
-  if (!userPlan && !isLoadingPlan) {
+  if ((!user && !freePlan && !isLoadingFreePlan) || (user && !userPlan && !isLoadingUserPlan)) {
     return (
        <div className="flex items-center justify-center min-h-[480px]">
          <Alert variant="destructive" className="max-w-lg">
@@ -340,7 +359,7 @@ export function DashboardClient() {
     )
   }
 
-  const isUserAnonymous = user?.isAnonymous ?? false;
+  const isUserAnonymous = !user;
 
   return (
      <div className="flex flex-col h-full space-y-4">
@@ -428,7 +447,7 @@ export function DashboardClient() {
                 </div>
                 <div className="col-span-1 hidden md:block">
                     {selectedEmail ? (
-                    <EmailView email={selectedEmail} plan={userPlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    <EmailView email={selectedEmail} plan={userPlan || freePlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
                     ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
                         <Inbox className="h-16 w-16 mb-4" />
@@ -439,7 +458,7 @@ export function DashboardClient() {
                 </div>
                 {selectedEmail && (
                     <div className="md:hidden absolute inset-0 bg-background z-10">
-                    <EmailView email={selectedEmail} plan={userPlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    <EmailView email={selectedEmail} plan={userPlan || freePlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
                     </div>
                 )}
                 </div>
