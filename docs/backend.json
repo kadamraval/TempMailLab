@@ -6,9 +6,9 @@
       "type": "object",
       "description": "Represents a user of the TempInbox application.",
       "properties": {
-        "id": {
+        "uid": {
           "type": "string",
-          "description": "Unique identifier for the user entity."
+          "description": "Unique identifier for the user, from Firebase Auth."
         },
         "email": {
           "type": "string",
@@ -17,7 +17,7 @@
         },
         "planId": {
             "type": "string",
-            "description": "The ID of the subscription plan assigned to the user."
+            "description": "The ID of the subscription plan assigned to the user. Defaults to 'free-default'."
         },
         "isAnonymous": {
             "type": "boolean",
@@ -34,7 +34,7 @@
         }
       },
       "required": [
-        "id"
+        "uid", "isAnonymous", "isAdmin", "planId", "createdAt"
       ]
     },
     "Inbox": {
@@ -86,7 +86,7 @@
         },
         "inboxId": {
           "type": "string",
-          "description": "Reference to Inbox. (Relationship: Inbox 1:N Email)"
+          "description": "The ID of the inbox this email belongs to."
         },
         "senderName": {
           "type": "string",
@@ -115,142 +115,7 @@
         "inboxId",
         "senderName",
         "subject",
-        "receivedAt",
-        "htmlContent",
-        "textContent"
-      ]
-    },
-    "ApiKey": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ApiKey",
-      "type": "object",
-      "description": "Represents an API key for developer access.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the API key."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ApiKey).  Identifies the developer/user associated with the API key."
-        },
-        "key": {
-          "type": "string",
-          "description": "The actual API key value."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the API key was generated.",
-          "format": "date-time"
-        },
-        "plan": {
-          "type": "string",
-          "description": "The API plan associated with the key (e.g., basic, premium)."
-        },
-        "usageLimit": {
-          "type": "number",
-          "description": "The maximum number of API calls allowed per time period."
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "key",
-        "createdAt",
-        "plan",
-        "usageLimit"
-      ]
-    },
-    "UsageLog": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UsageLog",
-      "type": "object",
-      "description": "Represents a log entry for API usage.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the usage log entry."
-        },
-        "apiKeyId": {
-          "type": "string",
-          "description": "Reference to ApiKey. (Relationship: ApiKey 1:N UsageLog)."
-        },
-        "timestamp": {
-          "type": "string",
-          "description": "Timestamp of the API call.",
-          "format": "date-time"
-        },
-        "endpoint": {
-          "type": "string",
-          "description": "The API endpoint that was called."
-        },
-        "requestBody": {
-          "type": "string",
-          "description": "The body of the API request (optional)."
-        },
-        "responseCode": {
-          "type": "number",
-          "description": "The HTTP response code from the API call."
-        }
-      },
-      "required": [
-        "id",
-        "apiKeyId",
-        "timestamp",
-        "endpoint",
-        "responseCode"
-      ]
-    },
-    "BlockedIp": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BlockedIp",
-      "type": "object",
-      "description": "Represents a blocked IP address.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the blocked IP entry."
-        },
-        "ipAddress": {
-          "type": "string",
-          "description": "The blocked IP address."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the IP address was blocked.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "ipAddress",
-        "createdAt"
-      ]
-    },
-    "BlockedDomain": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BlockedDomain",
-      "type": "object",
-      "description": "Represents a blocked sender domain.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the blocked domain entry."
-        },
-        "domain": {
-          "type": "string",
-          "description": "The blocked sender domain."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the domain was blocked.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "domain",
-        "createdAt"
+        "receivedAt"
       ]
     },
     "AllowedDomain": {
@@ -346,45 +211,7 @@
         },
         "features": {
           "type": "object",
-          "description": "A map of granular feature limits and toggles for the plan.",
-          "properties": {
-            "maxInboxes": {
-              "type": "number",
-              "description": "Maximum number of active inboxes allowed."
-            },
-            "maxEmailsPerInbox": {
-              "type": "number",
-              "description": "Maximum number of emails stored per inbox."
-            },
-            "inboxLifetime": {
-              "type": "number",
-              "description": "Lifetime of an inbox in minutes."
-            },
-            "customDomains": {
-              "type": "number",
-              "description": "Number of custom domains allowed."
-            },
-            "allowPremiumDomains": {
-              "type": "boolean",
-              "description": "Whether the user can use premium domains."
-            },
-            "emailForwarding": {
-              "type": "boolean",
-              "description": "Whether email forwarding is enabled."
-            },
-            "apiAccess": {
-              "type": "boolean",
-              "description": "Whether the user has API access."
-            },
-            "noAds": {
-              "type": "boolean",
-              "description": "Whether ads are disabled for the user."
-            }
-          },
-          "required": [
-            "maxInboxes", "maxEmailsPerInbox", "inboxLifetime", "customDomains", 
-            "allowPremiumDomains", "emailForwarding", "apiAccess", "noAds"
-          ]
+          "description": "A map of granular feature limits and toggles for the plan."
         },
         "createdAt": {
           "type": "string",
