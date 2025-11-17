@@ -6,9 +6,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { Inbox } from '@/types';
 
 /**
- * Ensures a user document exists in Firestore.
- * This is an idempotent action that creates or merges the user document,
- * guaranteeing a record exists for any authenticated user.
+ * Ensures a user document exists in Firestore. This is a robust, idempotent action.
+ * It uses set with merge:true to create the document if it doesn't exist, or
+ * harmlessly update it if it does. This guarantees a record exists for any authenticated user.
  * @param uid The user's unique ID from Firebase Authentication.
  * @param email The user's email (can be null).
  */
@@ -24,9 +24,9 @@ export async function signUp(uid: string, email: string | null) {
   try {
     const userRef = firestore.collection('users').doc(uid);
 
-    // Use set with merge:true. This is idempotent.
-    // If the doc doesn't exist, it's created.
-    // If it exists, it merges the fields (harmlessly updating email if it changed).
+    // Using set with merge:true is the most robust way to handle this.
+    // It creates the doc if it's missing, or merges the data if it exists.
+    // This prevents errors and race conditions.
     await userRef.set({
         uid,
         email,
@@ -49,7 +49,7 @@ export async function signUp(uid: string, email: string | null) {
 
 /**
  * Migrates an anonymous inbox to a registered user's account.
- * This should be called AFTER the user has been successfully created.
+ * This is a separate action to be called AFTER signUp has successfully completed.
  * @param uid The user's unique ID.
  * @param anonymousInbox The temporary inbox object from local storage.
  */
@@ -68,7 +68,8 @@ export async function migrateAnonymousInbox(uid: string, anonymousInbox: Omit<In
 
     try {
         const userRef = firestore.collection('users').doc(uid);
-        const inboxRef = userRef.collection('inboxes').doc(); // Create a new doc in the sub-collection.
+        // We assume the user document has just been created by signUp()
+        const inboxRef = userRef.collection('inboxes').doc();
         
         await inboxRef.set({
           ...anonymousInbox,

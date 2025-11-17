@@ -16,12 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
-import { type Inbox } from "@/types"
+import type { Inbox } from "@/types"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -46,26 +46,30 @@ export function RegisterForm() {
     },
   })
   
-  async function handleRegistration(user: { uid: string; email: string | null }) {
-    // 1. Ensure user record exists in the database. This is now a robust, idempotent call.
+  async function handleRegistration(user: User) {
+    // Step 1: Guarantee the user record exists in the database.
     const signUpResult = await signUp(user.uid, user.email);
     if (signUpResult.error) {
-        // If this fails, we can't proceed with migration.
-        throw new Error(`Failed to create user record: ${signUpResult.error}`);
+      // This is a critical failure. We cannot proceed.
+      toast({ title: "Registration Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive" });
+      throw new Error(signUpResult.error);
     }
 
-    // 2. Check for an existing anonymous inbox in local storage.
+    // Step 2: Check for and migrate an anonymous inbox.
     const storedInbox = localStorage.getItem('anonymousInbox');
     if (storedInbox) {
       try {
         const anonymousInbox: Omit<Inbox, 'id'> = JSON.parse(storedInbox);
-        // 3. If it exists, migrate it using the separate action.
-        await migrateAnonymousInbox(user.uid, anonymousInbox);
-        // 4. Clean up local storage after successful migration.
-        localStorage.removeItem('anonymousInbox');
-      } catch(e) {
+        const migrationResult = await migrateAnonymousInbox(user.uid, anonymousInbox);
+        if (migrationResult.error) {
+            // This is a non-critical error. The user is created, but migration failed.
+            toast({ title: "Warning", description: `Could not transfer your anonymous inbox: ${migrationResult.error}`, variant: "destructive"})
+        } else {
+            // Clean up local storage ONLY on successful migration.
+            localStorage.removeItem('anonymousInbox');
+        }
+      } catch (e) {
         console.error("Failed to parse or migrate anonymous inbox:", e);
-        // The user is created, but migration failed. We can inform the user or just log it.
         toast({ title: "Warning", description: "Could not transfer your anonymous inbox. It may have been lost.", variant: "destructive"})
       }
     }
@@ -77,23 +81,23 @@ export function RegisterForm() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
-      if (userCredential.user) {
-        await handleRegistration(userCredential.user);
-        toast({
-          title: "Success",
-          description: "Account created successfully.",
-        })
-        router.push("/") // Redirect to homepage on success
-      }
+      await handleRegistration(userCredential.user);
+
+      toast({
+        title: "Success",
+        description: "Account created successfully.",
+      })
+      router.push("/") // Redirect to homepage on success
 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during sign up.";
         if (error.code === 'auth/email-already-in-use') {
             errorMessage = "This email address is already in use by another account.";
         }
+        // This will catch both Firebase Auth errors and errors thrown from handleRegistration
         toast({
             title: "Registration Failed",
-            description: errorMessage,
+            description: error.message || errorMessage,
             variant: "destructive",
         })
     }
@@ -110,11 +114,11 @@ export function RegisterForm() {
             title: "Success",
             description: "Account created successfully with Google.",
         });
-        router.push("/"); // Redirect to homepage on success
+        router.push("/");
     } catch (error: any) {
         toast({
             title: "Google Sign-Up Failed",
-            description: "Could not sign up with Google. Please try again.",
+            description: error.message || "Could not sign up with Google. Please try again.",
             variant: "destructive",
         });
     }

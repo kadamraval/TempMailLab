@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -44,26 +44,29 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
-  async function handleLogin(user: { uid: string; email: string | null }) {
-    // 1. Ensure user record exists in the database.
+  async function handleLogin(user: User) {
+    // Step 1: Guarantee the user record exists in the database.
     const signUpResult = await signUp(user.uid, user.email);
     if (signUpResult.error) {
-        console.error("Failed to ensure user record:", signUpResult.error);
-        // Decide if you want to stop the login or just log the error.
-        // For login, we can probably continue and just log the error.
+      // This is a critical failure.
+      toast({ title: "Login Error", description: `Could not verify user profile: ${signUpResult.error}`, variant: "destructive" });
+      throw new Error(signUpResult.error);
     }
 
-    // 2. Check for an existing anonymous inbox in local storage.
+    // Step 2: Check for and migrate an existing anonymous inbox.
     const storedInbox = localStorage.getItem('anonymousInbox');
     if (storedInbox) {
       try {
         const anonymousInbox: Omit<Inbox, 'id'> = JSON.parse(storedInbox);
-        // 3. If it exists, migrate it.
-        await migrateAnonymousInbox(user.uid, anonymousInbox);
-        // 4. Clean up local storage after successful migration.
-        localStorage.removeItem('anonymousInbox');
+        const migrationResult = await migrateAnonymousInbox(user.uid, anonymousInbox);
+        if (migrationResult.error) {
+            toast({ title: "Warning", description: `Could not transfer your anonymous session: ${migrationResult.error}`, variant: "destructive"})
+        } else {
+            localStorage.removeItem('anonymousInbox');
+        }
       } catch (e) {
         console.error("Failed to parse or migrate anonymous inbox:", e);
+        toast({ title: "Warning", description: "Could not transfer your anonymous session. It may have been lost.", variant: "destructive"})
       }
     }
   }
@@ -86,7 +89,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         }
         toast({
             title: "Login Failed",
-            description: errorMessage,
+            description: error.message || errorMessage,
             variant: "destructive",
         })
     }
@@ -107,7 +110,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     } catch (error: any) {
         toast({
             title: "Google Sign-In Failed",
-            description: "Could not sign in with Google. Please try again.",
+            description: error.message || "Could not sign in with Google. Please try again.",
             variant: "destructive",
         });
     }
