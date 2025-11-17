@@ -1,4 +1,3 @@
-
 "use client"
 
 import { IntegrationSettingsForm } from "@/components/admin/integration-settings-form";
@@ -10,13 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { notFound } from 'next/navigation';
-
-interface IntegrationPageProps {
-  params: {
-    slug: string;
-  };
-}
+import { notFound, useParams } from 'next/navigation';
 
 const integrationsData: { [key: string]: any } = {
   firebase: { title: "Firebase", description: "Manage your core Firebase backend services configuration." },
@@ -39,8 +32,9 @@ const integrationsData: { [key: string]: any } = {
 };
 
 
-export default function IntegrationPage({ params }: IntegrationPageProps) {
-  const { slug } = params;
+export default function IntegrationPage() {
+  const params = useParams();
+  const slug = params?.slug as string;
   const integration = slug ? integrationsData[slug] : null;
 
   if (!integration) {
