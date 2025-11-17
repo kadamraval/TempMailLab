@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { Mail, LogIn, LogOut, LayoutDashboard, Settings } from "lucide-react";
 import { Button } from "./ui/button";
-import { useUser, useAuth } from "@/firebase/provider";
+import { useUser, useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ModeToggle } from "./mode-toggle"
-import { useUser } from "@/firebase/provider"
+import { useUser } from "@/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 
 // A helper function to get a title from the path
