@@ -43,13 +43,26 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
+  async function handleLogin(user: { uid: string; email: string | null }) {
+    // Check for an existing anonymous inbox in local storage
+    const storedInbox = localStorage.getItem('anonymousInbox');
+    let anonymousInbox = null;
+    if (storedInbox) {
+      anonymousInbox = JSON.parse(storedInbox);
+    }
+    
+    // Call server action to create DB entry if needed and migrate inbox
+    await signUp(user.uid, user.email, anonymousInbox);
+
+    // Clean up local storage
+    localStorage.removeItem('anonymousInbox');
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
     try {
         const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        
-        // Ensure user record exists on server.
-        await signUp(result.user.uid, result.user.email);
+        await handleLogin(result.user);
 
         toast({
             title: "Success",
@@ -74,10 +87,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        // Call server action to create DB entry if needed
-        await signUp(user.uid, user.email);
+        await handleLogin(result.user);
 
         toast({
             title: "Success",
@@ -152,3 +162,5 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
       </div>
   )
 }
+
+    

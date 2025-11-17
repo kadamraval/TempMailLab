@@ -44,6 +44,24 @@ export function RegisterForm() {
       confirmPassword: "",
     },
   })
+  
+  async function handleRegistration(user: { uid: string; email: string | null }) {
+    // Check for an existing anonymous inbox in local storage
+    const storedInbox = localStorage.getItem('anonymousInbox');
+    let anonymousInbox = null;
+    if (storedInbox) {
+        anonymousInbox = JSON.parse(storedInbox);
+        // We only want to migrate the data, not the local ID
+        delete anonymousInbox.id; 
+    }
+
+    // Call server action to create the user and migrate the inbox
+    await signUp(user.uid, user.email, anonymousInbox);
+
+    // Clean up local storage
+    localStorage.removeItem('anonymousInbox');
+  }
+
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
@@ -51,7 +69,7 @@ export function RegisterForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
       if (userCredential.user) {
-        await signUp(userCredential.user.uid, values.email);
+        await handleRegistration(userCredential.user);
         toast({
           title: "Success",
           description: "Account created successfully. Please log in.",
@@ -77,9 +95,7 @@ export function RegisterForm() {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        await signUp(user.uid, user.email);
+        await handleRegistration(result.user);
 
         toast({
             title: "Success",
@@ -172,3 +188,5 @@ export function RegisterForm() {
     </Card>
   )
 }
+
+    

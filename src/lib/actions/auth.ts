@@ -3,15 +3,17 @@
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
+import type { Inbox } from '@/types';
 
 /**
- * Ensures a user document exists in Firestore. If it doesn't exist, it creates one.
- * This is a robust way to handle user creation for both new sign-ups and first-time
- * anonymous or social logins.
+ * Ensures a user document exists in Firestore and optionally migrates an anonymous inbox.
+ * This is a robust way to handle user creation for new sign-ups, and for
+ * anonymous users transitioning to a registered account.
  * @param uid The user's unique ID from Firebase Authentication.
  * @param email The user's email (can be null for anonymous).
+ * @param anonymousInbox The temporary inbox object from the user's local storage.
  */
-export async function signUp(uid: string, email: string | null) {
+export async function signUp(uid: string, email: string | null, anonymousInbox: Omit<Inbox, 'id'> | null = null) {
   const { firestore, error: adminError } = getFirebaseAdmin();
 
   if (adminError || !firestore) {
@@ -23,8 +25,8 @@ export async function signUp(uid: string, email: string | null) {
     const userRef = firestore.collection('users').doc(uid);
     const doc = await userRef.get();
 
-    // If the user document does NOT exist, create it.
     if (!doc.exists) {
+      // User does not exist, create them.
       const userData: { [key: string]: any } = {
         uid,
         email,
@@ -33,10 +35,32 @@ export async function signUp(uid: string, email: string | null) {
       };
       
       await userRef.set(userData);
-      return { success: true, message: 'User record created in database.' };
+
+      // If there was an anonymous inbox, migrate it to the new user.
+      if (anonymousInbox) {
+        const inboxRef = userRef.collection('inboxes').doc();
+        await inboxRef.set({
+          ...anonymousInbox,
+          userId: uid, // Ensure the userId is the new permanent UID
+          createdAt: FieldValue.serverTimestamp() // Use a proper server timestamp
+        });
+      }
+
+      return { success: true, message: 'User record created and inbox migrated.' };
     }
     
-    // If the document already exists, do nothing.
+    // If the user *does* exist (e.g., they are logging in again),
+    // still check if we need to migrate an inbox.
+    if (anonymousInbox) {
+        const inboxRef = userRef.collection('inboxes').doc();
+        await inboxRef.set({
+            ...anonymousInbox,
+            userId: uid,
+            createdAt: FieldValue.serverTimestamp()
+        });
+        return { success: true, message: 'Existing user logged in and inbox migrated.' };
+    }
+
     return { success: true, message: 'User record already exists.' };
 
   } catch (error: any) {
@@ -46,3 +70,5 @@ export async function signUp(uid: string, email: string | null) {
     };
   }
 }
+
+    
