@@ -9,14 +9,15 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit, getDoc, setDoc } from "firebase/firestore";
+import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { signUp } from "@/lib/actions/auth";
+import { signInAnonymously } from "firebase/auth";
 
 
 const EnvelopeLoader = () => (
@@ -58,6 +59,7 @@ export function DashboardClient() {
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
@@ -75,18 +77,16 @@ export function DashboardClient() {
 
   // Determine the correct plan to use (user's plan or free-default)
   const userPlanRef = useMemoFirebase(() => {
-      if (!firestore || isUserLoading) return null;
-      if (user && !user.isAnonymous && user.planId) {
-          return doc(firestore, 'plans', user.planId);
-      }
-      return doc(firestore, 'plans', 'free-default');
+      if (!firestore || isUserLoading || !user) return null;
+       const planId = (user as any)?.planId || 'free-default';
+      return doc(firestore, 'plans', planId);
   }, [firestore, user, isUserLoading]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  // Query for the user's most recent active inbox (only if they are registered)
+  // Query for the user's most recent active inbox
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || user.isAnonymous || isUserLoading) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return query(
       collection(firestore, `users/${user.uid}/inboxes`),
       where("expiresAt", ">", new Date().toISOString()),
@@ -95,9 +95,18 @@ export function DashboardClient() {
   }, [firestore, user, isUserLoading]);
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
 
+  // --- Anonymous Sign In Effect ---
+  useEffect(() => {
+    if (!user && !isUserLoading && auth) {
+      signInAnonymously(auth).catch(err => {
+        console.error("Anonymous sign in failed", err);
+        setServerError("Could not start a session. Please refresh the page.");
+      });
+    }
+  }, [user, isUserLoading, auth]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     setIsGenerating(true);
     setServerError(null);
 
@@ -115,26 +124,15 @@ export function DashboardClient() {
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
       
       const newInboxData: Omit<InboxType, 'id'> = {
-        userId: user ? user.uid : "anonymous",
+        userId: user.uid,
         emailAddress,
-        createdAt: new Date().toISOString(), // Use client time for local storage
+        createdAt: serverTimestamp(),
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
 
-      let inboxId = `local-${Date.now()}`;
+      const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
 
-      if (user && !user.isAnonymous) {
-          const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), {
-              ...newInboxData,
-              createdAt: serverTimestamp(), // Use server time for DB
-          });
-          inboxId = inboxRef.id;
-      } else {
-          // For anonymous users, save to local storage
-          localStorage.setItem('anonymousInbox', JSON.stringify({id: inboxId, ...newInboxData}));
-      }
-      
-      setCurrentInbox({ id: inboxId, ...newInboxData });
+      setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
       setSelectedEmail(null);
       setInboxEmails([]);
 
@@ -152,46 +150,29 @@ export function DashboardClient() {
 
   // Main effect to orchestrate session management
   useEffect(() => {
-    if (isUserLoading || isLoadingPlan) {
-        return;
-    }
+      // Wait for auth, user document, and plan to be loaded.
+      if (isUserLoading || !user || isLoadingPlan || isLoadingInboxes) {
+          return;
+      }
+      
+      // We have a user. Ensure their document exists in Firestore.
+      signUp(user.uid, user.email, user.isAnonymous).then(result => {
+        if (result.error) {
+            setServerError("Could not save user profile. Some features may not work.");
+            return;
+        }
 
-    // A user is logged in (and not anonymous)
-    if (user && !user.isAnonymous) {
-        localStorage.removeItem('anonymousInbox'); // Clean up old anonymous session
-        if (isLoadingInboxes) return;
-
+        // After user is confirmed in DB, check for inboxes.
         if (activeInboxes && activeInboxes.length > 0) {
-             if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
+            if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
                 setCurrentInbox(activeInboxes[0]);
-             }
-        } else if (userPlan) {
-            handleGenerateEmail(userPlan);
-        }
-        return;
-    }
-
-    // No user or anonymous user
-    if (!user || user.isAnonymous) {
-        const storedInbox = localStorage.getItem('anonymousInbox');
-        if (storedInbox) {
-            const parsedInbox: InboxType = JSON.parse(storedInbox);
-            // Check if it has expired
-            if (new Date(parsedInbox.expiresAt) > new Date()) {
-                if (!currentInbox || currentInbox.id !== parsedInbox.id) {
-                    setCurrentInbox(parsedInbox);
-                }
-                return;
-            } else {
-                localStorage.removeItem('anonymousInbox');
             }
-        }
-        
-        if (userPlan && !isGenerating) {
+        } else if (userPlan && !currentInbox) {
             handleGenerateEmail(userPlan);
         }
-    }
-  }, [user, isUserLoading, isLoadingPlan, userPlan, activeInboxes, isLoadingInboxes, isGenerating, currentInbox, handleGenerateEmail]);
+      });
+      
+  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -254,20 +235,15 @@ export function DashboardClient() {
   }, [currentInbox, toast, mailgunSettings]);
 
   const handleNewAddressClick = useCallback(async () => {
-    if (isGenerating || !userPlan || !firestore) return;
+    if (isGenerating || !userPlan || !firestore || !user) return;
 
-    if (user && !user.isAnonymous) {
-        // Delete all existing inboxes for the logged-in user
-        const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
-        const inboxesSnapshot = await getDocs(userInboxesRef);
-        if (!inboxesSnapshot.empty) {
-            const batch = writeBatch(firestore);
-            inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-        }
-    } else {
-        // Clear from local storage for anonymous user
-        localStorage.removeItem('anonymousInbox');
+    // Delete all existing inboxes for the logged-in user
+    const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
+    const inboxesSnapshot = await getDocs(userInboxesRef);
+    if (!inboxesSnapshot.empty) {
+        const batch = writeBatch(firestore);
+        inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
     }
 
     // Reset state and generate a new one
@@ -292,9 +268,6 @@ export function DashboardClient() {
                 setCurrentInbox(null);
                 setInboxEmails([]);
                 setSelectedEmail(null);
-                if (!user || user.isAnonymous) {
-                    localStorage.removeItem('anonymousInbox');
-                }
                 clearRefreshInterval();
                 clearCountdown();
             } else {
@@ -309,7 +282,7 @@ export function DashboardClient() {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, user]);
+  }, [currentInbox, toast, handleRefresh]);
 
 
   const handleCopyEmail = () => {
@@ -330,7 +303,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || (!!user && !user.isAnonymous && isLoadingInboxes);
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
   if (isLoading && !currentInbox) { // Only show full-screen loader on initial load.
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -476,5 +449,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

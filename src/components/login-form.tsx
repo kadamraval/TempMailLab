@@ -15,12 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
-import type { Inbox } from "@/types"
+import { signUp } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -46,36 +45,31 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
 
   async function handleLogin(user: User) {
     // Step 1: Guarantee the user record exists in the database.
-    const signUpResult = await signUp(user.uid, user.email);
+    const signUpResult = await signUp(user.uid, user.email, false); // false for isAnonymous
     if (signUpResult.error) {
-      // This is a critical failure.
       toast({ title: "Login Error", description: `Could not verify user profile: ${signUpResult.error}`, variant: "destructive" });
       throw new Error(signUpResult.error);
-    }
-
-    // Step 2: Check for and migrate an existing anonymous inbox.
-    const storedInbox = localStorage.getItem('anonymousInbox');
-    if (storedInbox) {
-      try {
-        const anonymousInbox: Omit<Inbox, 'id'> = JSON.parse(storedInbox);
-        const migrationResult = await migrateAnonymousInbox(user.uid, anonymousInbox);
-        if (migrationResult.error) {
-            toast({ title: "Warning", description: `Could not transfer your anonymous session: ${migrationResult.error}`, variant: "destructive"})
-        } else {
-            localStorage.removeItem('anonymousInbox');
-        }
-      } catch (e) {
-        console.error("Failed to parse or migrate anonymous inbox:", e);
-        toast({ title: "Warning", description: "Could not transfer your anonymous session. It may have been lost.", variant: "destructive"})
-      }
     }
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
     try {
-        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        await handleLogin(result.user);
+        const currentUser = auth.currentUser;
+        let finalUser: User;
+
+        if (currentUser && currentUser.isAnonymous) {
+          // Link email/password to the existing anonymous account
+          const credential = EmailAuthProvider.credential(values.email, values.password);
+          const linkResult = await linkWithCredential(currentUser, credential);
+          finalUser = linkResult.user;
+        } else {
+          // Standard email/password sign-in
+          const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+          finalUser = result.user;
+        }
+
+        await handleLogin(finalUser);
 
         toast({
             title: "Success",
@@ -86,10 +80,12 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.code === 'auth/credential-already-in-use') {
+            errorMessage = "This account is already associated with another user. Please log in directly with this email."
         }
         toast({
             title: "Login Failed",
-            description: error.message || errorMessage,
+            description: errorMessage,
             variant: "destructive",
         })
     }
@@ -99,8 +95,20 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
-        const result = await signInWithPopup(auth, provider);
-        await handleLogin(result.user);
+        const currentUser = auth.currentUser;
+        let finalUser: User;
+
+        if (currentUser && currentUser.isAnonymous) {
+          // Link Google account to the existing anonymous user
+          const linkResult = await linkWithCredential(currentUser, provider);
+          finalUser = linkResult.user;
+        } else {
+           // Standard Google sign-in
+          const result = await signInWithPopup(auth, provider);
+          finalUser = result.user;
+        }
+        
+        await handleLogin(finalUser);
 
         toast({
             title: "Success",
