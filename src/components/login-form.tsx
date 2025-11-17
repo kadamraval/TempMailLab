@@ -45,24 +45,10 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
-  async function handleLogin(finalUser: User, anonymousUid?: string | null) {
-    // Ensure the user document exists or is updated
+  async function handleLogin(finalUser: User) {
+    // This server action ensures the user document exists and is correctly configured.
     await signUp(finalUser.uid, finalUser.email, false); 
-
-    // If there was an anonymous user, migrate their data
-    if (anonymousUid && anonymousUid !== finalUser.uid && firestore) {
-      const q = query(collection(firestore, 'inboxes'), where('userId', '==', anonymousUid));
-      const inboxesSnapshot = await getDocs(q);
-
-      if (!inboxesSnapshot.empty) {
-        const batch = writeBatch(firestore);
-        inboxesSnapshot.forEach(doc => {
-          batch.update(doc.ref, { userId: finalUser.uid });
-        });
-        await batch.commit();
-      }
-    }
-
+    
     toast({
         title: "Success",
         description: "Logged in successfully.",
@@ -73,13 +59,9 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
 
-    const anonymousUser = auth.currentUser;
-    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
-
     try {
         const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        const finalUser = result.user;
-        await handleLogin(finalUser, anonymousUid);
+        await handleLogin(result.user);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -97,13 +79,9 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     
-    const anonymousUser = auth.currentUser;
-    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
-
     try {
         const result = await signInWithPopup(auth, provider);
-        const finalUser = result.user;
-        await handleLogin(finalUser, anonymousUid);
+        await handleLogin(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign in with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {

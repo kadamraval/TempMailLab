@@ -3,7 +3,7 @@
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { User, Inbox } from '@/types';
+import type { User } from '@/types';
 
 /**
  * Ensures a user document exists in Firestore. This is a robust, idempotent action.
@@ -32,15 +32,17 @@ export async function signUp(uid: string, email: string | null, isAnonymous: boo
       isAnonymous,
     };
     
-    // If the document doesn't exist, it's a new user. Set their defaults.
+    // If the document doesn't exist, it's a brand new user (anonymous or registered).
+    // Set their defaults.
     if (!docSnapshot.exists) {
         userData.planId = 'free-default';
         userData.isAdmin = false;
         userData.createdAt = FieldValue.serverTimestamp() as any;
     }
 
-    // Use set with merge: true. This is idempotent and safe.
-    // It creates if new, updates if existing (like isAnonymous flag).
+    // Use set with merge: true. This is the key change.
+    // It creates the doc if it's new, or safely merges the new properties
+    // (like email and isAnonymous: false) if it's an existing anonymous user.
     await userRef.set(userData, { merge: true });
 
     return { success: true };

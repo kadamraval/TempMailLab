@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
-import { getDocs, query, collection, where, writeBatch } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -47,24 +46,10 @@ export function RegisterForm() {
     },
   })
   
-  async function handleRegistration(finalUser: User, anonymousUid?: string | null) {
-    // Ensure the user document exists or is updated
+  async function handleRegistration(finalUser: User) {
+    // This server action ensures the user document exists and is correctly configured.
     await signUp(finalUser.uid, finalUser.email, false); 
-
-    // If there was an anonymous user, migrate their data
-    if (anonymousUid && anonymousUid !== finalUser.uid && firestore) {
-      const q = query(collection(firestore, 'inboxes'), where('userId', '==', anonymousUid));
-      const inboxesSnapshot = await getDocs(q);
-
-      if (!inboxesSnapshot.empty) {
-        const batch = writeBatch(firestore);
-        inboxesSnapshot.forEach(doc => {
-          batch.update(doc.ref, { userId: finalUser.uid });
-        });
-        await batch.commit();
-      }
-    }
-
+    
     toast({
       title: "Success",
       description: "Account created successfully.",
@@ -77,21 +62,22 @@ export function RegisterForm() {
     if (!auth) return;
     
     const anonymousUser = auth.currentUser;
-    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
 
     try {
       let finalUser: User;
       
       if (anonymousUser && anonymousUser.isAnonymous) {
+        // This is an anonymous user "upgrading" their account.
         const credential = EmailAuthProvider.credential(values.email, values.password);
         const linkResult = await linkWithCredential(anonymousUser, credential);
         finalUser = linkResult.user;
       } else {
+        // This is a direct registration.
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         finalUser = userCredential.user;
       }
 
-      await handleRegistration(finalUser, anonymousUid);
+      await handleRegistration(finalUser);
 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during sign up.";
@@ -112,14 +98,11 @@ export function RegisterForm() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     
-    const anonymousUser = auth.currentUser;
-    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
-
     try {
+        // signInWithPopup works for both new and existing anonymous users.
+        // Firebase handles the account linking automatically in this case.
         const result = await signInWithPopup(auth, provider);
-        const finalUser = result.user;
-
-        await handleRegistration(finalUser, anonymousUid);
+        await handleRegistration(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign up with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {

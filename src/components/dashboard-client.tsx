@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType, type User } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit, getDoc, setDoc } from "firebase/firestore";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -96,7 +96,7 @@ export function DashboardClient() {
   }, [firestore, user, isUserLoading]);
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
-
+  
   const createAnonymousUserAndInbox = useCallback(async () => {
     if (!auth || !firestore || !userPlan) return;
     
@@ -104,7 +104,12 @@ export function DashboardClient() {
         const userCredential = await signInAnonymously(auth);
         const anonUser = userCredential.user;
         
+        // This is the crucial step: ensure the user document exists before doing anything else.
         await signUp(anonUser.uid, null, true);
+        
+        // Now that we are sure the user exists in the database, we can create an inbox.
+        // This will trigger the useCollection hook to pick it up.
+        await handleGenerateEmail(userPlan, anonUser.uid);
         
     } catch (err) {
         console.error("Anonymous user/inbox creation failed", err);
@@ -113,8 +118,8 @@ export function DashboardClient() {
 }, [auth, firestore, userPlan]);
 
 
-  const handleGenerateEmail = useCallback(async (plan: Plan) => {
-    if (!firestore || !user) return;
+  const handleGenerateEmail = useCallback(async (plan: Plan, userId: string) => {
+    if (!firestore) return;
     setIsGenerating(true);
     setServerError(null);
 
@@ -132,7 +137,7 @@ export function DashboardClient() {
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
       
       const newInboxData: Omit<InboxType, 'id'> = {
-        userId: user.uid,
+        userId: userId,
         emailAddress,
         createdAt: serverTimestamp(),
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
@@ -154,7 +159,7 @@ export function DashboardClient() {
     } finally {
       setIsGenerating(false);
     }
-  }, [firestore, user, toast]);
+  }, [firestore, toast]);
 
   // Main effect to orchestrate session management
   useEffect(() => {
@@ -174,10 +179,10 @@ export function DashboardClient() {
               setCurrentInbox(activeInboxes[0]);
           }
       } else if (userPlan) {
-          handleGenerateEmail(userPlan);
+          handleGenerateEmail(userPlan, user.uid);
       }
       
-  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, handleGenerateEmail, createAnonymousUserAndInbox, currentInbox]);
+  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousUserAndInbox, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -256,7 +261,7 @@ export function DashboardClient() {
     setInboxEmails([]);
     setSelectedEmail(null);
 
-    handleGenerateEmail(userPlan);
+    handleGenerateEmail(userPlan, user.uid);
   }, [isGenerating, userPlan, firestore, user, handleGenerateEmail]);
 
   useEffect(() => {
