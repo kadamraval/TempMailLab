@@ -67,9 +67,9 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const settingsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null; // FIX: Only fetch settings if user is logged in
     return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
   
@@ -489,3 +489,4 @@ export function DashboardClient() {
     
 
     
+
