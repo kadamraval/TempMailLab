@@ -101,7 +101,7 @@ export function DashboardClient() {
     setServerError(null);
 
     try {
-      // Ensure user record exists, especially for anonymous users on first load.
+      // This action ensures a user document exists, even for anonymous users.
       await signUp(user.uid, user.email, user.isAnonymous);
 
       const domainsQuery = query(
@@ -141,32 +141,45 @@ export function DashboardClient() {
     }
   }, [firestore, user, toast]);
 
-  // This effect specifically handles the logout case.
+  // This effect handles the entire user lifecycle.
   useEffect(() => {
-    // When the user object becomes null (on logout), reset the inbox state.
-    if (!isUserLoading && !user) {
+    // Wait until all initial loading is complete.
+    if (isUserLoading || isLoadingInboxes || isLoadingPlan) {
+        return;
+    }
+    
+    // Case 1: User has logged out. Reset everything.
+    if (!user) {
         setCurrentInbox(null);
         setInboxEmails([]);
         setSelectedEmail(null);
-    }
-  }, [user, isUserLoading]);
-
-
-  useEffect(() => {
-    if (isLoadingInboxes || isLoadingPlan || isUserLoading) return;
-
-    if (!user) { 
         return;
     }
 
+    // Case 2: User is logged in (or anonymous) and has an active inbox in the database.
     if (activeInboxes && activeInboxes.length > 0) {
+        // If the active inbox isn't already set in our state, set it.
         if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
             setCurrentInbox(activeInboxes[0]);
         }
-    } else if (userPlan && !currentInbox && !isGenerating) {
+    } 
+    // Case 3: User is logged in (or anonymous), has a plan, but no active inbox.
+    // This triggers for new users, expired sessions, or after logout.
+    else if (userPlan && !currentInbox && !isGenerating) {
         handleGenerateEmail(userPlan);
     }
-  }, [user, activeInboxes, isLoadingInboxes, userPlan, isLoadingPlan, isUserLoading, currentInbox, isGenerating, handleGenerateEmail]);
+
+  }, [
+    user, 
+    isUserLoading, 
+    activeInboxes, 
+    isLoadingInboxes, 
+    userPlan, 
+    isLoadingPlan, 
+    currentInbox, 
+    isGenerating,
+    handleGenerateEmail
+  ]);
 
 
   const clearCountdown = () => {
@@ -231,12 +244,16 @@ export function DashboardClient() {
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan || !firestore || !user) return;
 
+    // Delete all existing inboxes for the user to ensure a clean state.
     const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
     const inboxesSnapshot = await getDocs(userInboxesRef);
-    const batch = writeBatch(firestore);
-    inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
+    if (!inboxesSnapshot.empty) {
+        const batch = writeBatch(firestore);
+        inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+    }
 
+    // Reset state and generate a new one.
     setCurrentInbox(null);
     setInboxEmails([]);
     setSelectedEmail(null);
@@ -293,8 +310,8 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan;
-  if (isLoading) {
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
+  if (isLoading && !currentInbox) { // Only show full-screen loader on initial load.
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -439,5 +456,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
