@@ -7,10 +7,10 @@ import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle, ServerCrash
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Email, type Inbox as InboxType, type User } from "@/types";
+import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit, deleteDoc } from "firebase/firestore";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -74,24 +74,25 @@ export function DashboardClient() {
   }, [firestore]);
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
-
+  
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    const planId = (user as User)?.planId || 'free-default';
+    // Every user, including anonymous, will have a 'free-default' planId upon creation
+    const planId = (user as any)?.planId || 'free-default';
     return doc(firestore, 'plans', planId);
   }, [firestore, user]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
   
@@ -138,6 +139,7 @@ export function DashboardClient() {
     }
   }, [firestore, toast]);
   
+  // Robust anonymous session creation
   const createAnonymousSession = useCallback(async () => {
     if (!auth || !firestore || !userPlan) return;
     
@@ -152,7 +154,7 @@ export function DashboardClient() {
         }
         
         // Now that we are sure the user exists in the database, we can create an inbox.
-        // This will trigger the useCollection hook to pick it up.
+        // This will be picked up by the useCollection hook.
         await handleGenerateEmail(userPlan, anonUser.uid);
         
     } catch (err: any) {
@@ -164,26 +166,30 @@ export function DashboardClient() {
 
   // Main effect to orchestrate session management
   useEffect(() => {
-      if (isUserLoading || isLoadingPlan) {
+      // Wait until all initial loading is complete
+      if (isUserLoading || isLoadingPlan || isLoadingSettings) {
           return;
       }
       
+      // If there is no signed-in user at all, start a new anonymous session.
       if (!user) {
           createAnonymousSession();
           return;
       }
 
+      // If user exists, but we are still waiting for their inbox data
       if (isLoadingInboxes) return;
       
+      // If we have an active inbox from the DB, set it as the current one.
       if (activeInboxes && activeInboxes.length > 0) {
           if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
               setCurrentInbox(activeInboxes[0]);
           }
-      } else if (userPlan) { // If there are no active inboxes, generate one.
+      } else if (userPlan) { // If user exists but has no active inbox, generate one.
           handleGenerateEmail(userPlan, user.uid);
       }
       
-  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousSession, currentInbox, handleGenerateEmail]);
+  }, [user, isUserLoading, userPlan, isLoadingPlan, isLoadingSettings, activeInboxes, isLoadingInboxes, createAnonymousSession, currentInbox, handleGenerateEmail]);
 
 
   const clearCountdown = () => {

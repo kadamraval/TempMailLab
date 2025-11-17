@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
+import { signUp } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -43,11 +43,12 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
+  // This function is called after a successful Firebase Auth sign-in.
   async function handleLoginSuccess(finalUser: User) {
-    const isNewUser = finalUser.metadata.creationTime === finalUser.metadata.lastSignInTime;
-    
-    // Ensure the user record exists in Firestore.
+    // This server action ensures the user document exists in Firestore.
+    // It's idempotent, so it's safe to call on every login.
     const signUpResult = await signUp(finalUser.uid, finalUser.email, false);
+    
     if (signUpResult.error) {
         toast({ title: "Login Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive"});
         // Log out the user if the DB operation fails to avoid inconsistent state
