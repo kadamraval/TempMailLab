@@ -71,9 +71,9 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const settingsRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore, user]);
+  }, [firestore]);
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
@@ -412,3 +412,5 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     </div>
   );
 }
+
+    
