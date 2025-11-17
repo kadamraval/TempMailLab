@@ -217,7 +217,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
 
 
   const clearCountdown = () => {
