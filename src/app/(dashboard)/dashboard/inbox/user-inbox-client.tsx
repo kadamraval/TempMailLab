@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -167,7 +166,11 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     }
     
     try {
-      const result = await fetchEmailsWithCredentialsAction(currentInbox.emailAddress);
+      const result = await fetchEmailsWithCredentialsAction(
+        currentInbox.emailAddress,
+        mailgunSettings.apiKey,
+        mailgunSettings.domain
+      );
         
       if (result.error) {
         const errorMsg = result.error || "An unknown error occurred while fetching emails.";

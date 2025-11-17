@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -71,6 +70,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // This hook now correctly fetches the settings document on the client.
   const settingsRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, "admin_settings", "mailgun");
@@ -149,8 +149,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress) return;
     
-    // The server action now directly checks for credentials.
-    // We only need to check for mailgunSettings to decide if we should show a UI error.
     if (!mailgunSettings?.enabled) {
       if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
@@ -164,14 +162,17 @@ export function DashboardClient({ plans }: DashboardClientProps) {
       return;
     }
 
-
     if (!isAutoRefresh) {
       setIsRefreshing(true);
     }
     
     try {
-      // The server action will handle the credentials securely.
-      const result = await fetchEmailsWithCredentialsAction(currentInbox.emailAddress);
+      // The server action now accepts the credentials directly.
+      const result = await fetchEmailsWithCredentialsAction(
+          currentInbox.emailAddress,
+          mailgunSettings.apiKey,
+          mailgunSettings.domain
+      );
         
       if (result.error) {
         // A specific error from the server action can be handled here if needed
@@ -400,6 +401,3 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     </div>
   );
 }
-
-
-

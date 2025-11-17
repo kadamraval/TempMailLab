@@ -23,7 +23,8 @@ service cloud.firestore {
     // clients need to read to initiate the email fetch server action.
     match /admin_settings/{settingId} {
         allow write: if false; // NEVER allow client-side writes.
-        allow read: if request.auth != null && settingId == 'mailgun'; // ONLY allow reading 'mailgun' doc if authenticated.
+        // Allow ANY authenticated user (including anonymous) to read mailgun settings.
+        allow read: if request.auth != null && settingId == 'mailgun';
     }
 
     // --- User-Specific, Private Collections ---

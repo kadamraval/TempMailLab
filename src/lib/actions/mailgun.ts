@@ -1,60 +1,28 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getFirebaseAdmin } from '@/firebase/server-init';
-import type { DocumentData } from 'firebase-admin/firestore';
-
-
-async function getMailgunCredentials(): Promise<{ apiKey: string; domain: string } | null> {
-    const { firestore, error: adminError } = getFirebaseAdmin();
-    if (adminError) {
-        console.error("Failed to initialize Firebase Admin SDK:", adminError.message);
-        return null;
-    }
-
-    try {
-        const settingsDoc = await firestore.collection('admin_settings').doc('mailgun').get();
-        if (!settingsDoc.exists) {
-            console.warn("Mailgun settings document does not exist.");
-            return null;
-        }
-
-        const settings = settingsDoc.data() as DocumentData;
-        if (!settings.enabled || !settings.apiKey || !settings.domain) {
-            return null;
-        }
-
-        return { apiKey: settings.apiKey, domain: settings.domain };
-
-    } catch (error) {
-        console.error("Error fetching Mailgun credentials:", error);
-        return null;
-    }
-}
-
 
 /**
- * A secure server action that fetches Mailgun credentials from Firestore
- * and then fetches emails for a given address.
+ * A secure server action that uses provided Mailgun credentials
+ * to fetches emails for a given address.
+ * It no longer fetches credentials itself, removing the failing dependency on the Firebase Admin SDK.
  */
 export async function fetchEmailsWithCredentialsAction(
-    emailAddress: string
+    emailAddress: string,
+    apiKey: string | undefined,
+    domain: string | undefined,
 ): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
 
     if (!emailAddress) {
         return { success: false, error: 'Email address is required.' };
     }
-
-    const credentials = await getMailgunCredentials();
-    if (!credentials) {
-        return { success: false, error: 'Mailgun API Key and Domain are required and must be enabled in admin settings.' };
-    }
     
-    const { apiKey, domain } = credentials;
+    if (!apiKey || !domain) {
+        return { success: false, error: 'Mailgun API Key and Domain are required.' };
+    }
 
     try {
         const mailgun = new Mailgun(formData);
