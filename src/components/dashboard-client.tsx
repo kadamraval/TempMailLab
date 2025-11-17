@@ -66,7 +66,11 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- Data Fetching ---
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "admin_settings", "mailgun") : null, [firestore]);
+  const settingsRef = useMemoFirebase(() => {
+    // Wait until user loading is false before creating the reference
+    if (isUserLoading || !firestore) return null;
+    return doc(firestore, "admin_settings", "mailgun");
+  }, [firestore, isUserLoading]);
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
   // Determine the correct plan to use (user's plan or free-default)
@@ -421,3 +425,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
