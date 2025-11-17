@@ -48,7 +48,6 @@ function generateRandomString(length: number) {
 }
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
-const LOCAL_EMAILS_KEY = 'tempinbox_anonymous_emails';
 
 export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
@@ -57,7 +56,6 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [localEmails, setLocalEmails] = useState<Email[]>([]);
 
   const firestore = useFirestore();
   const { user, isUserLoading, userProfile } = useUser();
@@ -66,7 +64,6 @@ export function DashboardClient() {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const sampleEmailIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
@@ -94,27 +91,8 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  const emailsToDisplay = (user && !user.isAnonymous) ? inboxEmails : localEmails;
+  const emailsToDisplay = (user && !user.isAnonymous) ? inboxEmails : [];
 
-  // Function to save a sample email to localStorage for anonymous users
-  const addSampleEmailToLocal = useCallback(() => {
-      const sampleEmail: Email = {
-          id: `sample-${Date.now()}`,
-          senderName: "Temp Mailer",
-          subject: "Welcome to your temporary inbox!",
-          receivedAt: new Date().toISOString(),
-          htmlContent: `<p>This is a sample email for your anonymous session. New emails will appear here. <a href="/register">Sign up</a> to save your inbox and enable server-side email fetching!</p>`,
-          textContent: "This is a sample email for your anonymous session. New emails will appear here. Sign up to save your inbox and enable server-side email fetching!",
-          read: false,
-      };
-
-      const existingEmailsRaw = localStorage.getItem(LOCAL_EMAILS_KEY);
-      const existingEmails: Email[] = existingEmailsRaw ? JSON.parse(existingEmailsRaw) : [];
-      const updatedEmails = [sampleEmail, ...existingEmails];
-      localStorage.setItem(LOCAL_EMAILS_KEY, JSON.stringify(updatedEmails));
-      setLocalEmails(updatedEmails);
-  }, []);
-  
   const handleGenerateNewLocalInbox = useCallback((plan: Plan) => {
     if (!firestore) return;
     setIsGenerating(true);
@@ -144,16 +122,10 @@ export function DashboardClient() {
             };
 
             localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInboxData));
-            localStorage.removeItem(LOCAL_EMAILS_KEY); // Clear emails for new inbox
-            setLocalEmails([]);
             setCurrentInbox(newInboxData);
             setSelectedEmail(null);
-            
-            // Add a welcome email for the new local inbox
-            setTimeout(addSampleEmailToLocal, 1000);
 
-        } catch (error: any)
-{
+        } catch (error: any) {
             console.error("Error generating new local inbox:", error);
             toast({
                 title: "Error",
@@ -165,7 +137,7 @@ export function DashboardClient() {
         }
     }
     generate();
-  }, [firestore, toast, addSampleEmailToLocal]);
+  }, [firestore, toast]);
 
   const handleGenerateNewDbInbox = useCallback(async (plan: Plan, userId: string) => {
     if (!firestore) return;
@@ -207,20 +179,19 @@ export function DashboardClient() {
   }, [firestore, toast]);
   
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !currentInbox.id) return;
-    
-    // Anonymous users refresh from localStorage
+    // For anonymous users, refreshing is a feature of registered accounts.
     if (user && user.isAnonymous) {
-      if (!isAutoRefresh) setIsRefreshing(true);
-      const storedEmailsRaw = localStorage.getItem(LOCAL_EMAILS_KEY);
-      const storedEmails: Email[] = storedEmailsRaw ? JSON.parse(storedEmailsRaw) : [];
-      setLocalEmails(storedEmails);
-      if (!isAutoRefresh) {
-        toast({ title: "Inbox refreshed", description: "Loaded emails from browser storage." });
-        setTimeout(() => setIsRefreshing(false), 500);
-      }
-      return;
+        if (!isAutoRefresh) {
+            toast({
+                title: "Login Required",
+                description: "Please log in or register to refresh your inbox and receive emails.",
+                variant: "default",
+            });
+        }
+        return;
     }
+
+    if (!currentInbox?.emailAddress || !currentInbox.id) return;
     
     // Registered user = refresh checks server
     if (!isAutoRefresh) setIsRefreshing(true);
@@ -263,8 +234,6 @@ export function DashboardClient() {
         }
     } else { // Anonymous user
         localStorage.removeItem(LOCAL_INBOX_KEY);
-        localStorage.removeItem(LOCAL_EMAILS_KEY);
-        setLocalEmails([]);
         if (activePlan) handleGenerateNewLocalInbox(activePlan);
     }
   }, [firestore, currentInbox, user, activePlan, handleGenerateNewLocalInbox]);
@@ -290,13 +259,9 @@ export function DashboardClient() {
             if (new Date(localInbox.expiresAt) > new Date()) {
                 if (!currentInbox) {
                     setCurrentInbox(localInbox);
-                    // Also load local emails
-                    const localEmailsRaw = localStorage.getItem(LOCAL_EMAILS_KEY);
-                    setLocalEmails(localEmailsRaw ? JSON.parse(localEmailsRaw) : []);
                 }
             } else {
                 localStorage.removeItem(LOCAL_INBOX_KEY);
-                localStorage.removeItem(LOCAL_EMAILS_KEY);
                 handleGenerateNewLocalInbox(activePlan);
             }
         } else {
@@ -304,8 +269,6 @@ export function DashboardClient() {
         }
     } else { // Registered user flow
         localStorage.removeItem(LOCAL_INBOX_KEY); 
-        localStorage.removeItem(LOCAL_EMAILS_KEY);
-        setLocalEmails([]);
         if (!isLoadingInboxes) {
             if (activeInboxes && activeInboxes.length > 0) {
                  if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
@@ -326,17 +289,14 @@ export function DashboardClient() {
     const clearRefreshInterval = () => {
         if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
     };
-    const clearSampleEmailInterval = () => {
-        if (sampleEmailIntervalRef.current) clearInterval(sampleEmailIntervalRef.current);
-    };
 
     clearCountdown();
     clearRefreshInterval();
-    clearSampleEmailInterval();
 
     if (currentInbox?.expiresAt) {
         const expiryDate = new Date(currentInbox.expiresAt);
-        setCountdown(Math.floor((expiryDate.getTime() - Date.now()) / 1000));
+        const initialCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
+        setCountdown(initialCountdown > 0 ? initialCountdown : 0);
         
         countdownIntervalRef.current = setInterval(() => {
             const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
@@ -351,17 +311,13 @@ export function DashboardClient() {
         if (user && !user.isAnonymous) {
             handleRefresh(true); // Initial refresh
             refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); // Auto-refresh for logged-in users
-        } else {
-            // For anonymous users, simulate new emails arriving
-            sampleEmailIntervalRef.current = setInterval(addSampleEmailToLocal, 30000);
         }
     }
     return () => {
         clearCountdown();
         clearRefreshInterval();
-        clearSampleEmailInterval();
     };
-  }, [currentInbox, user, toast, handleRefresh, handleDeleteInbox, addSampleEmailToLocal]);
+  }, [currentInbox, user, toast, handleRefresh, handleDeleteInbox]);
 
 
   const handleCopyEmail = () => {
@@ -372,12 +328,6 @@ export function DashboardClient() {
 
   const handleSelectEmail = (email: Email) => {
     setSelectedEmail(email);
-    // Mark as read for local emails
-    if (user && user.isAnonymous) {
-        const updatedEmails = localEmails.map(e => e.id === email.id ? {...e, read: true} : e);
-        setLocalEmails(updatedEmails);
-        localStorage.setItem(LOCAL_EMAILS_KEY, JSON.stringify(updatedEmails));
-    }
   };
   
   const formatTime = (seconds: number) => {
