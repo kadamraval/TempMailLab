@@ -12,7 +12,6 @@ import { EmailView } from "@/components/email-view";
 import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
 import { getDocs, query, collection, where, doc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
-import { getPlanForUserAction } from "@/lib/actions/plans";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -75,8 +74,22 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     if (!firestore || !user) return null;
     return doc(firestore, "admin_settings", "mailgun");
   }, [firestore, user]);
+
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+  const getPlanForUser = useCallback((uid: string | null, isAnonymous: boolean): Plan | null => {
+    const freePlan = plans.find(p => p.id === 'free');
+    if (!plans || !freePlan) {
+        setServerError("A required 'Free' plan is not configured. The application cannot function.");
+        return null;
+    }
+    
+    // For now, we will return the free plan for all users.
+    // A future step will involve fetching user-specific plans.
+    return freePlan;
+
+  }, [plans]);
+  
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
     setServerError(null);
@@ -121,21 +134,19 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   useEffect(() => {
     if (!isUserLoading && !userPlan) {
-        getPlanForUserAction(user?.uid || null, user?.isAnonymous || true).then(plan => {
-             if (plan) {
-                setUserPlan(plan);
-                if (!currentInbox) {
-                    handleGenerateEmail(plan);
-                } else {
-                    setIsLoading(false);
-                }
-            } else {
-                setServerError("Could not retrieve a subscription plan. A default 'Free' plan is required for the application to function.");
-                setIsLoading(false);
-            }
-        });
+        const plan = getPlanForUser(user?.uid || null, user?.isAnonymous || true);
+        if (plan) {
+           setUserPlan(plan);
+           if (!currentInbox) {
+               handleGenerateEmail(plan);
+           } else {
+               setIsLoading(false);
+           }
+       } else {
+           setIsLoading(false);
+       }
     }
-  }, [isUserLoading, user, userPlan, handleGenerateEmail, currentInbox]);
+  }, [isUserLoading, user, userPlan, handleGenerateEmail, currentInbox, getPlanForUser]);
 
 
   const clearCountdown = () => {
@@ -153,11 +164,6 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
       if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
         setServerError(errorMsg);
-        toast({
-          title: "Refresh Disabled",
-          description: errorMsg,
-          variant: "default",
-        });
       }
       return;
     }
@@ -175,10 +181,8 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
         
       if (result.error) {
         const errorMsg = result.error || "An unknown error occurred while fetching emails.";
-        if (errorMsg.includes("Mailgun API Key and Domain are required")) {
-            setServerError("The email server is not configured by the administrator. Refreshing is disabled.");
-            if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-        }
+        setServerError(errorMsg);
+        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); // Stop auto-refresh on config error
         if (!isAutoRefresh) {
            toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
         }
@@ -399,5 +403,3 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
     </div>
   );
 }
-
-    

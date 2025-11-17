@@ -21,7 +21,9 @@ export async function fetchEmailsWithCredentialsAction(
     }
     
     if (!apiKey || !domain) {
-        return { success: false, error: 'Mailgun API Key and Domain are required.' };
+        // This is the expected state if the admin has not configured Mailgun.
+        // It's a configuration notice, not a runtime error.
+        return { success: false, error: 'Mailgun API Key and Domain are required. Please configure them in the admin settings.' };
     }
 
     try {

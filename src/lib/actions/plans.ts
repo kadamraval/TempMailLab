@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -137,35 +136,23 @@ export async function deletePlanAction(planId: string) {
  * @returns The user's plan object or null if an error occurs.
  */
 export async function getPlanForUserAction(uid: string | null, isAnonymous: boolean): Promise<Plan | null> {
+    // This server action is temporarily deprecated in favor of a client-side solution
+    // to avoid server configuration issues with Firebase Admin.
+    // The logic will be handled directly in the client components.
+    
     const { firestore, error: adminError } = getFirebaseAdmin();
+    
+    // Immediately return null if admin SDK is not configured, preventing crashes.
     if (adminError) {
-        console.error("getPlanForUserAction failed:", adminError.message);
-        // Attempt to fetch the free plan manually if admin SDK fails, as it's publicly readable
-        try {
-            const publicFirestore = (await import('firebase/firestore')).getFirestore();
-            const planDocRef = (await import('firebase/firestore')).doc(publicFirestore, 'plans', 'free');
-            const planDoc = await (await import('firebase/firestore')).getDoc(planDocRef);
-             if (planDoc.exists()) {
-                const planData = planDoc.data();
-                 const serializableData = {
-                    ...planData,
-                    createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
-                };
-                return { id: planDoc.id, ...serializableData } as Plan;
-            }
-        } catch (publicError) {
-             console.error("Failed to fetch free plan publicly after admin failure:", publicError);
-        }
+        console.warn("getPlanForUserAction is disabled due to Firebase Admin SDK config error:", adminError.message);
         return null;
     }
 
     try {
-        // Step 1: Guarantee the 'Free' plan exists.
         await seedFreePlan();
 
-        let planId = 'free'; // Default to the free plan.
+        let planId = 'free';
 
-        // Step 2: If the user is registered, check for a custom plan.
         if (uid && !isAnonymous) {
             const userDocRef = firestore.collection('users').doc(uid);
             const userDoc = await userDocRef.get();
@@ -174,36 +161,25 @@ export async function getPlanForUserAction(uid: string | null, isAnonymous: bool
             }
         }
 
-        // Step 3: Fetch the determined plan document.
         const planDocRef = firestore.collection('plans').doc(planId);
         const planDoc = await planDocRef.get();
 
         if (!planDoc.exists) {
-            // This case should be rare, but if the user's plan doesn't exist, fall back to free.
             if (planId !== 'free') {
                  const freePlanDoc = await firestore.collection('plans').doc('free').get();
-                 if (freePlanDoc.exists) {
+                 if (freePlanDoc.exists()) {
                      const planData = freePlanDoc.data();
                      if (!planData) return null;
-                     const serializableData = {
-                        ...planData,
-                        createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
-                    };
+                     const serializableData = { ...planData, createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString() };
                      return { id: freePlanDoc.id, ...serializableData } as Plan;
                  }
             }
-            throw new Error(`Plan with ID '${planId}' not found.`);
+            return null;
         }
         
         const planData = planDoc.data();
         if (planData) {
-            // The 'createdAt' field is a Timestamp, which is not directly serializable for the client.
-            // We'll convert it to an ISO string or handle it as needed. For now, we omit it or convert.
-            const serializableData = {
-                ...planData,
-                // If createdAt is a Timestamp, convert it. If not, this won't break.
-                createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
-            };
+            const serializableData = { ...planData, createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString() };
             return { id: planDoc.id, ...serializableData } as Plan;
         }
 
