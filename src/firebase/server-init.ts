@@ -38,15 +38,10 @@ function initializeAdminApp() {
     }
 }
 
-// Call the initialization function at the module level.
-// This will run once when the module is first loaded on the server.
-initializeAdminApp();
-
 // Export a getter function to be used by server actions.
 export function getAdminFirestore() {
+    // Initialize only when the function is first called.
     if (!adminFirestore) {
-        // This is a fallback in case the initial setup failed, which can happen in some serverless environments.
-        console.warn("getAdminFirestore called before initialization was complete. Forcing re-initialization.");
         initializeAdminApp();
     }
     return adminFirestore;
