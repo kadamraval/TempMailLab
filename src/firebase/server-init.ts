@@ -1,30 +1,33 @@
-
-import { initializeApp, getApps, getApp, cert, type App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, type App } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getAuth, type Auth } from 'firebase-admin/auth';
 
-// This file is intended for server-side Firebase Admin initialization.
-// By centralizing it, we can ensure consistent initialization logic.
-// Server actions should import what they need directly from 'firebase-admin'
-// and initialize the app themselves to avoid bundling issues.
+// This file is the single source of truth for initializing the Firebase Admin SDK.
+// It ensures the app is only initialized once.
 
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   : undefined;
 
-function getAdminApp(): App {
-    if (getApps().length) {
-        return getApp();
-    }
-    return initializeApp({
-        credential: serviceAccount ? cert(serviceAccount) : undefined,
+const adminApp: App = getApps().length
+  ? getApps()[0]
+  : initializeApp({
+      credential: serviceAccount ? cert(serviceAccount) : undefined,
     });
-}
 
+
+/**
+ * Returns an initialized Firebase Admin Auth instance.
+ * Call this function within server actions or API routes.
+ */
 export function getAdminAuth(): Auth {
-    return getAuth(getAdminApp());
+    return getAuth(adminApp);
 }
 
+/**
+ * Returns an initialized Firebase Admin Firestore instance.
+ * Call this function within server actions or API routes.
+ */
 export function getAdminFirestore(): Firestore {
-    return getFirestore(getAdminApp());
+    return getFirestore(adminApp);
 }

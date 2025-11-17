@@ -1,25 +1,7 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  : undefined;
-
-let adminApp: App;
-if (!getApps().length) {
-    adminApp = initializeApp({
-        credential: serviceAccount ? cert(serviceAccount) : undefined,
-    });
-} else {
-    adminApp = getApps()[0];
-}
-
-const firestore = getFirestore(adminApp);
-
+import { getAdminFirestore } from '@/firebase/server-init';
 
 interface MailgunSettings {
     enabled: boolean;
@@ -34,6 +16,7 @@ interface MailgunSettings {
  */
 export async function saveMailgunSettingsAction(settings: MailgunSettings) {
     try {
+        const firestore = getAdminFirestore();
         // The document ID is 'mailgun' for this specific setting.
         const settingsRef = firestore.doc("admin_settings/mailgun");
 

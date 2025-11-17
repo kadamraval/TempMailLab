@@ -1,25 +1,7 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  : undefined;
-
-let adminApp: App;
-if (!getApps().length) {
-    adminApp = initializeApp({
-        credential: serviceAccount ? cert(serviceAccount) : undefined,
-    });
-} else {
-    adminApp = getApps()[0];
-}
-
-const firestore = getFirestore(adminApp);
-
+import { getAdminFirestore } from '@/firebase/server-init';
 
 /**
  * Saves a plan to Firestore. Handles both creating a new plan and updating an existing one.
@@ -29,6 +11,7 @@ const firestore = getFirestore(adminApp);
  */
 export async function savePlanAction(planData: any, planId?: string) {
     try {
+        const firestore = getAdminFirestore();
         if (planId) {
             // Update existing plan
             const planRef = firestore.doc(`plans/${planId}`);
@@ -63,6 +46,7 @@ export async function deletePlanAction(planId: string) {
             throw new Error("Plan ID is required for deletion.");
         }
         
+        const firestore = getAdminFirestore();
         const planRef = firestore.doc(`plans/${planId}`);
         await planRef.delete();
 

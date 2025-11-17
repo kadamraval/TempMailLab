@@ -1,29 +1,10 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-
-// This is the server-side initialization for Firebase Admin.
-// It checks if the app is already initialized to prevent errors.
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  : undefined;
-
-let adminApp: App;
-if (!getApps().length) {
-    adminApp = initializeApp({
-        credential: serviceAccount ? cert(serviceAccount) : undefined,
-    });
-} else {
-    adminApp = getApps()[0];
-}
-
-const firestore = getFirestore(adminApp);
+import { getAdminFirestore } from '@/firebase/server-init';
 
 
 /**
@@ -36,7 +17,6 @@ export async function fetchEmailsWithCredentialsAction(
     apiKey: string | undefined,
     domain: string | undefined,
 ): Promise<{ success: boolean; error?: string }> {
-
     if (!emailAddress || !inboxId) {
         return { success: false, error: 'Email address and Inbox ID are required.' };
     }
@@ -46,6 +26,7 @@ export async function fetchEmailsWithCredentialsAction(
     }
 
     try {
+        const firestore = getAdminFirestore();
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
