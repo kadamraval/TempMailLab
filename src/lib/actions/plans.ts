@@ -4,6 +4,7 @@
 import { getFirebaseAdmin } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
+import type { Plan } from '@/app/(admin)/admin/packages/data';
 
 
 /**
@@ -125,4 +126,69 @@ export async function deletePlanAction(planId: string) {
       error: 'Could not delete the plan from the database.',
     };
   }
+}
+
+
+/**
+ * A robust server action to get the correct plan for a user.
+ * It ensures the 'Free' plan exists and handles anonymous/registered users.
+ * @param uid The user's UID.
+ * @param isAnonymous Whether the user is anonymous.
+ * @returns The user's plan object or null if an error occurs.
+ */
+export async function getPlanForUserAction(uid: string | null, isAnonymous: boolean): Promise<Plan | null> {
+    const { firestore, error: adminError } = getFirebaseAdmin();
+    if (adminError) {
+        console.error("getPlanForUserAction failed:", adminError.message);
+        return null;
+    }
+
+    try {
+        // Step 1: Guarantee the 'Free' plan exists.
+        await seedFreePlan();
+
+        let planId = 'free'; // Default to the free plan.
+
+        // Step 2: If the user is registered, check for a custom plan.
+        if (uid && !isAnonymous) {
+            const userDocRef = firestore.collection('users').doc(uid);
+            const userDoc = await userDocRef.get();
+            if (userDoc.exists && userDoc.data()?.planId) {
+                planId = userDoc.data()?.planId;
+            }
+        }
+
+        // Step 3: Fetch the determined plan document.
+        const planDocRef = firestore.collection('plans').doc(planId);
+        const planDoc = await planDocRef.get();
+
+        if (!planDoc.exists) {
+            // This case should be rare, but if the user's plan doesn't exist, fall back to free.
+            if (planId !== 'free') {
+                 const freePlanDoc = await firestore.collection('plans').doc('free').get();
+                 if (freePlanDoc.exists) {
+                     return { id: freePlanDoc.id, ...freePlanDoc.data() } as Plan;
+                 }
+            }
+            throw new Error(`Plan with ID '${planId}' not found.`);
+        }
+        
+        const planData = planDoc.data();
+        if (planData) {
+            // The 'createdAt' field is a Timestamp, which is not directly serializable for the client.
+            // We'll convert it to an ISO string or handle it as needed. For now, we omit it or convert.
+            const serializableData = {
+                ...planData,
+                // If createdAt is a Timestamp, convert it. If not, this won't break.
+                createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
+            };
+            return { id: planDoc.id, ...serializableData } as Plan;
+        }
+
+        return null;
+
+    } catch (error: any) {
+        console.error("Error in getPlanForUserAction:", error.message);
+        return null;
+    }
 }
