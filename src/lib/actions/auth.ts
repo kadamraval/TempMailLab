@@ -26,7 +26,7 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const doc = await userRef.get();
 
     if (!doc.exists) {
-      // User does not exist. Create their user document FIRST.
+      // User is new. Create their document first.
       const userData = {
         uid,
         email,
@@ -36,7 +36,7 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
         isAdmin: false,
       };
       
-      // This is the critical step: create the main document before doing anything else.
+      // CRITICAL: Create the parent user document before doing anything else.
       await userRef.set(userData);
 
       // AFTER creating the user, migrate the inbox if it exists.
@@ -49,10 +49,10 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
         });
       }
 
-      return { success: true, message: 'User record created and inbox migrated.' };
+      return { success: true, message: 'User record created successfully.' };
     } else {
         // User already exists. This can happen if they log in.
-        // Still check if we need to migrate an anonymous inbox.
+        // Still check if we need to migrate a stray anonymous inbox.
         if (anonymousInbox) {
             const inboxRef = userRef.collection('inboxes').doc();
             await inboxRef.set({
