@@ -225,7 +225,7 @@ export function DashboardClient() {
     try {
       const result = await fetchEmailsWithCredentialsAction(
           currentInbox.emailAddress,
-          currentInbox.id
+          currentInbox.id,
       );
         
       if (result.error) {
