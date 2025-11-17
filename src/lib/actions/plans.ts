@@ -140,6 +140,22 @@ export async function getPlanForUserAction(uid: string | null, isAnonymous: bool
     const { firestore, error: adminError } = getFirebaseAdmin();
     if (adminError) {
         console.error("getPlanForUserAction failed:", adminError.message);
+        // Attempt to fetch the free plan manually if admin SDK fails, as it's publicly readable
+        try {
+            const publicFirestore = (await import('firebase/firestore')).getFirestore();
+            const planDocRef = (await import('firebase/firestore')).doc(publicFirestore, 'plans', 'free');
+            const planDoc = await (await import('firebase/firestore')).getDoc(planDocRef);
+             if (planDoc.exists()) {
+                const planData = planDoc.data();
+                 const serializableData = {
+                    ...planData,
+                    createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
+                };
+                return { id: planDoc.id, ...serializableData } as Plan;
+            }
+        } catch (publicError) {
+             console.error("Failed to fetch free plan publicly after admin failure:", publicError);
+        }
         return null;
     }
 
@@ -167,7 +183,13 @@ export async function getPlanForUserAction(uid: string | null, isAnonymous: bool
             if (planId !== 'free') {
                  const freePlanDoc = await firestore.collection('plans').doc('free').get();
                  if (freePlanDoc.exists) {
-                     return { id: freePlanDoc.id, ...freePlanDoc.data() } as Plan;
+                     const planData = freePlanDoc.data();
+                     if (!planData) return null;
+                     const serializableData = {
+                        ...planData,
+                        createdAt: planData.createdAt?.toDate ? planData.createdAt.toDate().toISOString() : new Date().toISOString(),
+                    };
+                     return { id: freePlanDoc.id, ...serializableData } as Plan;
                  }
             }
             throw new Error(`Plan with ID '${planId}' not found.`);

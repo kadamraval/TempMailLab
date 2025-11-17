@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -120,7 +121,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   useEffect(() => {
     if (!isUserLoading && !userPlan) {
-        getPlanForUserAction(user?.uid || null, user?.isAnonymous || false).then(plan => {
+        getPlanForUserAction(user?.uid || null, user?.isAnonymous || true).then(plan => {
              if (plan) {
                 setUserPlan(plan);
                 if (!currentInbox) {
