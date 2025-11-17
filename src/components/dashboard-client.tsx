@@ -64,13 +64,6 @@ export function DashboardClient() {
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const settingsRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore, user]);
-
-  const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
   
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
@@ -227,21 +220,12 @@ export function DashboardClient() {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
     if (currentInbox.id.startsWith('local-')) return;
     
-    if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
-      if (!isAutoRefresh) {
-        setServerError('Email fetching is currently disabled by the administrator.');
-      }
-      return;
-    }
-
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
       const result = await fetchEmailsWithCredentialsAction(
           currentInbox.emailAddress,
-          currentInbox.id,
-          mailgunSettings.apiKey,
-          mailgunSettings.domain
+          currentInbox.id
       );
         
       if (result.error) {
@@ -261,7 +245,7 @@ export function DashboardClient() {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast, mailgunSettings]);
+  }, [currentInbox, toast]);
 
   const handleDeleteInbox = useCallback(async () => {
     if (!currentInbox || !firestore) return;
@@ -328,7 +312,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || (user && isLoadingInboxes);
+  const isLoading = isUserLoading || isLoadingPlan || (user && isLoadingInboxes);
   if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -381,7 +365,7 @@ export function DashboardClient() {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain || !user || user.isAnonymous}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !user || user.isAnonymous}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">

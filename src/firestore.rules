@@ -21,8 +21,8 @@ service cloud.firestore {
 
     match /admin_settings/{settingId} {
         allow write: if false; // NEVER allow client-side writes.
-        // Allow anyone to read mailgun settings for the server-side action.
-        allow read: if true;
+        // Allow ONLY admins to read these settings.
+        allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     // --- User & Inbox Collections ---
