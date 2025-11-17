@@ -39,8 +39,8 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox only if they are the owner.
-      // Admins can also perform these actions.
-      allow read, update, delete: if request.auth != null && (get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      // This rule uses `resource.data` which is available for existing documents.
+      allow read, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
 
       // Allow a user to list only their own inboxes by requiring a 'where' clause on 'userId'.
       allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
