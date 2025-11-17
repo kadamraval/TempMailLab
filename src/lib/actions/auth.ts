@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -70,5 +69,3 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     };
   }
 }
-
-    
