@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -26,19 +25,20 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const doc = await userRef.get();
 
     if (!doc.exists) {
-      // User does not exist, create them with the correct schema.
+      // User does not exist, create them with the correct schema FIRST.
       const userData: { [key: string]: any } = {
         uid,
         email,
         createdAt: FieldValue.serverTimestamp(),
         planType: 'free', // Use planType, set to 'free'
+        planId: 'free-default', // Ensure this is set for consistency
         isPremium: false,
         isAdmin: false,
       };
       
       await userRef.set(userData);
 
-      // If there was an anonymous inbox, migrate it to the new user.
+      // AFTER creating the user, migrate the inbox if it exists.
       if (anonymousInbox) {
         const inboxRef = userRef.collection('inboxes').doc();
         await inboxRef.set({
