@@ -1,3 +1,4 @@
+
 "use client"
 
 import { IntegrationSettingsForm } from "@/components/admin/integration-settings-form";
@@ -10,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { notFound } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface IntegrationPageProps {
   params: {
@@ -41,9 +43,25 @@ const integrationsData: { [key: string]: any } = {
 export default function IntegrationPage({ params }: IntegrationPageProps) {
   const { slug } = params;
   const integration = integrationsData[slug];
+  const router = useRouter();
 
   if (!integration) {
     notFound();
+  }
+
+  const getIntegrationWithIsConfigured = (slug: string) => {
+    const isConfigured = {
+        'firebase': true,
+        'mail-tm': true,
+        'google-analytics': true,
+        'google-login': true,
+        'stripe': true,
+        'recaptcha': true,
+        'cloud-billing-api': true,
+        'cloud-monitoring-api': true
+    }[slug] || false;
+
+    return { ...integration, isConfigured };
   }
 
   return (
@@ -60,4 +78,11 @@ export default function IntegrationPage({ params }: IntegrationPageProps) {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                 <BreadcrumbPage>{integration.title}</BreadcrumbPage>
-                </
+                </BreadcrumbItem>
+            </BreadcrumbList>
+        </Breadcrumb>
+
+        <IntegrationSettingsForm integration={getIntegrationWithIsConfigured(slug)} />
+    </div>
+  );
+}
