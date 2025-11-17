@@ -25,43 +25,41 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const userRef = firestore.collection('users').doc(uid);
     const doc = await userRef.get();
 
+    // Scenario 1: The user is brand new.
     if (!doc.exists) {
-      // User is new. Create their document first.
-      const userData = {
+      // Step 1: Create the main user document FIRST. This is the critical fix.
+      await userRef.set({
         uid,
         email,
         createdAt: FieldValue.serverTimestamp(),
-        planId: 'free-default', // All new users start on the free plan
+        planId: 'free-default', // All new users start on the free plan.
         isPremium: false,
         isAdmin: false,
-      };
-      
-      // CRITICAL: Create the parent user document before doing anything else.
-      await userRef.set(userData);
+      });
 
-      // AFTER creating the user, migrate the inbox if it exists.
+      // Step 2: AFTER the user document is created, migrate the anonymous inbox if it exists.
+      if (anonymousInbox) {
+        const inboxRef = userRef.collection('inboxes').doc(); // Create a new doc in the sub-collection.
+        await inboxRef.set({
+          ...anonymousInbox,
+          userId: uid, // Ensure the userId is the new permanent UID.
+          createdAt: FieldValue.serverTimestamp() // Use a proper server timestamp.
+        });
+      }
+      return { success: true, message: 'New user and inbox (if any) created successfully.' };
+    } 
+    // Scenario 2: The user already exists (e.g., a returning user logging in).
+    else {
+      // Even if the user exists, there might be a stray anonymous inbox to migrate.
       if (anonymousInbox) {
         const inboxRef = userRef.collection('inboxes').doc();
         await inboxRef.set({
-          ...anonymousInbox,
-          userId: uid, // Ensure the userId is the new permanent UID
-          createdAt: FieldValue.serverTimestamp() // Use a proper server timestamp
+            ...anonymousInbox,
+            userId: uid,
+            createdAt: FieldValue.serverTimestamp()
         });
+        return { success: true, message: 'Existing user logged in and inbox migrated.' };
       }
-
-      return { success: true, message: 'User record created successfully.' };
-    } else {
-        // User already exists. This can happen if they log in.
-        // Still check if we need to migrate a stray anonymous inbox.
-        if (anonymousInbox) {
-            const inboxRef = userRef.collection('inboxes').doc();
-            await inboxRef.set({
-                ...anonymousInbox,
-                userId: uid,
-                createdAt: FieldValue.serverTimestamp()
-            });
-            return { success: true, message: 'Existing user logged in and inbox migrated.' };
-        }
     }
 
     return { success: true, message: 'User record already exists.' };
