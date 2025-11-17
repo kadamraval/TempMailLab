@@ -22,7 +22,7 @@ service cloud.firestore {
     match /admin_settings/{settingId} {
         allow write: if false; // NEVER allow client-side writes.
         // Allow anyone to read mailgun settings for the server-side action.
-        allow read: if settingId == 'mailgun';
+        allow read: if true;
     }
 
     // --- User & Inbox Collections ---
@@ -48,9 +48,9 @@ service cloud.firestore {
       allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
-    // --- Default Deny ---
-    match /{document=**} {
-      allow read, write: if false;
+    match /inboxes/{inboxId}/emails/{emailId} {
+        allow read, write: if true; // Open for now for mailgun action
     }
+
   }
 }

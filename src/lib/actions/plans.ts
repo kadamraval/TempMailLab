@@ -1,8 +1,18 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+
+let adminApp: App;
+if (!getApps().length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+  adminApp = initializeApp({
+    credential: cert(serviceAccount)
+  });
+} else {
+  adminApp = getApps()[0];
+}
 
 
 /**
@@ -13,7 +23,7 @@ import { getAdminFirestore } from '@/firebase/server-init';
  */
 export async function savePlanAction(planData: any, planId?: string) {
     try {
-        const firestore = getAdminFirestore();
+        const firestore = getFirestore(adminApp);
         if (planId) {
             // Update existing plan
             const planRef = firestore.doc(`plans/${planId}`);
@@ -48,7 +58,7 @@ export async function deletePlanAction(planId: string) {
             throw new Error("Plan ID is required for deletion.");
         }
         
-        const firestore = getAdminFirestore();
+        const firestore = getFirestore(adminApp);
         const planRef = firestore.doc(`plans/${planId}`);
         await planRef.delete();
 
@@ -60,5 +70,3 @@ export async function deletePlanAction(planId: string) {
         return { error: error.message || 'An unknown error occurred.' };
     }
 }
-
-    

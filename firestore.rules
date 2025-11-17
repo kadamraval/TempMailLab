@@ -1,182 +1,31 @@
-/**
- * @file Firestore Security Rules for TempInbox Application
- * @description This ruleset enforces a strict user-ownership model for inboxes and emails,
- *              restricts API key access to authorized users, and limits admin settings
- *              management to designated administrators.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles.
- * - /users/{userId}/inboxes/{inboxId}: Stores temporary email inboxes owned by a user.
- * - /users/{userId}/inboxes/{inboxId}/emails/{emailId}: Stores emails within a user's inbox.
- * - /api_keys/{apiKeyId}: Stores API keys for developers.
- * - /api_keys/{apiKeyId}/usage_logs/{usageLogId}: Stores API usage logs for each API key.
- * - /admin_settings/{settingId}: Stores global admin settings.
- * - /roles_admin/{userId}: A collection whose existence flags the user as an administrator.
- *
- * Key Security Decisions:
- * - Strict user ownership: Users can only access their own inboxes and emails.
- * - API keys: Each API key is accessible via its ID.
- * - Admin settings: Only users in the `roles_admin` collection can manage admin settings.
- * - No user listing: Listing users is not permitted.
- *
- * Denormalization for Authorization:
- * - The `userId` is embedded in the paths for inboxes and emails to allow path-based ownership checks, avoiding `get()` calls.
- */
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * @description Rule for securing the /users/{userId} collection.
-     * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their own user document.
-     * @deny (create) User with ID 'user456' cannot create a user document with ID 'user123'.
-     * @principle Enforces document ownership for writes.
-     */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      allow get: if false;
-      allow list: if false;
-
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    /**
-     * @description Rule for securing the /users/{userId}/inboxes/{inboxId} collection.
-     * @path /users/{userId}/inboxes/{inboxId}
-     * @allow (create) User 'user123' can create an inbox under their user document.
-     * @deny (create) User 'user456' cannot create an inbox under 'user123's user document.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/inboxes/{inboxId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId) && resource != null;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    match /inboxes/{inboxId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    /**
-     * @description Rule for securing the /users/{userId}/inboxes/{inboxId}/emails/{emailId} collection.
-     * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
-     * @allow (create) User 'user123' can create an email within their inbox.
-     * @deny (create) User 'user456' cannot create an email within 'user123's inbox.
-     * @principle Enforces document ownership for writes.
-     */
-    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId) && resource != null;
-      allow delete: if isSignedIn() && isOwner(userId) && resource != null;
+    match /inboxes/{inboxId}/emails/{emailId} {
+      allow read, write: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
     }
 
-    /**
-     * @description Rule for securing the /api_keys/{apiKeyId} collection.
-     * @path /api_keys/{apiKeyId}
-     * @allow (get) Any signed-in user can retrieve any API key.
-     * @deny (create) Non-Admin user cannot create new ApiKey document
-     * @principle API keys are accessible with authentication.
-     */
-    match /api_keys/{apiKeyId} {
-        function isSignedIn() {
-            return request.auth != null;
-        }
-
-      allow get: if isSignedIn();
-      allow list: if false;
-
-      //TODO: Owner should be able to create / update / delete it
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if false;
     }
 
-    /**
-     * @description Rule for securing the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection.
-     * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
-     * @allow (create) Any signed-in user can create a usage log.
-     * @deny (create) Non-Admin user cannot create new UsageLog document
-     * @principle API usage logs are accessible with authentication.
-     */
-    match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
-        function isSignedIn() {
-            return request.auth != null;
-        }
-
-      allow get: if isSignedIn();
-      allow list: if false;
-
-      //TODO: Owner should be able to create / update / delete it
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    match /allowed_domains/{domainId} {
+      allow read: if true;
+      allow write: if false;
     }
 
-    /**
-     * @description Rule for securing the /admin_settings/{settingId} collection.
-     * @path /admin_settings/{settingId}
-     * @allow (get) Admins can access admin settings.
-     * @deny (create) Non-admins cannot create admin settings.
-     * @principle Restricts access to admin settings to authorized users only.
-     */
     match /admin_settings/{settingId} {
-      function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-      }
-
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      allow read, write: if false; // Should only be accessed by server actions
     }
-        /**
-         * @description Rules for securing the /roles_admin/{userId} collection.
-         * @path /roles_admin/{userId}
-         * @allow (create) User can create their own admin role document if it matches their uid.
-         * @deny (create) User cannot create an admin role document for another user.
-         * @principle Restricts creation of admin roles to the authenticated user.
-         */
-        match /roles_admin/{userId} {
-            function isOwner(userId) {
-                return request.auth.uid == userId;
-            }
-
-            function isSignedIn() {
-                return request.auth != null;
-            }
-
-            allow get: if false; // Intentionally not readable
-            allow list: if false;
-
-            allow create: if isSignedIn() && isOwner(userId);
-            allow update: if false; // Admin roles cannot be modified after creation
-            allow delete: if false; // Admin roles cannot be deleted through client.
-        }
   }
 }

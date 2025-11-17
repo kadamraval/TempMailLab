@@ -5,7 +5,26 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+
+function getAdminApp(): App {
+    const existingApp = getApps().find(app => app.name === 'admin');
+    if (existingApp) {
+        return existingApp;
+    }
+
+    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!serviceAccountString) {
+        throw new Error('Server configuration error: Firebase credentials are not set.');
+    }
+    const serviceAccount = JSON.parse(serviceAccountString);
+    
+    return initializeApp({
+        credential: cert(serviceAccount),
+    }, 'admin');
+}
+
 
 /**
  * A secure server action that uses provided Mailgun credentials
@@ -26,7 +45,8 @@ export async function fetchEmailsWithCredentialsAction(
     }
 
     try {
-        const firestore = getAdminFirestore();
+        const adminApp = getAdminApp();
+        const firestore = getFirestore(adminApp);
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 

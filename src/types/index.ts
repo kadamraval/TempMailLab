@@ -23,9 +23,11 @@ export interface User {
   uid: string;
   email: string | null;
   planId?: string; 
-  createdAt: Timestamp | any;
+  createdAt?: Timestamp | any;
   isAdmin?: boolean;
   isAnonymous?: boolean;
+  displayName?: string;
+  photoURL?: string;
 }
 
 export interface Inbox {

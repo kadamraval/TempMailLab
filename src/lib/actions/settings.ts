@@ -1,8 +1,19 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+
+let adminApp: App;
+if (!getApps().length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+  adminApp = initializeApp({
+    credential: cert(serviceAccount)
+  });
+} else {
+  adminApp = getApps()[0];
+}
+
 
 interface MailgunSettings {
     enabled: boolean;
@@ -17,7 +28,7 @@ interface MailgunSettings {
  */
 export async function saveMailgunSettingsAction(settings: MailgunSettings) {
     try {
-        const firestore = getAdminFirestore();
+        const firestore = getFirestore(adminApp);
         // The document ID is 'mailgun' for this specific setting.
         const settingsRef = firestore.doc("admin_settings/mailgun");
 
@@ -40,5 +51,3 @@ export async function saveMailgunSettingsAction(settings: MailgunSettings) {
         return { error: error.message || 'An unknown server error occurred.' };
     }
 }
-
-    
