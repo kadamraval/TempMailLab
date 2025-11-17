@@ -78,21 +78,17 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
   const getPlanForUser = useCallback((uid: string | null, isAnonymous: boolean): Plan | null => {
-    // If plans haven't loaded yet, we can't determine the plan. Return null to wait.
     if (!plans || plans.length === 0) {
         return null;
     }
 
     const freePlan = plans.find(p => p.id === 'free');
     
-    // If even the free plan isn't found in the loaded plans, it's a critical config error.
     if (!freePlan) {
-        setServerError("A required 'Free' plan is not configured. The application cannot function.");
+        setServerError("Could not retrieve a subscription plan. A default 'Free' plan is required for the application to function.");
         return null;
     }
     
-    // For now, we will return the free plan for all users.
-    // A future step will involve fetching user-specific plans.
     return freePlan;
 
   }, [plans]);
@@ -140,28 +136,22 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
   }, [firestore, toast]);
 
   useEffect(() => {
-    // Wait until user loading is complete AND plans are loaded.
     if (isUserLoading || isLoadingSettings) {
         return;
     }
     
-    // If we haven't determined a user plan yet, try to determine it.
     if (!userPlan) {
-        // Correctly identify anonymous or non-existent users.
         const isAnonymous = user ? user.isAnonymous : true;
         const plan = getPlanForUser(user?.uid || null, isAnonymous);
 
         if (plan) {
            setUserPlan(plan);
-           // If there's no current inbox, generate one now that we have a plan.
            if (!currentInbox) {
                handleGenerateEmail(plan);
            } else {
                setIsLoading(false);
            }
-       } else if (plans && plans.length > 0) {
-            // This case happens if plans are loaded but getPlanForUser still fails
-            // (e.g., free plan missing). The error is already set by getPlanForUser.
+       } else if (plans && plans.length > 0 && !plan) {
             setIsLoading(false);
        }
     }
