@@ -1,77 +1,55 @@
-
-import { initializeApp, getApps, getApp, App, cert, ServiceAccount } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
+// IMPORTANT: This file should only be imported by server-side code.
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-// This is a singleton pattern to ensure we only initialize Firebase Admin once.
-// It is crucial for serverless environments where function instances can be reused.
-
-let adminApp: App | null = null;
-let adminAuth: Auth | null = null;
-let adminFirestore: Firestore | null = null;
-let initializationError: Error | null = null;
-let isInitialized = false;
-
-function initializeAdmin() {
-  if (isInitialized) {
-    return; // Already attempted initialization
-  }
-  isInitialized = true;
-
-  try {
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccountString) {
-      initializationError = new Error('Firebase Admin SDK service account is not set in environment variables (FIREBASE_SERVICE_ACCOUNT). Server-side actions that require admin privileges will fail.');
-      console.warn(`[SERVER_INIT_WARNING] ${initializationError.message}`);
-      return;
-    }
-
-    let serviceAccount: ServiceAccount;
-    try {
-      serviceAccount = JSON.parse(serviceAccountString);
-    } catch (e) {
-      initializationError = new Error('Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it is a valid JSON string.');
-      console.error(`[SERVER_INIT_ERROR] ${initializationError.message}`);
-      return;
-    }
-
-    const existingApp = getApps().length > 0 ? getApp() : null;
-    adminApp = existingApp || initializeApp({ credential: cert(serviceAccount) });
-    
-    adminAuth = getAuth(adminApp);
-    adminFirestore = getFirestore(adminApp);
-
-  } catch (error: any) {
-    initializationError = error;
-    console.error("[SERVER_INIT_ERROR] Critical Firebase Admin SDK initialization failed:", error.message);
-  }
+interface FirebaseAdminServices {
+  app: App | null;
+  firestore: Firestore | null;
+  error?: Error;
 }
 
+// Memoize the initialized services to prevent re-initialization on every call.
+let adminServices: FirebaseAdminServices | null = null;
+
 /**
- * Provides access to the initialized Firebase Admin SDK instances.
- * This function will initialize the SDK on its first call and return
- * the existing instances on subsequent calls.
+ * Initializes and provides the Firebase Admin SDK services (app, firestore).
+ * It safely handles initialization and is designed to be used in server-side
+ * environments (like Server Components and Server Actions) in Next.js.
  *
- * It no longer throws but returns an error state if initialization fails.
- *
- * @returns An object containing the initialized instances OR an error.
+ * @returns {FirebaseAdminServices} An object containing the admin app and firestore instances, or an error if initialization fails.
  */
-export function getFirebaseAdmin() {
-  // Lazily initialize on the first call.
-  if (!isInitialized) {
-    initializeAdmin();
+export function getFirebaseAdmin(): FirebaseAdminServices {
+  if (adminServices) {
+    return adminServices;
   }
 
-  // If initialization failed, return the error.
-  if (initializationError) {
-    return { app: null, auth: null, firestore: null, error: initializationError };
+  // The service account key is stored in an environment variable.
+  // This is a secure way to provide credentials in a server environment.
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT;
+  
+  if (!serviceAccountKey) {
+    const error = new Error(
+        "FIREBASE_SERVICE_ACCOUNT environment variable is not set. " +
+        "Server-side Firebase functionality will be disabled."
+      );
+    console.warn(`[getFirebaseAdmin] ${error.message}`);
+    adminServices = { app: null, firestore: null, error };
+    return adminServices;
   }
   
-  // If initialization was successful, we can be sure these are non-null.
-  return {
-    app: adminApp!,
-    auth: adminAuth!,
-    firestore: adminFirestore!,
-    error: null,
-  };
+  try {
+    const credential = cert(JSON.parse(serviceAccountKey));
+    const apps = getApps();
+    const app = apps.length ? apps[0] : initializeApp({ credential });
+    const firestore = getFirestore(app);
+
+    adminServices = { app, firestore };
+    return adminServices;
+
+  } catch (e: any) {
+    const error = new Error(`Firebase Admin SDK initialization failed: ${e.message}`);
+    console.error(`[getFirebaseAdmin] ${error.message}`);
+    adminServices = { app: null, firestore: null, error };
+    return adminServices;
+  }
 }
