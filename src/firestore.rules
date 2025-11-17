@@ -19,24 +19,29 @@ service cloud.firestore {
     
     // --- Admin-Only Collections ---
 
-    // Admin settings should be private, EXCEPT for the mailgun config which authenticated
-    // clients need to read to initiate the email fetch server action.
+    // Admin settings should be private, EXCEPT for the mailgun config which any
+    // client needs to read to initiate the email fetch server action.
     match /admin_settings/{settingId} {
         allow write: if false; // NEVER allow client-side writes.
-        // Allow ANY authenticated user (including anonymous) to read mailgun settings.
-        allow read: if request.auth != null && settingId == 'mailgun';
+        allow read: if settingId == 'mailgun'; // Allow reading mailgun settings
+    }
+    
+    // --- User Collections ---
+    
+    // Allow admins (any authenticated user for now) to read the list of users.
+    match /users/{userId} {
+      allow list: if request.auth != null; 
+      // Allow users to read/write their own document. Admins can update any user doc.
+      // This rule also implicitly allows creation of a user document by a newly authenticated user.
+      allow read, write: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
     }
 
-    // --- User-Specific, Private Collections ---
-
-    // Allow any authenticated user (including anonymous) to create, read, update,
-    // and delete documents within their own user-specific subcollections.
+    // --- User-Specific, Private Sub-Collections ---
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
     // --- Default Deny ---
-
     // By default, deny read/write access to all other collections and documents
     // that are not explicitly matched by one of the rules above.
     match /{document=**} {

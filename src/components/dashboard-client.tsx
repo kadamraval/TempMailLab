@@ -16,6 +16,7 @@ import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { signUp } from "@/lib/actions/auth";
 
 
 const EnvelopeLoader = () => (
@@ -68,12 +69,17 @@ export function DashboardClient() {
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "admin_settings", "mailgun") : null, [firestore]);
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+  // Determine the correct plan to use (user's plan or free-default)
   const userPlanRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'plans', 'free-default');
-  }, [firestore, user]);
+      if (!firestore || isUserLoading) return null;
+      if (user && !user.isAnonymous && user.planId) {
+          return doc(firestore, 'plans', user.planId);
+      }
+      return doc(firestore, 'plans', 'free-default');
+  }, [firestore, user, isUserLoading]);
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
+  // Query for the user's most recent active inbox
   const inboxesQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
@@ -109,6 +115,9 @@ export function DashboardClient() {
         createdAt: serverTimestamp(),
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
+
+      // Ensure user document exists before creating inbox subcollection
+      await signUp(user.uid, user.email, true);
       
       const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
       
@@ -130,7 +139,7 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (isUserLoading || isLoadingInboxes || !userPlan) return;
+    if (isLoadingInboxes || !userPlan || !user) return;
 
     if (activeInboxes && activeInboxes.length > 0) {
         if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
@@ -139,7 +148,7 @@ export function DashboardClient() {
     } else if (!currentInbox && !isGenerating) {
         handleGenerateEmail(userPlan);
     }
-  }, [isUserLoading, activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
+  }, [user, activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
@@ -171,7 +180,7 @@ export function DashboardClient() {
       );
         
       if (result.error) {
-        const errorMsg = result.error || "An unknown error occurred while fetching emails.";
+        const errorMsg = result.error || "An unexpected error occurred while fetching emails.";
         setServerError(errorMsg);
         if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); 
         if (!isAutoRefresh) toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
@@ -204,7 +213,6 @@ export function DashboardClient() {
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan || !firestore || !user) return;
 
-    // Delete all existing inboxes for the user
     const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
     const inboxesSnapshot = await getDocs(userInboxesRef);
     const batch = writeBatch(firestore);
@@ -215,7 +223,6 @@ export function DashboardClient() {
     setInboxEmails([]);
     setSelectedEmail(null);
 
-    // Generate the new email
     handleGenerateEmail(userPlan);
   }, [isGenerating, userPlan, firestore, user, handleGenerateEmail]);
 
@@ -268,7 +275,8 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes) {
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
+  if (isLoading) {
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -276,14 +284,14 @@ export function DashboardClient() {
     );
   }
   
-  if (!userPlan) {
+  if (!userPlan && !isLoadingPlan) {
     return (
        <div className="flex items-center justify-center min-h-[480px]">
          <Alert variant="destructive" className="max-w-lg">
             <ServerCrash className="h-4 w-4" />
             <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                A default 'free-default' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
+                A default 'free-default' plan is required for the application to function. Please create one in the admin dashboard.
             </AlertDescription>
           </Alert>
        </div>
@@ -413,5 +421,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

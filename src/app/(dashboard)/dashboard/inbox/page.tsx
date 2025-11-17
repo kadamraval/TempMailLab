@@ -1,11 +1,10 @@
 'use client';
 
-import { UserInboxClient } from "./user-inbox-client"; 
+import { DashboardClient } from "@/components/dashboard-client"; 
 
 export default function UserInboxPage() {
-  // This page is now just a container for the client component.
-  // The client component handles its own data fetching.
+  // This page now uses the same unified client component as the homepage.
   return (
-    <UserInboxClient />
+    <DashboardClient />
   );
 }
