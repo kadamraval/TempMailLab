@@ -17,10 +17,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { doc, setDoc, writeBatch, collection, serverTimestamp, getDoc } from "firebase/firestore"
+import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
 import { type Inbox } from "@/types"
 
 const formSchema = z.object({
@@ -38,6 +38,7 @@ export function RegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,28 +50,40 @@ export function RegisterForm() {
   })
   
   async function handleRegistrationSuccess(finalUser: User) {
-    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-    let inboxToMigrate: Omit<Inbox, 'id' | 'userId' | 'createdAt'> | undefined = undefined;
+    if (!firestore) return;
 
+    // Use a batch to ensure atomic write for both user and inbox
+    const batch = writeBatch(firestore);
+
+    // 1. Create the user document
+    const userRef = doc(firestore, 'users', finalUser.uid);
+    batch.set(userRef, {
+        uid: finalUser.uid,
+        email: finalUser.email,
+        isAnonymous: false,
+        planId: 'free-default',
+        isAdmin: false,
+        createdAt: serverTimestamp(),
+    });
+
+    // 2. Check for a local inbox and migrate it
+    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
     if (localInboxData) {
         const parsed: Inbox = JSON.parse(localInboxData);
-        // Only migrate if it hasn't expired
         if (new Date(parsed.expiresAt) > new Date()) {
-             inboxToMigrate = {
+            const inboxRef = doc(collection(firestore, 'inboxes')); // new inbox
+            batch.set(inboxRef, {
+                userId: finalUser.uid,
                 emailAddress: parsed.emailAddress,
                 expiresAt: parsed.expiresAt,
-            };
+                createdAt: serverTimestamp(),
+            });
         }
         localStorage.removeItem(LOCAL_INBOX_KEY);
     }
     
-    const result = await signUp(finalUser.uid, finalUser.email, false, inboxToMigrate); 
-
-    if (result.error) {
-        toast({ title: "Registration Error", description: `Could not save user profile: ${result.error}`, variant: "destructive"});
-        await finalUser.delete();
-        return;
-    }
+    // Commit the atomic batch
+    await batch.commit();
     
     toast({
       title: "Success",
@@ -105,7 +118,15 @@ export function RegisterForm() {
     
     try {
         const result = await signInWithPopup(auth, provider);
-        await handleRegistrationSuccess(result.user);
+        // Check if user already exists in Firestore to prevent overwriting data
+        const userRef = doc(firestore, 'users', result.user.uid);
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+          await handleRegistrationSuccess(result.user);
+        } else {
+          toast({ title: "Welcome back!", description: "Successfully logged in with Google."});
+          router.push('/');
+        }
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign up with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential' || error.code === 'auth/credential-already-in-use') {

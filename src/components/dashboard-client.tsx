@@ -9,13 +9,14 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
+import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
 import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { signInAnonymously } from "firebase/auth";
 
 const EnvelopeLoader = () => (
     <div className="relative w-20 h-20">
@@ -58,6 +59,7 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
@@ -72,7 +74,7 @@ export function DashboardClient() {
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
   
   const userPlanRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user?.uid) return null;
     const planId = (user as any)?.planId || 'free-default';
     return doc(firestore, 'plans', planId);
   }, [firestore, user]);
@@ -81,8 +83,11 @@ export function DashboardClient() {
 
   const { data: userPlan, isLoading: isLoadingUserPlan } = useDoc<Plan>(userPlanRef);
 
+  const activePlan = user ? userPlan : freePlan;
+  const isLoadingPlan = user ? isLoadingUserPlan : isLoadingFreePlan;
+
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
+    if (!firestore || !user?.uid || isUserLoading) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
@@ -183,36 +188,37 @@ export function DashboardClient() {
     }
   }, [firestore, toast]);
   
+  // Effect to handle anonymous vs. registered user flows
   useEffect(() => {
-    if (isUserLoading || isLoadingFreePlan || (user && isLoadingUserPlan)) return;
+    if (isUserLoading || isLoadingPlan) return;
 
     if (!user) { // Anonymous user flow
         const localData = localStorage.getItem(LOCAL_INBOX_KEY);
         if (localData) {
             const localInbox: InboxType = JSON.parse(localData);
-            // Check if expired
             if (new Date(localInbox.expiresAt) > new Date()) {
                 setCurrentInbox(localInbox);
             } else {
                 localStorage.removeItem(LOCAL_INBOX_KEY);
-                if (freePlan) handleGenerateNewLocalInbox(freePlan);
+                if (activePlan) handleGenerateNewLocalInbox(activePlan);
             }
         } else {
-            if (freePlan) handleGenerateNewLocalInbox(freePlan);
+            if (activePlan) handleGenerateNewLocalInbox(activePlan);
         }
     } else { // Registered user flow
-        localStorage.removeItem(LOCAL_INBOX_KEY); // Clear any old local data
+        localStorage.removeItem(LOCAL_INBOX_KEY); 
         if (!isLoadingInboxes) {
             if (activeInboxes && activeInboxes.length > 0) {
                 if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
                     setCurrentInbox(activeInboxes[0]);
                 }
-            } else if (userPlan) {
-                handleGenerateNewDbInbox(userPlan, user.uid);
+            } else if (activePlan) {
+                handleGenerateNewDbInbox(activePlan, user.uid);
             }
         }
     }
-  }, [user, isUserLoading, freePlan, isLoadingFreePlan, userPlan, isLoadingUserPlan, activeInboxes, isLoadingInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox]);
+
 
   const clearCountdown = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -281,14 +287,14 @@ export function DashboardClient() {
     setInboxEmails([]);
     setSelectedEmail(null);
 
-    if (user) { // Registered user
+    if (user && !user.isAnonymous) { // Registered user
         await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
-        if (userPlan) handleGenerateNewDbInbox(userPlan, user.uid);
+        if (activePlan) handleGenerateNewDbInbox(activePlan, user.uid);
     } else { // Anonymous user
         localStorage.removeItem(LOCAL_INBOX_KEY);
-        if (freePlan) handleGenerateNewLocalInbox(freePlan);
+        if (activePlan) handleGenerateNewLocalInbox(activePlan);
     }
-  }, [firestore, currentInbox, user, userPlan, freePlan, handleGenerateNewDbInbox, handleGenerateNewLocalInbox]);
+  }, [firestore, currentInbox, user, activePlan, handleGenerateNewDbInbox, handleGenerateNewLocalInbox]);
 
   useEffect(() => {
     clearCountdown();
@@ -337,7 +343,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingFreePlan || (user && isLoadingUserPlan) || (user && isLoadingInboxes);
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || (user && isLoadingInboxes);
   if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -346,21 +352,19 @@ export function DashboardClient() {
     );
   }
   
-  if ((!user && !freePlan && !isLoadingFreePlan && !freePlanError) ) {
+  if (!activePlan && !isLoadingPlan) {
     return (
        <div className="flex items-center justify-center min-h-[480px]">
          <Alert variant="destructive" className="max-w-lg">
             <ServerCrash className="h-4 w-4" />
             <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                A default 'free-default' plan is required for the application to function. Please create one in the admin dashboard.
+                A default 'free-default' plan is required for the application to function. An administrator must create one in the admin dashboard.
             </AlertDescription>
           </Alert>
        </div>
     )
   }
-
-  const isUserAnonymous = !user;
 
   return (
      <div className="flex flex-col h-full space-y-4">
@@ -448,7 +452,7 @@ export function DashboardClient() {
                 </div>
                 <div className="col-span-1 hidden md:block">
                     {selectedEmail ? (
-                    <EmailView email={selectedEmail} plan={userPlan || freePlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    <EmailView email={selectedEmail} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
                     ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
                         <Inbox className="h-16 w-16 mb-4" />
@@ -459,12 +463,12 @@ export function DashboardClient() {
                 </div>
                 {selectedEmail && (
                     <div className="md:hidden absolute inset-0 bg-background z-10">
-                    <EmailView email={selectedEmail} plan={userPlan || freePlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    <EmailView email={selectedEmail} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
                     </div>
                 )}
                 </div>
             </CardContent>
-            {isUserAnonymous && (
+            {(!user || user.isAnonymous) && (
                 <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                     <p className="text-center text-sm text-muted-foreground w-full">
                         This is a temporary anonymous session. {' '}

@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
+import { doc, setDoc, getDoc, writeBatch, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore"
+import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
 import { type Inbox } from "@/types"
 
 const formSchema = z.object({
@@ -37,6 +37,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
+  const firestore = useFirestore()
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -47,29 +48,23 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   })
 
   async function handleLoginSuccess(finalUser: User) {
-    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-    let inboxToMigrate: Omit<Inbox, 'id' | 'userId' | 'createdAt'> | undefined = undefined;
+    if (!firestore) return;
+    
+    const userRef = doc(firestore, 'users', finalUser.uid);
+    const userDoc = await getDoc(userRef);
 
-    if (localInboxData) {
-        const parsed: Inbox = JSON.parse(localInboxData);
-        // Only migrate if it hasn't expired
-        if (new Date(parsed.expiresAt) > new Date()) {
-            inboxToMigrate = {
-                emailAddress: parsed.emailAddress,
-                expiresAt: parsed.expiresAt,
-            };
-        }
-        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
+    // If the user document doesn't exist, create it.
+    if (!userDoc.exists()) {
+        await setDoc(userRef, {
+            uid: finalUser.uid,
+            email: finalUser.email,
+            isAnonymous: false,
+            planId: 'free-default',
+            isAdmin: false,
+            createdAt: serverTimestamp(),
+        }, { merge: true });
     }
 
-    const signUpResult = await signUp(finalUser.uid, finalUser.email, false, inboxToMigrate);
-    
-    if (signUpResult.error) {
-        toast({ title: "Login Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive"});
-        if (auth) await auth.signOut();
-        return;
-    }
-    
     toast({
         title: "Success",
         description: "Logged in successfully.",
@@ -78,11 +73,27 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!auth) return;
+    if (!auth || !firestore) return;
 
     try {
-        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        await handleLoginSuccess(result.user);
+        const currentUser = auth.currentUser;
+
+        if (currentUser && currentUser.isAnonymous) {
+            // Upgrade anonymous user
+            const credential = EmailAuthProvider.credential(values.email, values.password);
+            const userCredential = await linkWithCredential(currentUser, credential);
+            
+            // Update user document to be non-anonymous
+            const userRef = doc(firestore, 'users', userCredential.user.uid);
+            await setDoc(userRef, { email: values.email, isAnonymous: false }, { merge: true });
+            
+            toast({ title: "Account Linked", description: "Your anonymous account has been upgraded." });
+            router.push(redirectPath);
+        } else {
+            // Standard sign-in
+            const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+            await handleLoginSuccess(result.user);
+        }
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -97,12 +108,28 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   }
 
   async function handleGoogleSignIn() {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     const provider = new GoogleAuthProvider();
     
     try {
-        const result = await signInWithPopup(auth, provider);
-        await handleLoginSuccess(result.user);
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.isAnonymous) {
+            // Link Google to existing anonymous account
+            const userCredential = await linkWithCredential(currentUser, provider);
+            const userRef = doc(firestore, 'users', userCredential.user.uid);
+            await setDoc(userRef, { 
+                email: userCredential.user.email, 
+                isAnonymous: false,
+                displayName: userCredential.user.displayName,
+                photoURL: userCredential.user.photoURL,
+            }, { merge: true });
+            
+            toast({ title: "Account Linked", description: "Your anonymous account has been upgraded." });
+        } else {
+            // Standard Google sign-in
+            const result = await signInWithPopup(auth, provider);
+            await handleLoginSuccess(result.user);
+        }
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign in with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {
@@ -115,7 +142,6 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         });
     }
   }
-
 
   return (
       <div>
