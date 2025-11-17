@@ -85,13 +85,13 @@ export function DashboardClient() {
 
   // Query for the user's most recent active inbox
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return query(
       collection(firestore, `users/${user.uid}/inboxes`),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
 
   
@@ -143,16 +143,23 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (isLoadingInboxes || !userPlan || !user) return;
+    if (isLoadingInboxes || isLoadingPlan || isUserLoading) return;
+
+    if (!user) { // User logged out, reset state
+        setCurrentInbox(null);
+        setInboxEmails([]);
+        setSelectedEmail(null);
+        return;
+    }
 
     if (activeInboxes && activeInboxes.length > 0) {
         if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
             setCurrentInbox(activeInboxes[0]);
         }
-    } else if (!currentInbox && !isGenerating) {
+    } else if (userPlan && !currentInbox && !isGenerating) {
         handleGenerateEmail(userPlan);
     }
-  }, [user, activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
+  }, [user, activeInboxes, isLoadingInboxes, userPlan, isLoadingPlan, isUserLoading, currentInbox, isGenerating, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
@@ -279,7 +286,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
+  const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan;
   if (isLoading) {
     return (
         <div className="flex items-center justify-center min-h-[480px]">
