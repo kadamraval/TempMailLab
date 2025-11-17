@@ -179,3 +179,4 @@ export const useUser = (): UserHookResult => {
   const { user, userProfile, isUserLoading, isProfileLoading, error } = useFirebaseInternal();
   return { user, userProfile, isUserLoading, isProfileLoading, error };
 };
+
