@@ -1,5 +1,4 @@
 
-
 export interface Email {
   id: string; 
   recipient?: string;
@@ -22,7 +21,7 @@ export interface User {
   uid: string;
   email: string | null;
   isPremium: boolean;
-  planType: 'free' | 'premium';
+  planId?: string; // Changed from planType to support dynamic plan assignment
   createdAt: string;
   inboxCount?: number;
 }

@@ -27,16 +27,21 @@ service cloud.firestore {
         allow read: if request.auth != null && settingId == 'mailgun';
     }
 
-    // --- User-Specific, Private Collections ---
+    // --- User Collections ---
 
-    // Allow any authenticated user (including anonymous) to create, read, update,
-    // and delete documents within their own user-specific subcollections.
+    // Allow admins (any authenticated user for now) to read the list of users.
+    match /users/{userId} {
+      allow list: if request.auth != null; 
+      // Allow users to read/write their own document. Admins can update any user doc.
+      allow read, write: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+    }
+
+    // --- User-Specific, Private Sub-Collections ---
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
     // --- Default Deny ---
-
     // By default, deny read/write access to all other collections and documents
     // that are not explicitly matched by one of the rules above.
     match /{document=**} {
