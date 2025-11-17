@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -7,35 +6,30 @@
       "type": "object",
       "description": "Represents a user of the TempInbox application.",
       "properties": {
-        "uid": {
+        "id": {
           "type": "string",
-          "description": "Unique identifier for the user, from Firebase Auth."
+          "description": "Unique identifier for the user."
         },
         "email": {
           "type": "string",
-          "description": "User's email address (optional, for login).",
+          "description": "User's email address (optional, if using Google login).",
           "format": "email"
         },
-        "planId": {
-            "type": "string",
-            "description": "The ID of the subscription plan assigned to the user. Defaults to 'free-default'."
-        },
-        "isAnonymous": {
-            "type": "boolean",
-            "description": "Indicates if the user is an anonymous user."
-        },
-        "isAdmin": {
-            "type": "boolean",
-            "description": "Indicates if the user has administrative privileges."
-        },
-        "createdAt": {
+        "googleId": {
           "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
+          "description": "User's Google ID (if using Google login)."
+        },
+        "isPremium": {
+          "type": "boolean",
+          "description": "Indicates if the user has a premium (ad-free) account."
+        },
+        "apiKeyId": {
+          "type": "string",
+          "description": "Reference to the API key, if this user is a developer using the API. (Relationship: User 1:1 ApiKey)"
         }
       },
       "required": [
-        "uid", "isAnonymous", "isAdmin", "planId", "createdAt"
+        "id"
       ]
     },
     "Inbox": {
@@ -46,48 +40,41 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the inbox entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The UID of the user who owns this inbox."
+          "description": "Unique identifier for the inbox."
         },
         "emailAddress": {
           "type": "string",
-          "description": "The temporary email address of the inbox."
+          "description": "The temporary email address for this inbox."
         },
-        "createdAt": {
+        "expirationTime": {
           "type": "string",
-          "description": "Timestamp indicating when the inbox was created.",
+          "description": "The date and time when the inbox will expire.",
           "format": "date-time"
         },
-        "expiresAt": {
+        "userId": {
           "type": "string",
-          "description": "Timestamp indicating when the inbox expires.",
-          "format": "date-time"
+          "description": "Reference to the user who created this inbox. (Relationship: User 1:N Inbox)"
         }
       },
       "required": [
         "id",
-        "userId",
         "emailAddress",
-        "createdAt",
-        "expiresAt"
+        "expirationTime"
       ]
     },
     "Email": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Email",
       "type": "object",
-      "description": "Represents an email received in a temporary inbox.",
+      "description": "Represents a single email message within an inbox.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the email entity."
+          "description": "Unique identifier for the email."
         },
         "inboxId": {
           "type": "string",
-          "description": "The ID of the inbox this email belongs to."
+          "description": "Reference to the inbox this email belongs to. (Relationship: Inbox 1:N Email)"
         },
         "senderName": {
           "type": "string",
@@ -97,16 +84,16 @@
           "type": "string",
           "description": "Subject line of the email."
         },
-        "receivedAt": {
+        "timeReceived": {
           "type": "string",
-          "description": "Timestamp indicating when the email was received.",
+          "description": "The date and time the email was received.",
           "format": "date-time"
         },
         "htmlContent": {
           "type": "string",
           "description": "HTML content of the email."
         },
-        "textContent": {
+        "plainTextContent": {
           "type": "string",
           "description": "Plain text content of the email."
         }
@@ -116,149 +103,242 @@
         "inboxId",
         "senderName",
         "subject",
-        "receivedAt"
+        "timeReceived"
       ]
     },
-    "AllowedDomain": {
+    "ApiKey": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AllowedDomain",
+      "title": "ApiKey",
       "type": "object",
-      "description": "Represents a domain allowed for generating temporary emails.",
+      "description": "Represents an API key for developers.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the allowed domain entry."
+          "description": "Unique identifier for the API key."
         },
-        "domain": {
+        "key": {
           "type": "string",
-          "description": "The allowed domain name."
+          "description": "The API key itself."
         },
-        "description": {
-            "type": "string",
-            "description": "A short description of the domain's purpose."
-        },
-        "tier": {
+        "userId": {
           "type": "string",
-          "description": "The subscription tier for this domain (e.g., free, premium).",
-          "enum": ["free", "premium"]
+          "description": "Reference to the user (developer) who owns this API key. (Relationship: User 1:1 ApiKey)"
         },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the domain was added.",
-          "format": "date-time"
+        "usageLogs": {
+          "type": "array",
+          "description": "References to the usage logs for this Api Key (Relationship: ApiKey 1:N UsageLog)",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
         "id",
-        "domain",
-        "tier",
-        "createdAt"
+        "key"
+      ]
+    },
+    "UsageLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UsageLog",
+      "type": "object",
+      "description": "Represents a usage log entry for a developer API key.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the usage log entry."
+        },
+        "apiKeyId": {
+          "type": "string",
+          "description": "Reference to the API key this log entry belongs to. (Relationship: ApiKey 1:N UsageLog)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The date and time of the API usage.",
+          "format": "date-time"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "The API endpoint that was accessed."
+        },
+        "requestBody": {
+          "type": "string",
+          "description": "The request body sent to the API."
+        }
+      },
+      "required": [
+        "id",
+        "apiKeyId",
+        "timestamp",
+        "endpoint"
       ]
     },
     "AdminSetting": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdminSetting",
       "type": "object",
-      "description": "Represents a generic admin setting, such as an integration's API key.",
+      "description": "Admin settigns for error handling and the like.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the setting (e.g., 'mailgun')."
+          "description": "Unique identifier for the admin setting."
         },
-        "enabled": {
-          "type": "boolean",
-          "description": "Whether the integration or setting is enabled."
-        },
-        "apiKey": {
+        "settingName": {
           "type": "string",
-          "description": "The API key for the service."
+          "description": "The name of the configuration setting."
         },
-        "domain": {
+        "settingValue": {
           "type": "string",
-          "description": "The domain associated with the service."
+          "description": "The value of the configuration setting."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the configuration setting."
         }
       },
       "required": [
-        "id"
+        "id",
+        "settingName",
+        "settingValue"
       ]
-    },
-    "Plan": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Plan",
-      "type": "object",
-      "description": "Represents a subscription plan with granular features.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the plan."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the plan (e.g., Free, Premium)."
-        },
-        "price": {
-          "type": "number",
-          "description": "The price of the plan in USD."
-        },
-        "cycle": {
-          "type": "string",
-          "description": "The billing cycle.",
-          "enum": ["monthly", "yearly"]
-        },
-        "status": {
-          "type": "string",
-          "description": "The status of the plan.",
-          "enum": ["active", "archived"]
-        },
-        "features": {
-          "type": "object",
-          "description": "A map of granular feature limits and toggles for the plan."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the plan was created.",
-          "format": "date-time"
-        }
-      },
-      "required": ["id", "name", "price", "status", "cycle", "features", "createdAt"]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
-    "collections": [
+    "structure": [
       {
-        "path": "/users",
-        "description": "Stores user profiles and account information.",
-        "schema": { "$ref": "#/entities/User" }
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data. Uses path-based ownership for simple security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
       },
       {
-        "path": "/inboxes",
-        "description": "Top-level collection for all inboxes. Each document has a `userId` field linking to a user.",
-        "schema": { "$ref": "#/entities/Inbox" }
+        "path": "/users/{userId}/inboxes/{inboxId}",
+        "definition": {
+          "entityName": "Inbox",
+          "schema": {
+            "$ref": "#/backend/entities/Inbox"
+          },
+          "description": "Stores inboxes for each user. Uses path-based ownership. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "inboxId",
+              "description": "The unique identifier for the inbox."
+            }
+          ]
+        }
       },
       {
-        "path": "/plans",
-        "description": "Stores all available subscription plans.",
-        "schema": { "$ref": "#/entities/Plan" }
+        "path": "/users/{userId}/inboxes/{inboxId}/emails/{emailId}",
+        "definition": {
+          "entityName": "Email",
+          "schema": {
+            "$ref": "#/backend/entities/Email"
+          },
+          "description": "Stores emails within an inbox. Uses path-based ownership. Includes denormalized 'userId' and 'inboxId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "inboxId",
+              "description": "The unique identifier for the inbox."
+            },
+            {
+              "name": "emailId",
+              "description": "The unique identifier for the email."
+            }
+          ]
+        }
       },
       {
-        "path": "/allowed_domains",
-        "description": "Globally available domains for generating emails.",
-        "schema": { "$ref": "#/entities/AllowedDomain" }
+        "path": "/api_keys/{apiKeyId}",
+        "definition": {
+          "entityName": "ApiKey",
+          "schema": {
+            "$ref": "#/backend/entities/ApiKey"
+          },
+          "description": "Stores API keys.  Each API Key is accessible via its ID.",
+          "params": [
+            {
+              "name": "apiKeyId",
+              "description": "The unique identifier for the API key."
+            }
+          ]
+        }
       },
       {
-        "path": "/admin_settings",
-        "description": "Global settings for the application.",
-        "schema": { "$ref": "#/entities/AdminSetting" }
+        "path": "/api_keys/{apiKeyId}/usage_logs/{usageLogId}",
+        "definition": {
+          "entityName": "UsageLog",
+          "schema": {
+            "$ref": "#/backend/entities/UsageLog"
+          },
+          "description": "Stores usage logs for each API key.",
+          "params": [
+            {
+              "name": "apiKeyId",
+              "description": "The unique identifier for the API key."
+            },
+            {
+              "name": "usageLogId",
+              "description": "The unique identifier for the usage log."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_settings/{settingId}",
+        "definition": {
+          "entityName": "AdminSetting",
+          "schema": {
+            "$ref": "#/backend/entities/AdminSetting"
+          },
+          "description": "Stores global admin settings. Accessed only by admins.",
+          "params": [
+            {
+              "name": "settingId",
+              "description": "The unique identifier for the admin setting."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "A document in this collection existing flags the user as an administrator.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
       }
-    ]
+    ],
+    "reasoning": "The Firestore data structure is designed to ensure security, scalability, and debuggability, adhering to the principles of Authorization Independence and Structural Segregation. User data, inboxes, emails, API keys, usage logs, and admin settings are stored in separate collections, enabling granular access control.\n\n*   **Authorization Independence:**  The structure eliminates `get()` calls in security rules by denormalizing authorization data. For example, in `/users/{userId}/inboxes/{inboxId}`, the `userId` is explicitly part of the path, enabling path-based ownership rules.\n\n*   **Structural Segregation:**  Each collection houses documents with similar security requirements. User-owned data (inboxes, emails) resides under `/users/{userId}`, while global admin settings reside in `/admin_settings`. This segregation simplifies rules and prevents unintended access.\n\n*   **Access Modeling:**  Path-based ownership is used for user-owned data (inboxes, emails). API key access is controlled via the `/api_keys/{apiKeyId}` collection. Usage logs are stored under `/api_keys/{apiKeyId}/usage_logs/{usageLogId}`, linking directly to the API key. The membership map pattern is not required here, but could be considered if sharing of inboxes were to be implemented in the future. Admin settings are secured by existence check in dedicated collection.\n\n*   **QAPs (Rules are not Filters):** List operations are secured by the path-based ownership model. For example, listing inboxes under `/users/{userId}/inboxes` only returns inboxes owned by the specified user, preventing unauthorized data access.  The structure does not require rules to filter content. An admin-only collection like `/admin_settings` has stricter rules based on roles."
   }
 }
-
-    
