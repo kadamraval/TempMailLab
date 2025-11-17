@@ -22,6 +22,7 @@ export default function HomePage() {
   const { isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // This query is now only for the pricing section, not for the main inbox client.
   const plansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
@@ -45,7 +46,7 @@ export default function HomePage() {
   ];
 
 
-  if (isUserLoading || isLoadingPlans) {
+  if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -66,7 +67,8 @@ export default function HomePage() {
               Temporary Email Address
             </h1>
           </div>
-          <div className="mt-8"><DashboardClient plans={plans || []} /></div>
+          {/* DashboardClient now fetches its own plan data */}
+          <div className="mt-8"><DashboardClient /></div>
         </div>
       </div>
       {sections.map((Section, index) => {
@@ -95,3 +97,4 @@ export default function HomePage() {
     </>
   );
 }
+

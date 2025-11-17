@@ -48,19 +48,13 @@ function generateRandomString(length: number) {
   return result;
 }
 
-interface DashboardClientProps {
-  plans: Plan[];
-}
-
-export function DashboardClient({ plans }: DashboardClientProps) {
+export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [userPlan, setUserPlan] = useState<Plan | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
@@ -77,24 +71,15 @@ export function DashboardClient({ plans }: DashboardClientProps) {
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-  const getPlanForUser = useCallback((uid: string | null, isAnonymous: boolean): Plan | null => {
-    if (!plans || plans.length === 0) {
-        // If plans are not loaded yet, wait.
-        return null; 
-    }
+  // --- Start of The Fix ---
+  // 1. Fetch ONLY the free plan document.
+  const freePlanRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'plans', 'free');
+  }, [firestore]);
 
-    const freePlan = plans.find(p => p.id === 'free');
-    
-    // This is the critical change: Do not set an error if the free plan is missing while plans are still loading.
-    // The calling useEffect will handle the loading state.
-    if (!freePlan) {
-        setServerError("A required 'Free' plan is not configured. The application cannot function.");
-        return null;
-    }
-    
-    return freePlan;
-
-  }, [plans]);
+  const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(freePlanRef);
+  // --- End of The Fix ---
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
@@ -134,33 +119,18 @@ export function DashboardClient({ plans }: DashboardClientProps) {
         });
     } finally {
       setIsGenerating(false);
-      setIsLoading(false);
     }
   }, [firestore, toast]);
 
+  // --- Start of The Fix ---
+  // 2. This useEffect now only depends on the loaded plan and generates the first email.
   useEffect(() => {
-    if (isUserLoading || isLoadingSettings) {
-        return;
+    // Wait until the plan is loaded and no inbox has been generated yet.
+    if (userPlan && !currentInbox && !isGenerating) {
+      handleGenerateEmail(userPlan);
     }
-    
-    if (!userPlan) {
-        // Correctly identify anonymous or non-logged-in users.
-        const isAnonymous = user ? user.isAnonymous : true;
-        const plan = getPlanForUser(user?.uid || null, isAnonymous);
-
-        if (plan) { // If a plan was successfully found...
-           setUserPlan(plan);
-           if (!currentInbox) {
-               handleGenerateEmail(plan);
-           } else {
-               setIsLoading(false);
-           }
-       } else if (plans && plans.length > 0 && !plan) {
-            // This case handles when plans are loaded but no suitable plan was found (which would be an error state)
-            setIsLoading(false);
-       }
-    }
-  }, [isUserLoading, isLoadingSettings, user, userPlan, plans, handleGenerateEmail, currentInbox, getPlanForUser]);
+  }, [userPlan, currentInbox, isGenerating, handleGenerateEmail]);
+  // --- End of The Fix ---
 
 
   const clearCountdown = () => {
@@ -287,13 +257,32 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading || isLoadingSettings || !userPlan) {
+  // --- Start of The Fix ---
+  // 3. The main loading state now correctly waits for the user, settings, AND the plan.
+  if (isUserLoading || isLoadingSettings || isLoadingPlan) {
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
   }
+  
+  // New failure case: If the free plan document itself is missing, we show an error.
+  if (!userPlan) {
+    return (
+       <div className="flex items-center justify-center min-h-[480px]">
+         <Alert variant="destructive" className="max-w-lg">
+            <ServerCrash className="h-4 w-4" />
+            <AlertTitle>Server Configuration Error</AlertTitle>
+            <AlertDescription>
+                A default 'Free' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
+            </AlertDescription>
+          </Alert>
+       </div>
+    )
+  }
+  // --- End of The Fix ---
+
 
   return (
      <div className="flex flex-col h-full space-y-4">
