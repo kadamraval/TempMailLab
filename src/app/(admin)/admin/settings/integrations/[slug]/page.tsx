@@ -38,7 +38,8 @@ const integrationsData: { [key: string]: any } = {
 };
 
 
-export default function IntegrationPage({ params: { slug } }: IntegrationPageProps) {
+export default function IntegrationPage({ params }: IntegrationPageProps) {
+  const { slug } = params;
   const integration = integrationsData[slug];
 
   if (!integration) {
@@ -59,19 +60,4 @@ export default function IntegrationPage({ params: { slug } }: IntegrationPagePro
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                 <BreadcrumbPage>{integration.title}</BreadcrumbPage>
-                </BreadcrumbItem>
-            </BreadcrumbList>
-        </Breadcrumb>
-
-        <IntegrationSettingsForm
-            integration={{
-                slug: slug,
-                title: integration.title,
-                description: integration.description,
-                isConfigured: slug === 'firebase' || slug === 'mail-tm', // Example logic
-                fields: integration.fields
-            }}
-        />
-    </div>
-  );
-}
+                </
