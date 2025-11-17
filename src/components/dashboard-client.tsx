@@ -178,7 +178,7 @@ export function DashboardClient() {
   }, [firestore, toast]);
   
   useEffect(() => {
-    if (isUserLoading || isLoadingPlan) return;
+    if (isUserLoading || isLoadingPlan || !activePlan) return;
 
     if (!user || user.isAnonymous) { // Anonymous user flow
         if (auth && !user) {
@@ -191,13 +191,15 @@ export function DashboardClient() {
         if (localData) {
             const localInbox: InboxType = JSON.parse(localData);
             if (new Date(localInbox.expiresAt) > new Date()) {
-                setCurrentInbox(localInbox);
+                if (!currentInbox) {
+                    setCurrentInbox(localInbox);
+                }
             } else {
                 localStorage.removeItem(LOCAL_INBOX_KEY);
-                if (activePlan) handleGenerateNewLocalInbox(activePlan);
+                handleGenerateNewLocalInbox(activePlan);
             }
         } else {
-            if (activePlan) handleGenerateNewLocalInbox(activePlan);
+            handleGenerateNewLocalInbox(activePlan);
         }
     } else { // Registered user flow
         localStorage.removeItem(LOCAL_INBOX_KEY); 
@@ -206,12 +208,12 @@ export function DashboardClient() {
                  if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
                     setCurrentInbox(activeInboxes[0]);
                 }
-            } else if (activePlan) {
+            } else {
                 handleGenerateNewDbInbox(activePlan, user.uid);
             }
         }
     }
-  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox]);
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, auth, currentInbox]);
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
@@ -468,3 +470,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
