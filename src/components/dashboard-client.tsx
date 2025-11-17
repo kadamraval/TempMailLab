@@ -178,7 +178,12 @@ export function DashboardClient() {
   }, [firestore, toast]);
   
   useEffect(() => {
-    if (isUserLoading || isLoadingPlan || !activePlan) return;
+    if (isUserLoading || isLoadingPlan) return;
+
+    if (!activePlan) {
+        // This case will be handled by the UI rendering a server config error
+        return;
+    }
 
     if (!user || user.isAnonymous) { // Anonymous user flow
         if (auth && !user) {
@@ -213,14 +218,13 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, auth, currentInbox]);
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, auth]);
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
     
-    // Anonymous user = refresh reads local only (which is a no-op, but we give feedback)
+    // Anonymous users cannot refresh from server. Silently do nothing.
     if (user && user.isAnonymous) {
-      if (!isAutoRefresh) toast({ title: "Please Log In", description: "Log in or sign up to check for new emails from the server."});
       return;
     }
     
