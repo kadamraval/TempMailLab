@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { getDocs, query, collection, where, doc, getDoc } from "firebase/firestore";
-import { type User } from "firebase/auth";
+import { getDocs, query, collection, where, doc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
+import { getPlanForUserAction } from "@/lib/actions/plans";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,31 +76,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     return doc(firestore, "admin_settings", "mailgun");
   }, [firestore, user]);
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
-
-  const findPlan = useCallback((planName: string): Plan | null => {
-    return plans.find(p => p.name.toLowerCase() === planName.toLowerCase()) || null;
-  }, [plans]);
-
-  const getPlanForUser = useCallback(async (currentAuthUser: User | null): Promise<Plan | null> => {
-    if (!firestore || plans.length === 0) return null;
-    if (currentAuthUser && !currentAuthUser.isAnonymous) {
-      try {
-        const userDocRef = doc(firestore, 'users', currentAuthUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().planId) {
-          const planId = userDoc.data().planId;
-          const planDocRef = doc(firestore, 'plans', planId);
-          const planDoc = await getDoc(planDocRef);
-          if (planDoc.exists()) {
-            return { id: planDoc.id, ...planDoc.data() } as Plan;
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch user-specific plan, falling back.");
-      }
-    }
-    return findPlan('free');
-  }, [firestore, plans, findPlan]);
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
@@ -145,8 +120,8 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   }, [firestore, toast]);
 
   useEffect(() => {
-    if (!isUserLoading && plans.length > 0 && !userPlan) {
-        getPlanForUser(user).then(plan => {
+    if (!isUserLoading && !userPlan) {
+        getPlanForUserAction(user?.uid || null, user?.isAnonymous || true).then(plan => {
              if (plan) {
                 setUserPlan(plan);
                 if (!currentInbox) {
@@ -155,12 +130,12 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                     setIsLoading(false);
                 }
             } else {
-                setServerError("No subscription plans are configured. A default 'Free' plan is required for the application to function.");
+                setServerError("Could not retrieve a subscription plan. A default 'Free' plan is required for the application to function.");
                 setIsLoading(false);
             }
         });
     }
-  }, [isUserLoading, user, plans, userPlan, getPlanForUser, handleGenerateEmail, currentInbox]);
+  }, [isUserLoading, user, userPlan, handleGenerateEmail, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -172,7 +147,11 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress || !mailgunSettings?.enabled) {
+    if (!currentInbox?.emailAddress) return;
+    
+    // The server action now directly checks for credentials.
+    // We only need to check for mailgunSettings to decide if we should show a UI error.
+    if (!mailgunSettings?.enabled) {
       if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
         setServerError(errorMsg);
@@ -185,24 +164,24 @@ export function DashboardClient({ plans }: DashboardClientProps) {
       return;
     }
 
+
     if (!isAutoRefresh) {
       setIsRefreshing(true);
     }
     
     try {
-      const credentials = { apiKey: mailgunSettings.apiKey, domain: mailgunSettings.domain };
-      const result = await fetchEmailsWithCredentialsAction(credentials, currentInbox.emailAddress);
+      // The server action will handle the credentials securely.
+      const result = await fetchEmailsWithCredentialsAction(currentInbox.emailAddress);
         
       if (result.error) {
-        if (result.error.includes("FIREBASE_SERVICE_ACCOUNT")) {
-            const errorMsg = "Server is not configured for email fetching. Please contact support.";
-            setServerError(errorMsg);
+        // A specific error from the server action can be handled here if needed
+        const errorMsg = result.error || "An unknown error occurred while fetching emails.";
+        if (errorMsg.includes("Mailgun API Key and Domain are required")) {
+            setServerError("The email server is not configured by the administrator. Refreshing is disabled.");
             if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-            if (!isAutoRefresh) {
-              toast({ title: 'Server Error', description: errorMsg, variant: 'destructive'});
-            }
-        } else {
-          throw new Error(result.error);
+        }
+        if (!isAutoRefresh) {
+           toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
         }
       } else {
         setServerError(null);
@@ -421,5 +400,6 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     </div>
   );
 }
+
 
 
