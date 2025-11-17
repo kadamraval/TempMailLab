@@ -1,18 +1,20 @@
 
 'use client';
-import { useCollection, useMemoFirebase, useFirestore } from "@/firebase/provider";
-import { collection } from "firebase/firestore";
+import { useCollection, useMemoFirebase, useFirestore } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import type { Plan } from "./packages/data";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
-    const { data: users, isLoading: usersLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
-    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]));
-    const { data: domains, isLoading: domainsLoading } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]));
+    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
+    const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
+    const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
 
-    const activePlans = plans?.filter(p => p.status === 'active');
+    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
+    const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
 
     const stats = [
         {
@@ -23,7 +25,7 @@ export default function AdminDashboardPage() {
         },
         {
             title: "Active Plans",
-            value: activePlans?.length ?? 0,
+            value: plans?.length ?? 0,
             icon: <Package className="h-4 w-4 text-muted-foreground" />,
             loading: plansLoading,
         },
@@ -60,5 +62,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    
