@@ -8,6 +8,12 @@ export interface Email {
   receivedAt: string;
   htmlContent?: string;
   textContent?: string;
+  attachments?: {
+    "content-type": string;
+    filename: string;
+    size: number;
+    url: string;
+  }[];
   read?: boolean;
 }
 
