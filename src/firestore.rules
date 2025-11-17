@@ -19,12 +19,10 @@ service cloud.firestore {
     
     // --- Admin-Only Collections ---
 
-    // Admin settings should be private, EXCEPT for the mailgun config which any
-    // client needs to read to initiate the email fetch server action.
     match /admin_settings/{settingId} {
         allow write: if false; // NEVER allow client-side writes.
-        // Allow any authenticated user to read mailgun settings for server-side fetching
-        allow read: if request.auth != null && settingId == 'mailgun';
+        // Allow anyone to read mailgun settings for the server-side action.
+        allow read: if settingId == 'mailgun';
     }
 
     // --- User & Inbox Collections ---
