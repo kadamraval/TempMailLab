@@ -20,7 +20,7 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, ty
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -45,9 +45,16 @@ export function RegisterForm() {
     },
   })
   
-  async function handleRegistration(finalUser: User) {
+  async function handleRegistrationSuccess(finalUser: User) {
     // This server action ensures the user document exists and is correctly configured.
-    await signUp(finalUser.uid, finalUser.email, false); 
+    const result = await signUp(finalUser.uid, finalUser.email, false); 
+
+    if (result.error) {
+        toast({ title: "Registration Error", description: `Could not save user profile: ${result.error}`, variant: "destructive"});
+        // Clean up the newly created user if the DB operation fails
+        await finalUser.delete();
+        return;
+    }
     
     toast({
       title: "Success",
@@ -66,17 +73,15 @@ export function RegisterForm() {
       let finalUser: User;
       
       if (anonymousUser && anonymousUser.isAnonymous) {
-        // This is an anonymous user "upgrading" their account.
         const credential = EmailAuthProvider.credential(values.email, values.password);
         const linkResult = await linkWithCredential(anonymousUser, credential);
         finalUser = linkResult.user;
       } else {
-        // This is a direct registration.
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         finalUser = userCredential.user;
       }
 
-      await handleRegistration(finalUser);
+      await handleRegistrationSuccess(finalUser);
 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during sign up.";
@@ -98,10 +103,8 @@ export function RegisterForm() {
     const provider = new GoogleAuthProvider();
     
     try {
-        // signInWithPopup works for both new and existing anonymous users.
-        // Firebase handles the account linking automatically in this case.
         const result = await signInWithPopup(auth, provider);
-        await handleRegistration(result.user);
+        await handleRegistrationSuccess(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign up with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {

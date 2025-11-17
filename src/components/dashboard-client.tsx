@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType, type User } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit } from "firebase/firestore";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit, deleteDoc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -75,49 +75,26 @@ export function DashboardClient() {
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-  // Determine the correct plan to use (user's plan or free-default)
-   const userPlanRef = useMemoFirebase(() => {
-      if (!firestore || isUserLoading || !user) return null;
-      const planId = (user as User)?.planId || 'free-default';
-      return doc(firestore, 'plans', planId);
-  }, [firestore, user, isUserLoading]);
+  const userPlanRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    const planId = (user as User)?.planId || 'free-default';
+    return doc(firestore, 'plans', planId);
+  }, [firestore, user]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  // Query for the user's most recent active inbox from the top-level 'inboxes' collection
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || isUserLoading) return null;
+    if (!firestore || !user) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user]);
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
   
-  const createAnonymousUserAndInbox = useCallback(async () => {
-    if (!auth || !firestore || !userPlan) return;
-    
-    try {
-        const userCredential = await signInAnonymously(auth);
-        const anonUser = userCredential.user;
-        
-        // This is the crucial step: ensure the user document exists before doing anything else.
-        await signUp(anonUser.uid, null, true);
-        
-        // Now that we are sure the user exists in the database, we can create an inbox.
-        // This will trigger the useCollection hook to pick it up.
-        await handleGenerateEmail(userPlan, anonUser.uid);
-        
-    } catch (err) {
-        console.error("Anonymous user/inbox creation failed", err);
-        setServerError("Could not start an anonymous session. Please refresh the page.");
-    }
-}, [auth, firestore, userPlan]);
-
-
   const handleGenerateEmail = useCallback(async (plan: Plan, userId: string) => {
     if (!firestore) return;
     setIsGenerating(true);
@@ -143,7 +120,6 @@ export function DashboardClient() {
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
 
-      // Create in the top-level 'inboxes' collection
       const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
       setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
@@ -161,6 +137,30 @@ export function DashboardClient() {
       setIsGenerating(false);
     }
   }, [firestore, toast]);
+  
+  const createAnonymousSession = useCallback(async () => {
+    if (!auth || !firestore || !userPlan) return;
+    
+    try {
+        const userCredential = await signInAnonymously(auth);
+        const anonUser = userCredential.user;
+        
+        // This is the crucial step: ensure the user document exists before doing anything else.
+        const result = await signUp(anonUser.uid, null, true);
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        
+        // Now that we are sure the user exists in the database, we can create an inbox.
+        // This will trigger the useCollection hook to pick it up.
+        await handleGenerateEmail(userPlan, anonUser.uid);
+        
+    } catch (err: any) {
+        console.error("Anonymous session creation failed", err);
+        setServerError(err.message || "Could not start an anonymous session. Please refresh the page.");
+    }
+}, [auth, firestore, userPlan, handleGenerateEmail]);
+
 
   // Main effect to orchestrate session management
   useEffect(() => {
@@ -169,7 +169,7 @@ export function DashboardClient() {
       }
       
       if (!user) {
-          createAnonymousUserAndInbox();
+          createAnonymousSession();
           return;
       }
 
@@ -179,11 +179,11 @@ export function DashboardClient() {
           if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
               setCurrentInbox(activeInboxes[0]);
           }
-      } else if (userPlan) {
+      } else if (userPlan) { // If there are no active inboxes, generate one.
           handleGenerateEmail(userPlan, user.uid);
       }
       
-  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousUserAndInbox, currentInbox, handleGenerateEmail]);
+  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousSession, currentInbox, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
@@ -245,25 +245,24 @@ export function DashboardClient() {
     }
   }, [currentInbox, toast, mailgunSettings]);
 
-  const handleNewAddressClick = useCallback(async () => {
-    if (isGenerating || !userPlan || !firestore || !user) return;
-
-    const inboxesRef = collection(firestore, "inboxes");
-    const q = query(inboxesRef, where("userId", "==", user.uid));
-    const inboxesSnapshot = await getDocs(q);
-
-    if (!inboxesSnapshot.empty) {
-        const batch = writeBatch(firestore);
-        inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-    }
-
+  const handleDeleteInbox = useCallback(async () => {
+    if (!currentInbox || !firestore) return;
+    const inboxIdToDelete = currentInbox.id;
+    
     setCurrentInbox(null);
     setInboxEmails([]);
     setSelectedEmail(null);
 
-    handleGenerateEmail(userPlan, user.uid);
-  }, [isGenerating, userPlan, firestore, user, handleGenerateEmail]);
+    try {
+      await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
+    } catch (error) {
+      console.error("Error deleting inbox document:", error);
+    }
+    
+    if(user && userPlan) {
+      handleGenerateEmail(userPlan, user.uid);
+    }
+  }, [firestore, currentInbox, user, userPlan, handleGenerateEmail]);
 
   useEffect(() => {
     clearCountdown();
@@ -276,9 +275,7 @@ export function DashboardClient() {
             const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
             if (newCountdown <= 0) {
                 toast({ title: "Session Expired", description: "Your temporary email has expired.", variant: "destructive"});
-                setCurrentInbox(null);
-                setInboxEmails([]);
-                setSelectedEmail(null);
+                handleDeleteInbox();
                 clearRefreshInterval();
                 clearCountdown();
             } else {
@@ -293,7 +290,7 @@ export function DashboardClient() {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh]);
+  }, [currentInbox, toast, handleRefresh, handleDeleteInbox]);
 
 
   const handleCopyEmail = () => {
@@ -365,14 +362,14 @@ export function DashboardClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleNewAddressClick} variant="outline" size="sm" disabled={isGenerating}>
+          <Button onClick={handleDeleteInbox} variant="outline" size="sm" disabled={isGenerating}>
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
           <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
-          <Button onClick={handleNewAddressClick} variant="outline" size="sm" className="text-destructive hover:text-destructive">
+          <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>

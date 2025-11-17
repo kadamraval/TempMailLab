@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -43,9 +43,17 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
-  async function handleLogin(finalUser: User) {
-    // This server action ensures the user document exists and is correctly configured.
-    await signUp(finalUser.uid, finalUser.email, false); 
+  async function handleLoginSuccess(finalUser: User) {
+    const isNewUser = finalUser.metadata.creationTime === finalUser.metadata.lastSignInTime;
+    
+    // Ensure the user record exists in Firestore.
+    const signUpResult = await signUp(finalUser.uid, finalUser.email, false);
+    if (signUpResult.error) {
+        toast({ title: "Login Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive"});
+        // Log out the user if the DB operation fails to avoid inconsistent state
+        if (auth) auth.signOut();
+        return;
+    }
     
     toast({
         title: "Success",
@@ -59,7 +67,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
 
     try {
         const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        await handleLogin(result.user);
+        await handleLoginSuccess(result.user);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -79,7 +87,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     
     try {
         const result = await signInWithPopup(auth, provider);
-        await handleLogin(result.user);
+        await handleLoginSuccess(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign in with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {
