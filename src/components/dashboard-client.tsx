@@ -288,7 +288,9 @@ export function DashboardClient() {
     setSelectedEmail(null);
 
     if (user && !user.isAnonymous) { // Registered user
-        await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
+        if (!inboxIdToDelete.startsWith('local-')) {
+            await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
+        }
         if (activePlan) handleGenerateNewDbInbox(activePlan, user.uid);
     } else { // Anonymous user
         localStorage.removeItem(LOCAL_INBOX_KEY);
@@ -488,3 +490,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
