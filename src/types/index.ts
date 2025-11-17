@@ -23,6 +23,8 @@ export interface User {
   email: string | null;
   planId?: string; 
   createdAt: string;
+  isAdmin?: boolean;
+  isAnonymous?: boolean;
 }
 
 export interface Inbox {
@@ -32,3 +34,4 @@ export interface Inbox {
   createdAt: any; // Can be Date or serverTimestamp
   expiresAt: string;
 }
+

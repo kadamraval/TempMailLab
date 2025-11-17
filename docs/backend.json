@@ -16,13 +16,17 @@
           "description": "User's email address (optional, for login).",
           "format": "email"
         },
-        "googleId": {
-          "type": "string",
-          "description": "User's Google ID (optional, for Google login)."
+        "planId": {
+            "type": "string",
+            "description": "The ID of the subscription plan assigned to the user."
         },
-        "premium": {
-          "type": "boolean",
-          "description": "Indicates if the user has a premium (ad-free) subscription."
+        "isAnonymous": {
+            "type": "boolean",
+            "description": "Indicates if the user is an anonymous user."
+        },
+        "isAdmin": {
+            "type": "boolean",
+            "description": "Indicates if the user has administrative privileges."
         },
         "createdAt": {
           "type": "string",
@@ -46,7 +50,7 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Inbox). Nullable: Inboxes can exist without a user."
+          "description": "The UID of the user who owns this inbox."
         },
         "emailAddress": {
           "type": "string",
@@ -65,6 +69,7 @@
       },
       "required": [
         "id",
+        "userId",
         "emailAddress",
         "createdAt",
         "expiresAt"
@@ -407,57 +412,17 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. Path-based ownership.  Includes 'userId' as a parameter.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
+          "description": "Stores user profiles."
         }
       },
       {
-        "path": "/users/{userId}/inboxes/{inboxId}",
+        "path": "/inboxes/{inboxId}",
         "definition": {
-          "entityName": "inbox",
-          "schema": {
-            "$ref": "#/backend/entities/Inbox"
-          },
-          "description": "Stores temporary inboxes for each user. Path-based ownership.  Includes 'userId' and 'inboxId' as parameters.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
+            "entityName": "inbox",
+            "schema": {
+                "$ref": "#/backend/entities/Inbox"
             },
-            {
-              "name": "inboxId",
-              "description": "The unique identifier for the inbox."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/inboxes/{inboxId}/emails/{emailId}",
-        "definition": {
-          "entityName": "email",
-          "schema": {
-            "$ref": "#/backend/entities/Email"
-          },
-          "description": "Stores emails received in a temporary inbox. Path-based ownership. Includes 'userId', 'inboxId', and 'emailId' as parameters.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "inboxId",
-              "description": "The unique identifier for the inbox."
-            },
-            {
-              "name": "emailId",
-              "description": "The unique identifier for the email."
-            }
-          ]
+            "description": "Stores all temporary inboxes. Each inbox has a userId field to link it to its owner."
         }
       },
       {
@@ -581,6 +546,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, support QAPs, and maintain data integrity. User data and inboxes are stored in hierarchical paths for simple ownership-based security rules. The structure employs denormalization to avoid `get()` calls in security rules and make reads efficient.\n\n**Authorization Independence:**  The design prioritizes path-based ownership (`/users/{userId}/inboxes/{inboxId}`) and dedicated collections (`/blocked_ips`, `/blocked_domains`). This eliminates the need for complex `get()` calls in security rules, improving performance and security.\n\n**QAPs Support:**\n*   The separation of user-owned data into user-specific subcollections ensures secure `list` operations. A user can only list inboxes and emails under their own user ID.\n*   The global collections for blocked IPs and domains enable efficient checks without needing complex queries or rules.\n\n**Data Integrity:** The structure facilitates maintaining ownership. The system can easily perform write operations based on the user id to ensure data integrity."
+    "reasoning": "This structure uses top-level collections for users, inboxes, and plans. Inboxes are linked to users via a `userId` field. This de-normalized approach avoids subcollection queries, prevents 'ghost document' issues, and simplifies security rules and data management, such as migrating an inbox from an anonymous to a registered user."
   }
 }

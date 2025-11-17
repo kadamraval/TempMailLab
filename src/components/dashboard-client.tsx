@@ -7,16 +7,15 @@ import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle, ServerCrash
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Email, type Inbox as InboxType } from "@/types";
+import { type Email, type Inbox as InboxType, type User } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit } from "firebase/firestore";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit, getDoc, setDoc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { signUp } from "@/lib/actions/auth";
 import { signInAnonymously } from "firebase/auth";
 
 
@@ -76,35 +75,54 @@ export function DashboardClient() {
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
   // Determine the correct plan to use (user's plan or free-default)
-  const userPlanRef = useMemoFirebase(() => {
+   const userPlanRef = useMemoFirebase(() => {
       if (!firestore || isUserLoading || !user) return null;
-       const planId = (user as any)?.planId || 'free-default';
+      const planId = (user as User)?.planId || 'free-default';
       return doc(firestore, 'plans', planId);
   }, [firestore, user, isUserLoading]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  // Query for the user's most recent active inbox
+  // Query for the user's most recent active inbox from the top-level 'inboxes' collection
   const inboxesQuery = useMemoFirebase(() => {
     if (!firestore || !user || isUserLoading) return null;
     return query(
-      collection(firestore, `users/${user.uid}/inboxes`),
+      collection(firestore, `inboxes`),
+      where("userId", "==", user.uid),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
   }, [firestore, user, isUserLoading]);
+
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
 
-  // --- Anonymous Sign In Effect ---
-  useEffect(() => {
-    if (!user && !isUserLoading && auth) {
-      signInAnonymously(auth).catch(err => {
-        console.error("Anonymous sign in failed", err);
-        setServerError("Could not start a session. Please refresh the page.");
-      });
+  const createAnonymousUserAndInbox = useCallback(async () => {
+    if (!auth || !firestore || !userPlan) return;
+    
+    try {
+        // Step 1: Sign in anonymously
+        const userCredential = await signInAnonymously(auth);
+        const anonUser = userCredential.user;
+
+        // Step 2: Create user document in Firestore
+        const userRef = doc(firestore, "users", anonUser.uid);
+        await setDoc(userRef, {
+            uid: anonUser.uid,
+            email: null,
+            planId: 'free-default',
+            isAnonymous: true,
+            isAdmin: false,
+            createdAt: serverTimestamp(),
+        }, { merge: true });
+        
+        // This will trigger the useEffect for a logged-in user to generate an inbox
+    } catch (err) {
+        console.error("Anonymous user/inbox creation failed", err);
+        setServerError("Could not start an anonymous session. Please refresh the page.");
     }
-  }, [user, isUserLoading, auth]);
-  
+}, [auth, firestore, userPlan]);
+
+
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     if (!firestore || !user) return;
     setIsGenerating(true);
@@ -130,7 +148,8 @@ export function DashboardClient() {
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
 
-      const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
+      // Add to top-level inboxes collection
+      const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
       setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
       setSelectedEmail(null);
@@ -150,29 +169,29 @@ export function DashboardClient() {
 
   // Main effect to orchestrate session management
   useEffect(() => {
-      // Wait for auth, user document, and plan to be loaded.
-      if (isUserLoading || !user || isLoadingPlan || isLoadingInboxes) {
+      // Don't do anything until auth is ready
+      if (isUserLoading || isLoadingPlan) {
           return;
       }
       
-      // We have a user. Ensure their document exists in Firestore.
-      signUp(user.uid, user.email, user.isAnonymous).then(result => {
-        if (result.error) {
-            setServerError("Could not save user profile. Some features may not work.");
-            return;
-        }
+      if (!user) { // No user at all
+          createAnonymousUserAndInbox();
+          return;
+      }
 
-        // After user is confirmed in DB, check for inboxes.
-        if (activeInboxes && activeInboxes.length > 0) {
-            if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
-                setCurrentInbox(activeInboxes[0]);
-            }
-        } else if (userPlan && !currentInbox) {
-            handleGenerateEmail(userPlan);
-        }
-      });
+      // We have a user (anonymous or registered), now check for inboxes
+      if (isLoadingInboxes) return;
       
-  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, handleGenerateEmail, currentInbox]);
+      if (activeInboxes && activeInboxes.length > 0) {
+          if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
+              setCurrentInbox(activeInboxes[0]);
+          }
+      } else if (userPlan) {
+          // User exists but has no active inbox, generate one
+          handleGenerateEmail(userPlan);
+      }
+      
+  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, handleGenerateEmail, createAnonymousUserAndInbox, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -237,9 +256,11 @@ export function DashboardClient() {
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan || !firestore || !user) return;
 
-    // Delete all existing inboxes for the logged-in user
-    const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
-    const inboxesSnapshot = await getDocs(userInboxesRef);
+    // Find all inboxes for the current user and delete them
+    const inboxesRef = collection(firestore, "inboxes");
+    const q = query(inboxesRef, where("userId", "==", user.uid));
+    const inboxesSnapshot = await getDocs(q);
+
     if (!inboxesSnapshot.empty) {
         const batch = writeBatch(firestore);
         inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
@@ -326,6 +347,7 @@ export function DashboardClient() {
     )
   }
 
+  const isUserAnonymous = user?.isAnonymous ?? false;
 
   return (
      <div className="flex flex-col h-full space-y-4">
@@ -429,7 +451,7 @@ export function DashboardClient() {
                 )}
                 </div>
             </CardContent>
-            {user && user.isAnonymous && (
+            {isUserAnonymous && (
                 <CardFooter className="p-4 border-t bg-gradient-to-r from-primary/10 to-accent/10">
                     <p className="text-center text-sm text-muted-foreground w-full">
                         This is a temporary anonymous session. {' '}
@@ -440,7 +462,7 @@ export function DashboardClient() {
                         <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
                             Sign Up
                         </Link>
-                        {' '} to save your inbox.
+                        {' '} to save your inboxes.
                     </p>
                 </CardFooter>
             )}

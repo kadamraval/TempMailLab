@@ -3,7 +3,7 @@
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { Inbox } from '@/types';
+import type { Inbox, User } from '@/types';
 
 /**
  * Ensures a user document exists in Firestore. This is a robust, idempotent action.
@@ -25,24 +25,31 @@ export async function signUp(uid: string, email: string | null, isAnonymous: boo
   try {
     const userRef = firestore.collection('users').doc(uid);
 
-    // Using set with merge:true is the most robust way to handle this.
-    // It creates the doc if it's missing, or merges the data if it exists.
-    // This prevents errors and race conditions.
-    const userData = {
-        uid,
-        email: email,
-        planId: 'free-default', // All users start on the free plan.
-        isAnonymous: isAnonymous,
-        isAdmin: false,
-    };
-
-    // If the user document is being created for the first time, add `createdAt`.
     const docSnapshot = await userRef.get();
+    
+    // Only write if the document does not exist to avoid overwriting existing data
     if (!docSnapshot.exists) {
-        (userData as any).createdAt = FieldValue.serverTimestamp();
+        const userData: Omit<User, 'createdAt'> = {
+            uid,
+            email: email,
+            planId: 'free-default', // All users start on the free plan.
+            isAnonymous: isAnonymous,
+            isAdmin: false,
+        };
+        
+        await userRef.set({
+            ...userData,
+            createdAt: FieldValue.serverTimestamp(),
+        });
+    } else {
+        // If the user exists but is transitioning from anonymous, update the flag.
+        if (docSnapshot.data()?.isAnonymous && !isAnonymous) {
+            await userRef.update({
+                isAnonymous: false,
+                email: email, // Update email on upgrade
+            });
+        }
     }
-
-    await userRef.set(userData, { merge: true });
 
     return { success: true, message: 'User record ensured in database.' };
 
