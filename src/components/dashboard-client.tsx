@@ -211,15 +211,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox]);
-
-  const clearCountdown = () => {
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-  };
-  
-  const clearRefreshInterval = () => {
-    if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-  };
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox?.id]);
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
@@ -276,8 +268,16 @@ export function DashboardClient() {
   }, [firestore, currentInbox, user, activePlan, handleGenerateNewLocalInbox]);
 
   useEffect(() => {
+    const clearCountdown = () => {
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+    const clearRefreshInterval = () => {
+        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+    };
+
     clearCountdown();
     clearRefreshInterval();
+
     if (currentInbox?.expiresAt) {
         const expiryDate = new Date(currentInbox.expiresAt);
         setCountdown(Math.floor((expiryDate.getTime() - Date.now()) / 1000));
@@ -372,7 +372,7 @@ export function DashboardClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleDeleteInbox} variant="outline" size="sm" disabled={isGenerating}>
+          <Button onClick={() => activePlan && user ? handleGenerateNewDbInbox(activePlan, user.uid) : activePlan && handleGenerateNewLocalInbox(activePlan)} variant="outline" size="sm" disabled={isGenerating}>
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
@@ -468,3 +468,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
