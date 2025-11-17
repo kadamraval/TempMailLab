@@ -12,6 +12,7 @@ import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
 import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
+import { saveEmailsAction } from "@/lib/actions/emails";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,7 +52,6 @@ const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
 
 export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
-  const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -59,7 +59,6 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading, userProfile } = useUser();
   const { toast } = useToast();
   
@@ -92,6 +91,13 @@ export function DashboardClient() {
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
 
+  const emailsQuery = useMemoFirebase(() => {
+    if (!firestore || !currentInbox || currentInbox.id.startsWith('local-')) return null;
+    return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
+  }, [firestore, currentInbox]);
+
+  const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
+
   const handleGenerateNewLocalInbox = useCallback((plan: Plan) => {
     if (!firestore) return;
     setIsGenerating(true);
@@ -123,7 +129,6 @@ export function DashboardClient() {
             localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInboxData));
             setCurrentInbox(newInboxData);
             setSelectedEmail(null);
-            setInboxEmails([]);
 
         } catch (error: any)
 {
@@ -164,11 +169,8 @@ export function DashboardClient() {
             expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
         };
 
-        const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-
-        // No need to set currentInbox here as useCollection will pick it up
+        await addDoc(collection(firestore, `inboxes`), newInboxData);
         setSelectedEmail(null);
-        setInboxEmails([]);
 
     } catch (error: any) {
         console.error("Error generating new DB inbox:", error);
@@ -182,7 +184,6 @@ export function DashboardClient() {
     }
   }, [firestore, toast]);
   
-  // Effect to handle anonymous vs. registered user flows
   useEffect(() => {
     if (isUserLoading || isLoadingPlan) return;
 
@@ -207,7 +208,6 @@ export function DashboardClient() {
                     setCurrentInbox(activeInboxes[0]);
                 }
             } else if (activePlan) {
-                // If the user is logged in, but no inbox is found, create one.
                 handleGenerateNewDbInbox(activePlan, user.uid);
             }
         }
@@ -224,12 +224,12 @@ export function DashboardClient() {
   };
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
-    if (!currentInbox?.emailAddress) return;
+    if (!currentInbox?.emailAddress || !currentInbox.id) return;
+    if (currentInbox.id.startsWith('local-')) return; // Don't refresh for local inboxes
     
     if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
       if (!isAutoRefresh) {
-        const errorMsg = 'Email fetching is currently disabled by the administrator.';
-        setServerError(errorMsg);
+        setServerError('Email fetching is currently disabled by the administrator.');
       }
       return;
     }
@@ -250,22 +250,17 @@ export function DashboardClient() {
         if (!isAutoRefresh) toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
       } else {
         setServerError(null);
+        if (result.emails && result.emails.length > 0) {
+            await saveEmailsAction(currentInbox.id, result.emails);
+            if (!isAutoRefresh) {
+                toast({ title: 'Inbox refreshed', description: `Found ${result.emails.length} new email(s).` });
+            }
+        } else {
+            if (!isAutoRefresh) {
+                toast({ title: "Inbox refreshed", description: "No new emails found." });
+            }
+        }
       }
-        
-      if (result.emails && result.emails.length > 0) {
-        setInboxEmails(prevEmails => {
-          const existingIds = new Set(prevEmails.map(e => e.id));
-          const newEmails = result.emails!.filter(e => !existingIds.has(e.id));
-          if (newEmails.length > 0 && !isAutoRefresh) {
-            toast({ title: "New Email Arrived!", description: `You received ${newEmails.length} new message(s).` });
-          }
-          const allEmails = [...prevEmails, ...newEmails];
-          return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-        });
-      } else {
-        if (!isAutoRefresh) toast({ title: "Inbox refreshed", description: "No new emails found." });
-      }
-        
     } catch (error: any) {
         if (!isAutoRefresh) toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         console.error("Error refreshing inbox:", error.message);
@@ -279,14 +274,12 @@ export function DashboardClient() {
     const inboxIdToDelete = currentInbox.id;
     
     setCurrentInbox(null);
-    setInboxEmails([]);
     setSelectedEmail(null);
 
     if (user && !user.isAnonymous) { // Registered user
         if (!inboxIdToDelete.startsWith('local-')) {
             await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
         }
-         // A new inbox will be created automatically by the effect hook.
     } else { // Anonymous user
         localStorage.removeItem(LOCAL_INBOX_KEY);
         if (activePlan) handleGenerateNewLocalInbox(activePlan);
@@ -312,14 +305,16 @@ export function DashboardClient() {
             }
         }, 1000);
 
-        handleRefresh(true);
-        refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        if (user && !user.isAnonymous) {
+            handleRefresh(true);
+            refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000); 
+        }
     }
     return () => {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, handleDeleteInbox]);
+  }, [currentInbox, toast, handleRefresh, handleDeleteInbox, user]);
 
 
   const handleCopyEmail = () => {
@@ -330,7 +325,6 @@ export function DashboardClient() {
 
   const handleSelectEmail = (email: Email) => {
     setSelectedEmail(email);
-    setInboxEmails(emails => emails.map(e => e.id === email.id ? {...e, read: true} : e));
   };
   
   const formatTime = (seconds: number) => {
@@ -393,7 +387,7 @@ export function DashboardClient() {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain || !user || user.isAnonymous}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -418,7 +412,7 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
                 <div className="flex flex-col border-r">
                     <ScrollArea className="flex-1">
-                    {inboxEmails.length === 0 ? (
+                    {(isLoadingEmails || (user && user.isAnonymous)) && (!inboxEmails || inboxEmails.length === 0) ? (
                         <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                             <EnvelopeLoader />
                             <p className="mt-4 text-lg">Waiting for incoming emails...</p>
@@ -426,7 +420,7 @@ export function DashboardClient() {
                         </div>
                     ) : (
                         <div className="p-2 space-y-1">
-                        {inboxEmails.map(email => (
+                        {(inboxEmails || []).map(email => (
                             <button
                             key={email.id}
                             onClick={() => handleSelectEmail(email)}
@@ -485,9 +479,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    
-
-
