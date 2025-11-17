@@ -1,3 +1,4 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -30,10 +31,11 @@ export async function fetchEmailsWithCredentialsAction(
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
-        // Get the events for the recipient, specifically for "stored" messages.
+        // Get the events for the recipient, specifically for "accepted" messages.
+        // This is more reliable than "stored" as it fires for every email received.
         const events = await mg.events.get(domain, {
             recipient: emailAddress,
-            event: "stored",
+            event: "accepted",
             limit: 30
         });
         
@@ -41,6 +43,7 @@ export async function fetchEmailsWithCredentialsAction(
 
         if (events?.items?.length) {
             for (const event of events.items) {
+                // Ensure the event has a storage URL, which means the message is available.
                 if (!event.storage || !event.storage.url) continue;
 
                 // Fetch the full message content from the storage URL
