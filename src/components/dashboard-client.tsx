@@ -141,14 +141,21 @@ export function DashboardClient() {
     }
   }, [firestore, user, toast]);
 
+  // This effect specifically handles the logout case.
+  useEffect(() => {
+    // When the user object becomes null (on logout), reset the inbox state.
+    if (!isUserLoading && !user) {
+        setCurrentInbox(null);
+        setInboxEmails([]);
+        setSelectedEmail(null);
+    }
+  }, [user, isUserLoading]);
+
 
   useEffect(() => {
     if (isLoadingInboxes || isLoadingPlan || isUserLoading) return;
 
-    if (!user) { // User logged out, reset state
-        setCurrentInbox(null);
-        setInboxEmails([]);
-        setSelectedEmail(null);
+    if (!user) { 
         return;
     }
 
