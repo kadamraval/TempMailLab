@@ -9,7 +9,8 @@ import type { Email } from '@/types';
 /**
  * A secure server action that uses provided Mailgun credentials
  * to fetches emails for a given address.
- * It no longer fetches credentials itself, removing the failing dependency on the Firebase Admin SDK.
+ * It now correctly fetches "accepted" events and then the full message
+ * content for reliability.
  */
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
