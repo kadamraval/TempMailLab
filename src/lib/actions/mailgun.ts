@@ -5,7 +5,6 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getFirebaseAdmin } from '@/firebase/server-init';
 
 interface Credentials {
     apiKey: string;
@@ -20,13 +19,6 @@ export async function fetchEmailsWithCredentialsAction(
     credentials: Credentials,
     emailAddress: string
 ): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
-
-    const { error: adminError } = getFirebaseAdmin();
-    if (adminError) {
-        // This is a server configuration error, and we should let the client know.
-        console.error("Server Action Error: Firebase Admin not initialized.", adminError.message);
-        return { success: false, error: adminError.message };
-    }
 
     if (!emailAddress) {
         return { success: false, error: 'Email address is required.' };
