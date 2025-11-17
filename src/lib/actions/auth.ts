@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -25,13 +26,12 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const doc = await userRef.get();
 
     if (!doc.exists) {
-      // User does not exist, create them with the correct schema FIRST.
-      const userData: { [key: string]: any } = {
+      // User does not exist. First, create their user document.
+      const userData = {
         uid,
         email,
         createdAt: FieldValue.serverTimestamp(),
-        planType: 'free', // Use planType, set to 'free'
-        planId: 'free-default', // Ensure this is set for consistency
+        planId: 'free-default', // All new users start on the free plan
         isPremium: false,
         isAdmin: false,
       };
@@ -49,18 +49,18 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
       }
 
       return { success: true, message: 'User record created and inbox migrated.' };
-    }
-    
-    // If the user *does* exist (e.g., they are logging in again),
-    // still check if we need to migrate an inbox.
-    if (anonymousInbox) {
-        const inboxRef = userRef.collection('inboxes').doc();
-        await inboxRef.set({
-            ...anonymousInbox,
-            userId: uid,
-            createdAt: FieldValue.serverTimestamp()
-        });
-        return { success: true, message: 'Existing user logged in and inbox migrated.' };
+    } else {
+        // User already exists. This can happen if they log in.
+        // Still check if we need to migrate an anonymous inbox.
+        if (anonymousInbox) {
+            const inboxRef = userRef.collection('inboxes').doc();
+            await inboxRef.set({
+                ...anonymousInbox,
+                userId: uid,
+                createdAt: FieldValue.serverTimestamp()
+            });
+            return { success: true, message: 'Existing user logged in and inbox migrated.' };
+        }
     }
 
     return { success: true, message: 'User record already exists.' };
