@@ -1,24 +1,27 @@
 
 'use server';
 
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import type { Email } from '@/types';
-import { writeBatch, collection, doc } from 'firebase/firestore';
 
+// This is the server-side initialization for Firebase Admin.
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   : undefined;
 
 let adminApp: App;
 if (!getApps().length) {
+    // Initialize the app only if it's not already initialized.
     adminApp = initializeApp({
         credential: serviceAccount ? cert(serviceAccount) : undefined,
     });
 } else {
+    // Get the existing app if it's already initialized.
     adminApp = getApps()[0];
 }
 
+// Get a reference to the admin Firestore service.
 const firestore = getFirestore(adminApp);
 
 
@@ -33,16 +36,17 @@ export async function saveEmailsAction(inboxId: string, emails: Email[]) {
         return { error: 'Inbox ID is required.' };
     }
     if (!emails || emails.length === 0) {
-        return { success: true }; // Nothing to save
+        return { success: true }; // Nothing to save.
     }
 
     try {
+        // Use the admin firestore instance to create a batch write.
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
         emails.forEach((email) => {
             const emailRef = emailsCollectionRef.doc(email.id);
-            // Ensure we don't save undefined values
+            // Ensure we don't save undefined values which can cause errors.
             const emailData = {
                 ...email,
                 htmlContent: email.htmlContent || "",
