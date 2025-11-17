@@ -20,7 +20,8 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } f
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
+import { type Inbox } from "@/types"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -46,20 +47,28 @@ export function RegisterForm() {
   })
   
   async function handleRegistration(user: { uid: string; email: string | null }) {
-    // Check for an existing anonymous inbox in local storage
-    const storedInbox = localStorage.getItem('anonymousInbox');
-    let anonymousInbox = null;
-    if (storedInbox) {
-        anonymousInbox = JSON.parse(storedInbox);
-        // We only want to migrate the data, not the local ID
-        delete anonymousInbox.id; 
+    // 1. Ensure user record exists in the database. This is now a robust, idempotent call.
+    const signUpResult = await signUp(user.uid, user.email);
+    if (signUpResult.error) {
+        // If this fails, we can't proceed with migration.
+        throw new Error(`Failed to create user record: ${signUpResult.error}`);
     }
 
-    // Call server action to create the user and migrate the inbox
-    await signUp(user.uid, user.email, anonymousInbox);
-
-    // Clean up local storage
-    localStorage.removeItem('anonymousInbox');
+    // 2. Check for an existing anonymous inbox in local storage.
+    const storedInbox = localStorage.getItem('anonymousInbox');
+    if (storedInbox) {
+      try {
+        const anonymousInbox: Omit<Inbox, 'id'> = JSON.parse(storedInbox);
+        // 3. If it exists, migrate it using the separate action.
+        await migrateAnonymousInbox(user.uid, anonymousInbox);
+        // 4. Clean up local storage after successful migration.
+        localStorage.removeItem('anonymousInbox');
+      } catch(e) {
+        console.error("Failed to parse or migrate anonymous inbox:", e);
+        // The user is created, but migration failed. We can inform the user or just log it.
+        toast({ title: "Warning", description: "Could not transfer your anonymous inbox. It may have been lost.", variant: "destructive"})
+      }
+    }
   }
 
 
@@ -74,7 +83,7 @@ export function RegisterForm() {
           title: "Success",
           description: "Account created successfully.",
         })
-        router.push("/")
+        router.push("/") // Redirect to homepage on success
       }
 
     } catch (error: any) {
@@ -101,7 +110,7 @@ export function RegisterForm() {
             title: "Success",
             description: "Account created successfully with Google.",
         });
-        router.push("/");
+        router.push("/"); // Redirect to homepage on success
     } catch (error: any) {
         toast({
             title: "Google Sign-Up Failed",

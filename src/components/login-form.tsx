@@ -19,7 +19,8 @@ import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 
 import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
+import type { Inbox } from "@/types"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -44,18 +45,27 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   })
 
   async function handleLogin(user: { uid: string; email: string | null }) {
-    // Check for an existing anonymous inbox in local storage
-    const storedInbox = localStorage.getItem('anonymousInbox');
-    let anonymousInbox = null;
-    if (storedInbox) {
-      anonymousInbox = JSON.parse(storedInbox);
+    // 1. Ensure user record exists in the database.
+    const signUpResult = await signUp(user.uid, user.email);
+    if (signUpResult.error) {
+        console.error("Failed to ensure user record:", signUpResult.error);
+        // Decide if you want to stop the login or just log the error.
+        // For login, we can probably continue and just log the error.
     }
-    
-    // Call server action to create DB entry if needed and migrate inbox
-    await signUp(user.uid, user.email, anonymousInbox);
 
-    // Clean up local storage
-    localStorage.removeItem('anonymousInbox');
+    // 2. Check for an existing anonymous inbox in local storage.
+    const storedInbox = localStorage.getItem('anonymousInbox');
+    if (storedInbox) {
+      try {
+        const anonymousInbox: Omit<Inbox, 'id'> = JSON.parse(storedInbox);
+        // 3. If it exists, migrate it.
+        await migrateAnonymousInbox(user.uid, anonymousInbox);
+        // 4. Clean up local storage after successful migration.
+        localStorage.removeItem('anonymousInbox');
+      } catch (e) {
+        console.error("Failed to parse or migrate anonymous inbox:", e);
+      }
+    }
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -162,5 +172,3 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
       </div>
   )
 }
-
-    
