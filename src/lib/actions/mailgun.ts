@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -43,7 +42,9 @@ export async function fetchEmailsWithCredentialsAction(
             for (const event of events.items) {
                 if (!event.storage || !event.storage.url) continue;
 
+                // The storage URL provided by Mailgun needs the API key for auth.
                 const messageDetails = await mg.get(event.storage.url);
+                
                 if (!messageDetails || !messageDetails.body) continue;
                 
                 const message = messageDetails.body;
@@ -71,6 +72,10 @@ export async function fetchEmailsWithCredentialsAction(
 
     } catch (error: any) {
         console.error("[MAILGUN_ACTION_ERROR]", error.message);
+        // Provide a more specific error for common issues
+        if (error.status === 401) {
+            return { success: false, error: 'Mailgun authentication failed. Please check your API key.' };
+        }
         return { success: false, error: 'An unexpected error occurred while fetching emails.' };
     }
 }
