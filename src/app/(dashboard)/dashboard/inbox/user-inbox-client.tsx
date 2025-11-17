@@ -79,7 +79,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
 
   const getPlanForUser = useCallback((uid: string | null, isAnonymous: boolean): Plan | null => {
     if (!plans || plans.length === 0) {
-        return null;
+        return null; 
     }
 
     const freePlan = plans.find(p => p.id === 'free');
