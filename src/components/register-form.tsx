@@ -72,9 +72,9 @@ export function RegisterForm() {
         await handleRegistration(userCredential.user);
         toast({
           title: "Success",
-          description: "Account created successfully. Please log in.",
+          description: "Account created successfully.",
         })
-        router.push("/login")
+        router.push("/")
       }
 
     } catch (error: any) {
@@ -188,5 +188,3 @@ export function RegisterForm() {
     </Card>
   )
 }
-
-    

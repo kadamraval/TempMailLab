@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
@@ -25,12 +26,14 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const doc = await userRef.get();
 
     if (!doc.exists) {
-      // User does not exist, create them.
+      // User does not exist, create them with the correct schema.
       const userData: { [key: string]: any } = {
         uid,
         email,
         createdAt: FieldValue.serverTimestamp(),
-        planId: 'free-default', // Assign the default free plan on creation
+        planType: 'free', // Use planType, set to 'free'
+        isPremium: false,
+        isAdmin: false,
       };
       
       await userRef.set(userData);
