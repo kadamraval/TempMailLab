@@ -77,19 +77,19 @@ export function DashboardClient() {
     return doc(firestore, 'plans', planId);
   }, [firestore, user]);
 
-  const { data: freePlan, isLoading: isLoadingFreePlan } = useDoc<Plan>(useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'free-default') : null, [firestore]));
+  const { data: freePlan, isLoading: isLoadingFreePlan, error: freePlanError } = useDoc<Plan>(useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'free-default') : null, [firestore]));
 
   const { data: userPlan, isLoading: isLoadingUserPlan } = useDoc<Plan>(userPlanRef);
 
   const inboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || isUserLoading) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
       where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
-  }, [firestore, user]);
+  }, [firestore, user, isUserLoading]);
 
   const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
 
@@ -126,7 +126,8 @@ export function DashboardClient() {
             setSelectedEmail(null);
             setInboxEmails([]);
 
-        } catch (error: any) {
+        } catch (error: any)
+{
             console.error("Error generating new local inbox:", error);
             toast({
                 title: "Error",
@@ -345,7 +346,7 @@ export function DashboardClient() {
     );
   }
   
-  if ((!user && !freePlan && !isLoadingFreePlan) || (user && !userPlan && !isLoadingUserPlan)) {
+  if ((!user && !freePlan && !isLoadingFreePlan && !freePlanError) ) {
     return (
        <div className="flex items-center justify-center min-h-[480px]">
          <Alert variant="destructive" className="max-w-lg">

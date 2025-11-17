@@ -14,14 +14,8 @@ export async function deletePlanAction(planId: string) {
     return { error: "The default 'Free' plan is a system plan and cannot be deleted." };
   }
 
-  const { firestore, error: adminError } = getFirebaseAdmin();
-
-  if (adminError) {
-    console.error('Error in deletePlanAction server action:', adminError.message);
-    return { error: adminError.message };
-  }
-
   try {
+    const { firestore } = getFirebaseAdmin();
     const planRef = firestore.collection('plans').doc(planId);
     await planRef.delete();
     
