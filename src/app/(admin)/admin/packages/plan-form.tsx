@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -18,8 +17,6 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Loader2, Info, Lock } from "lucide-react"
-import { useFirestore } from "@/firebase"
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
@@ -35,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
+import { savePlanAction } from "@/lib/actions/plans"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -138,7 +136,6 @@ const FeatureInput = ({ name, label, control, ...props }: { name: any, label: st
 
 export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const firestore = useFirestore()
   const { toast } = useToast()
   const router = useRouter()
   const isFreePlan = plan?.id === 'free-default';
@@ -198,8 +195,6 @@ export function PlanForm({ plan }: PlanFormProps) {
   }, [plan, form]);
 
   async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
-    if (!firestore) return;
-    
     if (isFreePlan && values.name.toLowerCase() !== 'free') {
         toast({ title: "Invalid Operation", description: "The name of the 'Free' plan cannot be changed.", variant: "destructive" });
         return;
@@ -208,19 +203,15 @@ export function PlanForm({ plan }: PlanFormProps) {
     setIsSubmitting(true)
     
     try {
-      if (plan) {
-        const docRef = doc(firestore, "plans", plan.id)
-        await updateDoc(docRef, values);
-        toast({ title: "Success", description: "Plan updated successfully." });
-      } else {
-        const collectionRef = collection(firestore, "plans")
-        await addDoc(collectionRef, {
-          ...values,
-          createdAt: serverTimestamp(),
-        });
-        toast({ title: "Success", description: "Plan added successfully." });
+      const result = await savePlanAction(values, plan?.id);
+
+      if (result.error) {
+        throw new Error(result.error);
       }
+
+      toast({ title: "Success", description: `Plan ${plan ? 'updated' : 'added'} successfully.` });
       router.push('/admin/packages');
+
     } catch (error: any) {
       console.error("Error saving plan:", error)
       toast({
