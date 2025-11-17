@@ -26,7 +26,7 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
     const doc = await userRef.get();
 
     if (!doc.exists) {
-      // User does not exist. First, create their user document.
+      // User does not exist. Create their user document FIRST.
       const userData = {
         uid,
         email,
@@ -36,6 +36,7 @@ export async function signUp(uid: string, email: string | null, anonymousInbox: 
         isAdmin: false,
       };
       
+      // This is the critical step: create the main document before doing anything else.
       await userRef.set(userData);
 
       // AFTER creating the user, migrate the inbox if it exists.
