@@ -1,79 +1,19 @@
 # TempInbox: Definitive Development Plan
 
-This document is the single source of truth for the application's architecture, logic, and user flows. It supersedes all previous blueprints and discussions.
+This document is the single source of truth for the application's core logic and user flows. It supersedes all previous blueprints and discussions.
 
 ---
 
-## **Architectural Blueprint: A Modern, Integrated System**
-
-Our system uses a modern Next.js architecture with Server Actions, which simplifies development and enhances security.
-
-1.  **The Application Layer (AI Responsibility):** This is the Next.js application that users and administrators interact with. The AI will build and manage 100% of this layer.
-    *   **Technology:** Next.js, React, Tailwind CSS, ShadCN UI.
-    *   **Backend-for-Frontend:** Firebase (Authentication, Firestore).
-    *   **Core Functions:** The AI is responsible for the entire user interface, admin panel, real-time inbox display, and the core logic for generating email addresses and fetching messages.
-    *   **Server Actions:** Instead of separate cloud functions, we use secure Server Actions (`'use server'`) within the Next.js app to communicate with third-party services like Mailgun. This code lives in `src/lib/actions/` and is never exposed to the user's browser.
-
-2.  **The Service Layer (Your Responsibility):** This is the external email-receiving service. You are responsible for setting up this service and providing the necessary credentials to the application via the admin panel.
-    *   **Technology:** Mailgun.
-    *   **Core Functions:** You provide a Mailgun API Key and a configured Domain. The application uses these credentials to fetch emails.
-
-This integrated approach is clean, secure, and highly efficient.
-
----
-
-## **End-to-End Development Roadmap**
-
-This tracks the major features we have built together.
-
-### **Phase 1: Foundation & Configuration (✅ Complete)**
-
-**Goal:** Establish the administrative controls and connect your Mailgun service to the application.
-
-*   **Build Mailgun Integration Settings Page (✅ Complete)**
-    *   The secure form at `/admin/settings/integrations/mailgun` allows you to save your Mailgun API Key and Domain to Firestore.
-
-*   **Build the "Domain Pool" Management UI (✅ Complete)**
-    *   The UI at `/admin/domain` allows you to define the pool of domains that the application can use to generate temporary email addresses.
-
-### **Phase 2: The Core User Experience (✅ Complete)**
-
-**Goal:** Build the main temp-mail generator for your end-users.
-
-*   **Implement Inbox Generation Logic (✅ Complete)**
-    *   The "Generate New Email" functionality is implemented in the main dashboard client. It fetches the "Allowed Domains" list, randomly selects a domain, generates a unique address, and creates the inbox session.
-
-*   **Implement On-Demand Email Fetching (✅ Complete)**
-    *   The `fetchEmailsWithCredentialsAction` Server Action securely uses your saved Mailgun credentials to fetch new emails on demand.
-
-*   **Build the Real-Time Inbox Display (✅ Complete)**
-    *   The application client now automatically refreshes the inbox, displaying new emails as they are fetched from the server.
-
-### **Phase 3: Security & Billing (In Progress)**
-
-**Goal:** Harden the system, add monetization, and ensure long-term stability.
-
-*   **Implement Security Rules & User Plans (✅ Complete)**
-    *   Firestore Security Rules have been written to ensure users can only access their own data.
-    *   A full subscription plan management system has been built at `/admin/packages`, allowing for granular feature control.
-
-*   **Implement Inbox Cleanup (Future Task)**
-    *   An `expiresAt` timestamp is added to every inbox session. A future task will be to set up a scheduled job (cron job) to periodically delete expired inboxes from the database.
-
----
-
-## **Core Logic & User Flows**
-
-This section details the precise logic for how users interact with the system.
-
-### **Principle: Default to the "Free" Plan**
+## **Core Principle: Default to the "Free" Plan**
 
 The application has one critical default plan stored in Firestore with the ID `free-default`.
 
 *   **Anonymous Users (Not Logged In):** All anonymous users will **always** use the `free-default` plan's settings.
 *   **Registered Users (Logged In):** A registered user will use the `free-default` plan **unless** an administrator has explicitly assigned a different plan to their user document in the database.
 
-### **User Flow 1: The Anonymous User Session**
+---
+
+## **User Flow 1: The Anonymous User Session**
 
 This flow details the experience for a first-time or logged-out visitor.
 
@@ -85,7 +25,9 @@ This flow details the experience for a first-time or logged-out visitor.
     *   If a valid, non-expired inbox is found, it will be restored, ensuring the user keeps their session.
     *   If no inbox is found or it has expired, the system returns to Step 3.
 
-### **User Flow 2: Anonymous User Registers or Logs In**
+---
+
+## **User Flow 2: Anonymous User Registers or Logs In**
 
 This flow details the seamless transition from an anonymous session to a registered account.
 
@@ -96,7 +38,9 @@ This flow details the seamless transition from an anonymous session to a registe
     *   **Crucially, the server assigns the existing anonymous inbox to the new user.** The system will read the inbox ID from the client's `localStorage` and save it to the user's new document in the database.
 4.  **Session Transition:** The user is now logged in. Their temporary inbox from their anonymous session is now associated with their permanent account and will be governed by their assigned plan (which is `free-default` to start).
 
-### **User Flow 3: The Registered User Session**
+---
+
+## **User Flow 3: The Registered User Session**
 
 This flow details the experience for a returning, logged-in user.
 
@@ -109,3 +53,5 @@ This flow details the experience for a returning, logged-in user.
     *   The system checks if the user already has an active inbox associated with their account in the database.
     *   If an active inbox exists, it is displayed.
     *   If no active inbox exists, the system uses the settings from the user's identified plan (from Step 2) to generate a new one.
+
+This plan is now our definitive guide. My next steps will be to implement these flows exactly as described.
