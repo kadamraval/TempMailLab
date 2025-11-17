@@ -20,9 +20,9 @@ service cloud.firestore {
     // --- Admin-Only Collections ---
 
     match /admin_settings/{settingId} {
-        allow write: if false; // NEVER allow client-side writes.
-        // Allow ONLY admins to read these settings.
-        allow read: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        // Deny all client-side reads and writes by default.
+        // Server actions with admin credentials will bypass these rules.
+        allow read, write: if false;
     }
 
     // --- User & Inbox Collections ---
@@ -45,11 +45,15 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
 
       // Allow a user to list only their own inboxes by requiring a 'where' clause on 'userId'.
-      allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
+      // Admins can bypass this to list all inboxes if needed (though not recommended for performance).
+      allow list: if request.auth != null && (request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        allow read, write: if true; // Open for now for mailgun action
+        // Emails should only be readable by the owner of the parent inbox.
+        // Writes are handled by the server action, so client-side writes can be denied.
+        allow read: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+        allow write: if false;
     }
 
   }

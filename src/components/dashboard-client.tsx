@@ -180,7 +180,13 @@ export function DashboardClient() {
   useEffect(() => {
     if (isUserLoading || isLoadingPlan) return;
 
-    if (!user) { // Anonymous user flow
+    if (!user || user.isAnonymous) { // Anonymous user flow
+        if (auth && !user) {
+            signInAnonymously(auth).catch((error) => {
+                console.error("Anonymous sign-in failed", error);
+            });
+        }
+
         const localData = localStorage.getItem(LOCAL_INBOX_KEY);
         if (localData) {
             const localInbox: InboxType = JSON.parse(localData);
@@ -205,8 +211,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox?.id]);
-
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox]);
 
   const clearCountdown = () => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -218,7 +223,13 @@ export function DashboardClient() {
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
-    if (currentInbox.id.startsWith('local-')) return;
+    
+    // For anonymous users, the refresh is a no-op for now.
+    // The real fetch happens after they log in.
+    if (user && user.isAnonymous) {
+      if (!isAutoRefresh) toast({ title: "Please Log In", description: "Log in or sign up to fetch emails for this inbox."});
+      return;
+    }
     
     if (!isAutoRefresh) setIsRefreshing(true);
     
@@ -245,7 +256,7 @@ export function DashboardClient() {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast]);
+  }, [currentInbox, toast, user]);
 
   const handleDeleteInbox = useCallback(async () => {
     if (!currentInbox || !firestore) return;
@@ -312,7 +323,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingPlan || (user && isLoadingInboxes);
+  const isLoading = isUserLoading || isLoadingPlan || (user && !user.isAnonymous && isLoadingInboxes);
   if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -365,7 +376,7 @@ export function DashboardClient() {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !user || user.isAnonymous}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
@@ -390,7 +401,7 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
                 <div className="flex flex-col border-r">
                     <ScrollArea className="flex-1">
-                    {(isLoadingEmails || (user && user.isAnonymous)) && (!inboxEmails || inboxEmails.length === 0) ? (
+                    {isLoadingEmails && (!inboxEmails || inboxEmails.length === 0) ? (
                         <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                             <EnvelopeLoader />
                             <p className="mt-4 text-lg">Waiting for incoming emails...</p>
@@ -457,5 +468,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

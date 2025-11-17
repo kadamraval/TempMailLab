@@ -22,6 +22,7 @@ import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type Inbox } from "@/types"
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -52,11 +53,9 @@ export function RegisterForm() {
   async function handleRegistrationSuccess(finalUser: User) {
     if (!firestore) return;
 
-    // Use a batch to ensure atomic write for both user and inbox
     const batch = writeBatch(firestore);
-
-    // 1. Create the user document
     const userRef = doc(firestore, 'users', finalUser.uid);
+    
     batch.set(userRef, {
         uid: finalUser.uid,
         email: finalUser.email,
@@ -66,24 +65,31 @@ export function RegisterForm() {
         createdAt: serverTimestamp(),
     });
 
-    // 2. Check for a local inbox and migrate it
+    let inboxIdToRefresh: string | null = null;
+    let emailAddressToRefresh: string | null = null;
+
     const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
     if (localInboxData) {
         const parsed: Inbox = JSON.parse(localInboxData);
         if (new Date(parsed.expiresAt) > new Date()) {
-            const inboxRef = doc(collection(firestore, 'inboxes')); // new inbox
+            const inboxRef = doc(collection(firestore, 'inboxes'));
             batch.set(inboxRef, {
                 userId: finalUser.uid,
                 emailAddress: parsed.emailAddress,
                 expiresAt: parsed.expiresAt,
                 createdAt: serverTimestamp(),
             });
+            inboxIdToRefresh = inboxRef.id;
+            emailAddressToRefresh = parsed.emailAddress;
         }
         localStorage.removeItem(LOCAL_INBOX_KEY);
     }
     
-    // Commit the atomic batch
     await batch.commit();
+    
+    if (inboxIdToRefresh && emailAddressToRefresh) {
+        await fetchEmailsWithCredentialsAction(emailAddressToRefresh, inboxIdToRefresh);
+    }
     
     toast({
       title: "Success",

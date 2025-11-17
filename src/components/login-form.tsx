@@ -21,6 +21,7 @@ import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type Inbox } from "@/types"
+import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -53,6 +54,9 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
     const userRef = doc(firestore, 'users', finalUser.uid);
     const userDoc = await getDoc(userRef);
 
+    let inboxIdToRefresh: string | null = null;
+    let emailAddressToRefresh: string | null = null;
+
     if (!userDoc.exists()) {
         const batch = writeBatch(firestore);
         batch.set(userRef, {
@@ -75,10 +79,26 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
                     expiresAt: parsed.expiresAt,
                     createdAt: serverTimestamp(),
                 });
+                inboxIdToRefresh = inboxRef.id;
+                emailAddressToRefresh = parsed.emailAddress;
             }
             localStorage.removeItem(LOCAL_INBOX_KEY);
         }
         await batch.commit();
+    } else {
+        // If user exists, check if they have an active inbox to refresh
+        const inboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', finalUser.uid), limit(1));
+        const inboxesSnapshot = await getDocs(inboxesQuery);
+        if (!inboxesSnapshot.empty) {
+            const existingInbox = inboxesSnapshot.docs[0];
+            inboxIdToRefresh = existingInbox.id;
+            emailAddressToRefresh = existingInbox.data().emailAddress;
+        }
+    }
+
+    // Trigger email fetch for the migrated or existing inbox
+    if (inboxIdToRefresh && emailAddressToRefresh) {
+        await fetchEmailsWithCredentialsAction(emailAddressToRefresh, inboxIdToRefresh);
     }
 
     toast({
@@ -185,5 +205,3 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
       </div>
   )
 }
-
-    

@@ -5,48 +5,44 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getFirestore } from 'firebase-admin/firestore';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getAdminFirestore } from '@/firebase/server-init';
+import { doc, getDoc } from 'firebase/firestore';
 
-function getAdminApp(): App {
-    const existingApp = getApps().find(app => app.name === 'admin');
-    if (existingApp) {
-        return existingApp;
+
+async function getMailgunCredentials() {
+    const firestore = getAdminFirestore();
+    const settingsRef = firestore.doc('admin_settings/mailgun');
+    const settingsSnap = await settingsRef.get();
+
+    if (!settingsSnap.exists) {
+        throw new Error('Mailgun settings not found in admin_settings.');
     }
 
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!serviceAccountString) {
-        throw new Error('Server configuration error: Firebase credentials are not set.');
+    const settings = settingsSnap.data();
+    if (!settings?.enabled || !settings.apiKey || !settings.domain) {
+        throw new Error('Mailgun integration is not enabled or fully configured.');
     }
-    const serviceAccount = JSON.parse(serviceAccountString);
-    
-    return initializeApp({
-        credential: cert(serviceAccount),
-    }, 'admin');
+
+    return { apiKey: settings.apiKey, domain: settings.domain };
 }
 
 
 /**
- * A secure server action that uses provided Mailgun credentials
- * to fetches emails for a given address, and then saves them to Firestore.
+ * A secure server action that fetches emails for a given address
+ * and then saves them to Firestore. It securely retrieves Mailgun
+ * credentials from admin settings.
  */
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
     inboxId: string,
-    apiKey: string | undefined,
-    domain: string | undefined,
 ): Promise<{ success: boolean; error?: string }> {
     if (!emailAddress || !inboxId) {
         return { success: false, error: 'Email address and Inbox ID are required.' };
     }
     
-    if (!apiKey || !domain) {
-        return { success: false, error: 'Mailgun API Key and Domain are required. Please configure them in the admin settings.' };
-    }
-
     try {
-        const adminApp = getAdminApp();
-        const firestore = getFirestore(adminApp);
+        const { apiKey, domain } = await getMailgunCredentials();
+        const firestore = getAdminFirestore();
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
@@ -84,13 +80,11 @@ export async function fetchEmailsWithCredentialsAction(
                         read: false,
                     });
                 } catch(err) {
-                    // It's possible for a single email fetch to fail, log it but continue
                     console.warn(`Could not fetch email content for event ${event.id}. Skipping.`, err)
                 }
             }
         }
         
-        // If we found emails, save them to Firestore
         if (fetchedEmails.length > 0) {
             const batch = firestore.batch();
             const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
