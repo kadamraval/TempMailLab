@@ -6,22 +6,20 @@ import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import type { Email } from '@/types';
 
 // This is the server-side initialization for Firebase Admin.
+// It checks if the app is already initialized to prevent errors.
 const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
   ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
   : undefined;
 
 let adminApp: App;
 if (!getApps().length) {
-    // Initialize the app only if it's not already initialized.
     adminApp = initializeApp({
         credential: serviceAccount ? cert(serviceAccount) : undefined,
     });
 } else {
-    // Get the existing app if it's already initialized.
     adminApp = getApps()[0];
 }
 
-// Get a reference to the admin Firestore service.
 const firestore = getFirestore(adminApp);
 
 
@@ -40,13 +38,11 @@ export async function saveEmailsAction(inboxId: string, emails: Email[]) {
     }
 
     try {
-        // Use the admin firestore instance to create a batch write.
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
         emails.forEach((email) => {
             const emailRef = emailsCollectionRef.doc(email.id);
-            // Ensure we don't save undefined values which can cause errors.
             const emailData = {
                 ...email,
                 htmlContent: email.htmlContent || "",
