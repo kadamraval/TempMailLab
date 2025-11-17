@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { signInAnonymously } from "firebase/auth";
+import { signUp } from "@/lib/actions/auth";
 
 
 const EnvelopeLoader = () => (
@@ -100,22 +101,11 @@ export function DashboardClient() {
     if (!auth || !firestore || !userPlan) return;
     
     try {
-        // Step 1: Sign in anonymously
         const userCredential = await signInAnonymously(auth);
         const anonUser = userCredential.user;
-
-        // Step 2: Create user document in Firestore
-        const userRef = doc(firestore, "users", anonUser.uid);
-        await setDoc(userRef, {
-            uid: anonUser.uid,
-            email: null,
-            planId: 'free-default',
-            isAnonymous: true,
-            isAdmin: false,
-            createdAt: serverTimestamp(),
-        }, { merge: true });
         
-        // This will trigger the useEffect for a logged-in user to generate an inbox
+        await signUp(anonUser.uid, null, true);
+        
     } catch (err) {
         console.error("Anonymous user/inbox creation failed", err);
         setServerError("Could not start an anonymous session. Please refresh the page.");
@@ -148,7 +138,6 @@ export function DashboardClient() {
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
 
-      // Add to top-level inboxes collection
       const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
       setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
@@ -169,17 +158,15 @@ export function DashboardClient() {
 
   // Main effect to orchestrate session management
   useEffect(() => {
-      // Don't do anything until auth is ready
       if (isUserLoading || isLoadingPlan) {
           return;
       }
       
-      if (!user) { // No user at all
+      if (!user) {
           createAnonymousUserAndInbox();
           return;
       }
 
-      // We have a user (anonymous or registered), now check for inboxes
       if (isLoadingInboxes) return;
       
       if (activeInboxes && activeInboxes.length > 0) {
@@ -187,7 +174,6 @@ export function DashboardClient() {
               setCurrentInbox(activeInboxes[0]);
           }
       } else if (userPlan) {
-          // User exists but has no active inbox, generate one
           handleGenerateEmail(userPlan);
       }
       
@@ -256,7 +242,6 @@ export function DashboardClient() {
   const handleNewAddressClick = useCallback(async () => {
     if (isGenerating || !userPlan || !firestore || !user) return;
 
-    // Find all inboxes for the current user and delete them
     const inboxesRef = collection(firestore, "inboxes");
     const q = query(inboxesRef, where("userId", "==", user.uid));
     const inboxesSnapshot = await getDocs(q);
@@ -267,7 +252,6 @@ export function DashboardClient() {
         await batch.commit();
     }
 
-    // Reset state and generate a new one
     setCurrentInbox(null);
     setInboxEmails([]);
     setSelectedEmail(null);
@@ -325,7 +309,7 @@ export function DashboardClient() {
   };
   
   const isLoading = isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes;
-  if (isLoading && !currentInbox) { // Only show full-screen loader on initial load.
+  if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

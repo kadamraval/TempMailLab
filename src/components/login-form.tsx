@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User, getDocs, query, where, collection, writeBatch } from "firebase/auth"
+import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -34,6 +34,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
+  const firestore = useFirestore();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,45 +44,45 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
 
-  async function handleLogin(user: User) {
-    // Step 1: Guarantee the user record exists in the database.
-    const signUpResult = await signUp(user.uid, user.email, false); // false for isAnonymous
-    if (signUpResult.error) {
-      toast({ title: "Login Error", description: `Could not verify user profile: ${signUpResult.error}`, variant: "destructive" });
-      throw new Error(signUpResult.error);
+  async function handleLogin(finalUser: User, anonymousUid?: string | null) {
+    // Ensure the user document exists or is updated
+    await signUp(finalUser.uid, finalUser.email, false); 
+
+    // If there was an anonymous user, migrate their data
+    if (anonymousUid && anonymousUid !== finalUser.uid && firestore) {
+      const q = query(collection(firestore, 'inboxes'), where('userId', '==', anonymousUid));
+      const inboxesSnapshot = await getDocs(q);
+
+      if (!inboxesSnapshot.empty) {
+        const batch = writeBatch(firestore);
+        inboxesSnapshot.forEach(doc => {
+          batch.update(doc.ref, { userId: finalUser.uid });
+        });
+        await batch.commit();
+      }
     }
+
+    toast({
+        title: "Success",
+        description: "Logged in successfully.",
+    })
+    router.push(redirectPath) 
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
+
+    const anonymousUser = auth.currentUser;
+    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
+
     try {
-        const currentUser = auth.currentUser;
-        let finalUser: User;
-
-        if (currentUser && currentUser.isAnonymous) {
-          // Link email/password to the existing anonymous account
-          const credential = EmailAuthProvider.credential(values.email, values.password);
-          const linkResult = await linkWithCredential(currentUser, credential);
-          finalUser = linkResult.user;
-        } else {
-          // Standard email/password sign-in
-          const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-          finalUser = result.user;
-        }
-
-        await handleLogin(finalUser);
-
-        toast({
-            title: "Success",
-            description: "Logged in successfully.",
-        })
-        router.push(redirectPath) 
+        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+        const finalUser = result.user;
+        await handleLogin(finalUser, anonymousUid);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             errorMessage = "Invalid email or password. Please try again.";
-        } else if (error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This account is already associated with another user. Please log in directly with this email."
         }
         toast({
             title: "Login Failed",
@@ -94,31 +95,22 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   async function handleGoogleSignIn() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
+    
+    const anonymousUser = auth.currentUser;
+    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
+
     try {
-        const currentUser = auth.currentUser;
-        let finalUser: User;
-
-        if (currentUser && currentUser.isAnonymous) {
-          // Link Google account to the existing anonymous user
-          const linkResult = await linkWithCredential(currentUser, provider);
-          finalUser = linkResult.user;
-        } else {
-           // Standard Google sign-in
-          const result = await signInWithPopup(auth, provider);
-          finalUser = result.user;
-        }
-        
-        await handleLogin(finalUser);
-
-        toast({
-            title: "Success",
-            description: "Logged in successfully with Google.",
-        });
-        router.push(redirectPath);
+        const result = await signInWithPopup(auth, provider);
+        const finalUser = result.user;
+        await handleLogin(finalUser, anonymousUid);
     } catch (error: any) {
+        let errorMessage = error.message || "Could not sign in with Google. Please try again.";
+        if (error.code === 'auth/account-exists-with-different-credential') {
+            errorMessage = "An account already exists with the same email address but different sign-in credentials. Try signing in with a different method."
+        }
         toast({
             title: "Google Sign-In Failed",
-            description: error.message || "Could not sign in with Google. Please try again.",
+            description: errorMessage,
             variant: "destructive",
         });
     }

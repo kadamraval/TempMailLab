@@ -1,4 +1,5 @@
 
+import type { Timestamp } from "firebase/firestore";
 
 export interface Email {
   id: string; 
@@ -22,7 +23,7 @@ export interface User {
   uid: string;
   email: string | null;
   planId?: string; 
-  createdAt: string;
+  createdAt: Timestamp | any;
   isAdmin?: boolean;
   isAnonymous?: boolean;
 }
@@ -34,4 +35,3 @@ export interface Inbox {
   createdAt: any; // Can be Date or serverTimestamp
   expiresAt: string;
 }
-

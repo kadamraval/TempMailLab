@@ -16,11 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider, getDocs, query, collection, where, writeBatch } from "firebase/auth"
+import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp } from "@/lib/actions/auth"
+import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -35,6 +35,7 @@ export function RegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth();
+  const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,39 +46,51 @@ export function RegisterForm() {
     },
   })
   
-  async function handleRegistration(user: User) {
-    const signUpResult = await signUp(user.uid, user.email, false); // false for isAnonymous
-    if (signUpResult.error) {
-      toast({ title: "Registration Error", description: `Could not save user profile: ${signUpResult.error}`, variant: "destructive" });
-      throw new Error(signUpResult.error);
+  async function handleRegistration(finalUser: User, anonymousUid?: string | null) {
+    // Ensure the user document exists or is updated
+    await signUp(finalUser.uid, finalUser.email, false); 
+
+    // If there was an anonymous user, migrate their data
+    if (anonymousUid && anonymousUid !== finalUser.uid && firestore) {
+      const q = query(collection(firestore, 'inboxes'), where('userId', '==', anonymousUid));
+      const inboxesSnapshot = await getDocs(q);
+
+      if (!inboxesSnapshot.empty) {
+        const batch = writeBatch(firestore);
+        inboxesSnapshot.forEach(doc => {
+          batch.update(doc.ref, { userId: finalUser.uid });
+        });
+        await batch.commit();
+      }
     }
+
+    toast({
+      title: "Success",
+      description: "Account created successfully.",
+    });
+    router.push("/");
   }
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) return;
+    
+    const anonymousUser = auth.currentUser;
+    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
+
     try {
-      const currentUser = auth.currentUser;
       let finalUser: User;
       
-      if (currentUser && currentUser.isAnonymous) {
-        // This is an anonymous user upgrading their account.
+      if (anonymousUser && anonymousUser.isAnonymous) {
         const credential = EmailAuthProvider.credential(values.email, values.password);
-        const linkResult = await linkWithCredential(currentUser, credential);
+        const linkResult = await linkWithCredential(anonymousUser, credential);
         finalUser = linkResult.user;
       } else {
-        // This is a brand new user.
         const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
         finalUser = userCredential.user;
       }
 
-      await handleRegistration(finalUser);
-
-      toast({
-        title: "Success",
-        description: "Account created successfully.",
-      })
-      router.push("/")
+      await handleRegistration(finalUser, anonymousUid);
 
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during sign up.";
@@ -97,31 +110,23 @@ export function RegisterForm() {
   async function handleGoogleSignIn() {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
+    
+    const anonymousUser = auth.currentUser;
+    const anonymousUid = anonymousUser?.isAnonymous ? anonymousUser.uid : null;
+
     try {
-        const currentUser = auth.currentUser;
-        let finalUser: User;
+        const result = await signInWithPopup(auth, provider);
+        const finalUser = result.user;
 
-        if (currentUser && currentUser.isAnonymous) {
-            // Link Google credential to anonymous user
-            const linkResult = await linkWithCredential(currentUser, provider);
-            finalUser = linkResult.user;
-        } else {
-            // Standard sign-in/sign-up with Google
-            const result = await signInWithPopup(auth, provider);
-            finalUser = result.user;
-        }
-
-        await handleRegistration(finalUser);
-
-        toast({
-            title: "Success",
-            description: "Account created successfully with Google.",
-        });
-        router.push("/");
+        await handleRegistration(finalUser, anonymousUid);
     } catch (error: any) {
+        let errorMessage = error.message || "Could not sign up with Google. Please try again.";
+        if (error.code === 'auth/account-exists-with-different-credential') {
+            errorMessage = "An account already exists with the same email address but different sign-in credentials. Try signing in with a different method."
+        }
         toast({
             title: "Google Sign-Up Failed",
-            description: error.message || "Could not sign up with Google. Please try again.",
+            description: errorMessage,
             variant: "destructive",
         });
     }
