@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { AdminHeader } from '@/components/admin-header';
 import { useUser } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -16,17 +16,26 @@ export default function AdminLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user, userProfile, isUserLoading, isProfileLoading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // If we're on the admin login page, we don't need to run any checks yet.
+  // The user needs a chance to log in.
+  if (pathname === '/login/admin') {
+    return <>{children}</>;
+  }
 
   useEffect(() => {
-    // If loading is finished and there's no user or the user is not an admin, redirect.
-    if (!isUserLoading && !isProfileLoading && (!user || !userProfile?.isAdmin)) {
-        router.push('/dashboard'); 
+    // If loading is finished and there's no user or the user is not an admin,
+    // redirect them to the admin login page.
+    if (!isUserLoading && !isProfileLoading) {
+      if (!user || !userProfile?.isAdmin) {
+        router.push('/login/admin'); 
+      }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router]);
 
-
-  // Show a loading screen while we verify admin status.
-  // This prevents any child components from attempting to render and fetch data.
+  // While we check for admin status, show a loading screen.
+  // This prevents child components from rendering and fetching data prematurely.
   if (isUserLoading || isProfileLoading || !userProfile || !userProfile.isAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -38,7 +47,7 @@ export default function AdminLayout({
       );
   }
   
-  // Only if the user is a verified admin, render the admin layout and its children.
+  // Only if the user is a verified admin, render the full admin layout.
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
