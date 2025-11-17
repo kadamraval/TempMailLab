@@ -7,6 +7,7 @@ let adminFirestore: Firestore;
 
 // This function ensures that the admin app is initialized only once.
 function initializeAdminApp() {
+    // Check if the admin app is already initialized to prevent re-initialization
     const existingApp = getApps().find(app => app.name === 'admin');
     if (existingApp) {
         adminApp = existingApp;
@@ -19,7 +20,10 @@ function initializeAdminApp() {
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
     
     if (!serviceAccountString) {
-        throw new Error('The FIREBASE_SERVICE_ACCOUNT environment variable is not set. The server actions cannot connect to Firebase.');
+        // This log is for the developer running the server, it won't show in the client.
+        console.error("Firebase Admin initialization failed: The FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+        // We throw an error to fail fast on the server, making the configuration issue clear.
+        throw new Error('Server configuration error: Firebase credentials are not set.');
     }
 
     try {
@@ -41,8 +45,8 @@ initializeAdminApp();
 // Export a getter function to be used by server actions.
 export function getAdminFirestore() {
     if (!adminFirestore) {
-        // This is a fallback in case the initial setup failed, though it shouldn't be hit
-        // if the environment is configured correctly.
+        // This is a fallback in case the initial setup failed, which can happen in some serverless environments.
+        console.warn("getAdminFirestore called before initialization was complete. Forcing re-initialization.");
         initializeAdminApp();
     }
     return adminFirestore;
