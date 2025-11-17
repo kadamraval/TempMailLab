@@ -43,25 +43,30 @@ export async function fetchEmailsWithCredentialsAction(
             for (const event of events.items) {
                 if (!event.storage || !event.storage.url) continue;
 
-                const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
+                try {
+                    const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
 
-                if (!messageDetails || !messageDetails.body) continue;
-                
-                const message = messageDetails.body;
-                const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
+                    if (!messageDetails || !messageDetails.body) continue;
+                    
+                    const message = messageDetails.body;
+                    const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
-                fetchedEmails.push({
-                    id: event.id,
-                    recipient: emailAddress,
-                    senderName: message.From || "Unknown Sender",
-                    subject: message.Subject || "No Subject",
-                    receivedAt: new Date(event.timestamp * 1000).toISOString(),
-                    htmlContent: cleanHtml,
-                    textContent: message["stripped-text"] || "No text content.",
-                    rawContent: JSON.stringify(message, null, 2),
-                    attachments: message.attachments || [],
-                    read: false,
-                });
+                    fetchedEmails.push({
+                        id: event.id,
+                        recipient: emailAddress,
+                        senderName: message.From || "Unknown Sender",
+                        subject: message.Subject || "No Subject",
+                        receivedAt: new Date(event.timestamp * 1000).toISOString(),
+                        htmlContent: cleanHtml,
+                        textContent: message["stripped-text"] || "No text content.",
+                        rawContent: JSON.stringify(message, null, 2),
+                        attachments: message.attachments || [],
+                        read: false,
+                    });
+                } catch(err) {
+                    // It's possible for a single email fetch to fail, log it but continue
+                    console.warn(`Could not fetch email content for event ${event.id}. Skipping.`, err)
+                }
             }
         }
         
@@ -92,11 +97,9 @@ export async function fetchEmailsWithCredentialsAction(
         if (error.status === 401) {
             return { success: false, error: 'Mailgun authentication failed. Please check your API key.' };
         }
-        if (error.message.includes('free accounts are for test purposes only')) {
+        if (error.message && error.message.includes('free accounts are for test purposes only')) {
              return { success: false, error: 'Your Mailgun account is a free test account. You may need to add authorized recipients in Mailgun settings.' };
         }
-        return { success: false, error: 'An unexpected error occurred while fetching emails from Mailgun.' };
+        return { success: false, error: error.message || 'An unexpected error occurred while fetching emails from Mailgun.' };
     }
 }
-
-    
