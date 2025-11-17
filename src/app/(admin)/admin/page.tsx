@@ -12,12 +12,12 @@ import { useMemo } from "react";
 export default function AdminPage() {
     const firestore = useFirestore();
     
-    // Correctly memoized queries to prevent infinite loops.
-    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
+    // The query for 'users' has been removed as it violates security rules.
+    // The total users stat will now show 0 until a secure counting method is implemented.
     const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
     const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
 
-    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+    // The 'users' and 'usersLoading' hooks have been removed.
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
     const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
 
@@ -26,9 +26,9 @@ export default function AdminPage() {
     const stats = [
         {
             title: "Total Users",
-            value: users?.length ?? 0,
+            value: 0, // Temporarily hardcoded to 0 to prevent error.
             icon: <Users className="h-4 w-4 text-muted-foreground" />,
-            loading: usersLoading,
+            loading: false, // No longer loading user data.
         },
         {
             title: "Active Plans",
