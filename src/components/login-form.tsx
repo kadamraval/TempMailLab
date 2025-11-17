@@ -44,6 +44,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
     try {
         const result = await signInWithEmailAndPassword(auth, values.email, values.password);
         
@@ -69,6 +70,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   }
 
   async function handleGoogleSignIn() {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);

@@ -2,6 +2,7 @@
 'use server';
 
 import { getFirebaseAdmin } from '@/firebase/server-init';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Ensures a user document exists in Firestore.
@@ -9,9 +10,8 @@ import { getFirebaseAdmin } from '@/firebase/server-init';
  * @param uid The user's unique ID from Firebase Authentication.
  * @param email The user's email (can be null for anonymous).
  * @param isNewUser A boolean to check if it's a new user creation.
- * @param anonymousInbox An optional anonymous inbox to migrate.
  */
-export async function signUp(uid: string, email: string | null, isNewUser: boolean, anonymousInbox?: any) {
+export async function signUp(uid: string, email: string | null, isNewUser: boolean) {
   const { firestore, error: adminError } = getFirebaseAdmin();
 
   if (adminError) {
@@ -22,27 +22,19 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
   try {
     const userRef = firestore.collection('users').doc(uid);
     
-    // Only create a new user document if it is genuinely a new user.
-    if (isNewUser) {
+    // Check if the document already exists
+    const doc = await userRef.get();
+
+    // Only create a new user document if it doesn't already exist.
+    if (!doc.exists) {
       const userData: { [key: string]: any } = {
         uid,
         email,
-        createdAt: new Date().toISOString(),
-        // Assign the default free plan on creation
-        planId: 'free-default', 
+        createdAt: FieldValue.serverTimestamp(),
+        planId: 'free-default', // Assign the default free plan on creation
       };
       
       await userRef.set(userData);
-
-      // If there's an anonymous inbox to migrate, create it in the new user's sub-collection.
-      if (anonymousInbox?.emailAddress) {
-        const inboxRef = userRef.collection('inboxes').doc(); // Auto-generate ID
-        await inboxRef.set({
-          ...anonymousInbox,
-          userId: uid // Associate with the new user
-        });
-      }
-
       return { success: true, message: 'User record created in database.' };
     }
     

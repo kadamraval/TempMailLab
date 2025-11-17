@@ -97,6 +97,9 @@ export function DashboardClient() {
     setServerError(null);
 
     try {
+      // Ensure user record exists, especially for anonymous users on first load.
+      await signUp(user.uid, user.email, user.isAnonymous);
+
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -115,9 +118,6 @@ export function DashboardClient() {
         createdAt: serverTimestamp(),
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
-
-      // Ensure user document exists before creating inbox subcollection
-      await signUp(user.uid, user.email, true);
       
       const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
       

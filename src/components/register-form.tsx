@@ -46,6 +46,7 @@ export function RegisterForm() {
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!auth) return;
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
@@ -72,6 +73,7 @@ export function RegisterForm() {
   }
 
   async function handleGoogleSignIn() {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
