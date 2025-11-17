@@ -70,13 +70,10 @@ export function DashboardClient() {
 
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // For this client, we always use the free plan for anonymous users
-    // A more complex logic would fetch the user's actual plan if they are logged in
     return doc(firestore, 'plans', 'free-default');
   }, [firestore, user]);
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  // Fetch the user's active inboxes
   const inboxesQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
@@ -113,7 +110,6 @@ export function DashboardClient() {
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
       
-      // Create the new inbox in the user's subcollection
       const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
       
       setCurrentInbox({ id: inboxRef.id, ...newInboxData });
@@ -134,17 +130,16 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (isLoadingInboxes || !userPlan) return;
+    if (isUserLoading || isLoadingInboxes || !userPlan) return;
 
     if (activeInboxes && activeInboxes.length > 0) {
         if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
             setCurrentInbox(activeInboxes[0]);
         }
     } else if (!currentInbox && !isGenerating) {
-        // No active inbox found, generate a new one
         handleGenerateEmail(userPlan);
     }
-  }, [activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
+  }, [isUserLoading, activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
@@ -418,3 +413,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

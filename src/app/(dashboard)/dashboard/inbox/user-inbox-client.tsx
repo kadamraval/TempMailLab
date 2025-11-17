@@ -70,8 +70,6 @@ export function UserInboxClient() {
 
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // For this client, we always use the free plan for anonymous users
-    // A more complex logic would fetch the user's actual plan if they are logged in
     return doc(firestore, 'plans', 'free-default');
   }, [firestore, user]);
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
@@ -417,3 +415,5 @@ export function UserInboxClient() {
     </div>
   );
 }
+
+    
