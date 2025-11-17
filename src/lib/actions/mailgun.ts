@@ -34,7 +34,9 @@ export async function fetchEmailsWithCredentialsAction(
         const events = await mg.events.get(domain, {
             recipient: emailAddress,
             event: "stored", // Critical: We only care about emails that Mailgun has stored.
-            limit: 30
+            limit: 30,
+            // We only need events from the last day for performance.
+            begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
         });
         
         const emails: Email[] = [];
@@ -45,7 +47,7 @@ export async function fetchEmailsWithCredentialsAction(
                 if (!event.storage || !event.storage.url) continue;
 
                 // 3. Fetch the full message content from the storage URL.
-                // The URL from the events API is temporary and doesn't require re-signing.
+                // The URL needs to be accessed with the API client to handle auth.
                 const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
 
                 if (!messageDetails || !messageDetails.body) continue;
@@ -74,10 +76,14 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, emails };
 
     } catch (error: any) {
-        console.error("[MAILGUN_ACTION_ERROR]", error.message);
+        console.error("[MAILGUN_ACTION_ERROR]", error);
+        // Provide more specific error feedback
         if (error.status === 401) {
             return { success: false, error: 'Mailgun authentication failed. Please check your API key.' };
         }
-        return { success: false, error: 'An unexpected error occurred while fetching emails.' };
+        if (error.message.includes('free accounts are for test purposes only')) {
+             return { success: false, error: 'Your Mailgun account is a free test account. You may need to add authorized recipients in Mailgun settings.' };
+        }
+        return { success: false, error: 'An unexpected error occurred while fetching emails from Mailgun.' };
     }
 }
