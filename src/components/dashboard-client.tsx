@@ -67,7 +67,7 @@ export function DashboardClient() {
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const settingsRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null; // FIX: Only fetch settings if user is logged in
+    if (!firestore || !user) return null;
     return doc(firestore, "admin_settings", "mailgun");
   }, [firestore, user]);
 
@@ -212,7 +212,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox]);
 
 
   const clearCountdown = () => {
@@ -489,4 +489,5 @@ export function DashboardClient() {
     
 
     
+
 
