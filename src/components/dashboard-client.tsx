@@ -211,18 +211,18 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox?.id]);
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, auth, currentInbox]);
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
     
-    // For anonymous users, the refresh is a no-op for now.
-    // The real fetch happens after they log in.
+    // Anonymous user = refresh reads local only (which is a no-op, but we give feedback)
     if (user && user.isAnonymous) {
-      if (!isAutoRefresh) toast({ title: "Please Log In", description: "Log in or sign up to fetch emails for this inbox."});
+      if (!isAutoRefresh) toast({ title: "Please Log In", description: "Log in or sign up to check for new emails from the server."});
       return;
     }
     
+    // Registered user = refresh checks server
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
@@ -303,7 +303,7 @@ export function DashboardClient() {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox?.id, currentInbox?.expiresAt, user, toast, handleRefresh, handleDeleteInbox]);
+  }, [currentInbox, user, toast, handleRefresh, handleDeleteInbox]);
 
 
   const handleCopyEmail = () => {
@@ -372,7 +372,7 @@ export function DashboardClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={() => activePlan && user ? handleGenerateNewDbInbox(activePlan, user.uid) : activePlan && handleGenerateNewLocalInbox(activePlan)} variant="outline" size="sm" disabled={isGenerating}>
+          <Button onClick={() => activePlan && user && !user.isAnonymous ? handleGenerateNewDbInbox(activePlan, user.uid) : activePlan && handleGenerateNewLocalInbox(activePlan)} variant="outline" size="sm" disabled={isGenerating}>
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
@@ -468,5 +468,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
