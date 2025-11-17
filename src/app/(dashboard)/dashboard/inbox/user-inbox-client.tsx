@@ -73,7 +73,7 @@ export function UserInboxClient() {
 
   const freePlanRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'plans', 'free');
+    return doc(firestore, 'plans', 'free-default');
   }, [firestore]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(freePlanRef);
@@ -265,7 +265,7 @@ export function UserInboxClient() {
             <ServerCrash className="h-4 w-4" />
             <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                A default 'Free' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
+                A default 'free-default' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
             </AlertDescription>
           </Alert>
        </div>

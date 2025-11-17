@@ -5,8 +5,8 @@ import { DotBackground } from '@/components/dot-background';
 import { getFirebaseAdmin } from '@/firebase/index.server';
 
 /**
- * Ensures that a "Free" plan document exists in the Firestore database.
- * If it doesn't exist, it creates one with a specific ID ('free').
+ * Ensures that a "free-default" plan document exists in the Firestore database.
+ * If it doesn't exist, it creates one with a specific ID ('free-default').
  * This is a system-critical plan that serves as a fallback.
  * Uses set with merge to be idempotent and resilient.
  */
@@ -19,7 +19,7 @@ async function seedFreePlan() {
   }
 
   try {
-    const freePlanRef = firestore.collection('plans').doc('free');
+    const freePlanRef = firestore.collection('plans').doc('free-default');
     
     const freePlanData = {
         name: 'Free',
@@ -95,3 +95,5 @@ export default async function MainLayout({
     </div>
   );
 }
+
+    

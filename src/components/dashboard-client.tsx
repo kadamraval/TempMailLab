@@ -71,15 +71,12 @@ export function DashboardClient() {
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-  // --- Start of The Fix ---
-  // 1. Fetch ONLY the free plan document.
   const freePlanRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'plans', 'free');
+    return doc(firestore, 'plans', 'free-default');
   }, [firestore]);
 
   const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(freePlanRef);
-  // --- End of The Fix ---
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
     setIsGenerating(true);
@@ -122,15 +119,11 @@ export function DashboardClient() {
     }
   }, [firestore, toast]);
 
-  // --- Start of The Fix ---
-  // 2. This useEffect now only depends on the loaded plan and generates the first email.
   useEffect(() => {
-    // Wait until the plan is loaded and no inbox has been generated yet.
     if (userPlan && !currentInbox && !isGenerating) {
       handleGenerateEmail(userPlan);
     }
   }, [userPlan, currentInbox, isGenerating, handleGenerateEmail]);
-  // --- End of The Fix ---
 
 
   const clearCountdown = () => {
@@ -257,8 +250,6 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  // --- Start of The Fix ---
-  // 3. The main loading state now correctly waits for the user, settings, AND the plan.
   if (isUserLoading || isLoadingSettings || isLoadingPlan) {
     return (
         <div className="flex items-center justify-center min-h-[480px]">
@@ -267,7 +258,6 @@ export function DashboardClient() {
     );
   }
   
-  // New failure case: If the free plan document itself is missing, we show an error.
   if (!userPlan) {
     return (
        <div className="flex items-center justify-center min-h-[480px]">
@@ -275,13 +265,12 @@ export function DashboardClient() {
             <ServerCrash className="h-4 w-4" />
             <AlertTitle>Server Configuration Error</AlertTitle>
             <AlertDescription>
-                A default 'Free' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
+                A default 'free-default' plan is required for the application to function. Please create one in the admin dashboard. Email refreshing is disabled.
             </AlertDescription>
           </Alert>
        </div>
     )
   }
-  // --- End of The Fix ---
 
 
   return (
