@@ -5,21 +5,40 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+
+// This is the server-side initialization for Firebase Admin.
+// It checks if the app is already initialized to prevent errors.
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : undefined;
+
+let adminApp: App;
+if (!getApps().length) {
+    adminApp = initializeApp({
+        credential: serviceAccount ? cert(serviceAccount) : undefined,
+    });
+} else {
+    adminApp = getApps()[0];
+}
+
+const firestore = getFirestore(adminApp);
+
 
 /**
  * A secure server action that uses provided Mailgun credentials
- * to fetches emails for a given address.
- * It now correctly fetches "stored" events and then the full message
- * content for reliability.
+ * to fetches emails for a given address, and then saves them to Firestore.
  */
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
+    inboxId: string,
     apiKey: string | undefined,
     domain: string | undefined,
-): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
 
-    if (!emailAddress) {
-        return { success: false, error: 'Email address is required.' };
+    if (!emailAddress || !inboxId) {
+        return { success: false, error: 'Email address and Inbox ID are required.' };
     }
     
     if (!apiKey || !domain) {
@@ -30,35 +49,27 @@ export async function fetchEmailsWithCredentialsAction(
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
-        // 1. Fetch 'stored' events for the specific recipient.
         const events = await mg.events.get(domain, {
             recipient: emailAddress,
-            event: "stored", // Critical: We only care about emails that Mailgun has stored.
+            event: "stored",
             limit: 30,
-            // We only need events from the last day for performance.
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
         });
         
-        const emails: Email[] = [];
+        const fetchedEmails: Email[] = [];
 
         if (events?.items?.length) {
             for (const event of events.items) {
-                // 2. Ensure the event has a storage URL.
                 if (!event.storage || !event.storage.url) continue;
 
-                // 3. Fetch the full message content from the storage URL.
-                // The URL needs to be accessed with the API client to handle auth.
                 const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
 
                 if (!messageDetails || !messageDetails.body) continue;
                 
                 const message = messageDetails.body;
-                
-                // 4. Sanitize HTML content to prevent XSS attacks.
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
-                // 5. Build the final email object.
-                emails.push({
+                fetchedEmails.push({
                     id: event.id,
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
@@ -73,11 +84,30 @@ export async function fetchEmailsWithCredentialsAction(
             }
         }
         
-        return { success: true, emails };
+        // If we found emails, save them to Firestore
+        if (fetchedEmails.length > 0) {
+            const batch = firestore.batch();
+            const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
+
+            fetchedEmails.forEach((email) => {
+                const emailRef = emailsCollectionRef.doc(email.id);
+                const emailData = {
+                    ...email,
+                    htmlContent: email.htmlContent || "",
+                    textContent: email.textContent || "",
+                    rawContent: email.rawContent || "",
+                    attachments: email.attachments || [],
+                };
+                batch.set(emailRef, emailData);
+            });
+
+            await batch.commit();
+        }
+        
+        return { success: true };
 
     } catch (error: any) {
         console.error("[MAILGUN_ACTION_ERROR]", error);
-        // Provide more specific error feedback
         if (error.status === 401) {
             return { success: false, error: 'Mailgun authentication failed. Please check your API key.' };
         }

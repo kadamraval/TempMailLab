@@ -12,7 +12,6 @@ import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
 import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
-import { saveEmailsAction } from "@/lib/actions/emails";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -225,7 +224,7 @@ export function DashboardClient() {
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
-    if (currentInbox.id.startsWith('local-')) return; // Don't refresh for local inboxes
+    if (currentInbox.id.startsWith('local-')) return;
     
     if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
       if (!isAutoRefresh) {
@@ -239,6 +238,7 @@ export function DashboardClient() {
     try {
       const result = await fetchEmailsWithCredentialsAction(
           currentInbox.emailAddress,
+          currentInbox.id,
           mailgunSettings.apiKey,
           mailgunSettings.domain
       );
@@ -250,15 +250,8 @@ export function DashboardClient() {
         if (!isAutoRefresh) toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
       } else {
         setServerError(null);
-        if (result.emails && result.emails.length > 0) {
-            await saveEmailsAction(currentInbox.id, result.emails);
-            if (!isAutoRefresh) {
-                toast({ title: 'Inbox refreshed', description: `Found ${result.emails.length} new email(s).` });
-            }
-        } else {
-            if (!isAutoRefresh) {
-                toast({ title: "Inbox refreshed", description: "No new emails found." });
-            }
+        if (!isAutoRefresh) {
+            toast({ title: "Inbox refreshed", description: "Checking for new emails..." });
         }
       }
     } catch (error: any) {
