@@ -11,9 +11,10 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
+import { saveMailgunSettingsAction } from "@/lib/actions/settings";
 
 interface IntegrationSettingsFormProps {
     integration: {
@@ -64,21 +65,17 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const handleSaveChanges = async () => {
-        if (integration.slug !== 'mailgun' || !settingsRef) return;
+        if (integration.slug !== 'mailgun') return;
         
         setIsSaving(true);
         
-        // This is the fix: explicitly set `enabled` to true if an API key is provided.
-        const settingsToSave = {
-            ...settings,
-            enabled: !!settings.apiKey,
-        };
-
         try {
-            // Note: This operation may fail with default security rules if not run by an admin.
-            // A server-side action is the most robust way to modify this document.
-            // This client-side write is kept for demonstration if rules are temporarily relaxed.
-            await setDoc(settingsRef, settingsToSave, { merge: true });
+            const result = await saveMailgunSettingsAction(settings);
+            
+            if (result.error) {
+                 throw new Error(result.error);
+            }
+
             toast({
                 title: "Settings Saved",
                 description: `${integration.title} configuration has been updated.`,
@@ -88,8 +85,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         } catch (error: any) {
             console.error("Error saving settings:", error);
             toast({
-                title: "Permission Error",
-                description: "You do not have permission to modify these settings. This must be done via a secure server action.",
+                title: "Error Saving Settings",
+                description: error.message || "An unknown error occurred.",
                 variant: "destructive"
             });
         } finally {
