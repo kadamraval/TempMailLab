@@ -205,7 +205,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
+  }, [user, isUserLoading, isLoadingPlan, activePlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox?.id]);
 
 
   const clearCountdown = () => {
@@ -292,7 +292,7 @@ export function DashboardClient() {
         clearCountdown();
         clearRefreshInterval();
     };
-  }, [currentInbox, toast, handleRefresh, handleDeleteInbox, user]);
+  }, [currentInbox?.id, currentInbox?.expiresAt, user, toast, handleRefresh, handleDeleteInbox]);
 
 
   const handleCopyEmail = () => {
@@ -457,3 +457,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
