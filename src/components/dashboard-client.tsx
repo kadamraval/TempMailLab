@@ -60,7 +60,7 @@ export function DashboardClient() {
 
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userProfile } = useUser();
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -73,25 +73,19 @@ export function DashboardClient() {
 
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
   
+  const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
-    const planId = (user as any)?.planId || 'free-default';
+    if (!firestore) return null;
     return doc(firestore, 'plans', planId);
-  }, [firestore, user]);
+  }, [firestore, planId]);
 
-  const { data: freePlan, isLoading: isLoadingFreePlan, error: freePlanError } = useDoc<Plan>(useMemoFirebase(() => firestore ? doc(firestore, 'plans', 'free-default') : null, [firestore]));
-
-  const { data: userPlan, isLoading: isLoadingUserPlan } = useDoc<Plan>(userPlanRef);
-
-  const activePlan = user ? userPlan : freePlan;
-  const isLoadingPlan = user ? isLoadingUserPlan : isLoadingFreePlan;
+  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
   const inboxesQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || isUserLoading) return null;
     return query(
       collection(firestore, `inboxes`),
       where("userId", "==", user.uid),
-      where("expiresAt", ">", new Date().toISOString()),
       limit(1)
     );
   }, [firestore, user, isUserLoading]);
@@ -172,7 +166,7 @@ export function DashboardClient() {
 
         const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
-        setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
+        // No need to set currentInbox here as useCollection will pick it up
         setSelectedEmail(null);
         setInboxEmails([]);
 
@@ -209,10 +203,11 @@ export function DashboardClient() {
         localStorage.removeItem(LOCAL_INBOX_KEY); 
         if (!isLoadingInboxes) {
             if (activeInboxes && activeInboxes.length > 0) {
-                if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
+                 if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
                     setCurrentInbox(activeInboxes[0]);
                 }
             } else if (activePlan) {
+                // If the user is logged in, but no inbox is found, create one.
                 handleGenerateNewDbInbox(activePlan, user.uid);
             }
         }
@@ -291,12 +286,12 @@ export function DashboardClient() {
         if (!inboxIdToDelete.startsWith('local-')) {
             await deleteDoc(doc(firestore, "inboxes", inboxIdToDelete));
         }
-        if (activePlan) handleGenerateNewDbInbox(activePlan, user.uid);
+         // A new inbox will be created automatically by the effect hook.
     } else { // Anonymous user
         localStorage.removeItem(LOCAL_INBOX_KEY);
         if (activePlan) handleGenerateNewLocalInbox(activePlan);
     }
-  }, [firestore, currentInbox, user, activePlan, handleGenerateNewDbInbox, handleGenerateNewLocalInbox]);
+  }, [firestore, currentInbox, user, activePlan, handleGenerateNewLocalInbox]);
 
   useEffect(() => {
     clearCountdown();

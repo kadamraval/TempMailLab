@@ -33,7 +33,7 @@ interface LoginFormProps {
   redirectPath?: string;
 }
 
-export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
+export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
@@ -53,9 +53,9 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     const userRef = doc(firestore, 'users', finalUser.uid);
     const userDoc = await getDoc(userRef);
 
-    // If the user document doesn't exist, create it.
     if (!userDoc.exists()) {
-        await setDoc(userRef, {
+        const batch = writeBatch(firestore);
+        batch.set(userRef, {
             uid: finalUser.uid,
             email: finalUser.email,
             isAnonymous: false,
@@ -63,6 +63,22 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
             isAdmin: false,
             createdAt: serverTimestamp(),
         }, { merge: true });
+
+        const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+        if (localInboxData) {
+            const parsed: Inbox = JSON.parse(localInboxData);
+            if (new Date(parsed.expiresAt) > new Date()) {
+                const inboxRef = doc(collection(firestore, 'inboxes'));
+                batch.set(inboxRef, {
+                    userId: finalUser.uid,
+                    emailAddress: parsed.emailAddress,
+                    expiresAt: parsed.expiresAt,
+                    createdAt: serverTimestamp(),
+                });
+            }
+            localStorage.removeItem(LOCAL_INBOX_KEY);
+        }
+        await batch.commit();
     }
 
     toast({
@@ -76,24 +92,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     if (!auth || !firestore) return;
 
     try {
-        const currentUser = auth.currentUser;
-
-        if (currentUser && currentUser.isAnonymous) {
-            // Upgrade anonymous user
-            const credential = EmailAuthProvider.credential(values.email, values.password);
-            const userCredential = await linkWithCredential(currentUser, credential);
-            
-            // Update user document to be non-anonymous
-            const userRef = doc(firestore, 'users', userCredential.user.uid);
-            await setDoc(userRef, { email: values.email, isAnonymous: false }, { merge: true });
-            
-            toast({ title: "Account Linked", description: "Your anonymous account has been upgraded." });
-            router.push(redirectPath);
-        } else {
-            // Standard sign-in
-            const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-            await handleLoginSuccess(result.user);
-        }
+        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+        await handleLoginSuccess(result.user);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -112,24 +112,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     const provider = new GoogleAuthProvider();
     
     try {
-        const currentUser = auth.currentUser;
-        if (currentUser && currentUser.isAnonymous) {
-            // Link Google to existing anonymous account
-            const userCredential = await linkWithCredential(currentUser, provider);
-            const userRef = doc(firestore, 'users', userCredential.user.uid);
-            await setDoc(userRef, { 
-                email: userCredential.user.email, 
-                isAnonymous: false,
-                displayName: userCredential.user.displayName,
-                photoURL: userCredential.user.photoURL,
-            }, { merge: true });
-            
-            toast({ title: "Account Linked", description: "Your anonymous account has been upgraded." });
-        } else {
-            // Standard Google sign-in
-            const result = await signInWithPopup(auth, provider);
-            await handleLoginSuccess(result.user);
-        }
+        const result = await signInWithPopup(auth, provider);
+        await handleLoginSuccess(result.user);
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign in with Google. Please try again.";
         if (error.code === 'auth/account-exists-with-different-credential') {

@@ -89,7 +89,7 @@ export function RegisterForm() {
       title: "Success",
       description: "Account created successfully.",
     });
-    router.push("/");
+    router.push("/dashboard/inbox");
   }
 
 
@@ -113,19 +113,18 @@ export function RegisterForm() {
   }
 
   async function handleGoogleSignIn() {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     const provider = new GoogleAuthProvider();
     
     try {
         const result = await signInWithPopup(auth, provider);
-        // Check if user already exists in Firestore to prevent overwriting data
         const userRef = doc(firestore, 'users', result.user.uid);
         const userDoc = await getDoc(userRef);
         if (!userDoc.exists()) {
           await handleRegistrationSuccess(result.user);
         } else {
           toast({ title: "Welcome back!", description: "Successfully logged in with Google."});
-          router.push('/');
+          router.push('/dashboard/inbox');
         }
     } catch (error: any) {
         let errorMessage = error.message || "Could not sign up with Google. Please try again.";
