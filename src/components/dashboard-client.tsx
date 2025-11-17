@@ -238,7 +238,7 @@ export function DashboardClient() {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, user]);
+  }, [currentInbox, user, toast]);
 
   const handleDeleteInbox = useCallback(async () => {
     if (!currentInbox || !firestore) return;
