@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider, getDocs, query, collection, where, writeBatch } from "firebase/auth"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, linkWithCredential, EmailAuthProvider } from "firebase/auth"
+import { getDocs, query, collection, where, writeBatch } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { signUp, migrateAnonymousInbox } from "@/lib/actions/auth"
+import { signUp } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
