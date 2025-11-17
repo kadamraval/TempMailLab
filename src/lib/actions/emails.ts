@@ -1,9 +1,26 @@
 
 'use server';
 
-import { initializeFirebase } from '@/firebase/server-init';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import type { Email } from '@/types';
 import { writeBatch, collection, doc } from 'firebase/firestore';
+
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : undefined;
+
+let adminApp: App;
+if (!getApps().length) {
+    adminApp = initializeApp({
+        credential: serviceAccount ? cert(serviceAccount) : undefined,
+    });
+} else {
+    adminApp = getApps()[0];
+}
+
+const firestore = getFirestore(adminApp);
+
 
 /**
  * Saves a batch of emails to a specified inbox's subcollection in Firestore.
@@ -20,13 +37,11 @@ export async function saveEmailsAction(inboxId: string, emails: Email[]) {
     }
 
     try {
-        const { firestore } = initializeFirebase();
-        const batch = writeBatch(firestore);
-
-        const emailsCollectionRef = collection(firestore, `inboxes/${inboxId}/emails`);
+        const batch = firestore.batch();
+        const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
         emails.forEach((email) => {
-            const emailRef = doc(emailsCollectionRef, email.id);
+            const emailRef = emailsCollectionRef.doc(email.id);
             // Ensure we don't save undefined values
             const emailData = {
                 ...email,

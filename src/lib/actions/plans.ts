@@ -2,8 +2,24 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase/server-init';
-import { addDoc, collection, doc, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : undefined;
+
+let adminApp: App;
+if (!getApps().length) {
+    adminApp = initializeApp({
+        credential: serviceAccount ? cert(serviceAccount) : undefined,
+    });
+} else {
+    adminApp = getApps()[0];
+}
+
+const firestore = getFirestore(adminApp);
+
 
 /**
  * Saves a plan to Firestore. Handles both creating a new plan and updating an existing one.
@@ -13,17 +29,16 @@ import { addDoc, collection, doc, serverTimestamp, updateDoc, deleteDoc } from "
  */
 export async function savePlanAction(planData: any, planId?: string) {
     try {
-        const { firestore } = initializeFirebase();
         if (planId) {
             // Update existing plan
-            const planRef = doc(firestore, "plans", planId);
-            await updateDoc(planRef, planData);
+            const planRef = firestore.doc(`plans/${planId}`);
+            await planRef.update(planData);
         } else {
             // Create new plan
-            const collectionRef = collection(firestore, "plans");
-            await addDoc(collectionRef, {
+            const collectionRef = firestore.collection("plans");
+            await collectionRef.add({
                 ...planData,
-                createdAt: serverTimestamp(),
+                createdAt: new Date(),
             });
         }
         
@@ -44,13 +59,12 @@ export async function savePlanAction(planData: any, planId?: string) {
  */
 export async function deletePlanAction(planId: string) {
     try {
-        const { firestore } = initializeFirebase();
         if (!planId) {
             throw new Error("Plan ID is required for deletion.");
         }
         
-        const planRef = doc(firestore, "plans", planId);
-        await deleteDoc(planRef);
+        const planRef = firestore.doc(`plans/${planId}`);
+        await planRef.delete();
 
         // Revalidate the admin path to show the updated plan list
         revalidatePath('/admin/packages');
