@@ -10,7 +10,7 @@ import type { Email } from '@/types';
  * A secure server action that uses provided Mailgun credentials
  * to fetches emails for a given address.
  * It now correctly fetches "accepted" events and then the full message
- * content for reliability.
+ * content for reliability. It is also robust against various email formats.
  */
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
@@ -23,8 +23,6 @@ export async function fetchEmailsWithCredentialsAction(
     }
     
     if (!apiKey || !domain) {
-        // This is the expected state if the admin has not configured Mailgun.
-        // It's a configuration notice, not a runtime error.
         return { success: false, error: 'Mailgun API Key and Domain are required. Please configure them in the admin settings.' };
     }
 
@@ -32,8 +30,6 @@ export async function fetchEmailsWithCredentialsAction(
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
-        // Get the events for the recipient, specifically for "accepted" messages.
-        // This is more reliable than "stored" as it fires for every email received.
         const events = await mg.events.get(domain, {
             recipient: emailAddress,
             event: "accepted",
@@ -44,17 +40,14 @@ export async function fetchEmailsWithCredentialsAction(
 
         if (events?.items?.length) {
             for (const event of events.items) {
-                // Ensure the event has a storage URL, which means the message is available.
                 if (!event.storage || !event.storage.url) continue;
 
-                // Fetch the full message content from the storage URL
-                // The URL requires authentication, which the mg.get method handles.
                 const messageDetails = await mg.get(event.storage.url);
                 if (!messageDetails || !messageDetails.body) continue;
                 
                 const message = messageDetails.body;
                 
-                // Sanitize the HTML content to prevent XSS attacks
+                // Sanitize HTML content, providing an empty string if it's nullish.
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
                 emails.push({
@@ -63,9 +56,10 @@ export async function fetchEmailsWithCredentialsAction(
                     senderName: message.From || "Unknown Sender",
                     subject: message.Subject || "No Subject",
                     receivedAt: new Date(event.timestamp * 1000).toISOString(),
+                    // Use fallback values for each part to prevent crashes
                     htmlContent: cleanHtml,
                     textContent: message["stripped-text"] || "",
-                    rawContent: JSON.stringify(message, null, 2), // Full raw content for source view
+                    rawContent: JSON.stringify(message, null, 2),
                     attachments: message.attachments || [],
                     read: false,
                 });
@@ -76,7 +70,6 @@ export async function fetchEmailsWithCredentialsAction(
 
     } catch (error: any) {
         console.error("[MAILGUN_ACTION_ERROR]", error.message);
-        // Do not expose detailed internal errors to the client.
         return { success: false, error: 'An unexpected error occurred while fetching emails.' };
     }
 }
