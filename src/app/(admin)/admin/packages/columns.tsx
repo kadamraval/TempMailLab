@@ -54,7 +54,7 @@ export const getPlanColumns = (
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => {
-        const isFreePlan = row.original.name.toLowerCase() === 'free';
+        const isFreePlan = row.original.id === 'free-default';
         return (
             <div className={cn("font-medium text-left flex items-center gap-2", isFreePlan && "text-muted-foreground")}>
                 {row.getValue("name")}
@@ -127,7 +127,7 @@ export const getPlanColumns = (
     id: "actions",
     cell: ({ row }) => {
       const plan = row.original
-      const isFreePlan = plan.name.toLowerCase() === 'free';
+      const isFreePlan = plan.id === 'free-default';
 
       return (
         <DropdownMenu>

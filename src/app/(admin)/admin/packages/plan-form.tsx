@@ -45,7 +45,7 @@ const formSchemaToSubmit = planSchema.omit({ id: true, createdAt: true });
 const featureTooltips: Record<string, string> = {
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
-  inboxLifetime: "Duration in minutes an inbox exists before being purged. 0 for unlimited.",
+  inboxLifetime: "Duration in minutes an inbox exists before being purged. Set to 0 for unlimited lifetime.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
   customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
@@ -141,7 +141,7 @@ export function PlanForm({ plan }: PlanFormProps) {
   const firestore = useFirestore()
   const { toast } = useToast()
   const router = useRouter()
-  const isFreePlan = plan?.name.toLowerCase() === 'free';
+  const isFreePlan = plan?.id === 'free-default';
 
   const defaultValues: z.infer<typeof formSchemaToSubmit> = {
     name: "",
@@ -199,6 +199,12 @@ export function PlanForm({ plan }: PlanFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
     if (!firestore) return;
+    
+    if (isFreePlan && values.name.toLowerCase() !== 'free') {
+        toast({ title: "Invalid Operation", description: "The name of the 'Free' plan cannot be changed.", variant: "destructive" });
+        return;
+    }
+    
     setIsSubmitting(true)
     
     try {
@@ -239,7 +245,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {isFreePlan && (
                         <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                             <Lock className="h-3 w-3" />
-                            You are editing the non-deletable Free plan.
+                            You are editing the non-deletable default Free plan.
                         </Badge>
                     )}
                 </CardHeader>

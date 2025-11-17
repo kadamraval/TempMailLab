@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,7 +45,7 @@ export default function AdminPackagesPage() {
     }, [router]);
 
     const handleDelete = useCallback((plan: Plan) => {
-        if (plan.name.toLowerCase() === 'free') {
+        if (plan.id === 'free-default') {
             toast({
                 title: "Action Not Allowed",
                 description: "The 'Free' plan is a system-critical fallback and cannot be deleted.",

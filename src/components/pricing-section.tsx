@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -58,7 +58,7 @@ export function PricingSection({ plans = [] }: PricingSectionProps) {
         inboxLifetime: (v) => {
             if (v === 0) return 'Unlimited Inbox Lifetime';
             const hours = v/60;
-            if (v >= 60) return `${hours.toFixed(0)} ${hours > 1 ? 'Hours' : 'Hour'} Inbox Lifetime`;
+            if (v >= 60) return `${Math.floor(hours)} ${Math.floor(hours) > 1 ? 'Hours' : 'Hour'} Inbox Lifetime`;
             return `${v} Minute Inbox Lifetime`;
         },
         allowPremiumDomains: (v) => v ? "Premium Domains" : "Standard Domains",

@@ -33,13 +33,3 @@ export interface Inbox {
   createdAt: string;
   expiresAt: string;
 }
-
-// This is now defined in src/app/(admin)/admin/packages/data.ts
-// export interface Plan {
-//   id: string;
-//   name: string;
-//   price: number;
-//   features: string;
-//   status: 'active' | 'archived';
-//   cycle: 'monthly' | 'yearly';
-// }

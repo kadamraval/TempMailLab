@@ -6,12 +6,12 @@ import { getFirebaseAdmin } from '@/firebase/server-init';
 /**
  * Deletes a plan from Firestore.
  * This is a server action using the Firebase Admin SDK.
- * It includes a safeguard to prevent deletion of the critical 'free' plan.
+ * It includes a safeguard to prevent deletion of the critical 'free-default' plan.
  * @param planId The ID of the plan document to delete.
  */
 export async function deletePlanAction(planId: string) {
-  if (planId === 'free') {
-    return { error: "The 'Free' plan is a system plan and cannot be deleted." };
+  if (planId === 'free-default') {
+    return { error: "The default 'Free' plan is a system plan and cannot be deleted." };
   }
 
   const { firestore, error: adminError } = getFirebaseAdmin();

@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 const featureTooltips: Record<string, string> = {
     maxInboxes: "Max number of active inboxes a user can have at one time.",
-    inboxLifetime: "Duration in minutes an inbox exists before being purged. 0 for unlimited.",
+    inboxLifetime: "Duration in minutes an inbox exists before being purged. Set to 0 for unlimited lifetime.",
     customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
     customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
     allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
@@ -92,7 +92,7 @@ const FeatureCell = ({ value }: { value: any }) => {
         return value ? <Check className="h-6 w-6 text-green-500 mx-auto" /> : <X className="h-6 w-6 text-red-500 mx-auto" />;
     }
     if (typeof value === 'number') {
-        if (value === 0) return <span>Unlimited</span>;
+        if (value === 0 && (Object.keys(featureTooltips).find(key => featureLabels[key] && featureTooltips[key].includes("unlimited")))) return <span>Unlimited</span>;
         return <span>{value}</span>;
     }
      if (typeof value === 'string') {
