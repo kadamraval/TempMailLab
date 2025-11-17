@@ -79,13 +79,16 @@ export function DashboardClient({ plans }: DashboardClientProps) {
 
   const getPlanForUser = useCallback((uid: string | null, isAnonymous: boolean): Plan | null => {
     if (!plans || plans.length === 0) {
+        // If plans are not loaded yet, wait.
         return null; 
     }
 
     const freePlan = plans.find(p => p.id === 'free');
     
+    // This is the critical change: Do not set an error if the free plan is missing while plans are still loading.
+    // The calling useEffect will handle the loading state.
     if (!freePlan) {
-        setServerError("Could not retrieve a subscription plan. A default 'Free' plan is required for the application to function.");
+        setServerError("A required 'Free' plan is not configured. The application cannot function.");
         return null;
     }
     
@@ -141,10 +144,11 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     }
     
     if (!userPlan) {
+        // Correctly identify anonymous or non-logged-in users.
         const isAnonymous = user ? user.isAnonymous : true;
         const plan = getPlanForUser(user?.uid || null, isAnonymous);
 
-        if (plan) {
+        if (plan) { // If a plan was successfully found...
            setUserPlan(plan);
            if (!currentInbox) {
                handleGenerateEmail(plan);
@@ -152,6 +156,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
                setIsLoading(false);
            }
        } else if (plans && plans.length > 0 && !plan) {
+            // This case handles when plans are loaded but no suitable plan was found (which would be an error state)
             setIsLoading(false);
        }
     }
@@ -169,7 +174,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress) return;
     
-    if (!mailgunSettings?.enabled) {
+    if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
       if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
         setServerError(errorMsg);
@@ -282,7 +287,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isLoading || isUserLoading || isLoadingSettings) {
+  if (isLoading || isUserLoading || isLoadingSettings || !userPlan) {
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -320,7 +325,7 @@ export function DashboardClient({ plans }: DashboardClientProps) {
             <PlusCircle className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">New</span>
           </Button>
-          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !!serverError}>
+          <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
