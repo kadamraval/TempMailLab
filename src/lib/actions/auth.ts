@@ -4,13 +4,14 @@
 import { getFirebaseAdmin } from '@/firebase/server-init';
 
 /**
- * Creates or updates a user document in Firestore after a client-side sign-up or first-time Google login.
- * This is a server action using the Firebase Admin SDK.
+ * Ensures a user document exists in Firestore.
+ * This is called on sign-up, first-time Google login, or first anonymous session.
  * @param uid The user's unique ID from Firebase Authentication.
- * @param email The user's email.
+ * @param email The user's email (can be null for anonymous).
  * @param isNewUser A boolean to check if it's a new user creation.
+ * @param anonymousInbox An optional anonymous inbox to migrate.
  */
-export async function signUp(uid: string, email: string | null, isNewUser: boolean) {
+export async function signUp(uid: string, email: string | null, isNewUser: boolean, anonymousInbox?: any) {
   const { firestore, error: adminError } = getFirebaseAdmin();
 
   if (adminError) {
@@ -20,18 +21,29 @@ export async function signUp(uid: string, email: string | null, isNewUser: boole
   
   try {
     const userRef = firestore.collection('users').doc(uid);
-    const docSnap = await userRef.get();
-
-    if (isNewUser || !docSnap.exists) {
-      const userData = {
+    
+    // Only create a new user document if it is genuinely a new user.
+    if (isNewUser) {
+      const userData: { [key: string]: any } = {
         uid,
         email,
         createdAt: new Date().toISOString(),
-        planType: 'free',
-        isPremium: false,
+        // Assign the default free plan on creation
+        planId: 'free-default', 
       };
-      await userRef.set(userData, { merge: true });
-      return { success: true, message: 'User record ensured in database.' };
+      
+      await userRef.set(userData);
+
+      // If there's an anonymous inbox to migrate, create it in the new user's sub-collection.
+      if (anonymousInbox?.emailAddress) {
+        const inboxRef = userRef.collection('inboxes').doc(); // Auto-generate ID
+        await inboxRef.set({
+          ...anonymousInbox,
+          userId: uid // Associate with the new user
+        });
+      }
+
+      return { success: true, message: 'User record created in database.' };
     }
     
     return { success: true, message: 'User already exists, login successful.' };

@@ -7,10 +7,10 @@ import { Copy, RefreshCw, Loader2, Clock, Trash2, Inbox, PlusCircle, ServerCrash
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { type Email } from "@/types";
+import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useFirestore, useUser, useMemoFirebase, useDoc } from "@/firebase";
-import { getDocs, query, collection, where, doc } from "firebase/firestore";
+import { useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, writeBatch, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ function generateRandomString(length: number) {
 }
 
 export function UserInboxClient() {
-  const [currentInbox, setCurrentInbox] = useState<{ emailAddress: string; expiresAt: number } | null>(null);
+  const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
   const [inboxEmails, setInboxEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -64,26 +64,36 @@ export function UserInboxClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const settingsRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, "admin_settings", "mailgun");
-  }, [firestore]);
-
+  // --- Data Fetching ---
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, "admin_settings", "mailgun") : null, [firestore]);
   const { data: mailgunSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-  const freePlanRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+  const userPlanRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    // For this client, we always use the free plan for anonymous users
+    // A more complex logic would fetch the user's actual plan if they are logged in
     return doc(firestore, 'plans', 'free-default');
-  }, [firestore]);
+  }, [firestore, user]);
+  const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  const { data: userPlan, isLoading: isLoadingPlan } = useDoc<Plan>(freePlanRef);
+  // Fetch the user's active inboxes
+  const inboxesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, `users/${user.uid}/inboxes`),
+      where("expiresAt", ">", new Date().toISOString()),
+      limit(1)
+    );
+  }, [firestore, user]);
+  const { data: activeInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(inboxesQuery);
+
   
   const handleGenerateEmail = useCallback(async (plan: Plan) => {
+    if (!firestore || !user) return;
     setIsGenerating(true);
     setServerError(null);
+
     try {
-      if (!firestore) throw new Error("Database connection not available.");
-      
       const domainsQuery = query(
         collection(firestore, "allowed_domains"),
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
@@ -91,19 +101,22 @@ export function UserInboxClient() {
       const domainsSnapshot = await getDocs(domainsQuery);
       const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
 
-      if (allowedDomains.length === 0) {
-        throw new Error("No domains configured by the administrator.");
-      }
-
+      if (allowedDomains.length === 0) throw new Error("No domains configured by the administrator.");
+      
       const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
       
-      const newInbox = {
+      const newInboxData = {
+        userId: user.uid,
         emailAddress,
-        expiresAt: Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000,
+        createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
-
-      setCurrentInbox(newInbox);
+      
+      // Create the new inbox in the user's subcollection
+      const inboxRef = await addDoc(collection(firestore, `users/${user.uid}/inboxes`), newInboxData);
+      
+      setCurrentInbox({ id: inboxRef.id, ...newInboxData });
       setSelectedEmail(null);
       setInboxEmails([]);
 
@@ -117,13 +130,21 @@ export function UserInboxClient() {
     } finally {
       setIsGenerating(false);
     }
-  }, [firestore, toast]);
+  }, [firestore, user, toast]);
+
 
   useEffect(() => {
-    if (userPlan && !currentInbox && !isGenerating) {
-      handleGenerateEmail(userPlan);
+    if (isLoadingInboxes || !userPlan) return;
+
+    if (activeInboxes && activeInboxes.length > 0) {
+        if (!currentInbox || currentInbox.id !== activeInboxes[0].id) {
+            setCurrentInbox(activeInboxes[0]);
+        }
+    } else if (!currentInbox && !isGenerating) {
+        // No active inbox found, generate a new one
+        handleGenerateEmail(userPlan);
     }
-  }, [userPlan, currentInbox, isGenerating, handleGenerateEmail]);
+  }, [activeInboxes, isLoadingInboxes, userPlan, currentInbox, isGenerating, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
@@ -136,7 +157,7 @@ export function UserInboxClient() {
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress) return;
-
+    
     if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
       if (!isAutoRefresh) {
         const errorMsg = 'Email fetching is currently disabled by the administrator.';
@@ -145,26 +166,22 @@ export function UserInboxClient() {
       return;
     }
 
-    if (!isAutoRefresh) {
-      setIsRefreshing(true);
-    }
+    if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
       const result = await fetchEmailsWithCredentialsAction(
-        currentInbox.emailAddress,
-        mailgunSettings.apiKey,
-        mailgunSettings.domain
+          currentInbox.emailAddress,
+          mailgunSettings.apiKey,
+          mailgunSettings.domain
       );
         
       if (result.error) {
         const errorMsg = result.error || "An unknown error occurred while fetching emails.";
         setServerError(errorMsg);
-        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); // Stop auto-refresh on config error
-        if (!isAutoRefresh) {
-           toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
-        }
+        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); 
+        if (!isAutoRefresh) toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
       } else {
-        setServerError(null); // Clear previous errors on success
+        setServerError(null);
       }
         
       if (result.emails && result.emails.length > 0) {
@@ -178,15 +195,11 @@ export function UserInboxClient() {
           return allEmails.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
         });
       } else {
-        if (!isAutoRefresh) {
-          toast({ title: "Inbox refreshed", description: "No new emails found." });
-        }
+        if (!isAutoRefresh) toast({ title: "Inbox refreshed", description: "No new emails found." });
       }
         
     } catch (error: any) {
-        if (!isAutoRefresh) {
-            toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
-        }
+        if (!isAutoRefresh) toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
         console.error("Error refreshing inbox:", error.message);
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
@@ -194,17 +207,32 @@ export function UserInboxClient() {
   }, [currentInbox, toast, mailgunSettings]);
 
   const handleNewAddressClick = useCallback(async () => {
-    if (isGenerating || !userPlan) return;
+    if (isGenerating || !userPlan || !firestore || !user) return;
+
+    // Delete all existing inboxes for the user
+    const userInboxesRef = collection(firestore, `users/${user.uid}/inboxes`);
+    const inboxesSnapshot = await getDocs(userInboxesRef);
+    const batch = writeBatch(firestore);
+    inboxesSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    setCurrentInbox(null);
+    setInboxEmails([]);
+    setSelectedEmail(null);
+
+    // Generate the new email
     handleGenerateEmail(userPlan);
-  }, [isGenerating, userPlan, handleGenerateEmail]);
+  }, [isGenerating, userPlan, firestore, user, handleGenerateEmail]);
 
   useEffect(() => {
     clearCountdown();
     clearRefreshInterval();
-    if (currentInbox) {
-        setCountdown(Math.floor((currentInbox.expiresAt - Date.now()) / 1000));
+    if (currentInbox?.expiresAt) {
+        const expiryDate = new Date(currentInbox.expiresAt);
+        setCountdown(Math.floor((expiryDate.getTime() - Date.now()) / 1000));
+        
         countdownIntervalRef.current = setInterval(() => {
-            const newCountdown = Math.floor((currentInbox.expiresAt - Date.now()) / 1000);
+            const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
             if (newCountdown <= 0) {
                 toast({ title: "Session Expired", description: "Your temporary email has expired.", variant: "destructive"});
                 setCurrentInbox(null);
@@ -238,11 +266,6 @@ export function UserInboxClient() {
     setInboxEmails(emails => emails.map(e => e.id === email.id ? {...e, read: true} : e));
   };
   
-  const handleDeleteInbox = async () => {
-    await handleNewAddressClick();
-    toast({ title: "Inbox Cleared", description: "A new address has been generated." });
-  };
-
   const formatTime = (seconds: number) => {
     if (seconds <= 0) return "00:00";
     const minutes = Math.floor(seconds / 60);
@@ -250,7 +273,7 @@ export function UserInboxClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  if (isUserLoading || isLoadingSettings || isLoadingPlan) {
+  if (isUserLoading || isLoadingSettings || isLoadingPlan || isLoadingInboxes) {
     return (
         <div className="flex items-center justify-center min-h-[calc(100vh-250px)]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -305,7 +328,7 @@ export function UserInboxClient() {
           <Button onClick={() => handleRefresh(false)} variant="outline" size="sm" disabled={isRefreshing || !mailgunSettings?.apiKey || !mailgunSettings?.domain}>
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
-          <Button onClick={handleDeleteInbox} variant="outline" size="sm" className="text-destructive hover:text-destructive">
+          <Button onClick={handleNewAddressClick} variant="outline" size="sm" className="text-destructive hover:text-destructive">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -385,7 +408,7 @@ export function UserInboxClient() {
                         <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline">
                             Sign Up
                         </Link>
-                        {' '} for more features.
+                        {' '} to save your inbox.
                     </p>
                 </CardFooter>
             )}
@@ -394,5 +417,3 @@ export function UserInboxClient() {
     </div>
   );
 }
-
-    

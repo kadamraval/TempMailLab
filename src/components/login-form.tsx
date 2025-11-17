@@ -45,7 +45,11 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-        await signInWithEmailAndPassword(auth, values.email, values.password)
+        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+        
+        // Ensure user record exists on server. isNewUser is false because they are logging in.
+        await signUp(result.user.uid, result.user.email, false);
+
         toast({
             title: "Success",
             description: "Logged in successfully.",
@@ -70,9 +74,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
-        // Check if it's a new user
-        const metadata = user.metadata;
-        const isNewUser = metadata.creationTime === metadata.lastSignInTime;
+        // Check if it's a new user by checking creation time vs last sign in time
+        const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime;
 
         // Call server action to create DB entry if needed
         await signUp(user.uid, user.email, isNewUser);
