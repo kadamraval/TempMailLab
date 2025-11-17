@@ -48,8 +48,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     try {
         const result = await signInWithEmailAndPassword(auth, values.email, values.password);
         
-        // Ensure user record exists on server. isNewUser is false because they are logging in.
-        await signUp(result.user.uid, result.user.email, false);
+        // Ensure user record exists on server.
+        await signUp(result.user.uid, result.user.email);
 
         toast({
             title: "Success",
@@ -76,11 +76,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
-        // Check if it's a new user by checking creation time vs last sign in time
-        const isNewUser = user.metadata.creationTime === user.metadata.lastSignInTime;
-
         // Call server action to create DB entry if needed
-        await signUp(user.uid, user.email, isNewUser);
+        await signUp(user.uid, user.email);
 
         toast({
             title: "Success",

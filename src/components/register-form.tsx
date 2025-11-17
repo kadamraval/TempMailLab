@@ -51,7 +51,7 @@ export function RegisterForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       
       if (userCredential.user) {
-        await signUp(userCredential.user.uid, values.email, true);
+        await signUp(userCredential.user.uid, values.email);
         toast({
           title: "Success",
           description: "Account created successfully. Please log in.",
@@ -79,10 +79,7 @@ export function RegisterForm() {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
-        const metadata = user.metadata;
-        const isNewUser = metadata.creationTime === metadata.lastSignInTime;
-
-        await signUp(user.uid, user.email, isNewUser);
+        await signUp(user.uid, user.email);
 
         toast({
             title: "Success",
