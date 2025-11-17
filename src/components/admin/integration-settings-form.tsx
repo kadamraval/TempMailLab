@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
 
@@ -68,14 +68,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         setIsSaving(true);
         
+        // This is the fix: explicitly set `enabled` to true if an API key is provided.
+        const settingsToSave = {
+            ...settings,
+            enabled: !!settings.apiKey,
+        };
+
         try {
-            // Note: This operation is expected to fail with default security rules.
-            // A server-side action with admin privileges is the correct way to modify this document.
+            // Note: This operation may fail with default security rules if not run by an admin.
+            // A server-side action is the most robust way to modify this document.
             // This client-side write is kept for demonstration if rules are temporarily relaxed.
-            await setDoc(settingsRef, settings, { merge: true });
+            await setDoc(settingsRef, settingsToSave, { merge: true });
             toast({
                 title: "Settings Saved",
-                description: `Configuration for ${integration.title} has been updated. Note: This may require admin privileges.`,
+                description: `${integration.title} configuration has been updated.`,
             });
             router.push('/admin/settings/integrations');
 
@@ -149,7 +155,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-0.5">
                             <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
                             <p className="text-sm text-muted-foreground">
-                                Turn this integration on or off for your application.
+                                Turn this integration on or off for your application. This will be enabled automatically if you provide an API key.
                             </p>
                         </div>
                         <Switch 
