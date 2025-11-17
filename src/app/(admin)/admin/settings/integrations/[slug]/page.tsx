@@ -10,7 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { notFound, useRouter, useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 interface IntegrationPageProps {
   params: {
@@ -40,29 +40,16 @@ const integrationsData: { [key: string]: any } = {
 
 
 export default function IntegrationPage({ params }: IntegrationPageProps) {
-  const router = useRouter();
-  const routeParams = useParams();
-  const slug = Array.isArray(routeParams.slug) ? routeParams.slug[0] : routeParams.slug;
+  const { slug } = params;
   const integration = slug ? integrationsData[slug] : null;
-
 
   if (!integration) {
     notFound();
   }
 
+  // This function can be simplified as we're handling the logic in the form itself
   const getIntegrationWithIsConfigured = (slug: string) => {
-    const isConfigured = {
-        'firebase': true,
-        'mail-tm': true,
-        'google-analytics': true,
-        'google-login': true,
-        'stripe': true,
-        'recaptcha': true,
-        'cloud-billing-api': true,
-        'cloud-monitoring-api': true
-    }[slug] || false;
-
-    return { ...integration, isConfigured };
+    return { ...integration, slug };
   }
 
   return (
