@@ -8,6 +8,7 @@ export interface Email {
   receivedAt: string;
   htmlContent?: string;
   textContent?: string;
+  rawContent?: string;
   attachments?: {
     "content-type": string;
     filename: string;

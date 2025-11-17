@@ -386,7 +386,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                 </div>
                 <div className="col-span-1 hidden md:block">
                     {selectedEmail ? (
-                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    <EmailView email={selectedEmail} plan={userPlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
                     ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
                         <Inbox className="h-16 w-16 mb-4" />
@@ -397,7 +397,7 @@ export function UserInboxClient({ plans }: UserInboxClientProps) {
                 </div>
                 {selectedEmail && (
                     <div className="md:hidden absolute inset-0 bg-background z-10">
-                    <EmailView email={selectedEmail} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    <EmailView email={selectedEmail} plan={userPlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
                     </div>
                 )}
                 </div>

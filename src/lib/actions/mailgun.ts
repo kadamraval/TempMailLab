@@ -5,6 +5,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
+import { getFirebaseAdmin } from '@/firebase/server-init';
 
 interface Credentials {
     apiKey: string;
@@ -19,6 +20,14 @@ export async function fetchEmailsWithCredentialsAction(
     credentials: Credentials,
     emailAddress: string
 ): Promise<{ success: boolean; emails?: Email[]; error?: string }> {
+
+    const { error: adminError } = getFirebaseAdmin();
+    if (adminError) {
+        // This is a server configuration error, and we should let the client know.
+        console.error("Server Action Error: Firebase Admin not initialized.", adminError.message);
+        return { success: false, error: adminError.message };
+    }
+
     if (!emailAddress) {
         return { success: false, error: 'Email address is required.' };
     }
@@ -47,11 +56,12 @@ export async function fetchEmailsWithCredentialsAction(
                 if (!event.storage || !event.storage.url) continue;
 
                 // Fetch the full message content from the storage URL
+                // The URL requires authentication, which the mg.get method handles.
                 const messageDetails = await mg.get(event.storage.url);
                 if (!messageDetails || !messageDetails.body) continue;
                 
                 const message = messageDetails.body;
-
+                
                 // Sanitize the HTML content to prevent XSS attacks
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
@@ -63,6 +73,7 @@ export async function fetchEmailsWithCredentialsAction(
                     receivedAt: new Date(event.timestamp * 1000).toISOString(),
                     htmlContent: cleanHtml,
                     textContent: message["stripped-text"] || "",
+                    rawContent: JSON.stringify(message, null, 2), // Full raw content for source view
                     attachments: message.attachments || [],
                     read: false,
                 });
