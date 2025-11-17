@@ -30,8 +30,7 @@ service cloud.firestore {
       allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       // Users can read their own profile. Admins can read any profile.
       allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      // Users can update their own profile. Admins can update any profile.
-      // New users can create their own profile.
+      // Users can create and update their own profile.
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     
@@ -43,8 +42,8 @@ service cloud.firestore {
       // Admins can also perform these actions.
       allow read, update, delete: if request.auth != null && (get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
 
-      // Allow a user to list only their own inboxes.
-      allow list: if request.auth != null && request.query.where.field == "userId" && request.query.where.value == request.auth.uid;
+      // Allow a user to list only their own inboxes by requiring a 'where' clause on 'userId'.
+      allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     // --- Default Deny ---

@@ -16,8 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
-import { getDocs, query, where, collection, writeBatch } from "firebase/firestore"
-import { useAuth, useFirestore } from "@/firebase"
+import { useAuth } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUp } from "@/lib/actions/auth"
@@ -35,7 +34,6 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
-  const firestore = useFirestore();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

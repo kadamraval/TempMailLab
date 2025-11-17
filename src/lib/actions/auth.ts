@@ -26,6 +26,7 @@ export async function signUp(uid: string, email: string | null, isAnonymous: boo
     const userRef = firestore.collection('users').doc(uid);
     const docSnapshot = await userRef.get();
 
+    // Data for a registered user or an anonymous user being upgraded
     const userData: Partial<User> = {
       uid,
       email,
@@ -40,9 +41,9 @@ export async function signUp(uid: string, email: string | null, isAnonymous: boo
         userData.createdAt = FieldValue.serverTimestamp() as any;
     }
 
-    // Use set with merge: true. This is the key change.
-    // It creates the doc if it's new, or safely merges the new properties
-    // (like email and isAnonymous: false) if it's an existing anonymous user.
+    // Use set with merge: true. This is the key.
+    // - If doc doesn't exist, it's CREATED with all userData.
+    // - If doc exists (an anonymous user), it's UPDATED with the new email and isAnonymous status.
     await userRef.set(userData, { merge: true });
 
     return { success: true };

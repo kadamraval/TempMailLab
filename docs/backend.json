@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -404,148 +403,32 @@
     ]
   },
   "firestore": {
-    "structure": [
+    "collections": [
       {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "user",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles."
-        }
+        "path": "/users",
+        "description": "Stores user profiles and account information.",
+        "schema": { "$ref": "#/entities/User" }
       },
       {
-        "path": "/inboxes/{inboxId}",
-        "definition": {
-            "entityName": "inbox",
-            "schema": {
-                "$ref": "#/backend/entities/Inbox"
-            },
-            "description": "Stores all temporary inboxes. Each inbox has a userId field to link it to its owner."
-        }
+        "path": "/inboxes",
+        "description": "Top-level collection for all inboxes. Each document has a `userId` field linking to a user.",
+        "schema": { "$ref": "#/entities/Inbox" }
       },
       {
-        "path": "/users/{userId}/api_keys/{apiKeyId}",
-        "definition": {
-          "entityName": "apiKey",
-          "schema": {
-            "$ref": "#/backend/entities/ApiKey"
-          },
-          "description": "Stores API keys for developers. Path-based ownership. Includes 'userId' and 'apiKeyId' as parameters.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "apiKeyId",
-              "description": "The unique identifier for the API key."
-            }
-          ]
-        }
+        "path": "/plans",
+        "description": "Stores all available subscription plans.",
+        "schema": { "$ref": "#/entities/Plan" }
       },
       {
-        "path": "/api_keys/{apiKeyId}/usage_logs/{usageLogId}",
-        "definition": {
-          "entityName": "UsageLog",
-          "schema": {
-            "$ref": "#/backend/entities/UsageLog"
-          },
-          "description": "Stores usage logs per API key. Requires API key to be known. Includes 'apiKeyId' and 'usageLogId' as parameters.",
-          "params": [
-            {
-              "name": "apiKeyId",
-              "description": "The unique identifier for the API key."
-            },
-            {
-              "name": "usageLogId",
-              "description": "The unique identifier for the usage log."
-            }
-          ]
-        }
+        "path": "/allowed_domains",
+        "description": "Globally available domains for generating emails.",
+        "schema": { "$ref": "#/entities/AllowedDomain" }
       },
       {
-        "path": "/blocked_ips/{blockedIpId}",
-        "definition": {
-          "entityName": "BlockedIp",
-          "schema": {
-            "$ref": "#/backend/entities/BlockedIp"
-          },
-          "description": "Stores blocked IP addresses. Global collection. Includes 'blockedIpId' as a parameter.",
-          "params": [
-            {
-              "name": "blockedIpId",
-              "description": "The unique identifier for the blocked IP entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/blocked_domains/{blockedDomainId}",
-        "definition": {
-          "entityName": "BlockedDomain",
-          "schema": {
-            "$ref": "#/backend/entities/BlockedDomain"
-          },
-          "description": "Stores blocked sender domains. Global collection. Includes 'blockedDomainId' as a parameter.",
-          "params": [
-            {
-              "name": "blockedDomainId",
-              "description": "The unique identifier for the blocked domain entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/allowed_domains/{allowedDomainId}",
-        "definition": {
-          "entityName": "AllowedDomain",
-          "schema": {
-            "$ref": "#/backend/entities/AllowedDomain"
-          },
-          "description": "Stores domains allowed for generating temporary emails. Global collection. Includes 'allowedDomainId' as a parameter.",
-          "params": [
-            {
-              "name": "allowedDomainId",
-              "description": "The unique identifier for the allowed domain entry."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/admin_settings/{settingId}",
-        "definition": {
-          "entityName": "AdminSetting",
-          "schema": {
-            "$ref": "#/backend/entities/AdminSetting"
-          },
-          "description": "Stores global admin settings, like third-party API keys. Server-side actions should have read/write access.",
-          "params": [
-            {
-              "name": "settingId",
-              "description": "The unique identifier for the admin setting (e.g., 'mailgun')."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/plans/{planId}",
-        "definition": {
-          "entityName": "Plan",
-          "schema": {
-            "$ref": "#/backend/entities/Plan"
-          },
-          "description": "Stores subscription plans available for users. Global collection. Includes 'planId' as a parameter.",
-          "params": [
-            {
-              "name": "planId",
-              "description": "The unique identifier for the plan."
-            }
-          ]
-        }
+        "path": "/admin_settings",
+        "description": "Global settings for the application.",
+        "schema": { "$ref": "#/entities/AdminSetting" }
       }
-    ],
-    "reasoning": "This structure uses top-level collections for users, inboxes, and plans. Inboxes are linked to users via a `userId` field. This de-normalized approach avoids subcollection queries, prevents 'ghost document' issues, and simplifies security rules and data management, such as migrating an inbox from an anonymous to a registered user."
+    ]
   }
 }

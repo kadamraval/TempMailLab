@@ -143,6 +143,7 @@ export function DashboardClient() {
         expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
       };
 
+      // Create in the top-level 'inboxes' collection
       const inboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
 
       setCurrentInbox({ id: inboxRef.id, ...newInboxData, createdAt: new Date().toISOString() });
@@ -182,7 +183,7 @@ export function DashboardClient() {
           handleGenerateEmail(userPlan, user.uid);
       }
       
-  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousUserAndInbox, currentInbox]);
+  }, [user, isUserLoading, userPlan, isLoadingPlan, activeInboxes, isLoadingInboxes, createAnonymousUserAndInbox, currentInbox, handleGenerateEmail]);
 
 
   const clearCountdown = () => {
