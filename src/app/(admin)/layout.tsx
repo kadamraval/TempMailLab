@@ -18,23 +18,24 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  // If we're on the admin login page, we don't need to run any checks yet.
-  // The user needs a chance to log in.
-  if (pathname === '/login/admin') {
-    return <>{children}</>;
-  }
-
   useEffect(() => {
-    // If loading is finished and there's no user or the user is not an admin,
-    // redirect them to the admin login page.
-    if (!isUserLoading && !isProfileLoading) {
+    // This effect runs after all hooks have been called.
+    // If loading is finished and the user is not an admin, redirect them.
+    // We make an exception for the admin login page itself.
+    if (!isUserLoading && !isProfileLoading && pathname !== '/login/admin') {
       if (!user || !userProfile?.isAdmin) {
         router.push('/login/admin'); 
       }
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router]);
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, pathname]);
 
-  // While we check for admin status, show a loading screen.
+  // If we are on the login page, render it without the admin layout.
+  // This check happens AFTER all hooks have been called.
+  if (pathname === '/login/admin') {
+    return <>{children}</>;
+  }
+
+  // While we check for admin status for any other page, show a loading screen.
   // This prevents child components from rendering and fetching data prematurely.
   if (isUserLoading || isProfileLoading || !userProfile || !userProfile.isAdmin) {
       return (
