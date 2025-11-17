@@ -9,7 +9,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
+import { useAuth, useFirestore, useUser, useMemoFirebase } from "@/firebase";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { useCollection } from "@/firebase/firestore/use-collection";
 import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, limit } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
@@ -59,6 +61,7 @@ export function DashboardClient() {
 
   const firestore = useFirestore();
   const { user, isUserLoading, userProfile } = useUser();
+  const auth = useAuth();
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,7 +214,7 @@ export function DashboardClient() {
             }
         }
     }
-  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, activeInboxes, handleGenerateNewLocalInbox, handleGenerateNewDbInbox, currentInbox]);
 
 
   const clearCountdown = () => {
@@ -472,3 +475,4 @@ export function DashboardClient() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -13,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ModeToggle } from "./mode-toggle"
-import { useUser } from "@/firebase"
+import { useUser } from "@/firebase/provider"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 
 // A helper function to get a title from the path
@@ -71,3 +72,5 @@ export function UserDashboardHeader() {
         </header>
     );
 }
+
+    

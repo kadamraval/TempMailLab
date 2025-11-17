@@ -1,3 +1,4 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -5,7 +6,6 @@ import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 import { getAdminFirestore } from '@/firebase/server-init';
-
 
 /**
  * A secure server action that uses provided Mailgun credentials
@@ -79,7 +79,7 @@ export async function fetchEmailsWithCredentialsAction(
                     rawContent: email.rawContent || "",
                     attachments: email.attachments || [],
                 };
-                batch.set(emailRef, emailData);
+                batch.set(emailRef, emailData, { merge: true });
             });
 
             await batch.commit();
@@ -98,3 +98,5 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: false, error: 'An unexpected error occurred while fetching emails from Mailgun.' };
     }
 }
+
+    

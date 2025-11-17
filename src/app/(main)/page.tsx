@@ -1,7 +1,9 @@
 
 "use client";
 
-import { useUser, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
+import { useCollection } from "@/firebase/firestore/use-collection";
+import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { Loader2 } from "lucide-react";
 import { FeaturesSection } from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
 import { doc, setDoc, getDoc, writeBatch, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore"
-import { useAuth, useFirestore } from "@/firebase"
+import { useAuth, useFirestore } from "@/firebase/provider"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type Inbox } from "@/types"
@@ -185,3 +185,5 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
       </div>
   )
 }
+
+    

@@ -132,7 +132,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   );
 };
 
-function useFirebaseInternal(): FirebaseContextState {
+export function useFirebaseInternal(): FirebaseContextState {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
@@ -171,12 +171,3 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
   (memoized as MemoFirebase<T>).__memo = true;
   return memoized;
 }
-
-/**
- * Hook for accessing the authenticated user's state and their Firestore profile.
- */
-export const useUser = (): UserHookResult => {
-  const { user, userProfile, isUserLoading, isProfileLoading, error } = useFirebaseInternal();
-  return { user, userProfile, isUserLoading, isProfileLoading, error };
-};
-

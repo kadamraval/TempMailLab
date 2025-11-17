@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -39,3 +40,5 @@ export async function saveMailgunSettingsAction(settings: MailgunSettings) {
         return { error: error.message || 'An unknown server error occurred.' };
     }
 }
+
+    
