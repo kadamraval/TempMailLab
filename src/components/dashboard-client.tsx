@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -190,6 +191,9 @@ export function DashboardClient() {
         currentInbox.id,
         ownerToken
       );
+
+      // Log server-side activity for debugging
+      console.log("Server Action Log:", result.log);
 
       if (result.error) {
         const errorMsg = result.error || 'An unexpected error occurred while fetching emails.';
