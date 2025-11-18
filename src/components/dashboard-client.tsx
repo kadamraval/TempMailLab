@@ -280,12 +280,23 @@ export function DashboardClient() {
     initializeSession();
   }, [user, auth, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, firestore, userInboxes]);
   
-  // Effect to perform initial refresh when inbox is set
+  // Effect to perform background refresh
   useEffect(() => {
+    let autoRefreshInterval: NodeJS.Timeout | null = null;
+    
     if (currentInbox?.id) {
-        handleRefresh(); 
+       autoRefreshInterval = setInterval(() => {
+          // Don't auto-refresh if a manual refresh is already in progress
+          if (!isRefreshing) {
+            handleRefresh();
+          }
+       }, 15000); // Check for new mail every 15 seconds
     }
-  }, [currentInbox?.id, handleRefresh]);
+    
+    return () => {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    };
+  }, [currentInbox?.id, isRefreshing, handleRefresh]);
   
   // Effect for timers
   useEffect(() => {
@@ -511,3 +522,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
