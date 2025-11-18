@@ -52,6 +52,7 @@ const LOCAL_INBOX_ID_KEY = 'tempinbox_anonymous_inbox_id';
 
 
 export function DashboardClient() {
+  // All hooks must be at the top level
   const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -67,7 +68,6 @@ export function DashboardClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // All hooks must be at the top level
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -100,8 +100,8 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
-  const handleGenerateNewInbox = useCallback(async (plan: Plan, userId: string) => {
-    if (!firestore) return;
+  const handleGenerateNewInbox = useCallback(async (plan: Plan, userId: string): Promise<InboxType | null> => {
+    if (!firestore) return null;
     setIsGenerating(true);
     setServerError(null);
 
@@ -125,7 +125,7 @@ export function DashboardClient() {
         if (domainsSnapshot.empty) {
             setServerError("No domains configured by administrator.");
             setIsGenerating(false);
-            return;
+            return null;
         }
         const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
         const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
@@ -175,6 +175,7 @@ export function DashboardClient() {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
    
     setIsRefreshing(true);
+    setServerError(null);
     
     try {
       const result = await fetchEmailsWithCredentialsAction(
@@ -184,12 +185,15 @@ export function DashboardClient() {
         
       if (result.error) {
         const errorMsg = result.error || "An unexpected error occurred while fetching emails.";
-        console.error("Refresh failed:", errorMsg);
+        console.error("Refresh failed:", errorMsg, result.log);
+        setServerError(errorMsg);
       } else {
         setServerError(null);
+        console.log("Refresh successful:", result.log);
       }
     } catch (error: any) {
-        console.error("Refresh failed:", error.message);
+        console.error("Refresh failed with exception:", error.message);
+        setServerError(error.message);
     } finally {
         setIsRefreshing(false);
     }
@@ -239,7 +243,7 @@ export function DashboardClient() {
                     const docSnap = await getDoc(anonyInboxRef);
                     if (docSnap.exists()) {
                         const inboxData = docSnap.data() as InboxType;
-                        if (new Date(inboxData.expiresAt) > new Date()) {
+                        if (new Date(inboxData.expiresAt) > new Date() && inboxData.userId === activeUser.uid) {
                             setCurrentInbox({ id: docSnap.id, ...inboxData });
                         } else {
                             await handleGenerateNewInbox(activePlan, activeUser.uid);
@@ -258,7 +262,7 @@ export function DashboardClient() {
     };
 
     initializeSession();
-  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, firestore, isGenerating, handleGenerateNewInbox, currentInbox]);
 
   useEffect(() => {
     const clearTimers = () => {
