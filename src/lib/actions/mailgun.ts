@@ -10,41 +10,19 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 
 // --- Correct, robust Firebase Admin SDK initialization ---
-// This function ensures the Admin SDK is initialized correctly, once,
-// using the service account credentials from the environment. This is the
-// standard and required way for server-side actions to authenticate.
 const getAdminFirestore = () => {
     const apps = getApps();
     if (apps.length > 0) {
         return getFirestore(apps[0]);
     }
 
-    // When running in a Google Cloud environment (like Firebase App Hosting),
-    // the SDK automatically finds the credentials. For local development,
-    // the GOOGLE_APPLICATION_CREDENTIALS environment variable must be set.
-    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
-    if (!serviceAccountEnv) {
-        // In a production environment, we expect credentials to be auto-discovered.
-        // If not, we initialize without explicit credentials.
-        if (process.env.NODE_ENV === 'production') {
-            const app = initializeApp();
-            return getFirestore(app);
-        }
-        // For local development, this is a hard failure.
-        throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set. Cannot initialize Firebase Admin SDK.');
-    }
-    
-    try {
-        const serviceAccount = JSON.parse(serviceAccountEnv);
-        const app = initializeApp({
-            credential: cert(serviceAccount),
-        });
-        return getFirestore(app);
-    } catch (e: any) {
-        console.error("Critical: Failed to parse FIREBASE_SERVICE_ACCOUNT or initialize Firebase Admin SDK.", e);
-        throw new Error("Server configuration error: Could not initialize Firebase Admin services.");
-    }
+    // In a managed environment (like Firebase App Hosting or Cloud Run),
+    // the SDK will automatically discover credentials. For local development,
+    // it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable,
+    // which is set by the `firebase emulators:exec` or similar command.
+    // We initialize without explicit credentials to use this discovery mechanism.
+    const app = initializeApp();
+    return getFirestore(app);
 };
 // --- End of corrected initialization ---
 
@@ -176,5 +154,3 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: false, error: error.message || 'An unexpected server error occurred.', log };
     }
 }
-
-    
