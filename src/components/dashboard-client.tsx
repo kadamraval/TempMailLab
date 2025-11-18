@@ -204,65 +204,71 @@ export function DashboardClient() {
 
   // Effect for initialization and user changes
   useEffect(() => {
-    if (isUserLoading || isLoadingPlan) return;
+    const initializeSession = async () => {
+        if (isUserLoading || isLoadingPlan || !auth) return;
 
-    if (!user && auth) {
-        signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed", error);
-            setServerError("Could not establish a session. Please refresh the page.");
-        });
-        return;
-    }
-    if (!user || !activePlan) return;
+        let activeUser = user;
 
-    // LOGGED-IN USER LOGIC
-    if (!user.isAnonymous) {
-        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-        if (!isLoadingInboxes) {
-            if (userInboxes && userInboxes.length > 0) {
-                 const activeDbInbox = userInboxes.find(ib => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
-                 if (!currentInbox || currentInbox.id !== activeDbInbox.id) {
-                    setCurrentInbox(activeDbInbox);
-                }
-            } else if (!isGenerating) {
-                // Generate inbox for a new registered user who doesn't have one
-                handleGenerateNewInbox(activePlan, user.uid);
+        // If no user at all, sign in anonymously first. This is critical.
+        if (!activeUser) {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                activeUser = userCredential.user;
+            } catch (error) {
+                console.error("Anonymous sign-in failed", error);
+                setServerError("Could not establish a session. Please refresh the page.");
+                return;
             }
         }
-        return;
-    }
-    
-    // ANONYMOUS USER LOGIC
-    if (user.isAnonymous) {
-        const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
-        if (localInboxId) {
-            // Avoid re-fetching if inbox is already in state
-            if (currentInbox?.id === localInboxId) return;
+        
+        if (!activeUser || !activePlan) return;
 
-            const anonyInboxRef = doc(firestore, 'inboxes', localInboxId);
-            getDoc(anonyInboxRef).then(docSnap => {
-                if (docSnap.exists()) {
-                    const inboxData = docSnap.data() as InboxType;
-                    // Check for expiration
-                    if (new Date(inboxData.expiresAt) > new Date()) {
-                        setCurrentInbox({ id: docSnap.id, ...inboxData });
-                    } else {
-                        // It expired, generate a new one
-                        handleGenerateNewInbox(activePlan, user.uid);
+        // LOGGED-IN (REGISTERED) USER LOGIC
+        if (!activeUser.isAnonymous) {
+            localStorage.removeItem(LOCAL_INBOX_ID_KEY);
+            if (!isLoadingInboxes) {
+                if (userInboxes && userInboxes.length > 0) {
+                    const activeDbInbox = userInboxes.find(ib => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
+                    if (!currentInbox || currentInbox.id !== activeDbInbox.id) {
+                        setCurrentInbox(activeDbInbox);
                     }
-                } else {
-                    // Mismatch, generate a new one
-                    handleGenerateNewInbox(activePlan, user.uid);
+                } else if (!isGenerating) {
+                    handleGenerateNewInbox(activePlan, activeUser.uid);
                 }
-            }).catch(e => {
-                console.error("Error fetching anonymous inbox:", e);
-                handleGenerateNewInbox(activePlan, user.uid);
-            })
-        } else if (!currentInbox && !isGenerating) {
-            // No local ID, no current inbox, so generate one
-            handleGenerateNewInbox(activePlan, user.uid);
+            }
+            return;
         }
-    }
+        
+        // ANONYMOUS USER LOGIC
+        if (activeUser.isAnonymous) {
+            const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
+            if (localInboxId) {
+                if (currentInbox?.id === localInboxId) return;
+
+                const anonyInboxRef = doc(firestore, 'inboxes', localInboxId);
+                try {
+                    const docSnap = await getDoc(anonyInboxRef);
+                    if (docSnap.exists()) {
+                        const inboxData = docSnap.data() as InboxType;
+                        if (new Date(inboxData.expiresAt) > new Date()) {
+                            setCurrentInbox({ id: docSnap.id, ...inboxData });
+                        } else {
+                            handleGenerateNewInbox(activePlan, activeUser.uid);
+                        }
+                    } else {
+                        handleGenerateNewInbox(activePlan, activeUser.uid);
+                    }
+                } catch (e) {
+                     console.error("Error fetching anonymous inbox:", e);
+                     handleGenerateNewInbox(activePlan, activeUser.uid);
+                }
+            } else if (!currentInbox && !isGenerating) {
+                handleGenerateNewInbox(activePlan, activeUser.uid);
+            }
+        }
+    };
+
+    initializeSession();
   }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, isGenerating, firestore, currentInbox, handleGenerateNewInbox]);
 
   // Effect for timers and auto-refresh
@@ -460,3 +466,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
