@@ -240,20 +240,20 @@ export function DashboardClient() {
                     if (new Date(inboxData.expiresAt) > new Date()) {
                         setCurrentInbox({ id: docSnap.id, ...inboxData });
                     } else {
-                        // It expired, clear from local storage so a new one can be made on copy
-                        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-                        setCurrentInbox(null);
+                        // It expired, generate a new one
+                        handleGenerateNewInbox(activePlan, user.uid);
                     }
                 } else {
-                    // Mismatch, clear local storage
-                    localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-                    setCurrentInbox(null);
+                    // Mismatch, generate a new one
+                    handleGenerateNewInbox(activePlan, user.uid);
                 }
             }).catch(e => {
                 console.error("Error fetching anonymous inbox:", e);
-                localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-                setCurrentInbox(null);
+                handleGenerateNewInbox(activePlan, user.uid);
             })
+        } else if (!currentInbox && !isGenerating) {
+            // No local ID, no current inbox, so generate one
+            handleGenerateNewInbox(activePlan, user.uid);
         }
     }
   }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, isGenerating, firestore, currentInbox, handleGenerateNewInbox]);
@@ -294,14 +294,7 @@ export function DashboardClient() {
 
 
   const handleCopyEmail = async () => {
-    // If anonymous and no inbox, generate one first
-    if (user?.isAnonymous && !currentInbox && activePlan) {
-        const newInbox = await handleGenerateNewInbox(activePlan, user.uid);
-        if (newInbox?.emailAddress) {
-            navigator.clipboard.writeText(newInbox.emailAddress);
-            toast({ title: "Copied!", description: "New email address copied to clipboard." });
-        }
-    } else if (currentInbox?.emailAddress) {
+    if (currentInbox?.emailAddress) {
         navigator.clipboard.writeText(currentInbox.emailAddress);
         toast({ title: "Copied!", description: "Email address copied to clipboard." });
     }
@@ -324,9 +317,9 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
   
-  const isLoading = isUserLoading || isLoadingPlan;
+  const isLoading = isUserLoading || isLoadingPlan || isGenerating;
 
-  if (isLoading && !currentInbox && !user?.isAnonymous) { 
+  if (isLoading && !currentInbox) { 
     return (
         <div className="flex items-center justify-center min-h-[480px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -348,7 +341,7 @@ export function DashboardClient() {
     )
   }
 
-  const displayEmail = currentInbox?.emailAddress || "click copy to generate";
+  const displayEmail = currentInbox?.emailAddress || "Generating...";
 
   return (
      <div className="flex flex-col h-full space-y-4">
