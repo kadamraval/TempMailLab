@@ -36,6 +36,7 @@ import {
   deleteDoc,
   Timestamp,
   updateDoc,
+  orderBy,
 } from 'firebase/firestore';
 import { fetchEmailsWithCredentialsAction } from '@/lib/actions/mailgun';
 import { type Plan } from '@/app/(admin)/admin/packages/data';
@@ -137,6 +138,7 @@ export function DashboardClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // All hooks are now at the top level
   const planId = userProfile?.planId || 'free-default';
   
   const userPlanRef = useMemoFirebase(() => {
@@ -147,22 +149,33 @@ export function DashboardClient() {
   const userInboxQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || isUserLoading) return null;
     return query(collection(firestore, `inboxes`), where('userId', '==', user.uid));
-  }, [firestore, user, isUserLoading]);
+  }, [firestore, user?.uid, isUserLoading]);
 
   const liveInboxQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox) return null;
     return doc(firestore, 'inboxes', currentInbox.id);
-  }, [firestore, currentInbox]);
+  }, [firestore, currentInbox?.id]);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id) return null;
-    return collection(firestore, `inboxes/${currentInbox.id}/emails`);
-  }, [firestore, currentInbox]);
+      if (!firestore || !currentInbox?.id) return null;
+      // Removed orderBy from here to fix the infinite loop
+      return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
+  }, [firestore, currentInbox?.id]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
   const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
   const { data: liveInbox } = useDoc<InboxType>(liveInboxQuery);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
+  
+  // Client-side sorting
+  const sortedEmails = useMemo(() => {
+      if (!inboxEmails) return [];
+      return [...inboxEmails].sort((a, b) => {
+          const timeA = a.receivedAt instanceof Timestamp ? a.receivedAt.toMillis() : new Date(a.receivedAt).getTime();
+          const timeB = b.receivedAt instanceof Timestamp ? b.receivedAt.toMillis() : new Date(b.receivedAt).getTime();
+          return timeB - timeA;
+      });
+  }, [inboxEmails]);
 
   const handleGenerateNewInbox = useCallback(async (plan: Plan) => {
     if (!firestore) return null;
@@ -476,7 +489,7 @@ export function DashboardClient() {
             <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
               <div className="flex flex-col border-r">
                 <ScrollArea className="flex-1">
-                  {isLoadingEmails && (!inboxEmails || inboxEmails.length === 0) ? (
+                  {isLoadingEmails && (!sortedEmails || sortedEmails.length === 0) ? (
                     <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                       <EnvelopeLoader />
                       <p className="mt-4 text-lg">Waiting for incoming emails...</p>
@@ -484,9 +497,7 @@ export function DashboardClient() {
                     </div>
                   ) : (
                     <div className="p-2 space-y-1">
-                      {(inboxEmails || [])
-                        .sort((a, b) => (b.receivedAt as any) - (a.receivedAt as any))
-                        .map((email) => (
+                      {sortedEmails.map((email) => (
                           <button
                             key={email.id}
                             onClick={() => handleSelectEmail(email)}

@@ -24,7 +24,7 @@ export interface User {
   uid: string;
   email: string | null;
   planId?: string; 
-  createdAt?: Timestamp | any;
+  createdAt?: Timestamp;
   isAdmin?: boolean;
   isAnonymous?: boolean;
   displayName?: string;
@@ -35,7 +35,7 @@ export interface Inbox {
   id: string;
   userId: string;
   emailAddress: string;
-  createdAt: any; // Can be Date or serverTimestamp
+  createdAt: Timestamp; // Ensure this is a Timestamp for sorting
   expiresAt: string;
   ownerToken?: string;
 }
