@@ -74,8 +74,9 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // Fetch the full email content from the storage URL
-                const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
+                // CORRECTED LOGIC: The API client expects the path, not the full URL.
+                const storagePath = event.storage.url.replace("https://api.mailgun.net/v3", "");
+                const messageDetails = await mg.get(storagePath);
 
                 if (!messageDetails || !messageDetails.body) {
                     console.warn(`Could not retrieve email body for event: ${event.id}`);
@@ -118,6 +119,9 @@ export async function fetchEmailsWithCredentialsAction(
         }
         if (error.message && error.message.includes('free accounts are for test purposes only')) {
              return { success: false, error: 'Your Mailgun account is a free test account. You may need to add authorized recipients in Mailgun settings.' };
+        }
+        if (error.message.includes('Mailgun settings not found')) {
+            return { success: false, error: 'The Mailgun integration has not been configured by an administrator.' };
         }
         return { success: false, error: error.message || 'An unexpected error occurred while fetching emails from Mailgun.' };
     }
