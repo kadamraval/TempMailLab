@@ -1,15 +1,37 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getAdminFirestore } from '@/lib/firebase/server-init';
-import { Timestamp } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+
+// This function initializes the Firebase Admin SDK.
+// It's defined inside this server action file to ensure it's only used on the server.
+const getAdminFirestore = () => {
+    const apps = getApps();
+    let app: App;
+
+    if (apps.length === 0) {
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+        }
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        app = initializeApp({
+            credential: cert(serviceAccount),
+        });
+    } else {
+        app = apps[0]!;
+    }
+    
+    return getFirestore(app);
+};
 
 
 async function getMailgunCredentials() {
-    const firestore = await getAdminFirestore();
+    const firestore = getAdminFirestore();
     const settingsRef = firestore.doc('admin_settings/mailgun');
     const settingsSnap = await settingsRef.get();
 
@@ -41,7 +63,7 @@ export async function fetchEmailsWithCredentialsAction(
     
     try {
         const { apiKey, domain } = await getMailgunCredentials();
-        const firestore = await getAdminFirestore();
+        const firestore = getAdminFirestore();
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
@@ -60,7 +82,6 @@ export async function fetchEmailsWithCredentialsAction(
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
         for (const event of events.items) {
-            // Ensure we have a unique ID from the message headers
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 console.warn(`Skipping event with no message-id: ${event.id}`);
@@ -73,9 +94,10 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
+                // Correctly parse the path from the storage URL
                 const storagePath = new URL(event.storage.url).pathname.replace('/v3', '');
                 const messageDetails = await mg.get(storagePath);
-
+                
                 if (!messageDetails || !messageDetails.body) {
                     console.warn(`Could not retrieve email body for event: ${event.id}`);
                     continue;
