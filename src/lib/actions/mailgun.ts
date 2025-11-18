@@ -109,9 +109,6 @@ export async function fetchEmailsWithCredentialsAction(
                     read: false,
                 };
                 
-                // **THE CRITICAL FIX IS HERE**
-                // Pass ownerToken for anonymous writes.
-                // The security rule will validate this.
                 if (ownerToken) {
                     emailData.ownerToken = ownerToken;
                 }

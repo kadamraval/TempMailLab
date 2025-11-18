@@ -1,6 +1,7 @@
 
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
 /**
  * Returns an initialized Firebase Admin App instance, creating one if it doesn't exist.
@@ -29,4 +30,11 @@ function getAdminApp(): App {
  */
 export function getAdminFirestore() {
     return getFirestore(getAdminApp());
+};
+
+/**
+ * Returns an initialized Firebase Admin Auth instance.
+ */
+export function getAdminAuth() {
+    return getAuth(getAdminApp());
 };
