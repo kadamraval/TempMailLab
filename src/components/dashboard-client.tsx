@@ -119,7 +119,7 @@ export function DashboardClient() {
         where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
     );
     
-    let newInboxRef;
+    
     try {
         const domainsSnapshot = await getDocs(domainsQuery);
         if (domainsSnapshot.empty) {
@@ -139,7 +139,17 @@ export function DashboardClient() {
         };
 
         const inboxesCollectionRef = collection(firestore, `inboxes`);
-        newInboxRef = await addDoc(inboxesCollectionRef, newInboxData)
+        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData)
+        .catch((error) => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'create',
+                path: inboxesCollectionRef.path,
+                requestResourceData: newInboxData,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+            // We throw the original error to stop execution here
+            throw error;
+        });
 
         if (user && user.isAnonymous) {
             localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
@@ -150,16 +160,8 @@ export function DashboardClient() {
         return finalInbox; // Return the new inbox
 
     } catch (error: any) {
-        if (newInboxRef) {
-             const contextualError = new FirestorePermissionError({
-                operation: 'create',
-                path: newInboxRef.path,
-                requestResourceData: { userId: userId },
-            });
-            errorEmitter.emit('permission-error', contextualError);
-        }
-       
-        console.error("Error generating new inbox:", error); // Keep console error for dev
+        // The contextual error is already emitted in the .catch block above
+        // This catch block now handles the aftermath (UI update)
         setServerError(error.message || "Could not generate a new email address.");
         return null;
     } finally {

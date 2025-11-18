@@ -32,6 +32,7 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox only if they are the owner.
+      // This also implicitly allows an anonymous user who created an inbox to continue to manage it.
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       
       // Allow a user to list only their own inboxes by requiring a 'where' clause on 'userId'.
@@ -39,8 +40,9 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Emails should only be readable by the owner of the parent inbox.
-        allow read: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+        // Emails should only be readable by the owner of the parent inbox. This works for both
+        // anonymous and registered users because we check the userId on the inbox document itself.
+        allow read, list: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
         
         // Writes are handled by the server action, so client-side writes can be denied.
         allow write: if false;
@@ -48,5 +50,3 @@ service cloud.firestore {
 
   }
 }
-
-    
