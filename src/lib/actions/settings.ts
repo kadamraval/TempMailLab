@@ -1,8 +1,7 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
 
 interface MailgunSettings {
     enabled: boolean;

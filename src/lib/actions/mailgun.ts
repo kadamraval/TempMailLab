@@ -1,11 +1,10 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
 
@@ -74,8 +73,7 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // CORRECTED LOGIC: The API client expects the path, not the full URL.
-                const storagePath = event.storage.url.replace("https://api.mailgun.net/v3", "");
+                const storagePath = new URL(event.storage.url).pathname.replace('/v3', '');
                 const messageDetails = await mg.get(storagePath);
 
                 if (!messageDetails || !messageDetails.body) {
@@ -86,7 +84,6 @@ export async function fetchEmailsWithCredentialsAction(
                 const message = messageDetails.body;
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
-                // Use the correct unique messageId for the document ID
                 const emailRef = emailsCollectionRef.doc(messageId);
                 
                 const emailData: Omit<Email, 'id'> = {

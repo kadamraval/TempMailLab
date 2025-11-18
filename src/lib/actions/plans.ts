@@ -1,8 +1,7 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAdminFirestore } from '@/firebase/server-init';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
 
 /**
  * Saves a plan to Firestore. Handles both creating a new plan and updating an existing one.
