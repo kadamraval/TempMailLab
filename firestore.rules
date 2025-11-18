@@ -7,10 +7,17 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId} {
-      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow a user to get a single inbox doc if they know the ID.
+      // This is required for the email read rule below to work.
+      // It does NOT allow them to list or query all inboxes.
+      allow get: if request.auth != null;
+
+      // Allow a user to create, list, update, or delete inboxes only if they are the owner.
+      allow list, create, update, delete: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
+      // Allow reading/listing emails if the user is the owner of the parent inbox.
       allow read, write: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
     }
 

@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { signInAnonymously } from "firebase/auth";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter } from "@/firebase/error-emitter";
 
 const EnvelopeLoader = () => (
     <div className="relative w-20 h-20">
@@ -139,13 +141,21 @@ export function DashboardClient() {
         };
 
         const inboxesCollectionRef = collection(firestore, `inboxes`);
-        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData);
+        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData).catch((error) => {
+            const permissionError = new FirestorePermissionError({
+              path: inboxesCollectionRef.path,
+              operation: 'create',
+              requestResourceData: newInboxData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError; // re-throw to be caught by outer try/catch
+        });
 
         if (user && user.isAnonymous) {
             localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
         }
         
-        const finalInbox = { ...newInboxData, id: newInboxRef.id };
+        const finalInbox = { ...newInboxData, id: newInboxRef.id, createdAt: new Date() };
         setCurrentInbox(finalInbox);
         return finalInbox; // Return the new inbox
 
