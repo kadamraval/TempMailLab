@@ -65,6 +65,7 @@ export function DashboardClient() {
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
@@ -132,15 +133,17 @@ export function DashboardClient() {
         const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
         const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
         
-        const newInboxData: Omit<InboxType, 'id'> = {
+        const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
             userId: userId,
             emailAddress,
-            createdAt: serverTimestamp(),
             expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
         };
 
         const inboxesCollectionRef = collection(firestore, `inboxes`);
-        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData).catch((error) => {
+        const newInboxRef = await addDoc(inboxesCollectionRef, {
+            ...newInboxData,
+            createdAt: serverTimestamp(),
+        }).catch((error) => {
             const permissionError = new FirestorePermissionError({
               path: inboxesCollectionRef.path,
               operation: 'create',
@@ -150,13 +153,19 @@ export function DashboardClient() {
             throw permissionError; // re-throw to be caught by outer try/catch
         });
 
-        if (user && user.isAnonymous) {
-            localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
+        // The critical fix: wait for the doc to exist on the server before setting state
+        const newDocSnap = await getDoc(newInboxRef);
+        if (newDocSnap.exists()) {
+             const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
+             if (user && user.isAnonymous) {
+                localStorage.setItem(LOCAL_INBOX_ID_KEY, finalInbox.id);
+            }
+            setCurrentInbox(finalInbox);
+            return finalInbox; // Return the new inbox
+        } else {
+            throw new Error("Failed to create and retrieve the new inbox from the database.");
         }
-        
-        const finalInbox = { ...newInboxData, id: newInboxRef.id, createdAt: new Date() } as InboxType;
-        setCurrentInbox(finalInbox);
-        return finalInbox; // Return the new inbox
+
 
     } catch (error: any) {
         setServerError(error.message || "Could not generate a new email address.");
@@ -172,7 +181,6 @@ export function DashboardClient() {
     setIsRefreshing(true);
     
     try {
-      // Refresh now works for everyone, as all inboxes are in the DB
       const result = await fetchEmailsWithCredentialsAction(
           currentInbox.emailAddress,
           currentInbox.id,
@@ -180,18 +188,19 @@ export function DashboardClient() {
         
       if (result.error) {
         const errorMsg = result.error || "An unexpected error occurred while fetching emails.";
+        // Don't show toast for server errors, just log them. The UI should not bother the user.
+        console.error("Refresh failed:", errorMsg);
         setServerError(errorMsg);
-        toast({ title: 'Action Failed', description: errorMsg, variant: 'destructive'});
       } else {
         setServerError(null);
       }
     } catch (error: any) {
-        toast({ title: "Refresh Failed", description: error.message || "An unknown error occurred while fetching emails.", variant: "destructive" });
-        console.error("Error refreshing inbox:", error.message);
+        console.error("Refresh failed:", error.message);
+        setServerError(error.message || "An unknown error occurred while fetching emails.");
     } finally {
         setIsRefreshing(false);
     }
-  }, [currentInbox, toast]);
+  }, [currentInbox]);
 
   // Effect for initialization and user changes
   useEffect(() => {
@@ -256,10 +265,11 @@ export function DashboardClient() {
     }
   }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, isGenerating, firestore, currentInbox, handleGenerateNewInbox]);
 
-  // Effect for timers
+  // Effect for timers and auto-refresh
   useEffect(() => {
     const clearTimers = () => {
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        if (autoRefreshIntervalRef.current) clearInterval(autoRefreshIntervalRef.current);
     };
 
     clearTimers();
@@ -281,10 +291,14 @@ export function DashboardClient() {
         };
         updateCountdown();
         countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+        
+        // Setup auto-refresh polling
+        handleRefresh(); // Initial refresh
+        autoRefreshIntervalRef.current = setInterval(handleRefresh, 15000); // Refresh every 15 seconds
     }
     
     return clearTimers;
-  }, [liveInbox, currentInbox, user]);
+  }, [liveInbox, currentInbox, user, handleRefresh]);
 
 
   const handleCopyEmail = async () => {
