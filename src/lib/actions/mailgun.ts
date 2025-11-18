@@ -16,6 +16,8 @@ const getAdminFirestore = () => {
 
     if (apps.length === 0) {
         if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+            // This should not happen in production if the env var is set.
+            // In development, this indicates a setup issue.
             throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
         }
         try {
@@ -100,7 +102,7 @@ export async function fetchEmailsWithCredentialsAction(
 
             try {
                 // Correctly parse the path from the storage URL
-                const storagePath = new URL(event.storage.url).pathname.replace('/v3', '');
+                const storagePath = new URL(event.storage.url).pathname;
                 const messageDetails = await mg.get(storagePath);
                 
                 if (!messageDetails || !messageDetails.body) {
