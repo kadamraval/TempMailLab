@@ -128,6 +128,7 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
+  const initialInboxLoaded = useRef(false);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -260,29 +261,30 @@ export function DashboardClient() {
 
   useEffect(() => {
     const initializeSession = async () => {
-      if (isUserLoading || !auth) return;
+      if (isUserLoading || !auth || isLoadingPlan || !activePlan || initialInboxLoaded.current) return;
 
-      if (!user) {
+      let activeUser = user;
+      if (!activeUser) {
         try {
-          await signInAnonymously(auth);
+          const userCredential = await signInAnonymously(auth);
+          activeUser = userCredential.user;
         } catch (error) {
           console.error("Anonymous sign-in failed", error);
           setServerError("Could not start a session. Please refresh the page.");
+          return; 
         }
-        return; 
       }
 
-      if (isLoadingPlan || !activePlan) return;
+      if (isLoadingInboxes) return;
 
       if (userInboxes && userInboxes.length > 0) {
         const activeDbInbox =
           userInboxes.find((ib) => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
-        if (!currentInbox || currentInbox.id !== activeDbInbox.id) {
-          setCurrentInbox(activeDbInbox);
-        }
-      } else if (!isLoadingInboxes && !isGenerating) {
-          await handleGenerateNewInbox(activePlan);
+        setCurrentInbox(activeDbInbox);
+      } else {
+        await handleGenerateNewInbox(activePlan);
       }
+      initialInboxLoaded.current = true;
     };
 
     initializeSession();
@@ -294,17 +296,14 @@ export function DashboardClient() {
     isLoadingPlan,
     isLoadingInboxes,
     userInboxes,
-    isGenerating,
     handleGenerateNewInbox,
-    currentInbox
   ]);
   
   useEffect(() => {
-    const inboxToMonitor = liveInbox || currentInbox;
-    if (inboxToMonitor?.id) {
-        handleRefresh(); // Initial refresh
+    if (currentInbox?.id) {
+        handleRefresh(); 
     }
-  }, [currentInbox?.id, liveInbox?.id, handleRefresh]);
+  }, [currentInbox?.id, handleRefresh]);
   
   useEffect(() => {
     const inboxToMonitor = liveInbox || currentInbox;
@@ -318,6 +317,7 @@ export function DashboardClient() {
         const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
         if (newCountdown <= 0) {
           setCurrentInbox(null);
+          initialInboxLoaded.current = false; // Allow re-generation
         } else {
           setCountdown(newCountdown);
         }
@@ -344,6 +344,7 @@ export function DashboardClient() {
 
   const handleDeleteCurrentInbox = () => {
     if (activePlan) {
+      initialInboxLoaded.current = false;
       handleGenerateNewInbox(activePlan);
     }
   };
