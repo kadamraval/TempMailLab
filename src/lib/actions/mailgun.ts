@@ -1,3 +1,4 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -60,6 +61,7 @@ async function getMailgunCredentials(firestore: ReturnType<typeof getAdminFirest
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
     inboxId: string,
+    ownerToken?: string,
 ): Promise<{ success: boolean; error?: string; log?: string[] }> {
     if (!emailAddress || !inboxId) {
         return { success: false, error: 'Email address and Inbox ID are required.' };

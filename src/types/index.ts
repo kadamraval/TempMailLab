@@ -37,4 +37,5 @@ export interface Inbox {
   emailAddress: string;
   createdAt: any; // Can be Date or serverTimestamp
   expiresAt: string;
+  ownerToken?: string;
 }

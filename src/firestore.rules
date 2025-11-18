@@ -28,22 +28,24 @@ service cloud.firestore {
     }
     
     match /inboxes/{inboxId} {
-      // Allow a user (including anonymous) to create an inbox if the new document's userId matches their own UID.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Allow anyone to create an inbox.
+      allow create: if true;
       
-      // Allow a user to read, update, or delete an inbox only if they are the owner.
-      // This also implicitly allows an anonymous user who created an inbox to continue to manage it.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Allow a user to list only their own inboxes by requiring a 'where' clause on 'userId'.
+      // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
+      // Allow an anonymous user to read, update, or delete if they provide the correct ownerToken.
+      allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
+                                     (request.auth == null && request.resource.data.ownerToken == resource.data.ownerToken);
+
+      // Allow a registered user to list their own inboxes. Anonymous users cannot list.
       allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Emails should only be readable by the owner of the parent inbox. This works for both
-        // anonymous and registered users because we check the userId on the inbox document itself.
-        allow read, list: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
-        
+        // Allow reads/lists if the user is the logged-in owner of the parent inbox.
+        // OR if the user is anonymous and the request includes the correct ownerToken for the parent inbox.
+        allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
+                             (request.auth == null && request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
+
         // Writes are handled by the server action, so client-side writes can be denied.
         allow write: if false;
     }
