@@ -153,7 +153,6 @@ export function DashboardClient() {
             throw permissionError; // re-throw to be caught by outer try/catch
         });
 
-        // The critical fix: wait for the doc to exist on the server before setting state
         const newDocSnap = await getDoc(newInboxRef);
         if (newDocSnap.exists()) {
              const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
@@ -188,15 +187,12 @@ export function DashboardClient() {
         
       if (result.error) {
         const errorMsg = result.error || "An unexpected error occurred while fetching emails.";
-        // Don't show toast for server errors, just log them. The UI should not bother the user.
         console.error("Refresh failed:", errorMsg);
-        setServerError(errorMsg);
       } else {
         setServerError(null);
       }
     } catch (error: any) {
         console.error("Refresh failed:", error.message);
-        setServerError(error.message || "An unknown error occurred while fetching emails.");
     } finally {
         setIsRefreshing(false);
     }
@@ -466,3 +462,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
