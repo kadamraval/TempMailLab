@@ -18,10 +18,15 @@ const getAdminFirestore = () => {
         if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
             throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
         }
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        app = initializeApp({
-            credential: cert(serviceAccount),
-        });
+        try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            app = initializeApp({
+                credential: cert(serviceAccount),
+            });
+        } catch (e: any) {
+            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT or initialize app:", e.message);
+            throw new Error("Server configuration error: Could not initialize Firebase Admin.");
+        }
     } else {
         app = apps[0]!;
     }
