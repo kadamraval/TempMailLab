@@ -291,7 +291,6 @@ export function DashboardClient() {
   useEffect(() => {
     const inboxToMonitor = liveInbox || currentInbox;
     let countdownInterval: NodeJS.Timeout | null = null;
-    let autoRefreshInterval: NodeJS.Timeout | null = null;
 
     if (inboxToMonitor?.expiresAt) {
       const expiryDate = new Date(inboxToMonitor.expiresAt);
@@ -308,14 +307,12 @@ export function DashboardClient() {
 
       updateCountdown();
       countdownInterval = setInterval(updateCountdown, 1000);
-      autoRefreshInterval = setInterval(handleRefresh, 15000);
     }
 
     return () => {
       if (countdownInterval) clearInterval(countdownInterval);
-      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
     };
-  }, [liveInbox, currentInbox, handleRefresh]);
+  }, [liveInbox, currentInbox]);
 
 
   const handleCopyEmail = async () => {
