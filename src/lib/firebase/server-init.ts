@@ -11,9 +11,18 @@ export const getAdminFirestore = cache(async (): Promise<Firestore> => {
     let app: App;
 
     if (apps.length === 0) {
-        // In a Google Cloud environment (like App Hosting), the SDK can
-        // automatically detect the project credentials.
-        app = initializeApp();
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+            // In a Google Cloud environment (like App Hosting), the SDK can
+            // automatically detect the project credentials.
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+            app = initializeApp({
+                credential: cert(serviceAccount)
+            });
+        } else {
+             // In a Google Cloud environment (like App Hosting), the SDK can
+            // automatically detect the project credentials.
+            app = initializeApp();
+        }
     } else {
         app = apps[0]!;
     }
