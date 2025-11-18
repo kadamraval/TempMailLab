@@ -1,43 +1,32 @@
 
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
+let adminApp: App;
+
 /**
- * Returns an initialized Firebase Admin App instance, creating one if it doesn't exist.
+ * Initializes and returns the Firebase Admin App instance, ensuring it's a singleton.
  * This function is the single source of truth for server-side Firebase initialization.
+ * It uses default credentials which work in App Hosting and with GOOGLE_APPLICATION_CREDENTIALS locally.
  */
 function getAdminApp(): App {
-    // If the app is already initialized, return it.
     if (getApps().length > 0) {
         return getApps()[0];
     }
 
-    // In a deployed environment (like App Hosting), the SDK discovers credentials automatically.
-    // For local development, it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-    // If you're running locally without this set, initializeApp() will fail.
-    // Ensure your local dev command is `firebase emulators:exec 'npm run dev'` to set it automatically.
+    // initializeApp() with no arguments will use the default credentials
+    // provided by the environment (App Hosting or local GOOGLE_APPLICATION_CREDENTIALS).
+    // This is the most robust and recommended approach.
     try {
-        return initializeApp();
+        adminApp = initializeApp();
     } catch (error: any) {
-        console.error(
-            "Failed to auto-initialize Firebase Admin SDK. This is expected in a local environment without GOOGLE_APPLICATION_CREDENTIALS. Details: " + error.message
-        );
-        // This is a fallback for local development if emulators are not used.
-        // It requires a serviceAccount.json file and the FIREBASE_SERVICE_ACCOUNT env var to be set.
-        // It's not the recommended path but provides a fallback.
-        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-             console.log("Attempting to initialize with FIREBASE_SERVICE_ACCOUNT...");
-             const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-             return initializeApp({
-                credential: cert(serviceAccount),
-             });
-        }
-       
+        console.error("Firebase Admin SDK initialization failed:", error);
         throw new Error(
-            'Firebase Admin SDK initialization failed. For local development, either run your command with `firebase emulators:exec` or ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set to the path of your service account key file.'
+            'Firebase Admin SDK initialization failed. Ensure your server environment is configured with the correct credentials. For local development, use `firebase emulators:exec` or set the GOOGLE_APPLICATION_CREDENTIALS environment variable.'
         );
     }
+    return adminApp;
 }
 
 /**
@@ -48,8 +37,8 @@ export function getAdminFirestore() {
 };
 
 /**
- * Returns an initialized Firebase Admin Auth instance.
- */
+* Returns an initialized Firebase Admin Auth instance.
+*/
 export function getAdminAuth() {
     return getAuth(getAdminApp());
 };
