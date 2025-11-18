@@ -73,7 +73,8 @@ async function getMailgunCredentials(firestore: ReturnType<typeof getAdminFirest
  */
 export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
-    inboxId: string
+    inboxId: string,
+    ownerToken?: string
 ): Promise<{ success: boolean; error?: string; log?: string[] }> {
     if (!emailAddress || !inboxId) {
         return { success: false, error: 'Email address and Inbox ID are required.' };
@@ -149,6 +150,11 @@ export async function fetchEmailsWithCredentialsAction(
                     attachments: message.attachments || [],
                     read: false,
                 };
+                
+                // Pass ownerToken for anonymous writes
+                if (ownerToken) {
+                    (emailData as any).ownerToken = ownerToken;
+                }
 
                 batch.set(emailRef, emailData, { merge: true });
                 log.push(`Prepared email ${messageId} for batch write.`);
@@ -170,3 +176,5 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: false, error: error.message || 'An unexpected server error occurred.', log };
     }
 }
+
+    

@@ -40,13 +40,17 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Emails should only be readable by the owner of the parent inbox. This works for both
-        // anonymous and registered users because we check the userId on the inbox document itself.
+        // Allow reads/lists if the user is the logged-in owner of the parent inbox.
+        // For anonymous users, the server action will have permissions to write, but client reads are not needed/allowed this way.
         allow read, list: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
         
-        // Writes are handled by the server action, so client-side writes can be denied.
+        // Writes are handled by the server action which uses admin privileges.
+        // Client-side writes are denied. We add a rule to allow the server action (which provides an ownerToken) to write.
+        allow create: if get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken == request.resource.data.ownerToken;
         allow write: if false;
     }
 
   }
 }
+
+    
