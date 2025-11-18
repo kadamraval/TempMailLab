@@ -180,8 +180,12 @@ export function DashboardClient() {
     setServerError(null);
     
     // For anonymous users, we need to pass the owner token
-    const localData = localStorage.getItem(LOCAL_INBOX_KEY);
-    const ownerToken = localData ? JSON.parse(localData).ownerToken : undefined;
+    let ownerToken: string | undefined = undefined;
+    if (user?.isAnonymous) {
+      const localData = localStorage.getItem(LOCAL_INBOX_KEY);
+      ownerToken = localData ? JSON.parse(localData).ownerToken : undefined;
+    }
+
 
     try {
       const result = await fetchEmailsWithCredentialsAction(
@@ -201,7 +205,7 @@ export function DashboardClient() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentInbox?.id, currentInbox?.emailAddress]);
+  }, [currentInbox?.id, currentInbox?.emailAddress, user?.isAnonymous]);
 
 
   useEffect(() => {
@@ -320,23 +324,6 @@ export function DashboardClient() {
         }
     };
   
-  // Effect to perform background refresh
-  useEffect(() => {
-    let autoRefreshInterval: NodeJS.Timeout | null = null;
-    
-    if (currentInbox?.id && !isGenerating) {
-       autoRefreshInterval = setInterval(() => {
-          if (!isRefreshing) {
-            handleRefresh();
-          }
-       }, 15000); 
-    }
-    
-    return () => {
-      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-    };
-  }, [currentInbox?.id, isRefreshing, isGenerating, handleRefresh]);
-  
   // Effect for timers
   useEffect(() => {
     const inboxToMonitor = liveInbox || currentInbox;
@@ -364,6 +351,23 @@ export function DashboardClient() {
     };
   }, [liveInbox, currentInbox]);
 
+  // Background refresh
+  useEffect(() => {
+    let autoRefreshInterval: NodeJS.Timeout | null = null;
+    
+    if (currentInbox?.id && !isGenerating) {
+       autoRefreshInterval = setInterval(() => {
+          if (!isRefreshing) {
+            handleRefresh();
+          }
+       }, 15000); 
+    }
+    
+    return () => {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    };
+  }, [currentInbox?.id, isRefreshing, isGenerating, handleRefresh]);
+
 
   const handleCopyEmail = async () => {
     if (currentInbox?.emailAddress) {
@@ -375,7 +379,7 @@ export function DashboardClient() {
   const handleDeleteCurrentInbox = async () => {
     if (currentInbox && firestore) {
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
-      if (auth.currentUser?.isAnonymous) {
+      if (user?.isAnonymous) {
           localStorage.removeItem(LOCAL_INBOX_KEY);
       }
     }
@@ -562,7 +566,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    

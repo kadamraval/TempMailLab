@@ -49,7 +49,7 @@ service cloud.firestore {
                              
         // Allow server-side action to create emails. The action provides the ownerToken for validation.
         allow create: if get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken == request.resource.data.ownerToken ||
-                       get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+                       (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid);
         
         // Deny direct client-side updates/deletes.
         allow update, delete: if false;
