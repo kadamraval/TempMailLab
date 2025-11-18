@@ -28,11 +28,11 @@ service cloud.firestore {
     }
     
     match /inboxes/{inboxId} {
-      // Allow anyone to create an inbox.
-      allow create: if true;
+      // Allow a user (including anonymous) to create an inbox.
+      allow create: if request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // Allow an anonymous user to read, update, or delete if they provide the correct ownerToken.
+      // OR if they are anonymous and provide the correct ownerToken.
       allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
                                      (request.auth == null && request.resource.data.ownerToken == resource.data.ownerToken);
 
@@ -42,13 +42,19 @@ service cloud.firestore {
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Allow reads/lists if the user is the logged-in owner of the parent inbox.
-        // OR if the user is anonymous and the request includes the correct ownerToken for the parent inbox.
+        // OR if the user is anonymous and provides the correct ownerToken for the parent inbox.
         allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
                              (request.auth == null && request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
-
-        // Writes are handled by the server action, so client-side writes can be denied.
-        allow write: if false;
+                             
+        // Allow server-side action to create emails. The action provides the ownerToken for validation.
+        allow create: if get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken == request.resource.data.ownerToken ||
+                       (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid);
+        
+        // Deny direct client-side updates/deletes.
+        allow update, delete: if false;
     }
 
   }
 }
+
+    
