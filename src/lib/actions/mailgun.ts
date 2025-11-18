@@ -53,57 +53,61 @@ export async function fetchEmailsWithCredentialsAction(
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
         });
         
-        const fetchedEmails: Email[] = [];
+        if (!events?.items?.length) {
+            return { success: true }; // No new mail, which is a success case.
+        }
 
-        if (events?.items?.length) {
-            for (const event of events.items) {
-                if (!event.storage || !event.storage.url) continue;
+        const batch = firestore.batch();
+        const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
-                try {
-                    const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
+        for (const event of events.items) {
+            // Ensure we have a unique ID from the message headers
+            const messageId = event.message?.headers?.['message-id'];
+            if (!messageId) {
+                console.warn(`Skipping event with no message-id: ${event.id}`);
+                continue;
+            }
 
-                    if (!messageDetails || !messageDetails.body) continue;
-                    
-                    const message = messageDetails.body;
-                    const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
+            if (!event.storage || !event.storage.url) {
+                console.warn(`Skipping event with no storage URL: ${event.id}`);
+                continue;
+            }
 
-                    fetchedEmails.push({
-                        id: event.id,
-                        recipient: emailAddress,
-                        senderName: message.From || "Unknown Sender",
-                        subject: message.Subject || "No Subject",
-                        receivedAt: new Date(event.timestamp * 1000).toISOString(),
-                        htmlContent: cleanHtml,
-                        textContent: message["stripped-text"] || "No text content.",
-                        rawContent: JSON.stringify(message, null, 2),
-                        attachments: message.attachments || [],
-                        read: false,
-                    });
-                } catch(err) {
-                    console.warn(`Could not fetch email content for event ${event.id}. Skipping.`, err)
-                }
+            try {
+                // Fetch the full email content from the storage URL
+                const messageDetails = await mg.get(event.storage.url.replace("https://api.mailgun.net/v3", ""));
+
+                if (!messageDetails || !messageDetails.body) {
+                    console.warn(`Could not retrieve email body for event: ${event.id}`);
+                    continue;
+                };
+                
+                const message = messageDetails.body;
+                const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
+
+                // Use the correct unique messageId for the document ID
+                const emailRef = emailsCollectionRef.doc(messageId);
+                
+                const emailData: Omit<Email, 'id'> = {
+                    recipient: emailAddress,
+                    senderName: message.From || "Unknown Sender",
+                    subject: message.Subject || "No Subject",
+                    receivedAt: Timestamp.fromDate(new Date(event.timestamp * 1000)),
+                    htmlContent: cleanHtml,
+                    textContent: message["stripped-text"] || "No text content.",
+                    rawContent: JSON.stringify(message, null, 2),
+                    attachments: message.attachments || [],
+                    read: false,
+                };
+
+                batch.set(emailRef, emailData, { merge: true });
+
+            } catch(err) {
+                console.error(`Failed to process and save email for event ${event.id}. Error:`, err);
             }
         }
         
-        if (fetchedEmails.length > 0) {
-            const batch = firestore.batch();
-            const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
-
-            fetchedEmails.forEach((email) => {
-                const emailRef = emailsCollectionRef.doc(email.id);
-                const emailData = {
-                    ...email,
-                    receivedAt: Timestamp.fromDate(new Date(email.receivedAt)),
-                    htmlContent: email.htmlContent || "",
-                    textContent: email.textContent || "",
-                    rawContent: email.rawContent || "",
-                    attachments: email.attachments || [],
-                };
-                batch.set(emailRef, emailData, { merge: true });
-            });
-
-            await batch.commit();
-        }
+        await batch.commit();
         
         return { success: true };
 
