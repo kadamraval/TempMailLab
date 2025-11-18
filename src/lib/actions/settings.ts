@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -16,7 +17,7 @@ interface MailgunSettings {
  */
 export async function saveMailgunSettingsAction(settings: MailgunSettings) {
     try {
-        const firestore = getAdminFirestore();
+        const firestore = await getAdminFirestore();
         // The document ID is 'mailgun' for this specific setting.
         const settingsRef = firestore.doc("admin_settings/mailgun");
 

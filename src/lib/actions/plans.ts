@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -11,7 +12,7 @@ import { getAdminFirestore } from '@/firebase/server-init';
  */
 export async function savePlanAction(planData: any, planId?: string) {
     try {
-        const firestore = getAdminFirestore();
+        const firestore = await getAdminFirestore();
         if (planId) {
             // Update existing plan
             const planRef = firestore.doc(`plans/${planId}`);
@@ -46,7 +47,7 @@ export async function deletePlanAction(planId: string) {
             throw new Error("Plan ID is required for deletion.");
         }
         
-        const firestore = getAdminFirestore();
+        const firestore = await getAdminFirestore();
         const planRef = firestore.doc(`plans/${planId}`);
         await planRef.delete();
 

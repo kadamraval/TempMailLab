@@ -1,4 +1,6 @@
 
+'use server';
+
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
@@ -13,25 +15,18 @@ function initializeAdminApp() {
         return;
     }
 
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
-    if (!serviceAccountString) {
-        throw new Error('Server configuration error: Firebase credentials are not set.');
-    }
-
     try {
-        const serviceAccount = JSON.parse(serviceAccountString);
-        adminApp = initializeApp({
-            credential: cert(serviceAccount),
-        }, 'admin');
+        // When running in a Google Cloud environment (like App Hosting),
+        // the SDK can automatically discover credentials.
+        adminApp = initializeApp(undefined, 'admin');
         adminFirestore = getFirestore(adminApp);
     } catch (e: any) {
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT or initialize admin app:", e.message);
+        console.error("Failed to initialize admin app:", e.message);
         throw new Error("Server configuration error: Could not initialize Firebase Admin SDK.");
     }
 }
 
-export function getAdminFirestore() {
+export async function getAdminFirestore() {
     if (!adminFirestore) {
         initializeAdminApp();
     }

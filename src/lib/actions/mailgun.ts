@@ -10,7 +10,7 @@ import { doc, getDoc } from 'firebase/firestore';
 
 
 async function getMailgunCredentials() {
-    const firestore = getAdminFirestore();
+    const firestore = await getAdminFirestore();
     const settingsRef = firestore.doc('admin_settings/mailgun');
     const settingsSnap = await settingsRef.get();
 
@@ -42,7 +42,7 @@ export async function fetchEmailsWithCredentialsAction(
     
     try {
         const { apiKey, domain } = await getMailgunCredentials();
-        const firestore = getAdminFirestore();
+        const firestore = await getAdminFirestore();
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey });
 
