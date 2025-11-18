@@ -171,68 +171,6 @@ export function DashboardClient() {
       });
   }, [inboxEmails]);
 
-  const handleGenerateNewInbox = useCallback(async (plan: Plan) => {
-    if (!firestore || !user) return null;
-    setIsGenerating(true);
-    setServerError(null);
-
-    if (currentInbox) {
-      try {
-        await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
-      } catch (e) {
-        console.warn('Could not delete previous inbox', e);
-      }
-    }
-    setCurrentInbox(null);
-    setSelectedEmail(null);
-    localStorage.removeItem(LOCAL_INBOX_KEY);
-
-    const domainsQuery = query(
-      collection(firestore, 'allowed_domains'),
-      where('tier', 'in', plan.features.allowPremiumDomains ? ['free', 'premium'] : ['free'])
-    );
-
-    try {
-      const domainsSnapshot = await getDocs(domainsQuery);
-      if (domainsSnapshot.empty) {
-        setServerError('No domains configured by administrator.');
-        setIsGenerating(false);
-        return null;
-      }
-      const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
-      const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-      const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      
-      const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
-        userId: user.uid,
-        emailAddress,
-        expiresAt: new Date(
-          Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000
-        ).toISOString(),
-      };
-
-      const inboxesCollectionRef = collection(firestore, `inboxes`);
-      const newInboxRef = await addDoc(inboxesCollectionRef, {
-        ...newInboxData,
-        createdAt: serverTimestamp(),
-      });
-
-      const newDocSnap = await getDoc(newInboxRef);
-      if (newDocSnap.exists()) {
-        const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
-        setCurrentInbox(finalInbox);
-        return finalInbox;
-      } else {
-        throw new Error('Failed to create and retrieve the new inbox from the database.');
-      }
-    } catch (error: any) {
-      setServerError(error.message || 'Could not generate a new email address.');
-      return null;
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [firestore, user, currentInbox]);
-
   const handleRefresh = useCallback(async () => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
 
@@ -261,50 +199,95 @@ export function DashboardClient() {
 
   useEffect(() => {
     const initializeSession = async () => {
-      if (isUserLoading || !auth || isLoadingPlan || !activePlan || initialInboxLoaded.current) return;
-
-      let activeUser = user;
-      if (!activeUser) {
-        try {
-          const userCredential = await signInAnonymously(auth);
-          activeUser = userCredential.user;
-        } catch (error) {
-          console.error("Anonymous sign-in failed", error);
-          setServerError("Could not start a session. Please refresh the page.");
-          return; 
+        if (isUserLoading || isLoadingInboxes || isLoadingPlan || !auth || !activePlan || initialInboxLoaded.current) {
+            return;
         }
-      }
 
-      if (isLoadingInboxes) return;
+        let activeUser = user;
+        if (!activeUser) {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                activeUser = userCredential.user;
+            } catch (error) {
+                console.error("Anonymous sign-in failed", error);
+                setServerError("Could not start a session. Please refresh the page.");
+                return;
+            }
+        }
+        
+        if (!activeUser) return;
 
-      if (userInboxes && userInboxes.length > 0) {
-        const activeDbInbox =
-          userInboxes.find((ib) => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
-        setCurrentInbox(activeDbInbox);
-      } else {
-        await handleGenerateNewInbox(activePlan);
-      }
-      initialInboxLoaded.current = true;
+        initialInboxLoaded.current = true; // Set flag to prevent re-running
+
+        const activeDbInbox = userInboxes?.find(ib => new Date(ib.expiresAt) > new Date());
+        
+        if (activeDbInbox) {
+            setCurrentInbox(activeDbInbox);
+        } else {
+            setIsGenerating(true);
+            setServerError(null);
+            
+            // Clear any previous inbox state
+            setCurrentInbox(null);
+            setSelectedEmail(null);
+
+            const domainsQuery = query(
+              collection(firestore, 'allowed_domains'),
+              where('tier', 'in', activePlan.features.allowPremiumDomains ? ['free', 'premium'] : ['free'])
+            );
+
+            try {
+                const domainsSnapshot = await getDocs(domainsQuery);
+                if (domainsSnapshot.empty) {
+                    setServerError('No domains configured by administrator.');
+                    setIsGenerating(false);
+                    return;
+                }
+
+                const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
+                const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+                const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+                
+                const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
+                    userId: activeUser.uid,
+                    emailAddress,
+                    expiresAt: new Date(
+                    Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000
+                    ).toISOString(),
+                };
+
+                const inboxesCollectionRef = collection(firestore, `inboxes`);
+                const newInboxRef = await addDoc(inboxesCollectionRef, {
+                    ...newInboxData,
+                    createdAt: serverTimestamp(),
+                });
+
+                const newDocSnap = await getDoc(newInboxRef);
+                if (newDocSnap.exists()) {
+                    const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
+                    setCurrentInbox(finalInbox);
+                } else {
+                    throw new Error('Failed to create and retrieve the new inbox from the database.');
+                }
+            } catch (error: any) {
+                setServerError(error.message || 'Could not generate a new email address.');
+            } finally {
+                setIsGenerating(false);
+            }
+        }
     };
 
     initializeSession();
-  }, [
-    user,
-    auth,
-    isUserLoading,
-    activePlan,
-    isLoadingPlan,
-    isLoadingInboxes,
-    userInboxes,
-    handleGenerateNewInbox,
-  ]);
+  }, [user, auth, isUserLoading, activePlan, isLoadingPlan, isLoadingInboxes, firestore, userInboxes]);
   
+  // Effect to perform initial refresh when inbox is set
   useEffect(() => {
     if (currentInbox?.id) {
         handleRefresh(); 
     }
   }, [currentInbox?.id, handleRefresh]);
   
+  // Effect for timers
   useEffect(() => {
     const inboxToMonitor = liveInbox || currentInbox;
     let countdownInterval: NodeJS.Timeout | null = null;
@@ -342,11 +325,17 @@ export function DashboardClient() {
     }
   };
 
-  const handleDeleteCurrentInbox = () => {
-    if (activePlan) {
-      initialInboxLoaded.current = false;
-      handleGenerateNewInbox(activePlan);
+  const handleDeleteCurrentInbox = async () => {
+    if (currentInbox && firestore) {
+      try {
+        await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
+      } catch (e) {
+        console.warn('Could not delete previous inbox', e);
+      }
     }
+    setCurrentInbox(null);
+    setSelectedEmail(null);
+    initialInboxLoaded.current = false; // Allow the main effect to run again and create a new inbox
   };
 
   const handleSelectEmail = (email: Email) => {
