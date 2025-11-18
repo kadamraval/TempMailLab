@@ -8,8 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { getDocs, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,6 @@ export function DashboardClient() {
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Determine plan from user profile, or default to 'free-default'
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -74,18 +73,13 @@ export function DashboardClient() {
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
-  // Fetch the inbox for the current user (registered or anonymous)
   const userInboxQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid || isUserLoading) return null;
-     // For registered users, query by their UID. For anonymous, this won't run until we have an inbox from local storage
-    if (user && !user.isAnonymous) {
-        return query(
-            collection(firestore, `inboxes`),
-            where("userId", "==", user.uid),
-            where("expiresAt", ">", new Date().toISOString())
-        );
-    }
-    return null;
+    if (!firestore || !user?.uid || isUserLoading || user.isAnonymous) return null;
+    return query(
+        collection(firestore, `inboxes`),
+        where("userId", "==", user.uid),
+        where("expiresAt", ">", new Date().toISOString())
+    );
   }, [firestore, user, isUserLoading]);
 
   const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
@@ -95,7 +89,7 @@ export function DashboardClient() {
       return doc(firestore, 'inboxes', currentInbox.id)
   }, [firestore, currentInbox]);
 
-  const { data: liveInbox, isLoading: isLoadingLiveInbox } = useDoc<InboxType>(inboxRef);
+  const { data: liveInbox } = useDoc<InboxType>(inboxRef);
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id) return null;
@@ -104,69 +98,72 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
-  // This function is now used for ALL users, anonymous or not.
   const handleGenerateNewInbox = useCallback(async (plan: Plan, userId: string) => {
     if (!firestore) return;
     setIsGenerating(true);
     setServerError(null);
 
-    // Delete old inbox if one exists
     if(currentInbox) {
-        await deleteDoc(doc(firestore, "inboxes", currentInbox.id));
+        try {
+            await deleteDoc(doc(firestore, "inboxes", currentInbox.id));
+        } catch (e) {
+            console.warn("Could not delete previous inbox", e)
+        }
     }
     setCurrentInbox(null);
     setSelectedEmail(null);
 
-    try {
-        const domainsQuery = query(
-            collection(firestore, "allowed_domains"),
-            where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
-        );
-        const domainsSnapshot = await getDocs(domainsQuery);
-        const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
-
-        if (domainsSnapshot.empty) throw new Error("No domains configured by the administrator.");
-        
-        const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-        const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-        
-        const newInboxData = {
-            userId: userId,
-            emailAddress,
-            createdAt: serverTimestamp(),
-            expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
-        };
-
-        const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-        
-        // If the user is anonymous, store the new inbox ID in localStorage.
-        if (user && user.isAnonymous) {
-            localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
-        }
-        
-        // Set the new inbox as the current one.
-        setCurrentInbox({
-            ...newInboxData,
-            id: newInboxRef.id,
-            createdAt: new Date().toISOString(),
-        });
-        
-
-    } catch (error: any) {
-        console.error("Error generating new inbox:", error);
-        toast({
-            title: "Error",
-            description: error.message || "Could not generate a new email address.",
-            variant: "destructive",
-        });
-    } finally {
+    const domainsQuery = query(
+        collection(firestore, "allowed_domains"),
+        where("tier", "in", plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+    );
+    const domainsSnapshot = await getDocs(domainsQuery);
+    if (domainsSnapshot.empty) {
+        setServerError("No domains configured by administrator.");
         setIsGenerating(false);
+        return;
     }
-  }, [firestore, toast, user, currentInbox]);
+    const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
+    const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
+    const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
+    
+    const newInboxData: Omit<InboxType, 'id'> = {
+        userId: userId,
+        emailAddress,
+        createdAt: serverTimestamp(),
+        expiresAt: new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000).toISOString(),
+    };
+
+    const inboxesCollectionRef = collection(firestore, `inboxes`);
+
+    addDoc(inboxesCollectionRef, newInboxData)
+        .then(newInboxRef => {
+            if (user && user.isAnonymous) {
+                localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
+            }
+            setCurrentInbox({ ...newInboxData, id: newInboxRef.id });
+        })
+        .catch(error => {
+            const contextualError = new FirestorePermissionError({
+                operation: 'create',
+                path: inboxesCollectionRef.path,
+                requestResourceData: newInboxData,
+            });
+            errorEmitter.emit('permission-error', contextualError);
+            console.error("Error generating new inbox:", error); // Keep console error for dev
+            setServerError(error.message || "Could not generate a new email address.");
+        })
+        .finally(() => {
+            setIsGenerating(false);
+        });
+
+  }, [firestore, user, currentInbox]);
 
   const handleRefresh = useCallback(async (isAutoRefresh = false) => {
     if (!currentInbox?.emailAddress || !currentInbox.id) return;
-    
+    if (user?.isAnonymous) {
+        return;
+    }
     if (!isAutoRefresh) setIsRefreshing(true);
     
     try {
@@ -189,33 +186,22 @@ export function DashboardClient() {
     } finally {
         if (!isAutoRefresh) setIsRefreshing(false);
     }
-  }, [currentInbox, toast]);
+  }, [currentInbox, user, toast]);
 
-
-  // Effect for initial auth and inbox setup
   useEffect(() => {
-    if (isUserLoading || isLoadingPlan) {
-        return;
-    }
-
-    if (!activePlan) {
-        return;
-    }
-
-    // 1. Ensure we have a user (sign in anonymously if needed)
+    if (isUserLoading || isLoadingPlan) return;
+    if (!activePlan) return;
     if (!user && auth) {
         signInAnonymously(auth).catch((error) => {
             console.error("Anonymous sign-in failed", error);
             setServerError("Could not establish a session. Please refresh the page.");
         });
-        return; // Wait for user object to be created
+        return;
     }
+    if (!user) return;
 
-    if (!user) return; // Still waiting for user
-
-    // 2. Handle registered user
     if (!user.isAnonymous) {
-        localStorage.removeItem(LOCAL_INBOX_ID_KEY); // Clean up old anonymous data
+        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
         if (!isLoadingInboxes) {
             if (userInboxes && userInboxes.length > 0) {
                  if (!currentInbox || currentInbox.id !== userInboxes[0].id) {
@@ -228,12 +214,10 @@ export function DashboardClient() {
         return;
     }
 
-    // 3. Handle anonymous user
     if (user.isAnonymous) {
         const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
         if (localInboxId) {
             if (!currentInbox || currentInbox.id !== localInboxId) {
-                // We have an ID, fetch the doc from firestore
                 const anonyInboxRef = doc(firestore, 'inboxes', localInboxId);
                 getDoc(anonyInboxRef).then(docSnap => {
                     if (docSnap.exists()) {
@@ -241,24 +225,21 @@ export function DashboardClient() {
                         if (new Date(inboxData.expiresAt) > new Date()) {
                             setCurrentInbox({ id: docSnap.id, ...inboxData });
                         } else {
-                            // Inbox expired, generate a new one
                             handleGenerateNewInbox(activePlan, user.uid);
                         }
                     } else {
-                        // ID in local storage is invalid, generate new inbox
                         handleGenerateNewInbox(activePlan, user.uid);
                     }
+                }).catch(e => {
+                     handleGenerateNewInbox(activePlan, user.uid);
                 })
             }
         } else if (!isGenerating) {
-            // No local inbox ID, generate a new one
             handleGenerateNewInbox(activePlan, user.uid);
         }
     }
-  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, isGenerating, handleGenerateNewInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, isLoadingInboxes, userInboxes, handleGenerateNewInbox, isGenerating, firestore, currentInbox]);
 
-
-  // Effect for countdown timer and auto-refresh
   useEffect(() => {
     const clearTimers = () => {
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -267,15 +248,13 @@ export function DashboardClient() {
 
     clearTimers();
 
-    if (liveInbox?.expiresAt) {
-        const expiryDate = new Date(liveInbox.expiresAt);
+    const inboxToMonitor = liveInbox || currentInbox;
+    if (inboxToMonitor?.expiresAt) {
+        const expiryDate = new Date(inboxToMonitor.expiresAt);
         const updateCountdown = () => {
             const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
             if (newCountdown <= 0) {
-                toast({ title: "Session Expired", description: "Your temporary email has expired.", variant: "destructive"});
-                if (activePlan && user) {
-                    handleGenerateNewInbox(activePlan, user.uid);
-                }
+                if(activePlan && user) handleGenerateNewInbox(activePlan, user.uid);
             } else {
                 setCountdown(newCountdown);
             }
@@ -285,16 +264,10 @@ export function DashboardClient() {
         
         handleRefresh(true);
         refreshIntervalRef.current = setInterval(() => handleRefresh(true), 15000);
-
-    } else if(currentInbox?.expiresAt) {
-         // Fallback for initial load before liveInbox is available
-        const expiryDate = new Date(currentInbox.expiresAt);
-        const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
-        setCountdown(newCountdown > 0 ? newCountdown : 0);
     }
     
     return clearTimers;
-  }, [liveInbox, currentInbox, handleRefresh, handleGenerateNewInbox, activePlan, user, toast]);
+  }, [liveInbox, currentInbox, handleRefresh, handleGenerateNewInbox, activePlan, user]);
 
 
   const handleCopyEmail = () => {
@@ -395,7 +368,7 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
                 <div className="flex flex-col border-r">
                     <ScrollArea className="flex-1">
-                    {(isLoadingEmails || isLoadingLiveInbox || (isLoading && !currentInbox)) && (!inboxEmails || inboxEmails.length === 0) ? (
+                    {(isLoadingEmails) && (!inboxEmails || inboxEmails.length === 0) ? (
                         <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                             <EnvelopeLoader />
                             <p className="mt-4 text-lg">Waiting for incoming emails...</p>
@@ -447,5 +420,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
