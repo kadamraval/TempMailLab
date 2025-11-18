@@ -6,7 +6,7 @@ import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
 import { getAdminFirestore } from '@/firebase/server-init';
-import { doc, getDoc } from 'firebase/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 
 async function getMailgunCredentials() {
@@ -93,6 +93,7 @@ export async function fetchEmailsWithCredentialsAction(
                 const emailRef = emailsCollectionRef.doc(email.id);
                 const emailData = {
                     ...email,
+                    receivedAt: Timestamp.fromDate(new Date(email.receivedAt)),
                     htmlContent: email.htmlContent || "",
                     textContent: email.textContent || "",
                     rawContent: email.rawContent || "",

@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
 import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
-import { getDocs, getDoc, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { getDocs, getDoc, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc, Timestamp } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -65,7 +65,6 @@ export function DashboardClient() {
   const { toast } = useToast();
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const planId = userProfile?.planId || 'free-default';
   const userPlanRef = useMemoFirebase(() => {
@@ -155,7 +154,7 @@ export function DashboardClient() {
             localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
         }
         
-        const finalInbox = { ...newInboxData, id: newInboxRef.id, createdAt: new Date() };
+        const finalInbox = { ...newInboxData, id: newInboxRef.id, createdAt: new Date() } as InboxType;
         setCurrentInbox(finalInbox);
         return finalInbox; // Return the new inbox
 
@@ -182,8 +181,7 @@ export function DashboardClient() {
       if (result.error) {
         const errorMsg = result.error || "An unexpected error occurred while fetching emails.";
         setServerError(errorMsg);
-        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); 
-        toast({ title: 'Refresh Failed', description: errorMsg, variant: 'destructive'});
+        toast({ title: 'Action Failed', description: errorMsg, variant: 'destructive'});
       } else {
         setServerError(null);
       }
@@ -262,7 +260,6 @@ export function DashboardClient() {
   useEffect(() => {
     const clearTimers = () => {
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
     };
 
     clearTimers();
@@ -284,10 +281,6 @@ export function DashboardClient() {
         };
         updateCountdown();
         countdownIntervalRef.current = setInterval(updateCountdown, 1000);
-        
-        // Removed initial and interval refresh from here. It's now manual.
-        // handleRefresh(); 
-        // refreshIntervalRef.current = setInterval(handleRefresh, 15000);
     }
     
     return clearTimers;
@@ -316,6 +309,12 @@ export function DashboardClient() {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const emailToRender = (email: Email) => {
+    // Firestore Timestamps need to be converted to JS Dates.
+    const receivedAt = email.receivedAt instanceof Timestamp ? email.receivedAt.toDate().toISOString() : email.receivedAt;
+    return { ...email, receivedAt };
   };
   
   const isLoading = isUserLoading || isLoadingPlan || isGenerating;
@@ -426,7 +425,7 @@ export function DashboardClient() {
                 </div>
                 <div className="col-span-1 hidden md:block">
                     {selectedEmail ? (
-                    <EmailView email={selectedEmail} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
+                    <EmailView email={emailToRender(selectedEmail)} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={false} />
                     ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
                         <Inbox className="h-16 w-16 mb-4" />
@@ -437,7 +436,7 @@ export function DashboardClient() {
                 </div>
                 {selectedEmail && (
                     <div className="md:hidden absolute inset-0 bg-background z-10">
-                    <EmailView email={selectedEmail} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
+                    <EmailView email={emailToRender(selectedEmail)} plan={activePlan} onBack={() => setSelectedEmail(null)} showBackButton={true} />
                     </div>
                 )}
                 </div>
@@ -447,5 +446,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

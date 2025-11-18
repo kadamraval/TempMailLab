@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Separator } from "./ui/separator";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
+import { Timestamp } from "firebase/firestore";
 
 interface EmailViewProps {
   email: Email;
@@ -30,6 +31,11 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
   
   const allowAttachments = plan?.features.allowAttachments ?? false;
   const showSourceCode = plan?.features.sourceCodeView ?? false;
+  
+  const receivedAtDate = email.receivedAt instanceof Timestamp 
+    ? email.receivedAt.toDate() 
+    : new Date(email.receivedAt);
+
 
   return (
     <Card className="h-full flex flex-col border-0 shadow-none rounded-none">
@@ -46,9 +52,9 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
             </CardDescription>
         </div>
         <div className="text-xs text-muted-foreground text-right shrink-0">
-            {new Date(email.receivedAt).toLocaleDateString()}
+            {receivedAtDate.toLocaleDateString()}
             <br />
-            {new Date(email.receivedAt).toLocaleTimeString()}
+            {receivedAtDate.toLocaleTimeString()}
         </div>
       </CardHeader>
       <Separator />

@@ -6,7 +6,7 @@ export interface Email {
   recipient?: string;
   senderName: string;
   subject: string;
-  receivedAt: string;
+  receivedAt: string | Timestamp; // Allow both for client/server
   htmlContent?: string;
   textContent?: string;
   rawContent?: string;
