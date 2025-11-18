@@ -1,3 +1,4 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -14,19 +15,23 @@ const getAdminFirestore = () => {
     let app: App;
 
     if (apps.length === 0) {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-            // This should not happen in production if the env var is set.
-            // In development, this indicates a setup issue.
-            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
-        }
-        try {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-            app = initializeApp({
-                credential: cert(serviceAccount),
-            });
-        } catch (e: any) {
-            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT or initialize app:", e.message);
-            throw new Error("Server configuration error: Could not initialize Firebase Admin.");
+        // In a deployed Google Cloud environment, the SDK will automatically
+        // find the service account credentials. For local development,
+        // it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+        // We will initialize with the service account from the environment variable if present.
+        if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+             try {
+                const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+                app = initializeApp({
+                    credential: cert(serviceAccount),
+                });
+            } catch (e: any) {
+                console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT or initialize app:", e.message);
+                throw new Error("Server configuration error: Could not initialize Firebase Admin.");
+            }
+        } else {
+            // For local development without the env var, or in some cloud environments
+            app = initializeApp();
         }
     } else {
         app = apps[0]!;
