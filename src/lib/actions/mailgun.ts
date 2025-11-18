@@ -116,6 +116,7 @@ export async function fetchEmailsWithCredentialsAction(
                 const emailRef = emailsCollectionRef.doc(messageId);
                 
                 const emailData: Omit<Email, 'id'> = {
+                    inboxId,
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
                     subject: message.Subject || "No Subject",
