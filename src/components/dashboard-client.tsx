@@ -36,7 +36,6 @@ import {
   deleteDoc,
   Timestamp,
   updateDoc,
-  orderBy,
 } from 'firebase/firestore';
 import { fetchEmailsWithCredentialsAction } from '@/lib/actions/mailgun';
 import { type Plan } from '@/app/(admin)/admin/packages/data';
@@ -135,10 +134,6 @@ export function DashboardClient() {
   const { user, isUserLoading, userProfile } = useUser();
   const { toast } = useToast();
 
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // All hooks are now at the top level
   const planId = userProfile?.planId || 'free-default';
   
   const userPlanRef = useMemoFirebase(() => {
@@ -150,24 +145,22 @@ export function DashboardClient() {
     if (!firestore || !user?.uid || isUserLoading) return null;
     return query(collection(firestore, `inboxes`), where('userId', '==', user.uid));
   }, [firestore, user?.uid, isUserLoading]);
-
-  const liveInboxQuery = useMemoFirebase(() => {
+  
+  const liveInboxDocRef = useMemoFirebase(() => {
     if (!firestore || !currentInbox) return null;
     return doc(firestore, 'inboxes', currentInbox.id);
   }, [firestore, currentInbox?.id]);
-
+  
   const emailsQuery = useMemoFirebase(() => {
       if (!firestore || !currentInbox?.id) return null;
-      // Removed orderBy from here to fix the infinite loop
       return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
   }, [firestore, currentInbox?.id]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
   const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
-  const { data: liveInbox } = useDoc<InboxType>(liveInboxQuery);
+  const { data: liveInbox } = useDoc<InboxType>(liveInboxDocRef);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
-  
-  // Client-side sorting
+
   const sortedEmails = useMemo(() => {
       if (!inboxEmails) return [];
       return [...inboxEmails].sort((a, b) => {
@@ -178,7 +171,7 @@ export function DashboardClient() {
   }, [inboxEmails]);
 
   const handleGenerateNewInbox = useCallback(async (plan: Plan) => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     setIsGenerating(true);
     setServerError(null);
 
@@ -208,15 +201,13 @@ export function DashboardClient() {
       const allowedDomains = domainsSnapshot.docs.map((doc) => doc.data().domain as string);
       const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
       const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-      const ownerToken = generateRandomString(32);
-
+      
       const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
-        userId: user ? user.uid : 'anonymous',
+        userId: user.uid,
         emailAddress,
         expiresAt: new Date(
           Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000
         ).toISOString(),
-        ownerToken: user ? undefined : ownerToken,
       };
 
       const inboxesCollectionRef = collection(firestore, `inboxes`);
@@ -228,9 +219,6 @@ export function DashboardClient() {
       const newDocSnap = await getDoc(newInboxRef);
       if (newDocSnap.exists()) {
         const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
-        if (!user) {
-          localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ id: finalInbox.id, ownerToken }));
-        }
         setCurrentInbox(finalInbox);
         return finalInbox;
       } else {
@@ -251,128 +239,101 @@ export function DashboardClient() {
     setServerError(null);
 
     try {
-        const localInbox = localStorage.getItem(LOCAL_INBOX_KEY);
-        const ownerToken = localInbox ? JSON.parse(localInbox).ownerToken : undefined;
-
       const result = await fetchEmailsWithCredentialsAction(
         currentInbox.emailAddress,
-        currentInbox.id,
-        ownerToken
+        currentInbox.id
       );
 
       if (result.error) {
         const errorMsg = result.error || 'An unexpected error occurred while fetching emails.';
-        console.error('Refresh failed:', errorMsg, result.log);
         setServerError(errorMsg);
       } else {
         setServerError(null);
       }
     } catch (error: any) {
-      console.error('Refresh failed with exception:', error.message);
       setServerError(error.message);
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentInbox]);
+  }, [currentInbox?.id, currentInbox?.emailAddress]);
+
 
   useEffect(() => {
     const initializeSession = async () => {
-      if (isUserLoading || isLoadingPlan || !activePlan) return;
+      if (isUserLoading || !auth) return;
 
-      if (user) {
-        // Registered user logic
-        localStorage.removeItem(LOCAL_INBOX_KEY);
-        if (!isLoadingInboxes) {
-          if (userInboxes && userInboxes.length > 0) {
-            const activeDbInbox =
-              userInboxes.find((ib) => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
-            if (!currentInbox || currentInbox.id !== activeDbInbox.id) {
-              setCurrentInbox(activeDbInbox);
-            }
-          } else if (!isGenerating) {
-            await handleGenerateNewInbox(activePlan);
-          }
+      if (!user) {
+        try {
+          await signInAnonymously(auth);
+        } catch (error) {
+          console.error("Anonymous sign-in failed", error);
+          setServerError("Could not start a session. Please refresh the page.");
         }
-        return;
-      } else {
-        // Anonymous user logic
-        const localInboxJSON = localStorage.getItem(LOCAL_INBOX_KEY);
-        if (localInboxJSON) {
-          try {
-            const localInbox = JSON.parse(localInboxJSON);
-            if (currentInbox?.id === localInbox.id) return;
-            
-            const anonyInboxRef = doc(firestore, 'inboxes', localInbox.id);
-            const docSnap = await getDoc(anonyInboxRef);
+        return; 
+      }
 
-            if (docSnap.exists()) {
-              const inboxData = docSnap.data() as InboxType;
-              if (
-                new Date(inboxData.expiresAt) > new Date() &&
-                inboxData.ownerToken === localInbox.ownerToken
-              ) {
-                setCurrentInbox({ id: docSnap.id, ...inboxData });
-              } else {
-                await handleGenerateNewInbox(activePlan);
-              }
-            } else {
-              await handleGenerateNewInbox(activePlan);
-            }
-          } catch (e) {
-            console.error('Error handling anonymous inbox:', e);
-            await handleGenerateNewInbox(activePlan);
-          }
-        } else if (!currentInbox && !isGenerating) {
+      if (isLoadingPlan || !activePlan) return;
+
+      if (userInboxes && userInboxes.length > 0) {
+        const activeDbInbox =
+          userInboxes.find((ib) => new Date(ib.expiresAt) > new Date()) || userInboxes[0];
+        if (!currentInbox || currentInbox.id !== activeDbInbox.id) {
+          setCurrentInbox(activeDbInbox);
+        }
+      } else if (!isLoadingInboxes && !isGenerating) {
           await handleGenerateNewInbox(activePlan);
-        }
       }
     };
 
     initializeSession();
   }, [
     user,
+    auth,
     isUserLoading,
     activePlan,
     isLoadingPlan,
     isLoadingInboxes,
     userInboxes,
-    firestore,
     isGenerating,
     handleGenerateNewInbox,
-    currentInbox,
+    currentInbox
   ]);
-
+  
   useEffect(() => {
-    const clearTimers = () => {
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      if (autoRefreshIntervalRef.current) clearInterval(autoRefreshIntervalRef.current);
-    };
-
-    clearTimers();
-
     const inboxToMonitor = liveInbox || currentInbox;
+    if (inboxToMonitor?.id) {
+        handleRefresh(); // Initial refresh
+    }
+  }, [currentInbox?.id, liveInbox?.id, handleRefresh]);
+  
+  useEffect(() => {
+    const inboxToMonitor = liveInbox || currentInbox;
+    let countdownInterval: NodeJS.Timeout | null = null;
+    let autoRefreshInterval: NodeJS.Timeout | null = null;
+
     if (inboxToMonitor?.expiresAt) {
       const expiryDate = new Date(inboxToMonitor.expiresAt);
+      
       const updateCountdown = () => {
         const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
         if (newCountdown <= 0) {
           setCurrentInbox(null);
-          if (!user) {
-            localStorage.removeItem(LOCAL_INBOX_KEY);
-          }
         } else {
           setCountdown(newCountdown);
         }
       };
-      updateCountdown();
-      countdownIntervalRef.current = setInterval(updateCountdown, 1000);
 
-      handleRefresh();
-      autoRefreshIntervalRef.current = setInterval(handleRefresh, 15000);
+      updateCountdown();
+      countdownInterval = setInterval(updateCountdown, 1000);
+      autoRefreshInterval = setInterval(handleRefresh, 15000);
     }
 
-    return clearTimers;
-  }, [liveInbox, currentInbox, user, handleRefresh]);
+    return () => {
+      if (countdownInterval) clearInterval(countdownInterval);
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    };
+  }, [liveInbox, currentInbox, handleRefresh]);
+
 
   const handleCopyEmail = async () => {
     if (currentInbox?.emailAddress) {
@@ -404,7 +365,7 @@ export function DashboardClient() {
     return { ...email, receivedAt };
   };
 
-  const isLoading = (isUserLoading && !user) || isLoadingPlan || isGenerating;
+  const isLoading = isUserLoading || isLoadingPlan || isGenerating;
   
   if (isLoading && !currentInbox) {
     return (

@@ -31,7 +31,6 @@ const formSchema = z.object({
     path: ["confirmPassword"],
 });
 
-const LOCAL_INBOX_ID_KEY = 'tempinbox_anonymous_inbox_id';
 
 export function RegisterForm() {
   const { toast } = useToast()
@@ -61,17 +60,6 @@ export function RegisterForm() {
         isAdmin: false,
         createdAt: serverTimestamp(),
     });
-
-    // Then, check for an anonymous inbox and migrate it
-    const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
-    if (localInboxId) {
-        const inboxRef = doc(firestore, 'inboxes', localInboxId);
-        const inboxDoc = await getDoc(inboxRef);
-        if (inboxDoc.exists()) {
-            await updateDoc(inboxRef, { userId: finalUser.uid });
-        }
-        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-    }
     
     toast({
       title: "Success",
@@ -115,12 +103,6 @@ export function RegisterForm() {
         } else {
           // It's a login for an existing user
           toast({ title: "Welcome back!", description: "Successfully logged in with Google."});
-          const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
-          if (localInboxId) {
-              const inboxRef = doc(firestore, 'inboxes', localInboxId);
-              await updateDoc(inboxRef, { userId: result.user.uid });
-              localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-          }
           router.push('/dashboard/inbox');
         }
     } catch (error: any) {

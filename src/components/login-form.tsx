@@ -27,8 +27,6 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 })
 
-const LOCAL_INBOX_ID_KEY = 'tempinbox_anonymous_inbox_id';
-
 interface LoginFormProps {
   redirectPath?: string;
 }
@@ -52,18 +50,6 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
     
     const userRef = doc(firestore, 'users', finalUser.uid);
     const userDoc = await getDoc(userRef);
-
-    // This runs for both new and existing users to handle migration
-    const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
-    if (localInboxId) {
-        const inboxRef = doc(firestore, 'inboxes', localInboxId);
-        const inboxDoc = await getDoc(inboxRef);
-        if (inboxDoc.exists()) {
-             // inbox belongs to the anonymous user, assign it to the new real user
-            await updateDoc(inboxRef, { userId: finalUser.uid });
-        }
-        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
-    }
     
     // If it's a first-time login (user doc doesn't exist)
     if (!userDoc.exists()) {
