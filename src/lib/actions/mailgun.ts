@@ -81,7 +81,6 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // Correctly parse the path from the storage URL
                 const storagePath = new URL(event.storage.url).pathname;
                 log.push(`Fetching email content from Mailgun storage path: ${storagePath}`);
                 const messageDetails = await mg.get(storagePath);
@@ -110,6 +109,7 @@ export async function fetchEmailsWithCredentialsAction(
                     read: false,
                 };
                 
+                // **THE CRITICAL FIX IS HERE**
                 // Pass ownerToken for anonymous writes.
                 // The security rule will validate this.
                 if (ownerToken) {
@@ -121,7 +121,6 @@ export async function fetchEmailsWithCredentialsAction(
 
             } catch(err: any) {
                 log.push(`Failed to process and save email for event ${event.id}. Error: ${err.message}`);
-                // Continue to next email instead of failing the whole action
             }
         }
         

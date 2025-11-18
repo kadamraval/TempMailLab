@@ -46,8 +46,10 @@ service cloud.firestore {
         allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
                              (request.auth == null && request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                              
-        // Allow server-side action to create emails. The action provides the ownerToken for validation.
-        allow create: if get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken == request.resource.data.ownerToken ||
+        // **THE SECOND CRITICAL FIX IS HERE**
+        // Allow server-side action to create emails. The action provides the ownerToken for validation
+        // against the PARENT INBOX's ownerToken.
+        allow create: if (request.auth == null && request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken) ||
                        (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid);
         
         // Deny direct client-side updates/deletes.
@@ -56,5 +58,3 @@ service cloud.firestore {
 
   }
 }
-
-    

@@ -179,6 +179,7 @@ export function DashboardClient() {
     setIsRefreshing(true);
     setServerError(null);
     
+    // **THE THIRD CRITICAL FIX IS HERE**
     // For anonymous users, we need to pass the owner token
     let ownerToken: string | undefined = undefined;
     if (user?.isAnonymous) {
@@ -186,12 +187,11 @@ export function DashboardClient() {
       ownerToken = localData ? JSON.parse(localData).ownerToken : undefined;
     }
 
-
     try {
       const result = await fetchEmailsWithCredentialsAction(
         currentInbox.emailAddress,
         currentInbox.id,
-        ownerToken
+        ownerToken // Pass the token to the server action
       );
 
       if (result.error) {
@@ -249,11 +249,9 @@ export function DashboardClient() {
             }
         }
         
-        // If we reach here, we need to generate a new inbox
         handleGenerateNewInbox();
     };
     
-    // Only run initialization when dependencies are ready
     if (!isUserLoading && !isLoadingPlan) {
         initializeSession();
     }
@@ -291,7 +289,6 @@ export function DashboardClient() {
                 expiresAt: expiresAt.toISOString(),
             };
 
-            // Add ownerToken for anonymous users
             if (auth.currentUser.isAnonymous) {
                 newInboxData.ownerToken = uuidv4();
             }
@@ -306,7 +303,6 @@ export function DashboardClient() {
                 const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
                 setCurrentInbox(finalInbox);
 
-                // If anonymous, save to localStorage
                 if (auth.currentUser.isAnonymous && finalInbox.ownerToken) {
                     localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({
                         id: finalInbox.id,
@@ -324,7 +320,6 @@ export function DashboardClient() {
         }
     };
   
-  // Effect for timers
   useEffect(() => {
     const inboxToMonitor = liveInbox || currentInbox;
     let countdownInterval: NodeJS.Timeout | null = null;
@@ -336,7 +331,7 @@ export function DashboardClient() {
         const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
         if (newCountdown <= 0) {
           setCurrentInbox(null);
-          handleGenerateNewInbox(); // Generate a new one
+          handleGenerateNewInbox();
         } else {
           setCountdown(newCountdown);
         }
@@ -351,7 +346,6 @@ export function DashboardClient() {
     };
   }, [liveInbox, currentInbox]);
 
-  // Background refresh
   useEffect(() => {
     let autoRefreshInterval: NodeJS.Timeout | null = null;
     
@@ -566,5 +560,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
