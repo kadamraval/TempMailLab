@@ -16,13 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User } from "firebase/auth"
-import { doc, setDoc, writeBatch, collection, serverTimestamp, getDoc } from "firebase/firestore"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, updateProfile } from "firebase/auth"
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { type Inbox } from "@/types"
-import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -33,7 +31,7 @@ const formSchema = z.object({
     path: ["confirmPassword"],
 });
 
-const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
+const LOCAL_INBOX_ID_KEY = 'tempinbox_anonymous_inbox_id';
 
 export function RegisterForm() {
   const { toast } = useToast()
@@ -53,42 +51,26 @@ export function RegisterForm() {
   async function handleRegistrationSuccess(finalUser: User) {
     if (!firestore) return;
 
-    const batch = writeBatch(firestore);
     const userRef = doc(firestore, 'users', finalUser.uid);
     
-    batch.set(userRef, {
+    // Create the user document first
+    await setDoc(userRef, {
         uid: finalUser.uid,
         email: finalUser.email,
-        isAnonymous: false,
         planId: 'free-default',
         isAdmin: false,
         createdAt: serverTimestamp(),
     });
 
-    let inboxIdToRefresh: string | null = null;
-    let emailAddressToRefresh: string | null = null;
-
-    const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-    if (localInboxData) {
-        const parsed: Inbox = JSON.parse(localInboxData);
-        if (new Date(parsed.expiresAt) > new Date()) {
-            const inboxRef = doc(collection(firestore, 'inboxes'));
-            batch.set(inboxRef, {
-                userId: finalUser.uid,
-                emailAddress: parsed.emailAddress,
-                expiresAt: parsed.expiresAt,
-                createdAt: serverTimestamp(),
-            });
-            inboxIdToRefresh = inboxRef.id;
-            emailAddressToRefresh = parsed.emailAddress;
+    // Then, check for an anonymous inbox and migrate it
+    const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
+    if (localInboxId) {
+        const inboxRef = doc(firestore, 'inboxes', localInboxId);
+        const inboxDoc = await getDoc(inboxRef);
+        if (inboxDoc.exists()) {
+            await updateDoc(inboxRef, { userId: finalUser.uid });
         }
-        localStorage.removeItem(LOCAL_INBOX_KEY);
-    }
-    
-    await batch.commit();
-    
-    if (inboxIdToRefresh && emailAddressToRefresh) {
-        await fetchEmailsWithCredentialsAction(emailAddressToRefresh, inboxIdToRefresh);
+        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
     }
     
     toast({
@@ -126,10 +108,19 @@ export function RegisterForm() {
         const result = await signInWithPopup(auth, provider);
         const userRef = doc(firestore, 'users', result.user.uid);
         const userDoc = await getDoc(userRef);
+        
         if (!userDoc.exists()) {
+          // It's a new registration via Google
           await handleRegistrationSuccess(result.user);
         } else {
+          // It's a login for an existing user
           toast({ title: "Welcome back!", description: "Successfully logged in with Google."});
+          const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
+          if (localInboxId) {
+              const inboxRef = doc(firestore, 'inboxes', localInboxId);
+              await updateDoc(inboxRef, { userId: result.user.uid });
+              localStorage.removeItem(LOCAL_INBOX_ID_KEY);
+          }
           router.push('/dashboard/inbox');
         }
     } catch (error: any) {
@@ -222,3 +213,5 @@ export function RegisterForm() {
     </Card>
   )
 }
+
+    

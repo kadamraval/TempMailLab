@@ -16,19 +16,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
-import { doc, setDoc, getDoc, writeBatch, collection, serverTimestamp, getDocs, query, where } from "firebase/firestore"
+import { doc, setDoc, getDoc, writeBatch, collection, serverTimestamp, getDocs, query, where, updateDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { type Inbox } from "@/types"
-import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
 })
 
-const LOCAL_INBOX_KEY = 'tempinbox_anonymous_session';
+const LOCAL_INBOX_ID_KEY = 'tempinbox_anonymous_inbox_id';
 
 interface LoginFormProps {
   redirectPath?: string;
@@ -54,51 +53,27 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
     const userRef = doc(firestore, 'users', finalUser.uid);
     const userDoc = await getDoc(userRef);
 
-    let inboxIdToRefresh: string | null = null;
-    let emailAddressToRefresh: string | null = null;
-
+    // This runs for both new and existing users to handle migration
+    const localInboxId = localStorage.getItem(LOCAL_INBOX_ID_KEY);
+    if (localInboxId) {
+        const inboxRef = doc(firestore, 'inboxes', localInboxId);
+        const inboxDoc = await getDoc(inboxRef);
+        if (inboxDoc.exists()) {
+             // inbox belongs to the anonymous user, assign it to the new real user
+            await updateDoc(inboxRef, { userId: finalUser.uid });
+        }
+        localStorage.removeItem(LOCAL_INBOX_ID_KEY);
+    }
+    
+    // If it's a first-time login (user doc doesn't exist)
     if (!userDoc.exists()) {
-        const batch = writeBatch(firestore);
-        batch.set(userRef, {
+        await setDoc(userRef, {
             uid: finalUser.uid,
             email: finalUser.email,
-            isAnonymous: false,
             planId: 'free-default',
             isAdmin: false,
             createdAt: serverTimestamp(),
         }, { merge: true });
-
-        const localInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-        if (localInboxData) {
-            const parsed: Inbox = JSON.parse(localInboxData);
-            if (new Date(parsed.expiresAt) > new Date()) {
-                const inboxRef = doc(collection(firestore, 'inboxes'));
-                batch.set(inboxRef, {
-                    userId: finalUser.uid,
-                    emailAddress: parsed.emailAddress,
-                    expiresAt: parsed.expiresAt,
-                    createdAt: serverTimestamp(),
-                });
-                inboxIdToRefresh = inboxRef.id;
-                emailAddressToRefresh = parsed.emailAddress;
-            }
-            localStorage.removeItem(LOCAL_INBOX_KEY);
-        }
-        await batch.commit();
-    } else {
-        // If user exists, check if they have an active inbox to refresh
-        const inboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', finalUser.uid), limit(1));
-        const inboxesSnapshot = await getDocs(inboxesQuery);
-        if (!inboxesSnapshot.empty) {
-            const existingInbox = inboxesSnapshot.docs[0];
-            inboxIdToRefresh = existingInbox.id;
-            emailAddressToRefresh = existingInbox.data().emailAddress;
-        }
-    }
-
-    // Trigger email fetch for the migrated or existing inbox
-    if (inboxIdToRefresh && emailAddressToRefresh) {
-        await fetchEmailsWithCredentialsAction(emailAddressToRefresh, inboxIdToRefresh);
     }
 
     toast({
@@ -205,3 +180,5 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
       </div>
   )
 }
+
+    
