@@ -213,5 +213,3 @@ export function RegisterForm() {
     </Card>
   )
 }
-
-    

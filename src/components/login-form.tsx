@@ -180,5 +180,3 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
       </div>
   )
 }
-
-    

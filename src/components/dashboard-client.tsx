@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
-import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection, errorEmitter, FirestorePermissionError } from "@/firebase";
+import { useAuth, useFirestore, useUser, useMemoFirebase, useDoc, useCollection } from "@/firebase";
 import { getDocs, getDoc, query, collection, where, doc, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { fetchEmailsWithCredentialsAction } from "@/lib/actions/mailgun";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
@@ -139,17 +139,7 @@ export function DashboardClient() {
         };
 
         const inboxesCollectionRef = collection(firestore, `inboxes`);
-        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData)
-        .catch((error) => {
-            const contextualError = new FirestorePermissionError({
-                operation: 'create',
-                path: inboxesCollectionRef.path,
-                requestResourceData: newInboxData,
-            });
-            errorEmitter.emit('permission-error', contextualError);
-            // We throw the original error to stop execution here
-            throw error;
-        });
+        const newInboxRef = await addDoc(inboxesCollectionRef, newInboxData);
 
         if (user && user.isAnonymous) {
             localStorage.setItem(LOCAL_INBOX_ID_KEY, newInboxRef.id);
@@ -160,8 +150,6 @@ export function DashboardClient() {
         return finalInbox; // Return the new inbox
 
     } catch (error: any) {
-        // The contextual error is already emitted in the .catch block above
-        // This catch block now handles the aftermath (UI update)
         setServerError(error.message || "Could not generate a new email address.");
         return null;
     } finally {
@@ -455,5 +443,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
