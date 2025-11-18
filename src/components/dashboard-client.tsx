@@ -285,12 +285,13 @@ export function DashboardClient() {
         updateCountdown();
         countdownIntervalRef.current = setInterval(updateCountdown, 1000);
         
-        handleRefresh(); // Initial refresh
-        refreshIntervalRef.current = setInterval(handleRefresh, 15000); // Auto-refresh
+        // Removed initial and interval refresh from here. It's now manual.
+        // handleRefresh(); 
+        // refreshIntervalRef.current = setInterval(handleRefresh, 15000);
     }
     
     return clearTimers;
-  }, [liveInbox, currentInbox, user, handleRefresh]);
+  }, [liveInbox, currentInbox, user]);
 
 
   const handleCopyEmail = async () => {
@@ -446,3 +447,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
