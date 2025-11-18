@@ -1,7 +1,7 @@
 
 'use server';
 
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
 let adminApp: App;
@@ -16,9 +16,11 @@ function initializeAdminApp() {
     }
 
     try {
-        // When running in a Google Cloud environment (like App Hosting),
-        // the SDK can automatically discover credentials.
-        adminApp = initializeApp(undefined, 'admin');
+        // Explicitly use applicationDefault() credentials for robust initialization
+        // in Google Cloud environments.
+        adminApp = initializeApp({
+            credential: applicationDefault(),
+        }, 'admin');
         adminFirestore = getFirestore(adminApp);
     } catch (e: any) {
         console.error("Failed to initialize admin app:", e.message);
