@@ -5,29 +5,11 @@ import DOMPurify from 'isomorphic-dompurify';
 import formData from 'form-data';
 import Mailgun from 'mailgun.js';
 import type { Email } from '@/types';
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
+import { Timestamp } from 'firebase-admin/firestore';
 
-
-// --- Correct, robust Firebase Admin SDK initialization ---
-const getAdminFirestore = () => {
-    const apps = getApps();
-    if (apps.length > 0) {
-        return getFirestore(apps[0]);
-    }
-
-    // In a managed environment (like Firebase App Hosting or Cloud Run),
-    // the SDK will automatically discover credentials. For local development,
-    // it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable,
-    // which is set by the `firebase emulators:exec` or similar command.
-    // We initialize without explicit credentials to use this discovery mechanism.
-    const app = initializeApp();
-    return getFirestore(app);
-};
-// --- End of corrected initialization ---
-
-
-async function getMailgunCredentials(firestore: ReturnType<typeof getAdminFirestore>) {
+async function getMailgunCredentials() {
+    const firestore = getAdminFirestore();
     const settingsRef = firestore.doc('admin_settings/mailgun');
     const settingsSnap = await settingsRef.get();
 
@@ -62,10 +44,8 @@ export async function fetchEmailsWithCredentialsAction(
 
     try {
         log.push("Action started.");
-        const firestore = getAdminFirestore();
-        log.push("Firebase Admin SDK initialized.");
         
-        const { apiKey, domain } = await getMailgunCredentials(firestore);
+        const { apiKey, domain } = await getMailgunCredentials();
         log.push("Successfully retrieved Mailgun credentials from Firestore.");
 
         const mailgun = new Mailgun(formData);
@@ -84,6 +64,7 @@ export async function fetchEmailsWithCredentialsAction(
             return { success: true, log }; // No new mail, which is a success case.
         }
 
+        const firestore = getAdminFirestore();
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
@@ -129,7 +110,8 @@ export async function fetchEmailsWithCredentialsAction(
                     read: false,
                 };
                 
-                // Pass ownerToken for anonymous writes
+                // Pass ownerToken for anonymous writes.
+                // The security rule will validate this.
                 if (ownerToken) {
                     (emailData as any).ownerToken = ownerToken;
                 }
