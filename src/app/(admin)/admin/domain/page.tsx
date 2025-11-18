@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/admin/data-table";
 import { getAllowedDomainColumns } from "./allowed-columns";
@@ -35,15 +35,15 @@ export default function AdminDomainPage() {
     
     const { data: allowedDomains, isLoading: isLoadingAllowed } = useCollection<AllowedDomain>(allowedDomainsQuery);
 
-    const handleEdit = (domain: AllowedDomain) => {
+    const handleEdit = useCallback((domain: AllowedDomain) => {
         setEditingDomain(domain);
         setIsEditOpen(true);
-    };
+    }, []);
 
-    const handleDelete = (domain: AllowedDomain) => {
+    const handleDelete = useCallback((domain: AllowedDomain) => {
         setDeletingDomain(domain);
         setIsDeleteOpen(true);
-    };
+    }, []);
 
     const confirmDelete = async () => {
         if (!deletingDomain || !firestore) return;

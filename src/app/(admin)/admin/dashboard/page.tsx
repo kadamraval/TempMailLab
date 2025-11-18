@@ -9,24 +9,20 @@ import type { Plan } from "./packages/data";
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
 
-    // The query for 'users' has been removed as it violates security rules.
-    // The total users stat will now show 0 until a secure counting method is implemented.
-    const plansQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, "plans"), where("status", "==", "active"));
-    }, [firestore]);
+    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
+    const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
     const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
 
-    // The 'users' and 'usersLoading' hooks have been removed.
+    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
     const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
     const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
 
     const stats = [
         {
             title: "Total Users",
-            value: 0, // Temporarily hardcoded to 0 to prevent error.
+            value: users?.length ?? 0,
             icon: <Users className="h-4 w-4 text-muted-foreground" />,
-            loading: false, // No longer loading user data.
+            loading: usersLoading,
         },
         {
             title: "Active Plans",

@@ -1,6 +1,6 @@
 
 'use client';
-import { useCollection, useMemoFirebase, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";

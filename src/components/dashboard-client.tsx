@@ -130,6 +130,7 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading, userProfile } = useUser();
   const { toast } = useToast();
 
@@ -137,32 +138,30 @@ export function DashboardClient() {
   const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const planId = userProfile?.planId || 'free-default';
+  
   const userPlanRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !planId) return null;
     return doc(firestore, 'plans', planId);
   }, [firestore, planId]);
-
-  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
 
   const userInboxQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid || isUserLoading) return null;
     return query(collection(firestore, `inboxes`), where('userId', '==', user.uid));
   }, [firestore, user, isUserLoading]);
 
-  const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
-
   const liveInboxQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox) return null;
     return doc(firestore, 'inboxes', currentInbox.id);
   }, [firestore, currentInbox]);
-
-  const { data: liveInbox } = useDoc<InboxType>(liveInboxQuery);
 
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id) return null;
     return collection(firestore, `inboxes/${currentInbox.id}/emails`);
   }, [firestore, currentInbox]);
 
+  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
+  const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
+  const { data: liveInbox } = useDoc<InboxType>(liveInboxQuery);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   const handleGenerateNewInbox = useCallback(async (plan: Plan) => {
