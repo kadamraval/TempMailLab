@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -179,8 +178,6 @@ export function DashboardClient() {
     setIsRefreshing(true);
     setServerError(null);
     
-    // **THE THIRD CRITICAL FIX IS HERE**
-    // For anonymous users, we need to pass the owner token
     let ownerToken: string | undefined = undefined;
     if (user?.isAnonymous) {
       const localData = localStorage.getItem(LOCAL_INBOX_KEY);
@@ -191,7 +188,7 @@ export function DashboardClient() {
       const result = await fetchEmailsWithCredentialsAction(
         currentInbox.emailAddress,
         currentInbox.id,
-        ownerToken // Pass the token to the server action
+        ownerToken
       );
 
       if (result.error) {

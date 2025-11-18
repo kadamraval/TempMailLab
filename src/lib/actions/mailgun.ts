@@ -1,4 +1,3 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -96,7 +95,7 @@ export async function fetchEmailsWithCredentialsAction(
 
                 const emailRef = emailsCollectionRef.doc(messageId);
                 
-                const emailData: Omit<Email, 'id'> & { ownerToken?: string } = {
+                const emailData: Omit<Email, 'id'> = {
                     inboxId,
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
