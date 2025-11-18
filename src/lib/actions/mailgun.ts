@@ -97,7 +97,7 @@ export async function fetchEmailsWithCredentialsAction(
 
                 const emailRef = emailsCollectionRef.doc(messageId);
                 
-                const emailData: Omit<Email, 'id'> = {
+                const emailData: Omit<Email, 'id'> & { ownerToken?: string } = {
                     inboxId,
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
@@ -113,7 +113,7 @@ export async function fetchEmailsWithCredentialsAction(
                 // Pass ownerToken for anonymous writes.
                 // The security rule will validate this.
                 if (ownerToken) {
-                    (emailData as any).ownerToken = ownerToken;
+                    emailData.ownerToken = ownerToken;
                 }
 
                 batch.set(emailRef, emailData, { merge: true });
