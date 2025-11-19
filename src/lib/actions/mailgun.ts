@@ -101,12 +101,14 @@ export async function fetchEmailsWithCredentialsAction(
             }
             log.push(`Message ID: ${messageId} is not a duplicate.`);
             
-            const storageUrl = event.storage?.url;
+            // The storage URL can be an array, but we only need the first one.
+            const storageUrl = Array.isArray(event.storage?.url) ? event.storage.url[0] : event.storage?.url;
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
             }
             
+            // IMPORTANT: Import node-fetch within the server action scope
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
@@ -120,7 +122,7 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
-            const message = await response.json();
+            const message = await response.json() as any;
             log.push(`Successfully fetched email content for event: ${event.id}`);
             
             const html = message["body-html"] || message["stripped-html"] || "";

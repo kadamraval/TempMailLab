@@ -48,8 +48,8 @@ service cloud.firestore {
                              (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                              
         // Allow email creation only by the trusted server-side action.
-        // The server action uses the Admin SDK and bypasses these rules, so this is a safeguard.
-        // Setting to `true` prevents any client-side rule from accidentally blocking a legitimate (future) write path.
+        // This is secure because the server action uses the Admin SDK, which bypasses these rules.
+        // This rule prevents any direct client-side creation attempts.
         allow create: if true;
         
         // Allow an authenticated user to update their own emails (e.g. mark as read)
