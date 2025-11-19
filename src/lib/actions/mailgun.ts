@@ -53,7 +53,8 @@ export async function fetchEmailsWithCredentialsAction(
         log.push("Mailgun client initialized.");
 
         const events = await mg.events.get(domain, {
-            recipient: emailAddress,
+            // Using a more explicit filter for the recipient.
+            'to': emailAddress,
             event: "stored",
             limit: 30,
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
@@ -81,13 +82,15 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // *** THIS IS THE CRITICAL FIX ***
                 // The API key must be appended to the URL as a query parameter for this endpoint.
-                const storageUrlWithKey = `${event.storage.url}&key=${apiKey}`;
-
-                // The Mailgun SDK's internal fetch already handles authentication, but for direct storage URLs, manual auth is needed.
+                const storageUrlWithKey = `${event.storage.url}`;
+                
                 const fetch = (await import('node-fetch')).default;
-                const response = await fetch(storageUrlWithKey);
+                const response = await fetch(storageUrlWithKey, {
+                     headers: {
+                        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+                    }
+                });
 
                 if (!response.ok) {
                     const errorBody = await response.text();
