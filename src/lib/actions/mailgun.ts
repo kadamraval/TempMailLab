@@ -44,7 +44,6 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
-        // Correctly calculate the beginning timestamp as a UNIX number (seconds).
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
@@ -66,7 +65,6 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
-                // Correctly log and continue, do not throw an error.
                 log.push(`[INFO] Could not fetch events from ${host}. This is expected if the region is not in use. Error: ${hostError.message}`);
             }
         }
@@ -82,6 +80,7 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
+            // CRITICAL FIX: Use `event.recipient` for reliable filtering.
             if (!event.recipient || event.recipient.toLowerCase() !== emailAddress.toLowerCase()) {
                 continue;
             }
@@ -96,7 +95,6 @@ export async function fetchEmailsWithCredentialsAction(
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
-                log.push(`Skipping duplicate email: ${messageId}`);
                 continue;
             }
             log.push(`Message ID: ${messageId} is not a duplicate.`);
