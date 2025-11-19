@@ -52,11 +52,10 @@ export async function fetchEmailsWithCredentialsAction(
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
-                // Fetch 'accepted' events. This is the correct event that includes the storage URL.
                 const events = await mg.events.get(domain, {
                     event: "accepted",
-                    limit: 30, // Limit per region to avoid excessive data
-                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), // Check last 24 hours
+                    limit: 30, 
+                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), 
                 });
 
                 if (events?.items?.length > 0) {
@@ -66,7 +65,6 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
-                // Log a warning but continue, as one region failing shouldn't stop the whole process.
                 log.push(`[WARN] Could not fetch events from ${host}. Error: ${hostError.message}`);
             }
         }
@@ -82,7 +80,6 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
-            // 1. Manually filter by recipient email address. This is more reliable than API filters.
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
                 continue;
             }
@@ -94,7 +91,6 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
-            // 2. Correct duplicate check: check for document existence by its ID.
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
@@ -103,14 +99,12 @@ export async function fetchEmailsWithCredentialsAction(
             }
             log.push(`Message ID: ${messageId} is not a duplicate.`);
 
-            // 3. Correctly get the storage URL from the array.
             const storageUrl = event.storage?.url?.[0];
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
             }
 
-            // 4. Correctly fetch email content using Basic Auth header, not URL embedding.
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
@@ -127,17 +121,14 @@ export async function fetchEmailsWithCredentialsAction(
             const message = await response.json();
             log.push(`Successfully fetched email content for event: ${event.id}`);
             
-            // 5. Correctly parse HTML body with fallbacks.
             const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
             const cleanHtml = DOMPurify.sanitize(html);
             
-            // 6. Correctly handle both UNIX and millisecond timestamps.
             const timestampMs = event.timestamp.toString().length === 10
                 ? event.timestamp * 1000
                 : event.timestamp;
             const receivedAt = Timestamp.fromDate(new Date(timestampMs));
             
-            // 7. The document ID is the messageId. Do not store 'id' inside the data payload.
             const emailData: Omit<Email, 'id'> = {
                 inboxId,
                 recipient: emailAddress,
