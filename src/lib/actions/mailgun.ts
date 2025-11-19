@@ -8,7 +8,6 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// A definitive list of all possible Mailgun API hosts.
 const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
@@ -17,12 +16,12 @@ async function getMailgunCredentials() {
     const settingsSnap = await settingsRef.get();
 
     if (!settingsSnap.exists) {
-        throw new Error('Mailgun settings not found in Firestore at admin_settings/mailgun.');
+        throw new Error('Mailgun settings not found in Firestore. Please configure the Mailgun integration in the admin panel.');
     }
 
     const settings = settingsSnap.data();
     if (!settings?.apiKey || !settings.domain) {
-        throw new Error('Mailgun integration is missing API Key or Domain in Firestore.');
+        throw new Error('Mailgun API Key or Domain is missing from Firestore settings. Please configure it in the admin panel.');
     }
 
     return { apiKey: settings.apiKey, domain: settings.domain };
@@ -33,18 +32,21 @@ export async function fetchEmailsWithCredentialsAction(
     inboxId: string,
     ownerToken?: string
 ): Promise<{ success: boolean; error?: string; log: string[] }> {
-    if (!emailAddress || !inboxId) {
-        return { success: false, error: 'Email address and Inbox ID are required.', log: ['Action failed: Missing email address or inbox ID.'] };
-    }
-    
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
+    
+    if (!emailAddress || !inboxId) {
+        log.push('Action failed: Missing email address or inbox ID.');
+        return { success: false, error: 'Email address and Inbox ID are required.', log };
+    }
 
     try {
+        log.push("Attempting to retrieve Mailgun credentials from Firestore...");
         const { apiKey, domain } = await getMailgunCredentials();
-        log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
+        log.push(`Credentials retrieved for domain: ${domain}. API Key starts with: ${apiKey.substring(0, 8)}...`);
 
         const firestore = getAdminFirestore();
         const inboxRef = firestore.doc(`inboxes/${inboxId}`);
+        log.push(`Fetching inbox document from path: inboxes/${inboxId}`);
         const inboxSnap = await inboxRef.get();
         if (!inboxSnap.exists) {
             throw new Error(`Inbox with ID ${inboxId} not found.`);
@@ -54,8 +56,7 @@ export async function fetchEmailsWithCredentialsAction(
             throw new Error(`Could not retrieve data for inbox ${inboxId}.`);
         }
         const userId = inboxData.userId;
-        log.push(`Operating for user ID: ${userId}`);
-
+        log.push(`Inbox found. Operating for user ID: ${userId}`);
 
         const allEvents = [];
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
@@ -74,13 +75,14 @@ export async function fetchEmailsWithCredentialsAction(
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
+                    log.push(`Found ${events.items.length} 'accepted' event(s) on ${host}.`);
                     allEvents.push(...events.items);
                 } else {
                     log.push(`No 'accepted' events found on ${host} for this recipient.`);
                 }
             } catch (hostError: any) {
-                log.push(`[INFO] Could not fetch events from ${host}. Error: ${hostError.message}`);
+                // This is not a fatal error, just means one region didn't respond.
+                log.push(`[INFO] Could not fetch events from ${host}. This may be expected if your account is in a different region. Error: ${hostError.message}`);
             }
         }
         
@@ -89,6 +91,7 @@ export async function fetchEmailsWithCredentialsAction(
             return { success: true, log };
         }
 
+        log.push(`Total events found: ${allEvents.length}. Now processing each email.`);
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
@@ -103,9 +106,10 @@ export async function fetchEmailsWithCredentialsAction(
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
+                log.push(`[INFO] Skipping duplicate message ID: ${messageId}`);
                 continue;
             }
-            log.push(`Message ID: ${messageId} is not a duplicate.`);
+            log.push(`Processing new message ID: ${messageId}.`);
             
             const storageUrl = Array.isArray(event.storage?.url) ? event.storage.url[0] : event.storage?.url;
             if (!storageUrl) {
@@ -113,6 +117,7 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             
+            log.push(`Fetching content from storage URL: ${storageUrl}`);
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
@@ -122,8 +127,7 @@ export async function fetchEmailsWithCredentialsAction(
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                log.push(`[ERROR] Failed to fetch content for event ${event.id}. Status: ${response.status}. Body: ${errorBody}`);
-                continue;
+                throw new Error(`Failed to fetch Mailgun content from storage URL. Status: ${response.status}. Body: ${errorBody}`);
             }
 
             const message = await response.json() as any;
@@ -169,9 +173,15 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
+        // THE CRITICAL FIX: Capture the *real* error and send it back to the client.
         const errorMessage = `[FATAL_ERROR]: ${error.message}`;
         log.push(errorMessage);
-        console.error("[MAILGUN_ACTION_ERROR]", error);
-        return { success: false, error: error.message || 'An unexpected server error occurred.', log };
+        console.error("[MAILGUN_ACTION_ERROR]", {
+            errorMessage: error.message,
+            stack: error.stack,
+            fullError: error
+        });
+        // Return the specific error message instead of a generic one.
+        return { success: false, error: error.message, log };
     }
 }

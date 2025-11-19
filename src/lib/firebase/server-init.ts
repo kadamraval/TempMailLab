@@ -30,10 +30,7 @@ function getAdminApp(): App {
         // Provide a more helpful error message for local development.
         if (process.env.NODE_ENV !== 'production' && error.code === 'app/invalid-credential') {
              throw new Error(
-                'Could not initialize Firebase Admin SDK. ' +
-                'This is likely because the GOOGLE_APPLICATION_CREDENTIALS environment variable is not set correctly in your local environment. ' +
-                'The variable should point to your service account JSON key file. ' +
-                'Original Error: ' + error.message
+                'Could not initialize Firebase Admin SDK. This is likely because the GOOGLE_APPLICATION_CREDENTIALS environment variable is not set correctly in your local environment. The variable should point to your service account JSON key file. Original Error: ' + error.message
             );
         }
         // For production, re-throw the original error.
