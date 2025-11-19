@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -7,6 +8,7 @@ interface MailgunSettings {
     enabled: boolean;
     apiKey: string;
     domain: string;
+    region: string;
 }
 
 /**
@@ -17,18 +19,16 @@ interface MailgunSettings {
 export async function saveMailgunSettingsAction(settings: MailgunSettings) {
     try {
         const firestore = await getAdminFirestore();
-        // The document ID is 'mailgun' for this specific setting.
         const settingsRef = firestore.doc("admin_settings/mailgun");
 
-        // Automatically enable if API key and domain are provided
+        // Automatically enable if API key, domain, and region are provided
         const finalSettings = {
             ...settings,
-            enabled: !!(settings.apiKey && settings.domain)
+            enabled: !!(settings.apiKey && settings.domain && settings.region)
         };
 
         await settingsRef.set(finalSettings, { merge: true });
         
-        // Revalidate paths that might depend on these settings
         revalidatePath('/admin/settings/integrations/mailgun');
         revalidatePath('/');
         
