@@ -33,8 +33,7 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // OR if they are anonymous AND provide the correct ownerToken.
-      // The token check must be on the existing resource, not the incoming one.
+      // OR if they are anonymous AND provide the correct ownerToken for the existing doc.
       allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
                                      (request.auth == null && request.query.ownerToken == resource.data.ownerToken);
 
@@ -48,7 +47,6 @@ service cloud.firestore {
         allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
                              (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                              
-        // --- THIS IS THE CRITICAL FIX ---
         // Allow email creation if...
         allow create:
           // 1. The user is the logged-in owner of the parent inbox.

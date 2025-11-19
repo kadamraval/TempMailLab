@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Copy,
   RefreshCw,
@@ -120,13 +120,17 @@ export function DashboardClient() {
         if (activeUser.isAnonymous) {
             const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
             if (localDataStr) {
-                const localData = JSON.parse(localDataStr);
-                if (new Date(localData.expiresAt) > new Date()) {
-                    const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
-                    if (inboxDoc.exists()) {
-                         setCurrentInbox({ id: inboxDoc.id, ...inboxDoc.data() } as InboxType);
-                         return;
+                try {
+                    const localData = JSON.parse(localDataStr);
+                    if (new Date(localData.expiresAt) > new Date()) {
+                        const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
+                        if (inboxDoc.exists()) {
+                            setCurrentInbox({ id: inboxDoc.id, ...inboxDoc.data() } as InboxType);
+                            return;
+                        }
                     }
+                } catch {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
                 }
             }
         } else if (userInboxes && userInboxes.length > 0) {
@@ -355,6 +359,13 @@ export function DashboardClient() {
                 {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                 {isGenerating ? 'Generating...' : 'Generate Temporary Email'}
             </Button>
+            {serverError && (
+                <Alert variant="destructive" className="mt-4 text-left">
+                  <ServerCrash className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{serverError}</AlertDescription>
+                </Alert>
+            )}
         </Card>
       )
   }
@@ -479,7 +490,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    

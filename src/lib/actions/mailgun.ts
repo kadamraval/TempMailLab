@@ -81,8 +81,9 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // Use the API key to fetch from the storage URL
-                const storageUrl = event.storage.url.replace('api.mailgun.net/v3', 'api.eu.mailgun.net/v3');
+                // *** THIS IS THE CRITICAL FIX ***
+                // Use the storage URL directly from Mailgun's event. Do not modify it.
+                const storageUrl = event.storage.url;
                 const response = await fetch(storageUrl, {
                     headers: {
                         'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
