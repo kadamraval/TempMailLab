@@ -1,20 +1,42 @@
+
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
+let adminApp: App | null = null;
+
 // This function ensures the Firebase Admin app is a singleton.
 // It initializes the app only if it hasn't been initialized already.
 function getAdminApp(): App {
-    // If an app is already initialized, return it.
-    if (getApps().length > 0) {
-        return getApps()[0];
+    if (adminApp) {
+        return adminApp;
     }
 
     // In a deployed Google Cloud environment (like App Hosting),
-    // GOOGLE_APPLICATION_CREDENTIALS is set automatically.
-    // Locally, you must set this environment variable to point to your service account JSON file.
-    // `initializeApp()` with no arguments will use these credentials.
-    return initializeApp();
+    // GOOGLE_APPLICATION_CREDENTIALS are set automatically and `initializeApp()` works with no args.
+    // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to your service account JSON file.
+    if (getApps().length > 0) {
+        adminApp = getApps()[0];
+        return adminApp;
+    }
+    
+    try {
+        adminApp = initializeApp();
+    } catch (error: any) {
+        console.error("Firebase Admin initialization failed.", error);
+        // Provide a more helpful error message for local development.
+        if (process.env.NODE_ENV !== 'production' && error.message.includes('GOOGLE_APPLICATION_CREDENTIALS')) {
+             throw new Error(
+                'Could not initialize Firebase Admin SDK. ' +
+                'Ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set correctly in your local environment. ' +
+                'For Firebase Emulators, this is often done via `firebase emulators:exec`. ' +
+                'Original Error: ' + error.message
+            );
+        }
+        throw error;
+    }
+    
+    return adminApp;
 }
 
 /**

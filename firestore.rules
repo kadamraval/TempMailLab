@@ -11,7 +11,8 @@ service cloud.firestore {
 
     match /allowed_domains/{domainId} {
       allow read: if true;
-      allow write: if false; 
+      // Allow admin to write/delete
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
     // --- Admin-Only Collections ---
@@ -28,29 +29,33 @@ service cloud.firestore {
     }
     
     match /inboxes/{inboxId} {
-      // Allow a user (including anonymous) to create an inbox.
-      allow create: if request.resource.data.userId == request.auth.uid;
+      // Allow any authenticated user (including anonymous) to create an inbox.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // OR if they are anonymous and provide the correct ownerToken.
+      // OR if they are anonymous AND provide the correct ownerToken.
+      // The token check must be on the existing resource, not the incoming one.
       allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
-                                     (request.auth == null && request.resource.data.ownerToken == resource.data.ownerToken);
+                                     (request.auth == null && request.query.ownerToken == resource.data.ownerToken);
 
-      // Allow a registered user to list their own inboxes. Anonymous users cannot list.
-      allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
+      // Allow a registered (non-anonymous) user to list their own inboxes.
+      allow list: if request.auth != null && !request.auth.token.firebase.sign_in_provider.endsWith('anonymous') && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Allow reads/lists if the user is the logged-in owner of the parent inbox.
         // OR if the user is anonymous and provides the correct ownerToken for the parent inbox.
         allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
-                             (request.auth == null && request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
+                             (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                              
-        // Allow server-side action to create emails if the ownerToken matches the parent inbox's token
-        // OR if the logged-in user is the owner.
-        allow create: if (get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken != null &&
-                          get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken == request.resource.data.ownerToken) ||
-                       (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid);
+        // Allow email creation if...
+        allow create:
+          // 1. The user is the logged-in owner of the parent inbox.
+          (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
+          // 2. The ownerToken provided in the new email matches the parent inbox's ownerToken. 
+          //    This allows the trusted server-side action to write emails on behalf of an anonymous user.
+          (get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken != null &&
+           request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
         
         // Deny direct client-side updates/deletes.
         allow update, delete: if false;
