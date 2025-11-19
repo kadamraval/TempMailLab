@@ -1,21 +1,19 @@
-
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 // This function ensures the Firebase Admin app is a singleton.
 // It initializes the app only if it hasn't been initialized already.
 function getAdminApp(): App {
-    // If apps have already been initialized, return the existing default app.
+    // If an app is already initialized, return it.
     if (getApps().length > 0) {
         return getApps()[0];
     }
-    
-    // If no apps are initialized, initialize a new one.
-    // Calling initializeApp() with no arguments automatically uses the
-    // service account credentials from the environment (e.g., in App Hosting)
-    // or from the GOOGLE_APPLICATION_CREDENTIALS environment variable locally.
-    // This is the most robust and standard way to initialize.
+
+    // In a deployed Google Cloud environment (like App Hosting),
+    // GOOGLE_APPLICATION_CREDENTIALS is set automatically.
+    // Locally, you must set this environment variable to point to your service account JSON file.
+    // `initializeApp()` with no arguments will use these credentials.
     return initializeApp();
 }
 
