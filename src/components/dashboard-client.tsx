@@ -163,7 +163,6 @@ export function DashboardClient() {
     setServerError(null);
     setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] Refresh triggered...`, ...prev]);
     
-    // THE FIX: Use the ownerToken from the state if it exists
     const ownerToken = currentInbox.ownerToken;
 
     try {

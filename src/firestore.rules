@@ -42,12 +42,12 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow a user to read a single email if they own it.
+        // Allow a user to read a single email if they own it (based on the denormalized userId).
         allow read: if request.auth.uid == resource.data.userId;
 
-        // Allow a user to list emails if they are querying by their own userId.
-        // This is the CRITICAL fix. It relies on the denormalized `userId` field on the email doc.
-        allow list: if request.auth.uid == request.query.where[0][2];
+        // Allow a user to list emails ONLY if they are querying for their own userId.
+        // This is the CRITICAL fix that enforces the client-side query must contain `where('userId', '==', request.auth.uid)`.
+        allow list: if request.auth.uid == request.query.where[0][2] && request.query.where[0][0] == "userId";
                              
         // Allow email creation only by the trusted server-side action.
         allow create: if true;

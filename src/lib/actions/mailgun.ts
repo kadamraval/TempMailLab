@@ -42,7 +42,7 @@ export async function fetchEmailsWithCredentialsAction(
     try {
         log.push("Attempting to retrieve Mailgun credentials from Firestore...");
         const { apiKey, domain } = await getMailgunCredentials();
-        log.push(`Credentials retrieved for domain: ${domain}. API Key starts with: ${apiKey.substring(0, 8)}...`);
+        log.push(`Credentials retrieved for domain: ${domain}.`);
 
         const firestore = getAdminFirestore();
         const inboxRef = firestore.doc(`inboxes/${inboxId}`);
@@ -81,7 +81,6 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host} for this recipient.`);
                 }
             } catch (hostError: any) {
-                // This is not a fatal error, just means one region didn't respond.
                 log.push(`[INFO] Could not fetch events from ${host}. This may be expected if your account is in a different region. Error: ${hostError.message}`);
             }
         }
@@ -117,7 +116,7 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             
-            log.push(`Fetching content from storage URL: ${storageUrl}`);
+            log.push(`Fetching content from storage URL...`);
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
@@ -173,7 +172,6 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        // THE CRITICAL FIX: Capture the *real* error and send it back to the client.
         const errorMessage = `[FATAL_ERROR]: ${error.message}`;
         log.push(errorMessage);
         console.error("[MAILGUN_ACTION_ERROR]", {
@@ -181,7 +179,6 @@ export async function fetchEmailsWithCredentialsAction(
             stack: error.stack,
             fullError: error
         });
-        // Return the specific error message instead of a generic one.
         return { success: false, error: error.message, log };
     }
 }
