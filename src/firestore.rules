@@ -42,18 +42,18 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow reads/lists if the user is the logged-in owner of the parent inbox.
-        // OR if the user is anonymous and provides the correct ownerToken for the parent inbox.
-        allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
-                             (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
+        // Allow a user to read a single email if they own it.
+        allow read: if request.auth.uid == resource.data.userId;
+
+        // Allow a user to list emails if they are querying by their own userId.
+        // This is the CRITICAL fix. It relies on the denormalized `userId` field on the email doc.
+        allow list: if request.auth.uid == request.query.where[0][2];
                              
         // Allow email creation only by the trusted server-side action.
-        // This is secure because the server action uses the Admin SDK, which bypasses these rules.
-        // This rule prevents any direct client-side creation attempts.
         allow create: if true;
         
         // Allow an authenticated user to update their own emails (e.g. mark as read)
-        allow update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+        allow update: if request.auth.uid == resource.data.userId;
         
         // Deny direct client-side deletes.
         allow delete: if false;
@@ -61,5 +61,3 @@ service cloud.firestore {
 
   }
 }
-
-    

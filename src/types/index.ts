@@ -4,6 +4,7 @@ import type { Timestamp } from "firebase/firestore";
 export interface Email {
   id: string; 
   inboxId: string;
+  userId: string; // Denormalized for security rules
   recipient?: string;
   senderName: string;
   subject: string;

@@ -9,7 +9,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // A definitive list of all possible Mailgun API hosts.
-const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
+const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net', 'api.us-east-1.amazonaws.com', 'api.us-west-1.amazonaws.com', 'api.us-east-4.amazonaws.com'];
 
 async function getMailgunCredentials() {
     const firestore = getAdminFirestore();
@@ -43,8 +43,21 @@ export async function fetchEmailsWithCredentialsAction(
         const { apiKey, domain } = await getMailgunCredentials();
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
+        const firestore = getAdminFirestore();
+        const inboxRef = firestore.doc(`inboxes/${inboxId}`);
+        const inboxSnap = await inboxRef.get();
+        if (!inboxSnap.exists) {
+            throw new Error(`Inbox with ID ${inboxId} not found.`);
+        }
+        const inboxData = inboxSnap.data();
+        if (!inboxData) {
+            throw new Error(`Could not retrieve data for inbox ${inboxId}.`);
+        }
+        const userId = inboxData.userId;
+        log.push(`Operating for user ID: ${userId}`);
+
+
         const allEvents = [];
-        // Correctly formatted UNIX timestamp for the last 24 hours
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
@@ -57,17 +70,17 @@ export async function fetchEmailsWithCredentialsAction(
                     event: "accepted",
                     limit: 300,
                     begin: beginTimestamp,
+                    recipient: emailAddress, // Use recipient filter in API call
                 });
 
                 if (events?.items?.length > 0) {
                     log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No 'accepted' events found on ${host}.`);
+                    log.push(`No 'accepted' events found on ${host} for this recipient.`);
                 }
             } catch (hostError: any) {
-                // CRITICAL: Log error but do not throw, to allow checking other regions.
-                log.push(`[INFO] Could not fetch events from ${host}. This is expected if the region is not in use. Error: ${hostError.message}`);
+                log.push(`[INFO] Could not fetch events from ${host}. Error: ${hostError.message}`);
             }
         }
         
@@ -76,18 +89,11 @@ export async function fetchEmailsWithCredentialsAction(
             return { success: true, log };
         }
 
-        const firestore = getAdminFirestore();
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
-            // CRITICAL FIX: Use `event.recipient` for reliable filtering.
-            if (!event.recipient || event.recipient.toLowerCase() !== emailAddress.toLowerCase()) {
-                continue;
-            }
-            log.push(`Found relevant event for ${emailAddress}.`);
-
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
@@ -101,14 +107,12 @@ export async function fetchEmailsWithCredentialsAction(
             }
             log.push(`Message ID: ${messageId} is not a duplicate.`);
             
-            // The storage URL can be an array, but we only need the first one.
             const storageUrl = Array.isArray(event.storage?.url) ? event.storage.url[0] : event.storage?.url;
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
             }
             
-            // IMPORTANT: Import node-fetch within the server action scope
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
@@ -134,6 +138,7 @@ export async function fetchEmailsWithCredentialsAction(
             
             const emailData: Omit<Email, 'id'> = {
                 inboxId,
+                userId: userId, // Add userId to the email document
                 recipient: emailAddress,
                 senderName: message.From || "Unknown Sender",
                 subject: message.Subject || "No Subject",
@@ -169,5 +174,3 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: false, error: error.message || 'An unexpected server error occurred.', log };
     }
 }
-
-    

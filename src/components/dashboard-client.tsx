@@ -82,15 +82,14 @@ export function DashboardClient() {
   }, [firestore, currentInbox?.id]);
   
   const emailsQuery = useMemoFirebase(() => {
-      if (!firestore || !currentInbox?.id) return null;
-      const q = query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
-      
-      // For anonymous users, we MUST attach the owner token for the rule to pass
-      if (user?.isAnonymous && currentInbox.ownerToken) {
-          return query(q, where('ownerToken', '==', currentInbox.ownerToken));
-      }
-      return q;
-  }, [firestore, currentInbox?.id, user?.isAnonymous, currentInbox?.ownerToken]);
+    if (!firestore || !currentInbox?.id || !user?.uid) return null;
+    // This query now includes a `where` clause to satisfy security rules.
+    return query(
+      collection(firestore, `inboxes/${currentInbox.id}/emails`),
+      where('userId', '==', user.uid)
+    );
+  }, [firestore, currentInbox?.id, user?.uid]);
+
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
   const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
@@ -513,5 +512,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
