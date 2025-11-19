@@ -9,7 +9,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
 // A definitive list of all possible Mailgun API hosts.
-const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net', 'api.us-east-1.amazonaws.com', 'api.us-west-1.amazonaws.com', 'api.us-east-4.amazonaws.com'];
+const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
     const firestore = getAdminFirestore();
@@ -70,7 +70,7 @@ export async function fetchEmailsWithCredentialsAction(
                     event: "accepted",
                     limit: 300,
                     begin: beginTimestamp,
-                    recipient: emailAddress, // Use recipient filter in API call
+                    recipient: emailAddress,
                 });
 
                 if (events?.items?.length > 0) {
@@ -138,7 +138,7 @@ export async function fetchEmailsWithCredentialsAction(
             
             const emailData: Omit<Email, 'id'> = {
                 inboxId,
-                userId: userId, // Add userId to the email document
+                userId: userId,
                 recipient: emailAddress,
                 senderName: message.From || "Unknown Sender",
                 subject: message.Subject || "No Subject",
