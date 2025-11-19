@@ -52,13 +52,13 @@ export async function fetchEmailsWithCredentialsAction(
         const mg = mailgun.client({ username: 'api', key: apiKey });
         log.push("Mailgun client initialized.");
 
+        // FIX 1: Query all 'stored' events and filter manually.
         const events = await mg.events.get(domain, {
-            to: emailAddress,
             event: "stored",
-            limit: 30,
+            limit: 30, // Limit to recent events to avoid large payloads
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
         });
-        log.push(`Found ${events?.items?.length || 0} stored email events from Mailgun.`);
+        log.push(`Found ${events?.items?.length || 0} stored email events from Mailgun for the whole domain.`);
         
         if (!events?.items?.length) {
             return { success: true, log }; // No new mail, which is a success case.
@@ -69,15 +69,21 @@ export async function fetchEmailsWithCredentialsAction(
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
 
         for (const event of events.items) {
+            // Manual filtering for the correct recipient
+            if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
+                continue;
+            }
+
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`Skipping event with no message-id: ${event.id}`);
                 continue;
             }
 
-            // Check if email already exists to prevent duplicates
-            const existingEmailQuery = await emailsCollectionRef.where('id', '==', messageId).limit(1).get();
-            if (!existingEmailQuery.empty) {
+            // FIX 3: Correct duplicate detection by checking document existence directly.
+            const existingEmailRef = emailsCollectionRef.doc(messageId);
+            const existingEmailSnap = await existingEmailRef.get();
+            if (existingEmailSnap.exists) {
                 log.push(`Skipping already existing email: ${messageId}`);
                 continue;
             }
@@ -88,11 +94,13 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                // Use the exact URL from Mailgun, but authenticate using the API key in the header
-                const storageUrl = event.storage.url.replace("api.mailgun.net/v3", `api:${apiKey}@api.mailgun.net/v3`);
-                
+                // FIX 2: Correctly fetch stored email using Basic Auth header.
                 const fetch = (await import('node-fetch')).default;
-                const response = await fetch(storageUrl);
+                const response = await fetch(event.storage.url, {
+                    headers: {
+                        Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
+                    }
+                });
 
                 if (!response.ok) {
                     const errorBody = await response.text();
@@ -103,10 +111,15 @@ export async function fetchEmailsWithCredentialsAction(
                 const message = await response.json();
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
-                const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
-                
-                // Use messageId for a durable, unique document ID
-                const emailRef = emailsCollectionRef.doc(messageId);
+                // FIX 5: Use fallbacks for HTML body.
+                const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
+                const cleanHtml = DOMPurify.sanitize(html);
+
+                // FIX 4: Correctly handle both UNIX and JS timestamps.
+                const timestampMs = event.timestamp.toString().length === 10
+                    ? event.timestamp * 1000
+                    : event.timestamp;
+                const receivedAt = Timestamp.fromDate(new Date(timestampMs));
                 
                 const emailData: Email = {
                     id: messageId,
@@ -114,9 +127,9 @@ export async function fetchEmailsWithCredentialsAction(
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
                     subject: message.Subject || "No Subject",
-                    receivedAt: Timestamp.fromDate(new Date(event.timestamp * 1000)),
+                    receivedAt: receivedAt,
                     htmlContent: cleanHtml,
-                    textContent: message["stripped-text"] || "No text content.",
+                    textContent: message["stripped-text"] || message["body-plain"] || "No text content.",
                     rawContent: JSON.stringify(message, null, 2),
                     attachments: message.attachments || [],
                     read: false,
@@ -126,7 +139,7 @@ export async function fetchEmailsWithCredentialsAction(
                     emailData.ownerToken = ownerToken;
                 }
 
-                batch.set(emailRef, emailData);
+                batch.set(existingEmailRef, emailData);
                 log.push(`Prepared email ${messageId} for batch write.`);
 
             } catch(err: any) {
