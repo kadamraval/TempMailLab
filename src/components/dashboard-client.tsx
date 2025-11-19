@@ -10,6 +10,7 @@ import {
   Trash2,
   Inbox,
   ServerCrash,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,82 +46,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
 import { v4 as uuidv4 } from 'uuid';
 
-
-const EnvelopeLoader = () => (
-  <div className="relative w-20 h-20">
-    <svg
-      className="w-full h-full"
-      viewBox="0 0 80 80"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M10 25 L40 50 L70 25 L70 60 H10 V25Z"
-        stroke="currentColor"
-        strokeWidth="3"
-        className="text-muted-foreground/50"
-      />
-      <rect
-        x="18"
-        y="30"
-        width="44"
-        height="0"
-        fill="hsl(var(--primary))"
-        className="animate-[expand_1.5s_ease-out_infinite]"
-        style={{ animationDelay: '0.2s' }}
-      />
-      <path
-        d="M10 25 L40 50 L70 25"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <path
-        d="M10 60 L40 35 L70 60"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-    <style jsx>{`
-      @keyframes expand {
-        0% {
-          height: 0;
-          y: 30;
-          opacity: 0;
-        }
-        40% {
-          height: 20px;
-          y: 10px;
-          opacity: 1;
-        }
-        80% {
-          height: 20px;
-          y: 10px;
-          opacity: 1;
-        }
-        100% {
-          height: 0;
-          y: 30;
-          opacity: 0;
-        }
-      }
-    `}</style>
-  </div>
-);
-
-function generateRandomString(length: number) {
-  let result = '';
-  const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
-
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
 export function DashboardClient() {
@@ -130,7 +55,6 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
-  const initialInboxLoaded = useRef(false);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -173,6 +97,52 @@ export function DashboardClient() {
       });
   }, [inboxEmails]);
 
+  // Effect to load existing session from local storage or database on initial load
+  useEffect(() => {
+    const initializeSession = async () => {
+        if (isUserLoading || !auth) return;
+
+        let activeUser = user;
+        // Ensure anonymous user exists
+        if (!activeUser) {
+            try {
+                const userCredential = await signInAnonymously(auth);
+                activeUser = userCredential.user;
+            } catch (error) {
+                console.error("Anonymous sign-in failed", error);
+                setServerError("Could not start a session. Please refresh the page.");
+                return;
+            }
+        }
+        if (!activeUser) return;
+
+        // For anonymous users, check local storage first
+        if (activeUser.isAnonymous) {
+            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (localDataStr) {
+                const localData = JSON.parse(localDataStr);
+                if (new Date(localData.expiresAt) > new Date()) {
+                    const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
+                    if (inboxDoc.exists()) {
+                         setCurrentInbox({ id: inboxDoc.id, ...inboxDoc.data() } as InboxType);
+                         return;
+                    }
+                }
+            }
+        } else if (userInboxes && userInboxes.length > 0) {
+            // For registered users, check their database inboxes
+            const activeDbInbox = userInboxes.find(ib => new Date(ib.expiresAt) > new Date());
+            if (activeDbInbox) {
+                setCurrentInbox(activeDbInbox);
+            }
+        }
+    };
+    
+    if (!isUserLoading && !isLoadingInboxes) {
+        initializeSession();
+    }
+  }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes]);
+
   const handleRefresh = useCallback(async () => {
     if (!currentInbox?.emailAddress || !currentInbox.id || !auth) return;
 
@@ -192,12 +162,8 @@ export function DashboardClient() {
         ownerToken
       );
 
-      // Log server-side activity for debugging
-      console.log("Server Action Log:", result.log);
-
       if (result.error) {
-        const errorMsg = result.error || 'An unexpected error occurred while fetching emails.';
-        setServerError(errorMsg);
+        setServerError(result.error);
       } else {
         setServerError(null);
       }
@@ -207,60 +173,20 @@ export function DashboardClient() {
       setIsRefreshing(false);
     }
   }, [currentInbox?.id, currentInbox?.emailAddress, auth]);
-
-
-  useEffect(() => {
-    const initializeSession = async () => {
-        if (isUserLoading || isLoadingPlan || !auth || !activePlan || initialInboxLoaded.current) {
-            return;
-        }
-
-        let activeUser = user;
+  
+   const handleGenerateNewInbox = async () => {
+        if (isGenerating || !firestore || !activePlan || !auth) return;
+        
+        let activeUser = auth.currentUser;
         if (!activeUser) {
             try {
-                const userCredential = await signInAnonymously(auth);
-                activeUser = userCredential.user;
-            } catch (error) {
-                console.error("Anonymous sign-in failed", error);
-                setServerError("Could not start a session. Please refresh the page.");
-                return;
+                const cred = await signInAnonymously(auth);
+                activeUser = cred.user;
+            } catch (e) {
+                 setServerError("Could not create a user session. Please try again.");
+                 return;
             }
         }
-        
-        if (!activeUser) return;
-        initialInboxLoaded.current = true;
-
-        if (activeUser.isAnonymous) {
-            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
-            if (localDataStr) {
-                const localData = JSON.parse(localDataStr);
-                if (new Date(localData.expiresAt) > new Date()) {
-                    const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
-                    if (inboxDoc.exists()) {
-                         setCurrentInbox({ id: inboxDoc.id, ...inboxDoc.data() } as InboxType);
-                         return; // Found valid local inbox
-                    }
-                }
-            }
-        } else if (userInboxes && userInboxes.length > 0) {
-            const activeDbInbox = userInboxes.find(ib => new Date(ib.expiresAt) > new Date());
-            if (activeDbInbox) {
-                setCurrentInbox(activeDbInbox);
-                return; // Found valid DB inbox for logged in user
-            }
-        }
-        
-        handleGenerateNewInbox();
-    };
-    
-    if (!isUserLoading && !isLoadingPlan) {
-        initializeSession();
-    }
-  }, [user, isUserLoading, auth, activePlan, isLoadingPlan, firestore, userInboxes]);
-
-
-   const handleGenerateNewInbox = async () => {
-        if (isGenerating || !firestore || !activePlan || !auth?.currentUser) return;
         
         setIsGenerating(true);
         setServerError(null);
@@ -285,12 +211,12 @@ export function DashboardClient() {
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
             const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
-                userId: auth.currentUser.uid,
+                userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
             };
 
-            if (auth.currentUser.isAnonymous) {
+            if (activeUser.isAnonymous) {
                 newInboxData.ownerToken = uuidv4();
             }
 
@@ -304,7 +230,7 @@ export function DashboardClient() {
                 const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
                 setCurrentInbox(finalInbox);
 
-                if (auth.currentUser.isAnonymous && finalInbox.ownerToken) {
+                if (activeUser.isAnonymous && finalInbox.ownerToken) {
                     localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({
                         id: finalInbox.id,
                         ownerToken: finalInbox.ownerToken,
@@ -332,7 +258,10 @@ export function DashboardClient() {
         const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
         if (newCountdown <= 0) {
           setCurrentInbox(null);
-          handleGenerateNewInbox();
+          setSelectedEmail(null);
+          if (user?.isAnonymous) {
+            localStorage.removeItem(LOCAL_INBOX_KEY);
+          }
         } else {
           setCountdown(newCountdown);
         }
@@ -345,7 +274,7 @@ export function DashboardClient() {
     return () => {
       if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [liveInbox, currentInbox]);
+  }, [liveInbox, currentInbox, user?.isAnonymous]);
 
   useEffect(() => {
     let autoRefreshInterval: NodeJS.Timeout | null = null;
@@ -378,7 +307,8 @@ export function DashboardClient() {
           localStorage.removeItem(LOCAL_INBOX_KEY);
       }
     }
-    handleGenerateNewInbox();
+    setCurrentInbox(null);
+    setSelectedEmail(null);
   };
 
   const handleSelectEmail = async (email: Email) => {
@@ -396,38 +326,31 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const emailToRender = (email: Email) => {
-    const receivedAt =
-      email.receivedAt instanceof Timestamp ? email.receivedAt.toDate().toISOString() : email.receivedAt;
-    return { ...email, receivedAt };
-  };
-
-  const isLoading = isUserLoading || isLoadingPlan || isGenerating;
-  
-  if (isLoading && !currentInbox) {
+  if (isLoadingUser || isLoadingPlan) {
     return (
       <div className="flex items-center justify-center min-h-[480px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  if (!activePlan && !isLoadingPlan) {
-    return (
-      <div className="flex items-center justify-center min-h-[480px]">
-        <Alert variant="destructive" className="max-w-lg">
-          <ServerCrash className="h-4 w-4" />
-          <AlertTitle>Server Configuration Error</AlertTitle>
-          <AlertDescription>
-            A default 'free-default' plan is required for the application to function. An
-            administrator must create one in the admin dashboard.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
+  
+  if (!currentInbox) {
+      return (
+        <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
+            <Mail className="h-16 w-16 text-muted-foreground" />
+            <h2 className="text-2xl font-semibold">Ready for a disposable email?</h2>
+            <p className="text-muted-foreground max-w-sm">
+                Click the button below to generate a new temporary email address. Keep your real inbox safe from spam.
+            </p>
+            <Button size="lg" onClick={handleGenerateNewInbox} disabled={isGenerating}>
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                {isGenerating ? 'Generating...' : 'Generate Temporary Email'}
+            </Button>
+        </Card>
+      )
   }
 
-  const displayEmail = currentInbox?.emailAddress || 'Generating...';
+  const displayEmail = currentInbox.emailAddress;
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -441,26 +364,13 @@ export function DashboardClient() {
           onClick={handleCopyEmail}
           className="flex-grow flex items-center justify-center font-mono text-base md:text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
         >
-          {isGenerating ? (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Generating...</span>
-            </div>
-          ) : (
-            <>
-              <span className="truncate">{displayEmail}</span>
-              <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-            </>
-          )}
+          <span className="truncate">{displayEmail}</span>
+          <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
         </div>
 
         <div className="flex items-center gap-2">
           <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
-            {isRefreshing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           </Button>
           <Button
             onClick={handleDeleteCurrentInbox}
@@ -489,9 +399,8 @@ export function DashboardClient() {
                 <ScrollArea className="flex-1">
                   {isLoadingEmails && (!sortedEmails || sortedEmails.length === 0) ? (
                     <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
-                      <EnvelopeLoader />
+                      <Inbox className="h-16 w-16 mb-4" />
                       <p className="mt-4 text-lg">Waiting for incoming emails...</p>
-                      <p className="text-sm">New messages will appear here automatically.</p>
                     </div>
                   ) : (
                     <div className="p-2 space-y-1">
@@ -531,7 +440,7 @@ export function DashboardClient() {
               <div className="col-span-1 hidden md:block">
                 {selectedEmail ? (
                   <EmailView
-                    email={emailToRender(selectedEmail)}
+                    email={{ ...selectedEmail, receivedAt: selectedEmail.receivedAt instanceof Timestamp ? selectedEmail.receivedAt.toDate().toISOString() : selectedEmail.receivedAt }}
                     plan={activePlan}
                     onBack={() => setSelectedEmail(null)}
                     showBackButton={false}
@@ -547,7 +456,7 @@ export function DashboardClient() {
               {selectedEmail && (
                 <div className="md:hidden absolute inset-0 bg-background z-10">
                   <EmailView
-                    email={emailToRender(selectedEmail)}
+                     email={{ ...selectedEmail, receivedAt: selectedEmail.receivedAt instanceof Timestamp ? selectedEmail.receivedAt.toDate().toISOString() : selectedEmail.receivedAt }}
                     plan={activePlan}
                     onBack={() => setSelectedEmail(null)}
                     showBackButton={true}
@@ -561,3 +470,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
