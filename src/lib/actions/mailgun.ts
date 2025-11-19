@@ -8,7 +8,7 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// All possible Mailgun API hosts.
+// A definitive list of all possible Mailgun API hosts.
 const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
@@ -21,8 +21,8 @@ async function getMailgunCredentials() {
     }
 
     const settings = settingsSnap.data();
-    if (!settings?.enabled || !settings.apiKey || !settings.domain) {
-        throw new Error('Mailgun integration is not enabled or is missing API Key or Domain in Firestore.');
+    if (!settings?.apiKey || !settings.domain) {
+        throw new Error('Mailgun integration is missing API Key or Domain in Firestore.');
     }
 
     return { apiKey: settings.apiKey, domain: settings.domain };
@@ -54,9 +54,8 @@ export async function fetchEmailsWithCredentialsAction(
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    // This is the correct event, as confirmed by all logs.
-                    event: "accepted",
-                    limit: 300, // Increased limit to be safe
+                    event: "accepted", // Use 'accepted' as confirmed by all logs.
+                    limit: 300,
                     begin: beginTimestamp,
                 });
 
@@ -126,7 +125,6 @@ export async function fetchEmailsWithCredentialsAction(
             const message = await response.json();
             log.push(`Successfully fetched email content for event: ${event.id}`);
             
-            // Correctly provide fallbacks for HTML and text content.
             const html = message["body-html"] || message["stripped-html"] || "";
             const cleanHtml = DOMPurify.sanitize(html);
             const text = message["stripped-text"] || message["body-plain"] || "No text content.";
@@ -134,7 +132,6 @@ export async function fetchEmailsWithCredentialsAction(
             // Correctly handle different timestamp formats (seconds vs. milliseconds).
             const timestampMs = event.timestamp.toString().length === 10
                 ? event.timestamp * 1000
-                // @ts-ignore
                 : event.timestamp;
             const receivedAt = Timestamp.fromDate(new Date(timestampMs));
             
