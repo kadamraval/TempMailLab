@@ -11,28 +11,32 @@ function getAdminApp(): App {
         return adminApp;
     }
 
+    // Check if the app is already initialized, which can happen in some environments.
     const alreadyInitializedApp = getApps().find(app => app.name === '[DEFAULT]');
     if (alreadyInitializedApp) {
         adminApp = alreadyInitializedApp;
         return adminApp;
     }
     
-    // In a deployed Google Cloud environment (like App Hosting), service account credentials
-    // are automatically discovered. Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS
-    // environment variable to point to your service account JSON file.
+    // In a deployed Google Cloud environment (like App Hosting or Cloud Run), 
+    // service account credentials are automatically discovered via the metadata server.
+    // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable
+    // to point to your service account JSON file.
     try {
         adminApp = initializeApp();
     } catch (error: any) {
         console.error("Firebase Admin initialization failed.", error);
+        
         // Provide a more helpful error message for local development.
         if (process.env.NODE_ENV !== 'production' && error.code === 'app/invalid-credential') {
              throw new Error(
                 'Could not initialize Firebase Admin SDK. ' +
-                'Ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set correctly in your local environment. ' +
-                'This file should point to your service account JSON key. ' +
+                'This is likely because the GOOGLE_APPLICATION_CREDENTIALS environment variable is not set correctly in your local environment. ' +
+                'The variable should point to your service account JSON key file. ' +
                 'Original Error: ' + error.message
             );
         }
+        // For production, re-throw the original error.
         throw error;
     }
     

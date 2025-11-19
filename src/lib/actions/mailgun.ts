@@ -17,7 +17,7 @@ async function getMailgunCredentials() {
     const settingsSnap = await settingsRef.get();
 
     if (!settingsSnap.exists) {
-        throw new Error('Mailgun settings not found. Please configure them in the admin dashboard.');
+        throw new Error('Mailgun settings not found in Firestore at admin_settings/mailgun.');
     }
 
     const settings = settingsSnap.data();
@@ -169,7 +169,8 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        log.push(`[FATAL_ERROR]: ${error.message}`);
+        const errorMessage = `[FATAL_ERROR]: ${error.message}`;
+        log.push(errorMessage);
         console.error("[MAILGUN_ACTION_ERROR]", error);
         return { success: false, error: error.message || 'An unexpected server error occurred.', log };
     }
