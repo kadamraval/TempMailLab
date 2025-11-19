@@ -1,3 +1,4 @@
+
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -7,7 +8,6 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Define all possible Mailgun API hosts to ensure global coverage
 const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
@@ -64,7 +64,7 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
-                // Silently ignore errors for a region that might not be in use.
+                // This is the fix: Log the error but DO NOT throw, so the loop can continue to the next region.
                 log.push(`[INFO] Could not fetch events from ${host}. This may be expected if you don't use this region. Error: ${hostError.message}`);
             }
         }
@@ -104,7 +104,7 @@ export async function fetchEmailsWithCredentialsAction(
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
             }
-
+            
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
