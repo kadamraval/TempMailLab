@@ -47,19 +47,20 @@ export async function fetchEmailsWithCredentialsAction(
 
     try {
         const { apiKey, domain, host } = await getMailgunCredentials();
-        log.push(`Successfully retrieved Mailgun credentials. Region host: ${host}`);
+        log.push(`Successfully retrieved Mailgun credentials. Using host: ${host}`);
 
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client({ username: 'api', key: apiKey, host });
-        log.push("Mailgun client initialized for the correct region.");
+        log.push("Mailgun client initialized.");
 
-        // Correctly fetch all recent stored events for the domain
+        // Correctly fetch all recent "accepted" events for the domain.
+        // We will filter by recipient inside the loop.
         const events = await mg.events.get(domain, {
-            event: "stored",
+            event: "accepted",
             limit: 30,
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), // Check last 24 hours
         });
-        log.push(`Found ${events?.items?.length || 0} 'stored' events from Mailgun for the whole domain.`);
+        log.push(`Found ${events?.items?.length || 0} 'accepted' events from Mailgun for the whole domain.`);
         
         if (!events?.items?.length) {
             log.push("No new mail events found. Ending action.");
@@ -76,6 +77,12 @@ export async function fetchEmailsWithCredentialsAction(
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
                 continue;
             }
+            
+            // The "accepted" event may not have storage info yet. If it's missing, we must skip.
+             if (!event.storage?.url || !Array.isArray(event.storage.url) || event.storage.url.length === 0) {
+                log.push(`Skipping event ${event.id} for ${emailAddress} - no storage URL present yet.`);
+                continue;
+            }
 
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
@@ -90,11 +97,6 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             log.push(`Event for ${emailAddress} found. Message ID: ${messageId}. Not a duplicate.`);
-
-            if (!event.storage?.url || !Array.isArray(event.storage.url) || event.storage.url.length === 0) {
-                log.push(`[ERROR] Skipping event with no valid storage URL: ${event.id}`);
-                continue;
-            }
 
             // Correctly access the first element of the URL array
             const storageUrl = event.storage.url[0];
