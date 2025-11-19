@@ -43,6 +43,7 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
+        const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
             log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
@@ -53,7 +54,7 @@ export async function fetchEmailsWithCredentialsAction(
                 const events = await mg.events.get(domain, {
                     event: "accepted",
                     limit: 30,
-                    begin: Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000)
+                    begin: beginTimestamp
                 });
 
                 if (events?.items?.length > 0) {

@@ -71,7 +71,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setIsSaving(true);
         
         try {
-            // The region is no longer needed here
             const settingsToSave = {
                 apiKey: settings.apiKey,
                 domain: settings.domain,
@@ -165,7 +164,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             id="enable-integration"
                             checked={settings.enabled}
                             onCheckedChange={handleSwitchChange}
-                            disabled={isLoadingSettings}
+                            disabled={true}
                         />
                     </div>
                     </>
