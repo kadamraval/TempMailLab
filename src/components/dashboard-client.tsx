@@ -83,8 +83,14 @@ export function DashboardClient() {
   
   const emailsQuery = useMemoFirebase(() => {
       if (!firestore || !currentInbox?.id) return null;
-      return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
-  }, [firestore, currentInbox?.id]);
+      const q = query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
+      
+      // For anonymous users, we MUST attach the owner token for the rule to pass
+      if (user?.isAnonymous && currentInbox.ownerToken) {
+          return query(q, where('ownerToken', '==', currentInbox.ownerToken));
+      }
+      return q;
+  }, [firestore, currentInbox?.id, user?.isAnonymous, currentInbox?.ownerToken]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
   const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxQuery);
@@ -158,11 +164,8 @@ export function DashboardClient() {
     setServerError(null);
     setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] Refresh triggered...`, ...prev]);
     
-    let ownerToken: string | undefined = undefined;
-    if (auth.currentUser?.isAnonymous) {
-      const localData = localStorage.getItem(LOCAL_INBOX_KEY);
-      ownerToken = localData ? JSON.parse(localData).ownerToken : undefined;
-    }
+    // THE FIX: Use the ownerToken from the state if it exists
+    const ownerToken = currentInbox.ownerToken;
 
     try {
       const result = await fetchEmailsWithCredentialsAction(
@@ -184,7 +187,7 @@ export function DashboardClient() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentInbox?.id, currentInbox?.emailAddress, auth]);
+  }, [currentInbox, auth]);
   
    const handleGenerateNewInbox = async () => {
         if (isGenerating || !firestore || !activePlan || !auth) return;
@@ -510,3 +513,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
