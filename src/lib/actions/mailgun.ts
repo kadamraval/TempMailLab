@@ -8,6 +8,9 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
+// Define all possible Mailgun API endpoints
+const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
+
 async function getMailgunCredentials() {
     const firestore = getAdminFirestore();
     const settingsRef = firestore.doc('admin_settings/mailgun');
@@ -22,9 +25,7 @@ async function getMailgunCredentials() {
         throw new Error('Mailgun integration is not enabled or is missing API Key or Domain in Firestore.');
     }
 
-    const host = settings.region === 'eu' ? 'api.eu.mailgun.net' : 'api.mailgun.net';
-
-    return { apiKey: settings.apiKey, domain: settings.domain, host };
+    return { apiKey: settings.apiKey, domain: settings.domain };
 }
 
 export async function fetchEmailsWithCredentialsAction(
@@ -39,22 +40,37 @@ export async function fetchEmailsWithCredentialsAction(
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
 
     try {
-        const { apiKey, domain, host } = await getMailgunCredentials();
-        log.push(`Successfully retrieved Mailgun credentials. Using host: ${host}`);
+        const { apiKey, domain } = await getMailgunCredentials();
+        log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}`);
 
-        const mailgun = new Mailgun(formData);
-        const mg = mailgun.client({ username: 'api', key: apiKey, host });
-        log.push("Mailgun client initialized. Fetching 'accepted' events...");
+        const allEvents = [];
 
-        const events = await mg.events.get(domain, {
-            event: "accepted",
-            limit: 30,
-            begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), 
-        });
-        log.push(`Found ${events?.items?.length || 0} 'accepted' events for the whole domain.`);
+        // Loop through each Mailgun host and fetch events
+        for (const host of MAILGUN_API_HOSTS) {
+            log.push(`Querying Mailgun events on host: ${host}...`);
+            try {
+                const mailgun = new Mailgun(formData);
+                const mg = mailgun.client({ username: 'api', key: apiKey, host });
+                
+                const events = await mg.events.get(domain, {
+                    event: "accepted",
+                    limit: 30, // Limit per region
+                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), 
+                });
+
+                if (events?.items?.length > 0) {
+                    log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
+                    allEvents.push(...events.items);
+                } else {
+                    log.push(`No events found on ${host}.`);
+                }
+            } catch (hostError: any) {
+                log.push(`[WARN] Could not fetch events from ${host}. Error: ${hostError.message}`);
+            }
+        }
         
-        if (!events?.items?.length) {
-            log.push("No new mail events found. Ending action.");
+        if (allEvents.length === 0) {
+            log.push("No new mail events found across all regions. Ending action.");
             return { success: true, log };
         }
 
@@ -63,8 +79,7 @@ export async function fetchEmailsWithCredentialsAction(
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
 
-        for (const event of events.items) {
-            // ** LOGIC CORRECTION: Filter by recipient *first* for efficiency and correctness. **
+        for (const event of allEvents) {
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
                 continue;
             }
@@ -76,7 +91,6 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
-            // ** LOGIC CORRECTION: Check for duplicates using the correct doc().get() method. **
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
@@ -84,7 +98,6 @@ export async function fetchEmailsWithCredentialsAction(
             }
             log.push(`Message ID: ${messageId}. Not a duplicate. Proceeding...`);
 
-            // ** LOGIC CORRECTION: Correctly get the URL from the array. **
             const storageUrl = event.storage?.url?.[0];
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
@@ -94,7 +107,6 @@ export async function fetchEmailsWithCredentialsAction(
             try {
                 const fetch = (await import('node-fetch')).default;
                 
-                // ** LOGIC CORRECTION: Use Basic Auth header, do not rewrite URL. **
                 const response = await fetch(storageUrl, {
                     headers: {
                         Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
@@ -110,11 +122,9 @@ export async function fetchEmailsWithCredentialsAction(
                 const message = await response.json();
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
-                // ** LOGIC CORRECTION: Use multiple fallbacks for HTML body. **
                 const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
                 const cleanHtml = DOMPurify.sanitize(html);
                 
-                // ** LOGIC CORRECTION: Correctly handle both timestamp formats. **
                 const timestampMs = event.timestamp.toString().length === 10
                     ? event.timestamp * 1000
                     : event.timestamp;

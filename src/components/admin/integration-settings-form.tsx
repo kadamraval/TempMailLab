@@ -15,13 +15,6 @@ import { doc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
 import { saveMailgunSettingsAction } from "@/lib/actions/settings";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 
 interface IntegrationSettingsFormProps {
@@ -39,7 +32,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         enabled: false,
         apiKey: "",
         domain: "",
-        region: "us",
     });
     const [isSaving, setIsSaving] = useState(false);
     const firestore = useFirestore();
@@ -59,7 +51,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 enabled: existingSettings.enabled ?? false,
                 apiKey: existingSettings.apiKey ?? "",
                 domain: existingSettings.domain ?? "",
-                region: existingSettings.region ?? "us",
             })
         }
     }, [existingSettings]);
@@ -69,10 +60,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
     };
-
-    const handleSelectChange = (value: string) => {
-        setSettings(prev => ({ ...prev, region: value }));
-    }
 
     const handleSwitchChange = (checked: boolean) => {
         setSettings(prev => ({ ...prev, enabled: checked }));
@@ -84,7 +71,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setIsSaving(true);
         
         try {
-            const result = await saveMailgunSettingsAction(settings);
+            // The region is no longer needed here
+            const settingsToSave = {
+                apiKey: settings.apiKey,
+                domain: settings.domain,
+            };
+            const result = await saveMailgunSettingsAction(settingsToSave);
             
             if (result.error) {
                  throw new Error(result.error);
@@ -137,19 +129,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="region">Mailgun Region</Label>
-                             <Select value={settings.region} onValueChange={handleSelectChange}>
-                                <SelectTrigger id="region">
-                                    <SelectValue placeholder="Select the region your domain is in" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="us">US (api.mailgun.net)</SelectItem>
-                                    <SelectItem value="eu">EU (api.eu.mailgun.net)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                             <p className="text-sm text-muted-foreground">Select the region where your Mailgun domain is hosted.</p>
-                        </div>
                     </>
                 );
             
@@ -179,7 +158,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-0.5">
                             <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
                             <p className="text-sm text-muted-foreground">
-                                This will be enabled automatically once you provide a valid API Key, Domain, and Region.
+                                This will be enabled automatically once you provide a valid API Key and Domain.
                             </p>
                         </div>
                         <Switch 

@@ -5,10 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 
 interface MailgunSettings {
-    enabled: boolean;
     apiKey: string;
     domain: string;
-    region: string;
 }
 
 /**
@@ -21,10 +19,11 @@ export async function saveMailgunSettingsAction(settings: MailgunSettings) {
         const firestore = await getAdminFirestore();
         const settingsRef = firestore.doc("admin_settings/mailgun");
 
-        // Automatically enable if API key, domain, and region are provided
+        // Automatically enable if API key and domain are provided.
+        // The region is no longer stored as it's handled dynamically.
         const finalSettings = {
             ...settings,
-            enabled: !!(settings.apiKey && settings.domain && settings.region)
+            enabled: !!(settings.apiKey && settings.domain)
         };
 
         await settingsRef.set(finalSettings, { merge: true });
