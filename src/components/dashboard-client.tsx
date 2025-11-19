@@ -174,13 +174,13 @@ export function DashboardClient() {
   }, [inboxEmails]);
 
   const handleRefresh = useCallback(async () => {
-    if (!currentInbox?.emailAddress || !currentInbox.id) return;
+    if (!currentInbox?.emailAddress || !currentInbox.id || !auth) return;
 
     setIsRefreshing(true);
     setServerError(null);
     
     let ownerToken: string | undefined = undefined;
-    if (user?.isAnonymous) {
+    if (auth.currentUser?.isAnonymous) {
       const localData = localStorage.getItem(LOCAL_INBOX_KEY);
       ownerToken = localData ? JSON.parse(localData).ownerToken : undefined;
     }
@@ -206,7 +206,7 @@ export function DashboardClient() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [currentInbox?.id, currentInbox?.emailAddress, user?.isAnonymous]);
+  }, [currentInbox?.id, currentInbox?.emailAddress, auth]);
 
 
   useEffect(() => {
