@@ -44,6 +44,7 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
+        // Correctly formatted UNIX timestamp for the last 24 hours
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
@@ -65,6 +66,7 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
+                // CRITICAL: Log error but do not throw, to allow checking other regions.
                 log.push(`[INFO] Could not fetch events from ${host}. This is expected if the region is not in use. Error: ${hostError.message}`);
             }
         }
@@ -125,9 +127,7 @@ export async function fetchEmailsWithCredentialsAction(
             const cleanHtml = DOMPurify.sanitize(html);
             const text = message["stripped-text"] || message["body-plain"] || "No text content.";
             
-            const timestampMs = event.timestamp.toString().length === 10
-                ? event.timestamp * 1000
-                : event.timestamp;
+            const timestampMs = event.timestamp * 1000;
             const receivedAt = Timestamp.fromDate(new Date(timestampMs));
             
             const emailData: Omit<Email, 'id'> = {
