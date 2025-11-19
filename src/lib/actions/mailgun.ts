@@ -75,10 +75,9 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
-            // Check if email already exists
-            const existingEmailRef = emailsCollectionRef.doc(messageId);
-            const existingEmailSnap = await existingEmailRef.get();
-            if (existingEmailSnap.exists) {
+            // Check if email already exists to prevent duplicates
+            const existingEmailQuery = await emailsCollectionRef.where('id', '==', messageId).limit(1).get();
+            if (!existingEmailQuery.empty) {
                 log.push(`Skipping already existing email: ${messageId}`);
                 continue;
             }
@@ -89,14 +88,11 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                const storageUrl = event.storage.url;
+                // Use the exact URL from Mailgun, but authenticate using the API key in the header
+                const storageUrl = event.storage.url.replace("api.mailgun.net/v3", `api:${apiKey}@api.mailgun.net/v3`);
                 
                 const fetch = (await import('node-fetch')).default;
-                const response = await fetch(storageUrl, {
-                     headers: {
-                        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
-                    }
-                });
+                const response = await fetch(storageUrl);
 
                 if (!response.ok) {
                     const errorBody = await response.text();
@@ -108,10 +104,12 @@ export async function fetchEmailsWithCredentialsAction(
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
-
+                
+                // Use messageId for a durable, unique document ID
                 const emailRef = emailsCollectionRef.doc(messageId);
                 
-                const emailData: Omit<Email, 'id'> = {
+                const emailData: Email = {
+                    id: messageId,
                     inboxId,
                     recipient: emailAddress,
                     senderName: message.From || "Unknown Sender",
@@ -128,7 +126,7 @@ export async function fetchEmailsWithCredentialsAction(
                     emailData.ownerToken = ownerToken;
                 }
 
-                batch.set(emailRef, emailData, { merge: true });
+                batch.set(emailRef, emailData);
                 log.push(`Prepared email ${messageId} for batch write.`);
 
             } catch(err: any) {

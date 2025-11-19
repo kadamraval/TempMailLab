@@ -100,7 +100,7 @@ export function DashboardClient() {
   // Effect to load existing session from local storage or database on initial load
   useEffect(() => {
     const initializeSession = async () => {
-        if (isUserLoading || !auth) return;
+        if (isUserLoading || !auth || !firestore) return;
 
         let activeUser = user;
         // Ensure anonymous user exists
@@ -142,7 +142,7 @@ export function DashboardClient() {
         }
     };
     
-    if (!isUserLoading && !isLoadingInboxes) {
+    if (!isUserLoading && !isLoadingInboxes && firestore) {
         initializeSession();
     }
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes]);

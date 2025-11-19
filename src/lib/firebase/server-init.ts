@@ -1,37 +1,35 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
 let adminApp: App | null = null;
 
 // This function ensures the Firebase Admin app is a singleton.
-// It initializes the app only if it hasn't been initialized already.
 function getAdminApp(): App {
     if (adminApp) {
         return adminApp;
     }
 
-    // Check if an app is already initialized, which can happen in some environments.
     const alreadyInitializedApp = getApps().find(app => app.name === '[DEFAULT]');
     if (alreadyInitializedApp) {
         adminApp = alreadyInitializedApp;
         return adminApp;
     }
     
+    // In a deployed Google Cloud environment (like App Hosting), service account credentials
+    // are automatically discovered. Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS
+    // environment variable to point to your service account JSON file.
     try {
-        // In a deployed Google Cloud environment (like App Hosting or Cloud Functions),
-        // GOOGLE_APPLICATION_CREDENTIALS are often discovered automatically, allowing initializeApp() to work with no arguments.
-        // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to your service account JSON file.
         adminApp = initializeApp();
     } catch (error: any) {
         console.error("Firebase Admin initialization failed.", error);
         // Provide a more helpful error message for local development.
-        if (process.env.NODE_ENV !== 'production' && error.message.includes('GOOGLE_APPLICATION_CREDENTIALS')) {
+        if (process.env.NODE_ENV !== 'production' && error.code === 'app/invalid-credential') {
              throw new Error(
                 'Could not initialize Firebase Admin SDK. ' +
                 'Ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set correctly in your local environment. ' +
-                'For Firebase Emulators, this is often done via `firebase emulators:exec "your-dev-command"`. ' +
+                'This file should point to your service account JSON key. ' +
                 'Original Error: ' + error.message
             );
         }
