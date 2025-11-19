@@ -16,7 +16,7 @@ async function getMailgunCredentials() {
     const settingsSnap = await settingsRef.get();
 
     if (!settingsSnap.exists) {
-        throw new Error('Mailgun settings not found in admin_settings/mailgun. Please configure it in the admin dashboard.');
+        throw new Error('Mailgun settings not found. Please configure them in the admin dashboard.');
     }
 
     const settings = settingsSnap.data();
@@ -43,29 +43,31 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
+        // Per Mailgun docs, begin time should be a UNIX timestamp number.
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
-            log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
+            log.push(`Querying Mailgun for 'stored' events on host: ${host}...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
+                // Per documentation, 'stored' is the correct event to ensure the message is ready.
                 const events = await mg.events.get(domain, {
-                    event: "accepted",
+                    event: "stored",
                     limit: 30,
-                    begin: beginTimestamp
+                    begin: beginTimestamp,
+                    recipient: emailAddress
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
+                    log.push(`Found ${events.items.length} 'stored' events for ${emailAddress} on ${host}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No 'accepted' events found on ${host}.`);
+                    log.push(`No 'stored' events found for ${emailAddress} on ${host}.`);
                 }
             } catch (hostError: any) {
-                // This is the fix: Log the error but DO NOT throw, so the loop can continue to the next region.
-                log.push(`[INFO] Could not fetch events from ${host}. This may be expected if you don't use this region. Error: ${hostError.message}`);
+                log.push(`[INFO] Could not fetch events from ${host}. This is expected if the region is not in use. Error: ${hostError.message}`);
             }
         }
         
@@ -80,11 +82,6 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
-            if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
-                continue; 
-            }
-            log.push(`Found relevant event for ${emailAddress}.`);
-
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
@@ -98,8 +95,8 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             log.push(`Message ID: ${messageId} is not a duplicate.`);
-
-            const storageUrl = event.storage?.url?.[0];
+            
+            const storageUrl = event.storage?.url;
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
