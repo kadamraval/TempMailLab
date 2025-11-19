@@ -1,4 +1,3 @@
-
 'use server';
 
 import DOMPurify from 'isomorphic-dompurify';
@@ -53,8 +52,8 @@ export async function fetchEmailsWithCredentialsAction(
                 
                 const events = await mg.events.get(domain, {
                     event: "accepted",
-                    limit: 30, 
-                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), 
+                    limit: 30,
+                    begin: Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000)
                 });
 
                 if (events?.items?.length > 0) {
@@ -80,13 +79,11 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
-            // CRITICAL FIX: First, check if the email is for the correct recipient.
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
-                continue; // Skip immediately if not for the current user.
+                continue; 
             }
             log.push(`Found relevant event for ${emailAddress}.`);
 
-            // Now that we know it's for us, process the message-id.
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
