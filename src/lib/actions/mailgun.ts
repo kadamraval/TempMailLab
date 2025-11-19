@@ -50,7 +50,6 @@ export async function fetchEmailsWithCredentialsAction(
         const mg = mailgun.client({ username: 'api', key: apiKey });
         log.push("Mailgun client initialized.");
 
-        // FIX 1: Query all 'stored' events for the domain and filter manually.
         const events = await mg.events.get(domain, {
             event: "stored",
             limit: 30, // Limit to recent events to avoid large payloads
@@ -80,24 +79,24 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
-            // FIX 3: Correct duplicate detection by checking document existence directly.
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
-                // This is not an error, just skipping a duplicate.
                 continue;
             }
             log.push(`Event for ${emailAddress} found. Message ID: ${messageId}. Not a duplicate.`);
 
-            if (!event.storage || !event.storage.url) {
-                log.push(`[ERROR] Skipping event with no storage URL: ${event.id}`);
+            if (!event.storage || !Array.isArray(event.storage.url) || event.storage.url.length === 0) {
+                log.push(`[ERROR] Skipping event with no valid storage URL: ${event.id}`);
                 continue;
             }
 
+            // CRITICAL FIX: Access the first element of the URL array
+            const storageUrl = event.storage.url[0];
+
             try {
-                // FIX 2: Correctly fetch stored email using Basic Auth header.
                 const fetch = (await import('node-fetch')).default;
-                const response = await fetch(event.storage.url, {
+                const response = await fetch(storageUrl, {
                     headers: {
                         Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
                     }
@@ -112,11 +111,9 @@ export async function fetchEmailsWithCredentialsAction(
                 const message = await response.json();
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
-                // FIX 5: Use fallbacks for HTML body.
                 const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
                 const cleanHtml = DOMPurify.sanitize(html);
 
-                // FIX 4: Correctly handle both UNIX and JS timestamps.
                 const timestampMs = event.timestamp.toString().length === 10
                     ? event.timestamp * 1000
                     : event.timestamp;

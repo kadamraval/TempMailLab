@@ -145,10 +145,11 @@ export function DashboardClient() {
         }
     };
     
-    if (!isUserLoading && !isLoadingInboxes && firestore) {
-        initializeSession();
+    // Defer initialization until all loading is complete
+    if (!isUserLoading && !isLoadingInboxes && !isLoadingPlan && firestore) {
+      initializeSession();
     }
-  }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes]);
+  }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
     if (!currentInbox?.emailAddress || !currentInbox.id || !auth) return;
@@ -348,7 +349,7 @@ export function DashboardClient() {
     return result;
   };
 
-  if (isUserLoading || isLoadingPlan) {
+  if (isUserLoading || isLoadingPlan || (!userInboxes && !user?.isAnonymous)) {
     return (
       <div className="flex items-center justify-center min-h-[480px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
