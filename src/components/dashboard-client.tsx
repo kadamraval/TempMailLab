@@ -58,7 +58,7 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [actionLogs, setActionLogs] = useState<string[]>([]);
 
-
+  // All hooks are now at the top level, unconditionally.
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading, userProfile } = useUser();
