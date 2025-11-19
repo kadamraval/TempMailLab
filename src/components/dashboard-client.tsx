@@ -325,8 +325,17 @@ export function DashboardClient() {
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
+  
+  function generateRandomString(length: number) {
+    let result = '';
+    const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  };
 
-  if (isLoadingUser || isLoadingPlan) {
+  if (isUserLoading || isLoadingPlan) {
     return (
       <div className="flex items-center justify-center min-h-[480px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -470,5 +479,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
