@@ -56,8 +56,11 @@ service cloud.firestore {
           get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken != null &&
           request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken;
         
-        // Deny direct client-side updates/deletes.
-        allow update, delete: if false;
+        // Allow an authenticated user to update their own emails (e.g. mark as read)
+        allow update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+
+        // Deny direct client-side deletes.
+        allow delete: if false;
     }
 
   }

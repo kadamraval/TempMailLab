@@ -13,14 +13,15 @@ function getAdminApp(): App {
     }
 
     if (getApps().length > 0) {
+        // If the app is already initialized (e.g., by another part of the code), use it.
         adminApp = getApps()[0];
         return adminApp!;
     }
     
     try {
-        // In a deployed Google Cloud environment (like App Hosting),
-        // GOOGLE_APPLICATION_CREDENTIALS are discovered automatically and `initializeApp()` works with no args.
-        // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS env var to point to your service account JSON file.
+        // In a deployed Google Cloud environment (like App Hosting or Cloud Functions),
+        // GOOGLE_APPLICATION_CREDENTIALS are often discovered automatically, allowing initializeApp() to work with no arguments.
+        // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to your service account JSON file.
         adminApp = initializeApp();
     } catch (error: any) {
         console.error("Firebase Admin initialization failed.", error);
