@@ -35,16 +35,14 @@ export async function fetchEmailsWithCredentialsAction(
     emailAddress: string,
     inboxId: string,
     ownerToken?: string
-): Promise<{ success: boolean; error?: string; log?: string[] }> {
+): Promise<{ success: boolean; error?: string; log: string[] }> {
     if (!emailAddress || !inboxId) {
-        return { success: false, error: 'Email address and Inbox ID are required.' };
+        return { success: false, error: 'Email address and Inbox ID are required.', log: ['Action failed: Missing email address or inbox ID.'] };
     }
     
-    const log: string[] = [];
+    const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
 
     try {
-        log.push("Action started.");
-        
         const { apiKey, domain } = await getMailgunCredentials();
         log.push("Successfully retrieved Mailgun credentials from Firestore.");
 
@@ -52,21 +50,23 @@ export async function fetchEmailsWithCredentialsAction(
         const mg = mailgun.client({ username: 'api', key: apiKey });
         log.push("Mailgun client initialized.");
 
-        // FIX 1: Query all 'stored' events and filter manually.
+        // FIX 1: Query all 'stored' events for the domain and filter manually.
         const events = await mg.events.get(domain, {
             event: "stored",
             limit: 30, // Limit to recent events to avoid large payloads
-            begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
+            begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), // Check last 24 hours
         });
-        log.push(`Found ${events?.items?.length || 0} stored email events from Mailgun for the whole domain.`);
+        log.push(`Found ${events?.items?.length || 0} 'stored' events from Mailgun for the whole domain.`);
         
         if (!events?.items?.length) {
+            log.push("No new mail events found. Ending action.");
             return { success: true, log }; // No new mail, which is a success case.
         }
 
         const firestore = getAdminFirestore();
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
+        let newEmailsFound = 0;
 
         for (const event of events.items) {
             // Manual filtering for the correct recipient
@@ -84,12 +84,13 @@ export async function fetchEmailsWithCredentialsAction(
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
-                log.push(`Skipping already existing email: ${messageId}`);
+                // This is not an error, just skipping a duplicate.
                 continue;
             }
+            log.push(`Event for ${emailAddress} found. Message ID: ${messageId}. Not a duplicate.`);
 
             if (!event.storage || !event.storage.url) {
-                log.push(`Skipping event with no storage URL: ${event.id}`);
+                log.push(`[ERROR] Skipping event with no storage URL: ${event.id}`);
                 continue;
             }
 
@@ -104,7 +105,7 @@ export async function fetchEmailsWithCredentialsAction(
 
                 if (!response.ok) {
                     const errorBody = await response.text();
-                    log.push(`Failed to fetch email content for event ${event.id}. Status: ${response.status}. Body: ${errorBody}`);
+                    log.push(`[ERROR] Failed to fetch content for event ${event.id}. Status: ${response.status}. Body: ${errorBody}`);
                     continue;
                 }
 
@@ -140,15 +141,20 @@ export async function fetchEmailsWithCredentialsAction(
                 }
 
                 batch.set(existingEmailRef, emailData);
+                newEmailsFound++;
                 log.push(`Prepared email ${messageId} for batch write.`);
 
             } catch(err: any) {
-                log.push(`Failed to process and save email for event ${event.id}. Error: ${err.message}`);
+                log.push(`[ERROR] Failed to process and save email for event ${event.id}. Error: ${err.message}`);
             }
         }
         
-        await batch.commit();
-        log.push("Batch write committed to Firestore successfully.");
+        if (newEmailsFound > 0) {
+            await batch.commit();
+            log.push(`Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
+        } else {
+            log.push("No new emails needed to be written to the database.");
+        }
         
         return { success: true, log };
 

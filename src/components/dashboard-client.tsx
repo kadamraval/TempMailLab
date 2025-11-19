@@ -11,6 +11,7 @@ import {
   Inbox,
   ServerCrash,
   Mail,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,6 +56,8 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [actionLogs, setActionLogs] = useState<string[]>([]);
+
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -152,6 +155,7 @@ export function DashboardClient() {
 
     setIsRefreshing(true);
     setServerError(null);
+    setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] Refresh triggered...`, ...prev]);
     
     let ownerToken: string | undefined = undefined;
     if (auth.currentUser?.isAnonymous) {
@@ -166,6 +170,8 @@ export function DashboardClient() {
         ownerToken
       );
 
+      setActionLogs(prev => [...result.log.reverse(), ...prev]);
+
       if (result.error) {
         setServerError(result.error);
       } else {
@@ -173,6 +179,7 @@ export function DashboardClient() {
       }
     } catch (error: any) {
       setServerError(error.message);
+      setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] [FATAL] Client-side error during refresh: ${error.message}`, ...prev]);
     } finally {
       setIsRefreshing(false);
     }
@@ -194,6 +201,7 @@ export function DashboardClient() {
         
         setIsGenerating(true);
         setServerError(null);
+        setActionLogs([]);
         setCurrentInbox(null);
         setSelectedEmail(null);
 
@@ -313,6 +321,7 @@ export function DashboardClient() {
     }
     setCurrentInbox(null);
     setSelectedEmail(null);
+    setActionLogs([]);
   };
 
   const handleSelectEmail = async (email: Email) => {
@@ -411,7 +420,7 @@ export function DashboardClient() {
         </Alert>
       )}
 
-      <div className="flex-1">
+      <div className="flex-1 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_400px]">
         <Card className="h-full">
           <CardContent className="p-0 h-full">
             <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
@@ -485,6 +494,16 @@ export function DashboardClient() {
               )}
             </div>
           </CardContent>
+        </Card>
+        <Card className="h-full hidden lg:flex flex-col">
+            <CardContent className="p-4 flex-1 flex flex-col">
+                <h3 className="font-semibold flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Action Log</h3>
+                <ScrollArea className="flex-1 rounded-md bg-muted p-2">
+                    <pre className="text-xs whitespace-pre-wrap font-mono">
+                        {actionLogs.length > 0 ? actionLogs.join('\n') : 'Logs from the mail server will appear here...'}
+                    </pre>
+                </ScrollArea>
+            </CardContent>
         </Card>
       </div>
     </div>
