@@ -41,11 +41,10 @@ export async function fetchEmailsWithCredentialsAction(
 
     try {
         const { apiKey, domain } = await getMailgunCredentials();
-        log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}`);
+        log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
 
-        // Loop through each Mailgun host and fetch events to ensure global coverage
         for (const host of MAILGUN_API_HOSTS) {
             log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
             try {
@@ -65,7 +64,8 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
-                log.push(`[WARN] Could not fetch events from ${host}. Error: ${hostError.message}`);
+                // Silently ignore errors for a region that might not be in use.
+                log.push(`[INFO] Could not fetch events from ${host}. This may be expected if you don't use this region. Error: ${hostError.message}`);
             }
         }
         
@@ -80,11 +80,13 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
+            // CRITICAL FIX: First, check if the email is for the correct recipient.
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
-                continue;
+                continue; // Skip immediately if not for the current user.
             }
             log.push(`Found relevant event for ${emailAddress}.`);
-            
+
+            // Now that we know it's for us, process the message-id.
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
@@ -123,6 +125,7 @@ export async function fetchEmailsWithCredentialsAction(
             
             const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
             const cleanHtml = DOMPurify.sanitize(html);
+            const text = message["stripped-text"] || message["body-plain"] || "No text content.";
             
             const timestampMs = event.timestamp.toString().length === 10
                 ? event.timestamp * 1000
@@ -136,7 +139,7 @@ export async function fetchEmailsWithCredentialsAction(
                 subject: message.Subject || "No Subject",
                 receivedAt: receivedAt,
                 htmlContent: cleanHtml,
-                textContent: message["stripped-text"] || message["body-plain"] || "No text content.",
+                textContent: text,
                 rawContent: JSON.stringify(message, null, 2),
                 attachments: message.attachments || [],
                 read: false,
@@ -155,7 +158,7 @@ export async function fetchEmailsWithCredentialsAction(
             await batch.commit();
             log.push(`SUCCESS: Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
         } else {
-            log.push("No new emails for this specific address needed to be written to the database.");
+            log.push("No new, unique emails for this address needed to be written to the database.");
         }
         
         return { success: true, log };
