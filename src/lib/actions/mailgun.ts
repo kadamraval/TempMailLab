@@ -54,7 +54,7 @@ export async function fetchEmailsWithCredentialsAction(
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "accepted", // Use 'accepted' as confirmed by all logs.
+                    event: "accepted",
                     limit: 300,
                     begin: beginTimestamp,
                 });
@@ -82,9 +82,8 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
-            // CRITICAL FIX: Use the reliable `recipient` field, not the complex `headers.to`.
             if (!event.recipient || event.recipient.toLowerCase() !== emailAddress.toLowerCase()) {
-                continue; // Skip events not intended for the current inbox's email address
+                continue;
             }
             log.push(`Found relevant event for ${emailAddress}.`);
 
@@ -111,7 +110,6 @@ export async function fetchEmailsWithCredentialsAction(
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
-                    // Correctly use Basic Authentication.
                     Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
                 }
             });
@@ -129,7 +127,6 @@ export async function fetchEmailsWithCredentialsAction(
             const cleanHtml = DOMPurify.sanitize(html);
             const text = message["stripped-text"] || message["body-plain"] || "No text content.";
             
-            // Correctly handle different timestamp formats (seconds vs. milliseconds).
             const timestampMs = event.timestamp.toString().length === 10
                 ? event.timestamp * 1000
                 : event.timestamp;
