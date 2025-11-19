@@ -22,7 +22,6 @@ async function getMailgunCredentials() {
         throw new Error('Mailgun integration is not enabled or is missing API Key, Domain, or Region in Firestore.');
     }
 
-    // Map region slug to Mailgun API host
     const host = settings.region === 'eu' ? 'api.eu.mailgun.net' : 'api.mailgun.net';
 
     return { apiKey: settings.apiKey, domain: settings.domain, host };
@@ -53,17 +52,17 @@ export async function fetchEmailsWithCredentialsAction(
         const mg = mailgun.client({ username: 'api', key: apiKey, host });
         log.push("Mailgun client initialized.");
 
-        // Correctly fetch all recent "accepted" events for the domain.
-        // We will filter by recipient inside the loop.
+        // Query for "stored" events. This is the correct event, as it guarantees
+        // the message is processed and available at the storage URL.
         const events = await mg.events.get(domain, {
-            event: "accepted",
+            event: "stored",
             limit: 30,
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), // Check last 24 hours
         });
-        log.push(`Found ${events?.items?.length || 0} 'accepted' events from Mailgun for the whole domain.`);
+        log.push(`Found ${events?.items?.length || 0} 'stored' events from Mailgun for the whole domain.`);
         
         if (!events?.items?.length) {
-            log.push("No new mail events found. Ending action.");
+            log.push("No new 'stored' mail events found. Ending action.");
             return { success: true, log };
         }
 
@@ -78,9 +77,9 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             
-            // The "accepted" event may not have storage info yet. If it's missing, we must skip.
-             if (!event.storage?.url || !Array.isArray(event.storage.url) || event.storage.url.length === 0) {
-                log.push(`Skipping event ${event.id} for ${emailAddress} - no storage URL present yet.`);
+            // The "stored" event guarantees the storage URL is present.
+            if (!event.storage?.url || !Array.isArray(event.storage.url) || event.storage.url.length === 0) {
+                log.push(`Skipping event ${event.id} for ${emailAddress} - no storage URL present.`);
                 continue;
             }
 
@@ -96,9 +95,8 @@ export async function fetchEmailsWithCredentialsAction(
             if (existingEmailSnap.exists) {
                 continue;
             }
-            log.push(`Event for ${emailAddress} found. Message ID: ${messageId}. Not a duplicate.`);
+            log.push(`New event for ${emailAddress} found. Message ID: ${messageId}. Not a duplicate.`);
 
-            // Correctly access the first element of the URL array
             const storageUrl = event.storage.url[0];
 
             try {
@@ -120,11 +118,9 @@ export async function fetchEmailsWithCredentialsAction(
                 const message = await response.json();
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
-                // Correctly parse HTML content with fallbacks
                 const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
                 const cleanHtml = DOMPurify.sanitize(html);
-
-                // Correctly handle both UNIX and JS timestamps
+                
                 const timestampMs = event.timestamp.toString().length === 10
                     ? event.timestamp * 1000
                     : event.timestamp;
