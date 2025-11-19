@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -12,10 +12,11 @@ function getAdminApp(): App {
         return adminApp;
     }
 
-    if (getApps().length > 0) {
-        // If the app is already initialized (e.g., by another part of the code), use it.
-        adminApp = getApps()[0];
-        return adminApp!;
+    // Check if an app is already initialized, which can happen in some environments.
+    const alreadyInitializedApp = getApps().find(app => app.name === '[DEFAULT]');
+    if (alreadyInitializedApp) {
+        adminApp = alreadyInitializedApp;
+        return adminApp;
     }
     
     try {
@@ -55,5 +56,3 @@ export function getAdminFirestore() {
 export function getAdminAuth() {
     return getAuth(getAdminApp());
 };
-
-    
