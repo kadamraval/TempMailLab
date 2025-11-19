@@ -49,13 +49,12 @@ service cloud.firestore {
                              (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                              
         // Allow email creation if...
+        // This is primarily for the trusted server-side action.
         allow create:
-          // 1. The user is the logged-in owner of the parent inbox.
-          (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid) ||
-          // 2. The ownerToken provided in the new email matches the parent inbox's ownerToken. 
-          //    This allows the trusted server-side action to write emails on behalf of an anonymous user.
-          (get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken != null &&
-           request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
+          // The ownerToken provided in the new email matches the parent inbox's ownerToken. 
+          // This allows the trusted server-side action to write emails on behalf of an anonymous user.
+          get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken != null &&
+          request.resource.data.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken;
         
         // Deny direct client-side updates/deletes.
         allow update, delete: if false;

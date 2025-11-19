@@ -12,15 +12,15 @@ function getAdminApp(): App {
         return adminApp;
     }
 
-    // In a deployed Google Cloud environment (like App Hosting),
-    // GOOGLE_APPLICATION_CREDENTIALS are set automatically and `initializeApp()` works with no args.
-    // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to your service account JSON file.
     if (getApps().length > 0) {
         adminApp = getApps()[0];
-        return adminApp;
+        return adminApp!;
     }
     
     try {
+        // In a deployed Google Cloud environment (like App Hosting),
+        // GOOGLE_APPLICATION_CREDENTIALS are discovered automatically and `initializeApp()` works with no args.
+        // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS env var to point to your service account JSON file.
         adminApp = initializeApp();
     } catch (error: any) {
         console.error("Firebase Admin initialization failed.", error);
@@ -29,14 +29,14 @@ function getAdminApp(): App {
              throw new Error(
                 'Could not initialize Firebase Admin SDK. ' +
                 'Ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable is set correctly in your local environment. ' +
-                'For Firebase Emulators, this is often done via `firebase emulators:exec`. ' +
+                'For Firebase Emulators, this is often done via `firebase emulators:exec "your-dev-command"`. ' +
                 'Original Error: ' + error.message
             );
         }
         throw error;
     }
     
-    return adminApp;
+    return adminApp!;
 }
 
 /**

@@ -81,17 +81,23 @@ export async function fetchEmailsWithCredentialsAction(
             }
 
             try {
-                const storagePath = new URL(event.storage.url).pathname;
-                log.push(`Fetching email content from Mailgun storage path: ${storagePath}`);
-                const messageDetails = await mg.get(storagePath);
-                
-                if (!messageDetails || !messageDetails.body) {
-                    log.push(`Could not retrieve email body for event: ${event.id}`);
+                // Use the API key to fetch from the storage URL
+                const storageUrl = event.storage.url.replace('api.mailgun.net/v3', 'api.eu.mailgun.net/v3');
+                const response = await fetch(storageUrl, {
+                    headers: {
+                        'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    log.push(`Failed to fetch email content for event ${event.id}. Status: ${response.status}`);
                     continue;
-                };
+                }
+
+                const message = await response.json();
+
                 log.push(`Successfully fetched email content for event: ${event.id}`);
                 
-                const message = messageDetails.body;
                 const cleanHtml = DOMPurify.sanitize(message['body-html'] || "");
 
                 const emailRef = emailsCollectionRef.doc(messageId);
