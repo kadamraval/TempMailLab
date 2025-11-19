@@ -53,8 +53,7 @@ export async function fetchEmailsWithCredentialsAction(
         log.push("Mailgun client initialized.");
 
         const events = await mg.events.get(domain, {
-            // Using a more explicit filter for the recipient.
-            'to': emailAddress,
+            to: emailAddress,
             event: "stored",
             limit: 30,
             begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(),
@@ -76,17 +75,24 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
 
+            // Check if email already exists
+            const existingEmailRef = emailsCollectionRef.doc(messageId);
+            const existingEmailSnap = await existingEmailRef.get();
+            if (existingEmailSnap.exists) {
+                log.push(`Skipping already existing email: ${messageId}`);
+                continue;
+            }
+
             if (!event.storage || !event.storage.url) {
                 log.push(`Skipping event with no storage URL: ${event.id}`);
                 continue;
             }
 
             try {
-                // The API key must be appended to the URL as a query parameter for this endpoint.
-                const storageUrlWithKey = `${event.storage.url}`;
+                const storageUrl = event.storage.url;
                 
                 const fetch = (await import('node-fetch')).default;
-                const response = await fetch(storageUrlWithKey, {
+                const response = await fetch(storageUrl, {
                      headers: {
                         'Authorization': `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`
                     }
