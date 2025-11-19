@@ -174,6 +174,7 @@ export async function fetchEmailsWithCredentialsAction(
     } catch (error: any) {
         const errorMessage = `[FATAL_ERROR]: ${error.message || 'An unknown server error occurred.'}`;
         log.push(errorMessage);
+        // This is the critical debugging addition. It sends the full error to Cloud Logging.
         console.error("[MAILGUN_ACTION_ERROR]", {
             errorMessage: error.message,
             stack: error.stack,
