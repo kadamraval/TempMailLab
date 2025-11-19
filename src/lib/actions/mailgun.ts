@@ -172,13 +172,15 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        const errorMessage = `[FATAL_ERROR]: ${error.message}`;
+        // This is the critical change. We now capture and return the REAL error message.
+        const errorMessage = `[FATAL_ERROR]: ${error.message || 'An unknown server error occurred.'}`;
         log.push(errorMessage);
         console.error("[MAILGUN_ACTION_ERROR]", {
             errorMessage: error.message,
             stack: error.stack,
             fullError: error
         });
+        // Return the specific error message to the client instead of a generic one.
         return { success: false, error: error.message, log };
     }
 }

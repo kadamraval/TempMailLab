@@ -172,16 +172,21 @@ export function DashboardClient() {
         ownerToken
       );
 
+      // Prepend new logs to the existing logs
       setActionLogs(prev => [...result.log.reverse(), ...prev]);
 
       if (result.error) {
+        // Set the specific error from the server action
         setServerError(result.error);
       } else {
+        // Clear any previous error on success
         setServerError(null);
       }
     } catch (error: any) {
+      // This catches client-side errors if the action call itself fails
+      const clientSideError = `[${new Date().toLocaleTimeString()}] [FATAL] Client-side error during refresh: ${error.message}`;
       setServerError(error.message);
-      setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] [FATAL] Client-side error during refresh: ${error.message}`, ...prev]);
+      setActionLogs(prev => [clientSideError, ...prev]);
     } finally {
       setIsRefreshing(false);
     }
