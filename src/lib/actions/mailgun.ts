@@ -8,7 +8,7 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Define all possible Mailgun API endpoints
+// Define all possible Mailgun API hosts to ensure global coverage
 const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
@@ -45,32 +45,34 @@ export async function fetchEmailsWithCredentialsAction(
 
         const allEvents = [];
 
-        // Loop through each Mailgun host and fetch events
+        // Loop through each Mailgun host and fetch events to ensure global coverage
         for (const host of MAILGUN_API_HOSTS) {
-            log.push(`Querying Mailgun events on host: ${host}...`);
+            log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
+                // Fetch 'accepted' events. This is the correct event that includes the storage URL.
                 const events = await mg.events.get(domain, {
                     event: "accepted",
-                    limit: 30, // Limit per region
-                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), 
+                    limit: 30, // Limit per region to avoid excessive data
+                    begin: new Date(Date.now() - 24 * 60 * 60 * 1000).toUTCString(), // Check last 24 hours
                 });
 
                 if (events?.items?.length > 0) {
                     log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No events found on ${host}.`);
+                    log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
+                // Log a warning but continue, as one region failing shouldn't stop the whole process.
                 log.push(`[WARN] Could not fetch events from ${host}. Error: ${hostError.message}`);
             }
         }
         
         if (allEvents.length === 0) {
-            log.push("No new mail events found across all regions. Ending action.");
+            log.push("No new mail events found across any region. Ending action.");
             return { success: true, log };
         }
 
@@ -80,6 +82,7 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
+            // 1. Manually filter by recipient email address. This is more reliable than API filters.
             if (!event.message?.headers?.to || !event.message.headers.to.includes(emailAddress)) {
                 continue;
             }
@@ -87,79 +90,79 @@ export async function fetchEmailsWithCredentialsAction(
             
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
-                log.push(`Skipping event with no message-id: ${event.id}`);
+                log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
                 continue;
             }
 
+            // 2. Correct duplicate check: check for document existence by its ID.
             const existingEmailRef = emailsCollectionRef.doc(messageId);
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) {
-                continue; // Skip if email already exists
+                log.push(`Skipping duplicate email: ${messageId}`);
+                continue;
             }
-            log.push(`Message ID: ${messageId}. Not a duplicate. Proceeding...`);
+            log.push(`Message ID: ${messageId} is not a duplicate.`);
 
+            // 3. Correctly get the storage URL from the array.
             const storageUrl = event.storage?.url?.[0];
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
             }
 
-            try {
-                const fetch = (await import('node-fetch')).default;
-                
-                const response = await fetch(storageUrl, {
-                    headers: {
-                        Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
-                    }
-                });
-
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    log.push(`[ERROR] Failed to fetch content for event ${event.id}. Status: ${response.status}. Body: ${errorBody}`);
-                    continue;
+            // 4. Correctly fetch email content using Basic Auth header, not URL embedding.
+            const fetch = (await import('node-fetch')).default;
+            const response = await fetch(storageUrl, {
+                headers: {
+                    Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
                 }
+            });
 
-                const message = await response.json();
-                log.push(`Successfully fetched email content for event: ${event.id}`);
-                
-                const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
-                const cleanHtml = DOMPurify.sanitize(html);
-                
-                const timestampMs = event.timestamp.toString().length === 10
-                    ? event.timestamp * 1000
-                    : event.timestamp;
-                const receivedAt = Timestamp.fromDate(new Date(timestampMs));
-                
-                const emailData: Email = {
-                    id: messageId,
-                    inboxId,
-                    recipient: emailAddress,
-                    senderName: message.From || "Unknown Sender",
-                    subject: message.Subject || "No Subject",
-                    receivedAt: receivedAt,
-                    htmlContent: cleanHtml,
-                    textContent: message["stripped-text"] || message["body-plain"] || "No text content.",
-                    rawContent: JSON.stringify(message, null, 2),
-                    attachments: message.attachments || [],
-                    read: false,
-                };
-                
-                if (ownerToken) {
-                    emailData.ownerToken = ownerToken;
-                }
-
-                batch.set(existingEmailRef, emailData);
-                newEmailsFound++;
-                log.push(`Prepared email ${messageId} for batch write.`);
-
-            } catch(err: any) {
-                log.push(`[ERROR] Failed to process and save email for event ${event.id}. Error: ${err.message}`);
+            if (!response.ok) {
+                const errorBody = await response.text();
+                log.push(`[ERROR] Failed to fetch content for event ${event.id}. Status: ${response.status}. Body: ${errorBody}`);
+                continue;
             }
+
+            const message = await response.json();
+            log.push(`Successfully fetched email content for event: ${event.id}`);
+            
+            // 5. Correctly parse HTML body with fallbacks.
+            const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
+            const cleanHtml = DOMPurify.sanitize(html);
+            
+            // 6. Correctly handle both UNIX and millisecond timestamps.
+            const timestampMs = event.timestamp.toString().length === 10
+                ? event.timestamp * 1000
+                : event.timestamp;
+            const receivedAt = Timestamp.fromDate(new Date(timestampMs));
+            
+            // 7. The document ID is the messageId. Do not store 'id' inside the data payload.
+            const emailData: Omit<Email, 'id'> = {
+                inboxId,
+                recipient: emailAddress,
+                senderName: message.From || "Unknown Sender",
+                subject: message.Subject || "No Subject",
+                receivedAt: receivedAt,
+                htmlContent: cleanHtml,
+                textContent: message["stripped-text"] || message["body-plain"] || "No text content.",
+                rawContent: JSON.stringify(message, null, 2),
+                attachments: message.attachments || [],
+                read: false,
+            };
+            
+            if (ownerToken) {
+                emailData.ownerToken = ownerToken;
+            }
+
+            batch.set(existingEmailRef, emailData);
+            newEmailsFound++;
+            log.push(`Prepared email ${messageId} for batch write.`);
         }
         
         if (newEmailsFound > 0) {
             await batch.commit();
-            log.push(`Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
+            log.push(`SUCCESS: Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
         } else {
             log.push("No new emails for this specific address needed to be written to the database.");
         }
