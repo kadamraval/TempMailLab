@@ -48,9 +48,8 @@ service cloud.firestore {
                                                                                                          (request.auth == null && request.query.ownerToken == get(/databases/$(database)/documents/inboxes/$(inboxId)).data.ownerToken);
                                                                                                                                       
                                                                                                                                               // The server action, which uses the Admin SDK, bypasses security rules.
-                                                                                                                                                      // This rule is a safeguard to prevent any direct client-side creation.
-                                                                                                                                                              // The actual security is handled by the server action's logic which verifies ownership before writing.
-                                                                                                                                                                      allow create: if true;
+                                                                                                                                                      // This rule is a safeguard to allow the trusted server process to write.
+                                                                                                                                                              allow create: if true;
                                                                                                                                                                               
                                                                                                                                                                                       // Allow an authenticated user to update their own emails (e.g. mark as read)
                                                                                                                                                                                               allow update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
@@ -58,15 +57,5 @@ service cloud.firestore {
                                                                                                                                                                                                       // Deny direct client-side deletes.
                                                                                                                                                                                                               allow delete: if false;
                                                   }
-
-    }
-}
-
-                                                  }
-                                              }
-                                      }
-                              }
-                  }
-              }
     }
 }
