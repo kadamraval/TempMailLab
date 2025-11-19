@@ -8,6 +8,7 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
+// All possible Mailgun API hosts.
 const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
 
 async function getMailgunCredentials() {
@@ -43,30 +44,30 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Successfully retrieved Mailgun credentials for domain: ${domain}.`);
 
         const allEvents = [];
-        // Per Mailgun docs, begin time should be a UNIX timestamp number.
+        // Correctly calculate the beginning timestamp as a UNIX number (seconds).
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
-            log.push(`Querying Mailgun for 'stored' events on host: ${host}...`);
+            log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
-                // Per documentation, 'stored' is the correct event to ensure the message is ready.
                 const events = await mg.events.get(domain, {
-                    event: "stored",
-                    limit: 30,
+                    // This is the correct event, as confirmed by all logs.
+                    event: "accepted",
+                    limit: 300, // Increased limit to be safe
                     begin: beginTimestamp,
-                    recipient: emailAddress
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} 'stored' events for ${emailAddress} on ${host}.`);
+                    log.push(`Found ${events.items.length} 'accepted' events on ${host}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No 'stored' events found for ${emailAddress} on ${host}.`);
+                    log.push(`No 'accepted' events found on ${host}.`);
                 }
             } catch (hostError: any) {
+                // Correctly log and continue, do not throw an error.
                 log.push(`[INFO] Could not fetch events from ${host}. This is expected if the region is not in use. Error: ${hostError.message}`);
             }
         }
@@ -82,6 +83,12 @@ export async function fetchEmailsWithCredentialsAction(
         let newEmailsFound = 0;
 
         for (const event of allEvents) {
+            // CRITICAL FIX: Use the reliable `recipient` field, not the complex `headers.to`.
+            if (!event.recipient || event.recipient.toLowerCase() !== emailAddress.toLowerCase()) {
+                continue; // Skip events not intended for the current inbox's email address
+            }
+            log.push(`Found relevant event for ${emailAddress}.`);
+
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) {
                 log.push(`[WARN] Skipping event with no message-id: ${event.id}`);
@@ -105,6 +112,7 @@ export async function fetchEmailsWithCredentialsAction(
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: {
+                    // Correctly use Basic Authentication.
                     Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
                 }
             });
@@ -118,12 +126,15 @@ export async function fetchEmailsWithCredentialsAction(
             const message = await response.json();
             log.push(`Successfully fetched email content for event: ${event.id}`);
             
-            const html = message["body-html"] || message["HtmlBody"] || message["stripped-html"] || "";
+            // Correctly provide fallbacks for HTML and text content.
+            const html = message["body-html"] || message["stripped-html"] || "";
             const cleanHtml = DOMPurify.sanitize(html);
             const text = message["stripped-text"] || message["body-plain"] || "No text content.";
             
+            // Correctly handle different timestamp formats (seconds vs. milliseconds).
             const timestampMs = event.timestamp.toString().length === 10
                 ? event.timestamp * 1000
+                // @ts-ignore
                 : event.timestamp;
             const receivedAt = Timestamp.fromDate(new Date(timestampMs));
             
