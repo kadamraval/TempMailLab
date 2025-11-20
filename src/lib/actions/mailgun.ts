@@ -16,12 +16,12 @@ async function getMailgunCredentials() {
     const settingsSnap = await settingsRef.get();
 
     if (!settingsSnap.exists) {
-        throw new Error('Mailgun settings not found in Firestore. Please configure the Mailgun integration in the admin panel.');
+        throw new Error('Mailgun settings not found. Please configure the Mailgun integration in the admin panel.');
     }
 
     const settings = settingsSnap.data();
     if (!settings?.apiKey || !settings.domain) {
-        throw new Error('Mailgun API Key or Domain is missing from Firestore settings. Please configure it in the admin panel.');
+        throw new Error('Mailgun API Key or Domain is missing from settings. Please configure it in the admin panel.');
     }
 
     return { apiKey: settings.apiKey, domain: settings.domain };
@@ -35,18 +35,19 @@ export async function fetchEmailsWithCredentialsAction(
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
     
     if (!emailAddress || !inboxId) {
-        log.push('Action failed: Missing email address or inbox ID.');
+        const errorMsg = 'Action failed: Missing email address or inbox ID.';
+        log.push(errorMsg);
         return { success: false, error: 'Email address and Inbox ID are required.', log };
     }
 
     try {
-        log.push("Attempting to retrieve Mailgun credentials from Firestore...");
+        log.push("Attempting to retrieve Mailgun credentials...");
         const { apiKey, domain } = await getMailgunCredentials();
         log.push(`Credentials retrieved for domain: ${domain}.`);
 
         const firestore = getAdminFirestore();
         const inboxRef = firestore.doc(`inboxes/${inboxId}`);
-        log.push(`Fetching inbox document from path: inboxes/${inboxId}`);
+        log.push(`Fetching inbox document: inboxes/${inboxId}`);
         const inboxSnap = await inboxRef.get();
         if (!inboxSnap.exists) {
             throw new Error(`Inbox with ID ${inboxId} not found.`);
@@ -59,6 +60,7 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Inbox found. Operating for user ID: ${userId}`);
 
         const allEvents = [];
+        // Check events from the last 24 hours
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
         for (const host of MAILGUN_API_HOSTS) {
@@ -81,16 +83,19 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host} for this recipient.`);
                 }
             } catch (hostError: any) {
-                log.push(`[INFO] Could not fetch events from ${host}. This may be expected if your account is in a different region. Error: ${hostError.message}`);
+                const errorMsg = `[INFO] Could not fetch events from ${host}. Error: ${hostError.message}`;
+                log.push(errorMsg);
+                // Also log to server logs for deeper debugging
+                console.error(`[MAILGUN_ACTION_HOST_ERROR]`, { host, message: hostError.message });
             }
         }
         
         if (allEvents.length === 0) {
-            log.push("No new mail events found across any region. Ending action.");
+            log.push("No new mail events found across any region. Action complete.");
             return { success: true, log };
         }
 
-        log.push(`Total events found: ${allEvents.length}. Now processing each email.`);
+        log.push(`Total events found: ${allEvents.length}. Processing each email.`);
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
@@ -110,7 +115,7 @@ export async function fetchEmailsWithCredentialsAction(
             }
             log.push(`Processing new message ID: ${messageId}.`);
             
-            const storageUrl = Array.isArray(event.storage?.url) ? event.storage.url[0] : event.storage?.url;
+            const storageUrl = event.storage?.url;
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
@@ -126,7 +131,14 @@ export async function fetchEmailsWithCredentialsAction(
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                throw new Error(`Failed to fetch Mailgun content from storage URL. Status: ${response.status}. Body: ${errorBody}`);
+                // This will now be logged in Google Cloud Logging.
+                console.error("[MAILGUN_ACTION_FETCH_ERROR]", {
+                    message: "Failed to fetch Mailgun content from storage URL.",
+                    status: response.status,
+                    body: errorBody,
+                    url: storageUrl
+                });
+                throw new Error(`Failed to fetch Mailgun content. Status: ${response.status}.`);
             }
 
             const message = await response.json() as any;
@@ -166,7 +178,7 @@ export async function fetchEmailsWithCredentialsAction(
             await batch.commit();
             log.push(`SUCCESS: Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
         } else {
-            log.push("No new, unique emails for this address needed to be written to the database.");
+            log.push("No new, unique emails needed to be written to the database.");
         }
         
         return { success: true, log };
