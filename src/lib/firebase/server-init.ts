@@ -1,41 +1,30 @@
 
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
-let adminApp: App | null = null;
-
 // This function ensures the Firebase Admin app is a singleton and handles initialization correctly.
 function getAdminApp(): App {
-    // If the app is already initialized, return it to prevent re-initialization.
-    if (adminApp) {
-        return adminApp;
-    }
-
-    // In many environments (including local if GOOGLE_APPLICATION_CREDENTIALS is set),
-    // getApps() will find an already initialized app.
+    // If there's an already initialized app, return it. This is the common case.
     const alreadyInitializedApp = getApps().find(app => app.name === '[DEFAULT]');
     if (alreadyInitializedApp) {
-        adminApp = alreadyInitializedApp;
-        return adminApp;
+        return alreadyInitializedApp;
     }
     
-    // If no app is initialized, proceed with initialization.
-    // In a deployed Google Cloud environment (like App Hosting or Cloud Run), 
-    // service account credentials should be automatically discovered.
-    // This is the primary method for production.
+    // If no app is initialized, proceed with the default initialization.
+    // In a deployed Google Cloud environment like App Hosting, this call
+    // automatically discovers the service account credentials. It does not
+    // require any manual configuration or key files. This is the critical step.
     try {
         console.log("Attempting to initialize Firebase Admin SDK with default credentials...");
-        adminApp = initializeApp();
+        const app = initializeApp();
         console.log("Firebase Admin SDK initialized successfully.");
-        return adminApp;
+        return app;
     } catch (error: any) {
-        console.error("Firebase Admin SDK default initialization failed.", error);
-        
-        // This is a critical failure. The server environment is not configured correctly.
-        // Throw a clear error to make this problem visible in the logs.
-        const errorMessage = 'CRITICAL: Could not initialize Firebase Admin SDK. The server environment is missing Google Application Credentials. This is the root cause of server-side failures.';
-        throw new Error(errorMessage);
+        console.error("CRITICAL: Firebase Admin SDK default initialization failed.", error);
+        // If this block runs, it signifies a fundamental problem with the hosting environment's
+        // ability to provide credentials, which is highly unlikely.
+        throw new Error('Could not initialize Firebase Admin SDK. The server environment is not configured correctly.');
     }
 }
 
