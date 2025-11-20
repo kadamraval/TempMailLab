@@ -39,7 +39,7 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { fetchEmailsWithCredentialsAction } from '@/lib/actions/mailgun';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { type Plan } from '@/app/(admin)/admin/packages/data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -58,7 +58,6 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [actionLogs, setActionLogs] = useState<string[]>([]);
 
-  // All hooks are now at the top level, unconditionally.
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, isUserLoading, userProfile } = useUser();
@@ -83,7 +82,6 @@ export function DashboardClient() {
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id || !user?.uid) return null;
-    // This query now includes a `where` clause to satisfy security rules.
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
       where('userId', '==', user.uid)
@@ -105,13 +103,11 @@ export function DashboardClient() {
       });
   }, [inboxEmails]);
 
-  // Effect to load existing session from local storage or database on initial load
   useEffect(() => {
     const initializeSession = async () => {
         if (isUserLoading || !auth || !firestore) return;
 
         let activeUser = user;
-        // Ensure anonymous user exists
         if (!activeUser) {
             try {
                 const userCredential = await signInAnonymously(auth);
@@ -124,7 +120,6 @@ export function DashboardClient() {
         }
         if (!activeUser) return;
 
-        // For anonymous users, check local storage first
         if (activeUser.isAnonymous) {
             const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
             if (localDataStr) {
@@ -142,7 +137,6 @@ export function DashboardClient() {
                 }
             }
         } else if (userInboxes && userInboxes.length > 0) {
-            // For registered users, check their database inboxes
             const activeDbInbox = userInboxes.find(ib => new Date(ib.expiresAt) > new Date());
             if (activeDbInbox) {
                 setCurrentInbox(activeDbInbox);
@@ -150,7 +144,6 @@ export function DashboardClient() {
         }
     };
     
-    // Defer initialization until all loading is complete
     if (!isUserLoading && !isLoadingInboxes && !isLoadingPlan && firestore) {
       initializeSession();
     }
@@ -164,29 +157,29 @@ export function DashboardClient() {
     setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] Refresh triggered...`, ...prev]);
     
     const ownerToken = currentInbox.ownerToken;
+    const functions = getFunctions();
+    const fetchEmailsFn = httpsCallable(functions, 'fetchEmails');
 
     try {
-      const result = await fetchEmailsWithCredentialsAction(
-        currentInbox.emailAddress,
-        currentInbox.id,
-        ownerToken
-      );
+      const result = await fetchEmailsFn({
+        emailAddress: currentInbox.emailAddress,
+        inboxId: currentInbox.id,
+        ownerToken,
+      });
 
-      // Prepend new logs to the existing logs
-      if(result.log) {
-        setActionLogs(prev => [...result.log.reverse(), ...prev]);
+      const data = result.data as { success: boolean; error?: string; log?: string[] };
+
+      if (data.log) {
+        setActionLogs(prev => [...data.log!.reverse(), ...prev]);
       }
 
-      if (result.error) {
-        // Set the specific error from the server action
-        setServerError(result.error);
+      if (!data.success || data.error) {
+        setServerError(data.error || "An unknown error occurred in the cloud function.");
       } else {
-        // Clear any previous error on success
         setServerError(null);
       }
     } catch (error: any) {
-      // This catches client-side errors if the action call itself fails
-      const clientSideError = `[${new Date().toLocaleTimeString()}] [FATAL] Client-side error during refresh: ${error.message}`;
+      const clientSideError = `[${new Date().toLocaleTimeString()}] [FATAL] Client-side error calling function: ${error.message}`;
       setServerError(error.message);
       setActionLogs(prev => [clientSideError, ...prev]);
     } finally {
@@ -231,14 +224,14 @@ export function DashboardClient() {
             
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
-            const newInboxData: Omit<InboxType, 'id' | 'createdAt' | 'ownerToken'> & { ownerToken?: string } = {
+            const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
                 userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
             };
-
+            
             if (activeUser.isAnonymous) {
-                newInboxData.ownerToken = uuidv4();
+                (newInboxData as any).ownerToken = uuidv4();
             }
 
             const newInboxRef = await addDoc(collection(firestore, `inboxes`), {
