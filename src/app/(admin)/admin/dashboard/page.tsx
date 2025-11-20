@@ -1,13 +1,17 @@
 
 'use client';
 import { StatCard } from "@/components/admin/stat-card";
-import { Activity, Users, Package, Globe } from "lucide-react";
+import { Activity, Users, Package, Globe, FlaskConical } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import type { Plan } from "../packages/data";
+import { Button } from "@/components/ui/button";
+import { testAdminSdkAction } from "@/lib/actions/testAdmin";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
     const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
@@ -44,8 +48,34 @@ export default function AdminDashboardPage() {
         },
     ];
 
+  const handleTestAdminSdk = async () => {
+    toast({
+      title: "Testing Admin SDK...",
+      description: "Attempting to read a protected document.",
+    });
+    const result = await testAdminSdkAction();
+    if (result.success) {
+      toast({
+        title: "SUCCESS: Admin SDK is working!",
+        description: `Successfully read protected data: ${result.data}`,
+      });
+    } else {
+      toast({
+        title: "FAILURE: Admin SDK is NOT working.",
+        description: `Error: ${result.error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <>
+        <div className="flex justify-end mb-4">
+            <Button onClick={handleTestAdminSdk}>
+                <FlaskConical className="mr-2 h-4 w-4" />
+                Test Admin SDK
+            </Button>
+        </div>
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             {stats.map(stat => (
                 <StatCard 
