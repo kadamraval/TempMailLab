@@ -19,6 +19,8 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   const isLoginPage = pathname === '/login/admin';
+  
+  // This is the crucial check: loading is finished ONLY when both auth and profile are done.
   const finishedLoading = !isUserLoading && !isProfileLoading;
   const isAuthorizedAdmin = user && !user.isAnonymous && userProfile?.isAdmin === true;
 

@@ -66,13 +66,17 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         return;
     }
     
+    // If a regular user logs in and they don't have a user document,
+    // it means this is their first login. We should create a profile for them.
     if (!userDoc.exists()) {
        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+       // We pass the currently saved anonymous inbox (if any) to be migrated.
        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
        if (!result.success) {
-           await auth.signOut();
+           await auth.signOut(); // Log them out if profile creation fails.
            throw new Error(result.error || "Failed to create user profile during login.");
        }
+       localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up after successful migration.
     }
     
     toast({ title: "Success", description: "Logged in successfully." });
