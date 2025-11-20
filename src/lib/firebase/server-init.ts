@@ -2,6 +2,7 @@
 import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
+import {credential} from 'firebase-admin';
 
 interface AdminServices {
   app: App;
@@ -18,24 +19,12 @@ function getAdminServices(): AdminServices {
     return adminServicesInstance;
   }
 
-  // Ensure all required environment variables are present. This is the crucial check.
-  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error("Firebase Admin SDK environment variables are not set. Please check your .env.local file and ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are all populated. You can get these from your Firebase project's service account settings.");
-  }
-
-  // Construct the service account credentials from the environment variables.
-  const serviceAccount: ServiceAccount = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // The private key must have its newlines escaped in the .env file.
-      // The replace call here un-escapes them for the SDK.
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  };
-
   const apps = getApps();
   const app: App = !apps.length
     // Initialize the app with the service account credentials.
-    ? initializeApp({ credential: cert(serviceAccount) })
+    ? initializeApp({
+        credential: credential.applicationDefault(),
+    })
     : apps[0]!;
 
   const auth = getAuth(app);

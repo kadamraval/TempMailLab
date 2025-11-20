@@ -22,7 +22,6 @@ interface IntegrationSettingsFormProps {
         slug: string;
         title: string;
         description: string;
-        isConfigured: boolean;
         fields?: string[];
     }
 }
@@ -117,10 +116,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 return (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="apiKey">Mailgun API Key</Label>
+                            <Label htmlFor="apiKey">Mailgun Signing Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Use your <span className="font-semibold">Private API Key</span>. You can find this in your Mailgun account under Settings &gt; API Keys.
+                                Your <span className="font-semibold">HTTP webhook signing key</span>. You can find this in your Mailgun account under Sending &gt; Webhooks.
                             </p>
                         </div>
                          <div className="space-y-2">
@@ -157,7 +156,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-0.5">
                             <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
                             <p className="text-sm text-muted-foreground">
-                                This will be enabled automatically once you provide a valid API Key and Domain.
+                                This will be enabled automatically once you provide a valid Signing Key and Domain.
                             </p>
                         </div>
                         <Switch 
