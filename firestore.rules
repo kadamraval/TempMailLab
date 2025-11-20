@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow a user to read their own emails if they are the owner of the parent inbox.
+        // Allow a user to read or update their own emails if they are the owner of the parent inbox.
         allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
         // Creation and deletion of emails are only allowed by the trusted server-side function.

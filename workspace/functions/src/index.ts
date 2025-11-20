@@ -1,4 +1,3 @@
-
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
@@ -53,11 +52,18 @@ export const mailgunWebhook = onRequest(
       return;
     }
 
-    // First, verify the signature using the raw body
     const { timestamp, token, signature } = req.body.signature;
     if (!timestamp || !token || !signature) {
-        logger.error("Missing signature components in webhook payload.");
-        res.status(400).send("Bad Request: Missing signature.");
+      logger.error("Missing signature components in webhook payload.");
+      res.status(400).send("Bad Request: Missing signature.");
+      return;
+    }
+    
+    // The rawBody is a Buffer. We need to convert it to a string to verify.
+    // The signature is calculated on the raw payload, so we must use req.rawBody.
+    if (!req.rawBody) {
+        logger.error("Raw body not available for signature verification.");
+        res.status(500).send("Internal Server Error: Could not verify signature.");
         return;
     }
 
@@ -69,44 +75,47 @@ export const mailgunWebhook = onRequest(
     logger.info("Mailgun signature verified successfully.");
 
 
-    // Now, parse the multipart form data using busboy
     const bb = busboy({ headers: req.headers });
     const fields: Record<string, string> = {};
     const files: Record<string, Buffer> = {};
-
+    
+    // Wrap busboy in a promise to wait for it to finish.
     const parsingPromise = new Promise<void>((resolve, reject) => {
-      bb.on("field", (name, val) => {
-        fields[name] = val;
-      });
-
-      bb.on("file", (name, stream) => {
-        const chunks: Buffer[] = [];
-        stream.on("data", (chunk) => chunks.push(chunk));
-        stream.on("end", () => {
-          files[name] = Buffer.concat(chunks);
+        bb.on("field", (name, val) => {
+            fields[name] = val;
         });
-      });
 
-      bb.on("error", (err) => {
-        logger.error("Busboy parsing error:", err);
-        reject(err);
-      });
+        bb.on("file", (name, stream) => {
+            const chunks: Buffer[] = [];
+            stream.on("data", (chunk) => chunks.push(chunk));
+            stream.on("end", () => {
+                files[name] = Buffer.concat(chunks);
+            });
+        });
 
-      bb.on("finish", () => {
-        logger.info("Busboy finished parsing.");
-        resolve();
-      });
+        bb.on("error", (err) => {
+            logger.error("Busboy parsing error:", err);
+            reject(new Error("Error parsing form data."));
+        });
 
-      req.pipe(bb);
+        bb.on("finish", () => {
+            logger.info("Busboy finished parsing form data.");
+            resolve();
+        });
+
+        // Pipe the raw request body into busboy.
+        // req.pipe(bb) will not work here with req.rawBody available.
+        // We must manually write the buffer to busboy and end it.
+        bb.end(req.rawBody);
     });
 
     try {
       await parsingPromise;
       logger.info("Successfully parsed multipart/form-data.", { fieldCount: Object.keys(fields).length });
-
+      
       const recipient = fields['recipient'];
       const from = fields['From'] || "Unknown Sender";
-      const subject = fields['Subject'] || "No Subject";
+      const subject = fields['subject'] || "No Subject"; // Corrected from 'Subject' to 'subject' as per Mailgun docs
       const messageId = fields['Message-Id'];
 
       if (!recipient) {
@@ -120,6 +129,8 @@ export const mailgunWebhook = onRequest(
         res.status(400).send("Bad Request: Message-Id not found.");
         return;
       }
+      
+      logger.info(`Processing email for: ${recipient}`);
 
       const inboxesRef = db.collection("inboxes");
       const inboxQuery = inboxesRef.where("emailAddress", "==", recipient).limit(1);
@@ -134,12 +145,15 @@ export const mailgunWebhook = onRequest(
       const inboxDoc = inboxSnapshot.docs[0];
       const inboxId = inboxDoc.id;
       const inboxData = inboxDoc.data();
+      logger.info(`Found matching inbox: ${inboxId} for user ${inboxData.userId}`);
 
-      const emailRef = db.doc(`inboxes/${inboxId}/emails/${messageId}`);
+      // Use the messageId (with <> brackets removed) as the document ID to ensure idempotency.
+      const emailDocId = messageId.replace(/[<>]/g, "");
+      const emailRef = db.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
       const emailSnap = await emailRef.get();
 
       if (emailSnap.exists) {
-        logger.info(`Email ${messageId} already exists. Ignoring.`);
+        logger.info(`Email ${emailDocId} already exists in inbox ${inboxId}. Ignoring.`);
         res.status(200).send("OK: Email already exists.");
         return;
       }
@@ -152,7 +166,7 @@ export const mailgunWebhook = onRequest(
         userId: inboxData.userId,
         senderName: from,
         subject: subject,
-        receivedAt: Timestamp.fromMillis(parseInt(timestamp) * 1000),
+        receivedAt: Timestamp.fromMillis(parseInt(fields.timestamp) * 1000), // Use timestamp from fields
         createdAt: Timestamp.now(),
         htmlContent: cleanHtml,
         textContent: fields['stripped-text'] || fields['body-plain'] || "No text content.",
@@ -162,7 +176,7 @@ export const mailgunWebhook = onRequest(
 
       await emailRef.set(emailData);
 
-      logger.info(`Successfully processed and saved email ${messageId} to inbox ${inboxId}.`);
+      logger.info(`Successfully processed and saved email ${emailDocId} to inbox ${inboxId}.`);
       res.status(200).send("Email processed successfully.");
     } catch (error: any) {
       logger.error("Error processing Mailgun webhook after parsing:", error);
