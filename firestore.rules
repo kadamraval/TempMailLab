@@ -45,7 +45,8 @@ service cloud.firestore {
                              
         // Creation and deletion of emails are only allowed by the trusted server-side function.
         // This rule effectively denies direct client-side creation/deletion.
-        allow create, delete: if false;
+        allow create: if false;
+        allow delete: if false;
     }
 
   }

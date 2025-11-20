@@ -62,7 +62,6 @@ export const mailgunWebhook = onRequest(
         return;
       }
       
-      // The event data is the entire body, there is no 'event-data' wrapper key
       const eventData = req.body;
 
       if (eventData.event !== "accepted") {
@@ -89,7 +88,6 @@ export const mailgunWebhook = onRequest(
       const inboxData = inboxDoc.data();
       logger.info(`Found inbox ${inboxId} for user ${inboxData.userId}.`);
 
-      // Correctly get message-id from message.headers
       const messageId = eventData.message?.headers?.["message-id"];
       if (!messageId) {
         throw new Error("Message ID not found in webhook payload at message.headers.message-id");
@@ -104,7 +102,6 @@ export const mailgunWebhook = onRequest(
         return;
       }
 
-      // Correctly handle storage.url as an array
       const storageUrlArray = eventData.storage?.url;
       const storageUrl = Array.isArray(storageUrlArray) ? storageUrlArray[0] : storageUrlArray;
 
