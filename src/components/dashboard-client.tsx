@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -44,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
+import { fetchAndStoreEmailsAction } from '@/lib/actions/mailgun';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
@@ -145,15 +145,32 @@ export function DashboardClient() {
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
-    // The webhook handles email delivery, this is just for user feedback
+    if (!currentInbox || !user) return;
     setIsRefreshing(true);
-    toast({
-      title: "Checking for new mail...",
-      description: "New messages will appear automatically.",
-      duration: 2000,
-    });
-    setTimeout(() => setIsRefreshing(false), 1000);
-  }, [toast]);
+    setServerError(null);
+
+    try {
+        const result = await fetchAndStoreEmailsAction(currentInbox.emailAddress, currentInbox.id, user.uid);
+
+        if (result.success) {
+            toast({
+                title: "Inbox Refreshed",
+                description: result.message || "Checked for new emails.",
+            });
+        } else {
+            throw new Error(result.error || "An unknown error occurred while fetching emails.");
+        }
+    } catch (error: any) {
+        setServerError(error.message);
+        toast({
+            title: "Refresh Failed",
+            description: error.message,
+            variant: "destructive"
+        });
+    } finally {
+        setIsRefreshing(false);
+    }
+  }, [currentInbox, user, toast]);
   
    const handleGenerateNewInbox = async () => {
         if (isGenerating || !firestore || !activePlan || !auth) return;
