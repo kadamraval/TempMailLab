@@ -21,9 +21,10 @@ function getAdminServices(): AdminServices {
 
   const apps = getApps();
   const app: App = !apps.length
-    // Initialize the app with the service account credentials.
+    // Initialize the app with the service account credentials and Project ID.
     ? initializeApp({
         credential: credential.applicationDefault(),
+        projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'tempinbox-525dm',
     })
     : apps[0]!;
 
