@@ -7,7 +7,6 @@ import * as crypto from "crypto";
 import DOMPurify from "isomorphic-dompurify";
 import type { Email } from "./types";
 import busboy from "busboy";
-import { Writable } from "stream";
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -62,50 +61,39 @@ export const mailgunWebhook = onRequest(
 
     // This promise will resolve when busboy finishes parsing the request.
     const parsingPromise = new Promise<void>((resolve, reject) => {
-      bb.on("field", (name, val) => {
-        fields[name] = val;
-      });
+        req.pipe(bb);
 
-      bb.on("file", (name, stream, info) => {
-        const chunks: Buffer[] = [];
-        stream.on("data", (chunk) => {
-          chunks.push(chunk);
+        bb.on("field", (name, val) => {
+            fields[name] = val;
         });
-        stream.on("end", () => {
-          files[name] = Buffer.concat(chunks);
+
+        bb.on("file", (name, stream) => {
+            const chunks: Buffer[] = [];
+            stream.on("data", (chunk) => chunks.push(chunk));
+            stream.on("end", () => {
+                files[name] = Buffer.concat(chunks);
+            });
         });
-      });
+        
+        bb.on("error", (err) => {
+            parseError = err;
+            logger.error("Busboy parsing error:", err);
+            reject(err);
+        });
 
-      bb.on("error", (err) => {
-        parseError = err;
-        reject(err);
-      });
-
-      bb.on("finish", () => {
-        if (parseError) {
-          reject(parseError);
-        } else {
-          resolve();
-        }
-      });
-
-      // Pipe the raw request body into busboy
-      const writable = new Writable({
-        write(chunk, encoding, callback) {
-          bb.write(chunk, encoding, callback);
-        },
-        final(callback) {
-          bb.end();
-          callback();
-        }
-      });
-      writable.write(req.rawBody);
-      writable.end();
+        bb.on("finish", () => {
+            if (parseError) {
+              reject(parseError);
+            } else {
+              logger.info("Busboy finished parsing.");
+              resolve();
+            }
+        });
     });
 
     try {
       await parsingPromise;
-      logger.info("Successfully parsed multipart/form-data.", { fields: Object.keys(fields) });
+      logger.info("Successfully parsed multipart/form-data.", { fieldCount: Object.keys(fields).length });
 
       const { timestamp, token, signature, recipient, From, Subject } = fields;
 
@@ -114,8 +102,7 @@ export const mailgunWebhook = onRequest(
           res.status(400).send("Bad Request: Missing signature.");
           return;
       }
-
-      // **CRITICAL**: Use the rawBody for verification, not the parsed fields.
+      
       if (!verifyMailgunSignature(mailgunApiKey, timestamp, token, signature)) {
           logger.error("Invalid Mailgun webhook signature.");
           res.status(401).send("Unauthorized: Invalid signature.");
@@ -136,7 +123,7 @@ export const mailgunWebhook = onRequest(
 
       if (inboxSnapshot.empty) {
         logger.warn(`No inbox found for recipient: ${recipient}`);
-        res.status(404).send("Not Found: Inbox not found.");
+        res.status(200).send("OK: Inbox not found, message dropped as requested."); // Return 200 to prevent Mailgun retries
         return;
       }
 
