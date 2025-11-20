@@ -4,7 +4,7 @@ import { StatCard } from "@/components/admin/stat-card";
 import { Activity, Users, Package, Globe } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
-import type { Plan } from "./packages/data";
+import type { Plan } from "../packages/data";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
