@@ -16,12 +16,12 @@ let adminServicesInstance: AdminServices | null = null;
 /**
  * Initializes and/or returns a singleton instance of the Firebase Admin SDK services.
  * This pattern ensures that initializeApp() is called only once, preventing errors
- * in environments like Next.js server actions.
+ * in environments like Next.js server actions where code can be re-evaluated.
  *
  * @returns {AdminServices} An object containing the initialized admin app, auth, and firestore services.
  */
 function getAdminServices(): AdminServices {
-  // If the instance already exists, return it immediately.
+  // If the instance already exists, return it immediately to prevent re-initialization.
   if (adminServicesInstance) {
     return adminServicesInstance;
   }
@@ -32,7 +32,7 @@ function getAdminServices(): AdminServices {
 
   // If no apps are initialized, call initializeApp() without arguments.
   // In a Google Cloud environment (like App Hosting), this automatically
-  // discovers the service account credentials from the environment.
+  // discovers the service account credentials from the environment via ADC.
   if (!apps.length) {
     console.log("Initializing Firebase Admin SDK for the first time...");
     app = initializeApp();
