@@ -14,7 +14,10 @@ async function getMailgunKeys() {
     if (!settingsDoc.exists) {
         throw new Error('Mailgun settings are not configured in the admin panel.');
     }
-    const { apiKey, domain } = settingsDoc.data() || {};
+    const { apiKey, domain, enabled } = settingsDoc.data() || {};
+    if (!enabled) {
+        throw new Error('Mailgun integration is not enabled in settings.');
+    }
     if (!apiKey || !domain) {
         throw new Error('Mailgun API key or domain is missing from settings.');
     }
@@ -35,6 +38,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         const events = await mg.events.get(domain, {
             recipient: emailAddress,
             event: 'stored',
+            limit: 25, // Limit the number of events to process at once
         });
         
         log.push(`Found ${events.items.length} 'stored' events.`);
@@ -58,7 +62,8 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 continue;
             }
 
-            const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/]/g, '_');
+            // Create a more robust, filesystem-safe ID
+            const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, '_');
             const emailRef = db.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
             const emailDoc = await emailRef.get();
 
@@ -67,7 +72,9 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 continue;
             }
 
-            log.push(`Fetching full email content for ${emailDocId} from ${event.storage.url}`);
+            log.push(`Fetching full email content for ${emailDocId} from Mailgun storage.`);
+            
+            // Use the Mailgun SDK to get the full MIME message
             const emailContent = await mg.messages.get(event.storage.url);
             
             if (!emailContent) {
@@ -75,25 +82,26 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 continue;
             }
             
+            // Sanitize HTML content to prevent XSS attacks
             const htmlBody = emailContent['body-html'] || emailContent['stripped-html'] || '';
-            const cleanHtml = DOMPurify.sanitize(htmlBody);
+            const cleanHtml = DOMPurify.sanitize(htmlBody, {USE_PROFILES: {html: true}});
 
             const emailData: Omit<Email, "id"> = {
                 inboxId: inboxId,
-                userId: userId,
+                userId: userId, // Denormalize userId for security rules
                 senderName: emailContent.From || "Unknown Sender",
                 subject: emailContent.Subject || "No Subject",
                 receivedAt: Timestamp.fromMillis(event.timestamp * 1000),
                 createdAt: Timestamp.now(),
                 htmlContent: cleanHtml,
-                textContent: emailContent['stripped-text'] || emailContent['body-plain'] || "No text content.",
+                textContent: emailContent['stripped-text'] || emailContent['body-plain'] || "No text content available.",
                 rawContent: JSON.stringify(emailContent, null, 2),
                 read: false,
                 attachments: (emailContent.attachments || []).map((att: any) => ({
                     filename: att.filename,
                     "content-type": att['content-type'],
                     size: att.size,
-                    url: att.url // This may need adjustment based on SDK version
+                    url: att.url 
                 })),
             };
 
@@ -102,7 +110,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
             newEmailsCount++;
         }
 
-        return { success: true, log, message: `Successfully processed and stored ${newEmailsCount} new emails.` };
+        return { success: true, log, message: `Successfully processed and stored ${newEmailsCount} new email(s).` };
 
     } catch (error: any) {
         log.push(`FATAL ERROR: ${error.message}`);
