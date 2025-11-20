@@ -48,16 +48,25 @@ export const mailgunWebhook = onRequest(
         throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
+      // The signature is now at the top level of the body
       const signature = req.body.signature as MailgunWebhookSignature;
+      if (!signature || !signature.timestamp || !signature.token || !signature.signature) {
+        logger.error("Invalid or missing signature in webhook payload.");
+        res.status(400).send("Invalid or missing signature.");
+        return;
+      }
+
       if (!verifyMailgunWebhook(mailgunApiKey, signature)) {
         logger.error("Invalid Mailgun webhook signature.");
         res.status(401).send("Invalid signature.");
         return;
       }
+      
+      // The event data is the entire body, there is no 'event-data' wrapper key
+      const eventData = req.body;
 
-      const eventData = req.body["event-data"];
       if (eventData.event !== "accepted") {
-        logger.info(`Ignoring non-accepted event: ${eventData.event}`);
+        logger.info(`Ignoring non-'accepted' event: ${eventData.event}`);
         res.status(200).send("Event ignored.");
         return;
       }
@@ -78,10 +87,12 @@ export const mailgunWebhook = onRequest(
       const inboxDoc = inboxSnapshot.docs[0];
       const inboxId = inboxDoc.id;
       const inboxData = inboxDoc.data();
+      logger.info(`Found inbox ${inboxId} for user ${inboxData.userId}.`);
 
+      // Correctly get message-id from message.headers
       const messageId = eventData.message?.headers?.["message-id"];
       if (!messageId) {
-        throw new Error("Message ID not found in webhook payload.");
+        throw new Error("Message ID not found in webhook payload at message.headers.message-id");
       }
 
       const emailRef = db.doc(`inboxes/${inboxId}/emails/${messageId}`);
@@ -93,8 +104,9 @@ export const mailgunWebhook = onRequest(
         return;
       }
 
-      const storageUrls = eventData.storage?.url;
-      const storageUrl = Array.isArray(storageUrls) ? storageUrls[0] : storageUrls;
+      // Correctly handle storage.url as an array
+      const storageUrlArray = eventData.storage?.url;
+      const storageUrl = Array.isArray(storageUrlArray) ? storageUrlArray[0] : storageUrlArray;
 
       if (!storageUrl) {
         throw new Error("Storage URL not found in webhook payload.");
@@ -103,6 +115,7 @@ export const mailgunWebhook = onRequest(
       const mailgun = new Mailgun(formData);
       const mg = mailgun.client({ username: "api", key: mailgunApiKey });
       const messageContent = await mg.messages.get(storageUrl);
+      logger.info(`Successfully fetched email content from ${storageUrl}`);
 
       const cleanHtml = DOMPurify.sanitize(
         messageContent["body-html"] || messageContent["stripped-html"] || ""
@@ -113,7 +126,7 @@ export const mailgunWebhook = onRequest(
         userId: inboxData.userId, // Denormalize userId for security rules
         senderName: messageContent.From || "Unknown Sender",
         subject: messageContent.Subject || "No Subject",
-        receivedAt: Timestamp.fromMillis(eventData.timestamp * 1000),
+        receivedAt: Timestamp.fromMillis(parseInt(signature.timestamp) * 1000), // Use the signature timestamp
         createdAt: Timestamp.now(),
         htmlContent: cleanHtml,
         textContent: messageContent["stripped-text"] || messageContent["body-plain"] || "No text content.",
