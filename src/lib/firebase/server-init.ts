@@ -31,7 +31,7 @@ function getAdminServices(): AdminServices {
       app = initializeApp({
           credential: appCredential,
           // Explicitly setting the projectId removes any ambiguity and is a best practice.
-          projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'tempinbox-525dm',
+          projectId: 'tempinbox-525dm',
       });
   } else {
       app = apps[0]!;
