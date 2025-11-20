@@ -1,38 +1,64 @@
+'use client';
+import { StatCard } from "@/components/admin/stat-card";
+import { Activity, Users, Package, Globe } from "lucide-react";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
+import type { Plan } from "./packages/data";
 
-'use server';
+export default function AdminDashboardPage() {
+    const firestore = useFirestore();
 
-import { getAdminFirestore } from '@/lib/firebase/server-init';
+    const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]);
+    const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "plans"), where("status", "==", "active")) : null, [firestore]);
+    const domainsQuery = useMemoFirebase(() => firestore ? collection(firestore, "allowed_domains") : null, [firestore]);
 
-/**
- * A simple server action to test if the Firebase Admin SDK is initialized
- * and can perform a privileged Firestore read.
- */
-export async function testAdminSdkAction(): Promise<{ success: boolean; data?: string; error?: string }> {
-  try {
-    console.log('[testAdminSdkAction] Initializing Admin Firestore...');
-    // This function will now throw a helpful error if the .env variables are missing.
-    const firestore = getAdminFirestore(); 
-    
-    console.log('[testAdminSdkAction] Attempting to read /admin_settings/mailgun...');
-    const adminSettingsDocRef = firestore.doc('admin_settings/mailgun');
-    const docSnap = await adminSettingsDocRef.get();
-    
-    if (docSnap.exists) {
-      console.log('[testAdminSdkAction] SUCCESS: Document exists.');
-      const data = docSnap.data();
-      const response = `Domain: ${data?.domain || 'not set'}`;
-      return { success: true, data: response };
-    } else {
-       console.log('[testAdminSdkAction] SUCCESS: Admin SDK read successfully, but document does not exist.');
-      return { success: true, data: "Document /admin_settings/mailgun does not exist, but the read was permitted." };
-    }
+    const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+    const { data: plans, isLoading: plansLoading } = useCollection<Plan>(plansQuery);
+    const { data: domains, isLoading: domainsLoading } = useCollection(domainsQuery);
 
-  } catch (error: any) {
-    console.error('[testAdminSdkAction] FAILED:', error);
-    // Provide a clear error message that tells the user exactly what to do.
-    return { 
-      success: false, 
-      error: `Admin SDK initialization failed. ${error.message}`
-    };
-  }
+    const stats = [
+        {
+            title: "Total Users",
+            value: users?.length ?? 0,
+            icon: <Users className="h-4 w-4 text-muted-foreground" />,
+            loading: usersLoading,
+        },
+        {
+            title: "Active Plans",
+            value: plans?.length ?? 0,
+            icon: <Package className="h-4 w-4 text-muted-foreground" />,
+            loading: plansLoading,
+        },
+        {
+            title: "Allowed Domains",
+            value: domains?.length ?? 0,
+            icon: <Globe className="h-4 w-4 text-muted-foreground" />,
+            loading: domainsLoading,
+        },
+        {
+            title: "API Status",
+            value: "Active",
+            icon: <Activity className="h-4 w-4 text-muted-foreground" />,
+            loading: false,
+        },
+    ];
+
+  return (
+    <>
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+            {stats.map(stat => (
+                <StatCard 
+                    key={stat.title}
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    loading={stat.loading}
+                />
+            ))}
+        </div>
+        <div className="mt-8">
+            {/* The main data table for the dashboard can go here */}
+        </div>
+    </>
+  );
 }
