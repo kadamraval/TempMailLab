@@ -22,61 +22,59 @@ const verifyMailgunSignature = (signingKey: string, timestamp: string, token: st
   }
 };
 
-// Helper to parse the multipart/form-data from a NextRequest
-const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> => {
+
+// Rewritten parser to correctly handle Next.js Edge/Node streams with Busboy
+const parseMultipartForm = async (req: NextRequest): Promise<Record<string, string>> => {
+    const contentType = req.headers.get('content-type');
+    if (!contentType) {
+        throw new Error("Missing Content-Type header");
+    }
+
     return new Promise((resolve, reject) => {
+        const busboy = Busboy({ headers: { 'content-type': contentType } });
         const fields: Record<string, string> = {};
-        const contentType = req.headers.get('content-type');
-        if (!contentType) {
-            return reject(new Error("Missing Content-Type header"));
-        }
 
-        try {
-            const busboy = Busboy({ headers: { 'content-type': contentType } });
+        busboy.on('field', (name, val) => {
+            fields[name] = val;
+        });
 
-            busboy.on('field', (name, val) => {
-                fields[name] = val;
-            });
+        busboy.on('close', () => {
+            resolve(fields);
+        });
 
-            busboy.on('finish', () => {
-                console.log('[MAILGUN_WEBHOOK] Busboy finished parsing form fields.');
-                resolve(fields);
-            });
-
-            busboy.on('error', (err) => {
-                console.error('[MAILGUN_WEBHOOK] Busboy parsing error:', err);
-                reject(err);
-            });
-            
-            // The Next.js request body is a ReadableStream. We need to handle it properly.
-            const reader = req.body!.getReader();
-            const stream = new ReadableStream({
-                async start(controller) {
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) {
-                            controller.close();
-                            break;
-                        }
-                        controller.enqueue(value);
-                    }
-                }
-            });
-
-            // The stream needs to be piped to busboy.
-            // In Node.js environment this is straightforward with stream.pipe(busboy)
-            // In Edge runtime, we might need a workaround if .pipe is not available.
-            // For now, assuming a Node.js runtime for App Hosting where this works.
-            // @ts-ignore - busboy expects a Node.js stream, but this should work in a Node environment.
-            stream.pipe(busboy);
-
-
-        } catch (err) {
-            console.error('[MAILGUN_WEBHOOK] Busboy instantiation error:', err);
+        busboy.on('error', (err) => {
             reject(err);
+        });
+        
+        const reader = req.body?.getReader();
+        if (!reader) {
+            return reject(new Error("Request body is not readable"));
         }
+
+        const pump = async () => {
+             while (true) {
+                try {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        busboy.end();
+                        break;
+                    }
+                    if (value) {
+                       busboy.write(value);
+                    }
+                } catch(error) {
+                    // This can happen if the client aborts the request.
+                    console.error("[MAILGUN_WEBHOOK] Stream reading error:", error);
+                    busboy.end();
+                    break;
+                }
+            }
+        };
+
+        pump().catch(reject);
     });
 };
+
 
 
 export async function POST(req: NextRequest) {
