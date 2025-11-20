@@ -10,7 +10,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 export async function testAdminSdkAction(): Promise<{ success: boolean; data?: string; error?: string }> {
   try {
     console.log('[testAdminSdkAction] Initializing Admin Firestore...');
-    const firestore = getAdminFirestore(); // This will throw an error if env vars are missing.
+    const firestore = getAdminFirestore(); // This will throw if env vars are missing.
     
     console.log('[testAdminSdkAction] Attempting to read /admin_settings/mailgun...');
     const adminSettingsDocRef = firestore.doc('admin_settings/mailgun');
@@ -29,9 +29,10 @@ export async function testAdminSdkAction(): Promise<{ success: boolean; data?: s
 
   } catch (error: any) {
     console.error('[testAdminSdkAction] FAILED:', error);
+    // Provide a more helpful error message to the user.
     return { 
       success: false, 
-      error: `Admin SDK initialization failed: ${error.message}. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are correctly set in your .env file.`
+      error: `Admin SDK initialization or Firestore read failed. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are correctly set in your .env file. Error: ${error.message}`
     };
   }
 }
