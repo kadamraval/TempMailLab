@@ -133,7 +133,7 @@ export async function fetchEmailsWithCredentialsAction(
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) continue;
             
-            const storageUrl = event.storage?.url;
+            const storageUrl = event.storage?.url?.[0]; // Correctly handle the URL array
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;
