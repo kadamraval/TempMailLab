@@ -231,11 +231,10 @@ export function DashboardClient() {
             
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
-            const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
+            const newInboxData: Omit<InboxType, 'id' | 'createdAt' | 'ownerToken'> & { ownerToken?: string } = {
                 userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
-                ownerToken: undefined
             };
 
             if (activeUser.isAnonymous) {
