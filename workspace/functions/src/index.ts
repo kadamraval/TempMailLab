@@ -33,7 +33,7 @@ const verifyMailgunSignature = (
 };
 
 export const mailgunWebhook = onRequest(
-  { region: "us-central1", cors: true, secrets: ["MAILGUN_API_KEY"] },
+  { region: "us-central1", cors: true },
   async (req, res) => {
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -44,19 +44,14 @@ export const mailgunWebhook = onRequest(
     let mailgunSigningKey: string;
     let mailgunApiKey: string;
     try {
-        // The API key for fetching is stored as a secret for better security.
-        mailgunApiKey = process.env.MAILGUN_API_KEY || "";
-        
-        // The signing key (less sensitive) is stored in Firestore for easier admin management.
         const settingsDoc = await db.doc("admin_settings/mailgun").get();
+        const settingsData = settingsDoc.data();
 
-        if (!settingsDoc.exists || !settingsDoc.data()?.signingKey) {
-            throw new Error("Mailgun signing key is not configured in Firestore 'admin_settings/mailgun'.");
+        if (!settingsDoc.exists || !settingsData?.signingKey || !settingsData?.apiKey) {
+            throw new Error("Mailgun signing key or API key is not configured in Firestore 'admin_settings/mailgun'.");
         }
-        if (!mailgunApiKey) {
-            throw new Error("MAILGUN_API_KEY secret is not configured in the function environment.");
-        }
-        mailgunSigningKey = settingsDoc.data()?.signingKey;
+        mailgunSigningKey = settingsData.signingKey;
+        mailgunApiKey = settingsData.apiKey;
         
     } catch (error: any) {
         logger.error("Failed to retrieve Mailgun keys.", { message: error.message });
@@ -73,7 +68,7 @@ export const mailgunWebhook = onRequest(
       });
       bb.on("finish", () => resolve());
       bb.on("error", (err) => reject(err));
-      bb.end(req.rawBody);
+      req.pipe(bb);
     });
 
     try {
