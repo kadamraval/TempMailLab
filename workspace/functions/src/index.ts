@@ -75,38 +75,19 @@ export const mailgunWebhook = onRequest(
 
     const bb = busboy({ headers: req.headers });
     const fields: Record<string, string> = {};
-    const files: any[] = [];
 
     bb.on('field', (name, val) => {
         fields[name] = val;
     });
 
-    bb.on('file', (name, file, info) => {
-        const { filename, encoding, mimeType } = info;
-        let buffer = Buffer.alloc(0);
-        file.on('data', (data) => {
-            buffer = Buffer.concat([buffer, data]);
-        });
-        file.on('end', () => {
-            files.push({
-                fieldname: name,
-                originalname: filename,
-                encoding,
-                mimetype: mimeType,
-                buffer,
-                size: buffer.length,
-            });
-        });
-    });
-
     bb.on('finish', async () => {
-        logger.info("Busboy finished parsing. Processing fields.", { fieldNames: Object.keys(fields) });
+        logger.info("Busboy finished parsing. Raw fields received:", fields);
 
         try {
-            const { timestamp, token, signature, recipient, 'message-url': messageUrl } = fields;
+            const { timestamp, token, signature, recipient, storage } = fields;
 
             if (!timestamp || !token || !signature) {
-                logger.error("CRITICAL: Missing signature components in webhook payload.", { fields });
+                logger.error("CRITICAL: Missing signature components in webhook payload.", { hasTimestamp: !!timestamp, hasToken: !!token, hasSignature: !!signature });
                 res.status(400).send("Bad Request: Missing signature components.");
                 return;
             }
@@ -125,11 +106,21 @@ export const mailgunWebhook = onRequest(
             }
             logger.info(`Processing email for recipient: ${recipient}`);
 
-            if (!messageUrl) {
-                logger.warn("No 'message-url' found. This might be an 'accepted' event without storage. A 'stored' event should follow.", { event: fields.event });
-                res.status(200).send("OK: Event received, no action taken (no message-url).");
+            if (!storage) {
+                logger.warn("No 'storage' field found. This might be an 'accepted' event without a stored message.", { event: fields.event });
+                res.status(200).send("OK: Event received, no action taken (no storage info).");
                 return;
             }
+            
+            const storageInfo = JSON.parse(storage);
+            const messageUrl = storageInfo.url;
+            
+            if (!messageUrl) {
+                 logger.error("CRITICAL: 'url' not found in parsed storage object.", { storageInfo });
+                 res.status(400).send("Bad Request: Message URL not found in storage info.");
+                 return;
+            }
+
 
             const inboxesRef = db.collection("inboxes");
             const inboxQuery = inboxesRef.where("emailAddress", "==", recipient).limit(1);
@@ -146,13 +137,14 @@ export const mailgunWebhook = onRequest(
             const inboxData = inboxDoc.data();
             logger.info(`Found matching inbox: ${inboxId} for user ${inboxData.userId}`);
 
-            const messageId = fields['Message-Id']?.trim() || fields['message-id']?.trim();
-            if (!messageId) {
-                logger.error("CRITICAL: Message-Id not found in payload.", { fields });
+            const messageIdHeader = fields['Message-Id'] || fields['message-id'];
+             if (!messageIdHeader) {
+                logger.error("CRITICAL: Message-Id not found in payload headers.", { fields });
                 res.status(400).send("Bad Request: Message-Id not found.");
                 return;
             }
-            const emailDocId = messageId.replace(/[<>]/g, "");
+            const emailDocId = messageIdHeader.trim().replace(/[<>]/g, "");
+
             const emailRef = db.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
             
             const emailSnap = await emailRef.get();
