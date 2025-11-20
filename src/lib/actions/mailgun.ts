@@ -49,6 +49,17 @@ export async function fetchEmailsWithCredentialsAction(
 ): Promise<{ success: boolean; error?: string; log: string[] }> {
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
     
+    // --- ADMIN SDK DIAGNOSTIC TEST ---
+    try {
+        getAdminFirestore();
+        console.log("[ADMIN_SDK_TEST] SUCCESS: Firebase Admin SDK initialized successfully.");
+    } catch (e: any) {
+        console.error("[ADMIN_SDK_TEST] FAILURE: Could not initialize Firebase Admin SDK.", e);
+        const errorMsg = "Server is not configured for backend operations. Admin SDK failed to initialize.";
+        return { success: false, error: errorMsg, log: [errorMsg] };
+    }
+    // --- END DIAGNOSTIC TEST ---
+
     if (!emailAddress || !inboxId) {
         const errorMsg = '[FATAL] Action failed: Missing email address or inbox ID.';
         log.push(errorMsg);
@@ -77,7 +88,7 @@ export async function fetchEmailsWithCredentialsAction(
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "stored", // Using "stored" event as suggested.
+                    event: "stored",
                     limit: 300,
                     begin: beginTimestamp,
                     recipient: emailAddress,
@@ -166,14 +177,12 @@ export async function fetchEmailsWithCredentialsAction(
                 await batch.commit();
                 log.push(`SUCCESS: Batch write of ${newEmailsFound} new email(s) committed to Firestore.`);
             } catch (dbError: any) {
-                 // **THIS IS THE CRITICAL NEW LOGGING STEP.**
                 console.error("[MAILGUN_ACTION_ERROR] FATAL: Firestore batch commit failed.", {
                     errorMessage: dbError.message,
                     errorDetails: dbError.details,
                     stack: dbError.stack,
                 });
                 log.push(`[FATAL_DB_ERROR] Could not save emails to database: ${dbError.message}`);
-                // Re-throw to ensure the outer catch block handles returning the error to the client.
                 throw dbError;
             }
         } else {
@@ -183,7 +192,6 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        // This outer catch now handles all thrown errors, including the new dbError.
         console.error("[MAILGUN_ACTION_ERROR] An unexpected error occurred in the main action handler.", {
             errorMessage: error.message,
             stack: error.stack,
