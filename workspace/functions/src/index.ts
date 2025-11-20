@@ -51,7 +51,8 @@ export const mailgunWebhook = onRequest(
 
     const bb = busboy({ headers: req.headers });
     const fields: Record<string, string> = {};
-
+    
+    // Wrap busboy in a promise to handle async parsing
     const parsingPromise = new Promise<void>((resolve, reject) => {
       bb.on("field", (name, val) => {
         fields[name] = val;
@@ -65,7 +66,7 @@ export const mailgunWebhook = onRequest(
         reject(err);
       });
       
-      // Pipe the raw request body into busboy. This is the correct way.
+      // Pipe the raw request body into busboy.
       bb.end(req.rawBody);
     });
 
@@ -75,8 +76,8 @@ export const mailgunWebhook = onRequest(
 
       const { timestamp, token, signature } = fields;
       if (!timestamp || !token || !signature) {
-        logger.error("Missing signature components in webhook payload.", { fields });
-        res.status(400).send("Bad Request: Missing signature.");
+        logger.error("Missing signature components in webhook payload.", { "fields": Object.keys(fields) });
+        res.status(400).send("Bad Request: Missing signature components.");
         return;
       }
       
@@ -169,7 +170,7 @@ export const mailgunWebhook = onRequest(
       logger.info(`Successfully processed and saved email ${emailDocId} to inbox ${inboxId}.`);
       res.status(200).send("Email processed successfully.");
     } catch (error: any) {
-      logger.error("Error processing Mailgun webhook:", error);
+      logger.error("Error processing Mailgun webhook:", { message: error.message, stack: error.stack });
       res.status(500).send(`Internal Server Error: ${error.message}`);
     }
   }
