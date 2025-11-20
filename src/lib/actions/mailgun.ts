@@ -159,6 +159,7 @@ export async function fetchEmailsWithCredentialsAction(
                 senderName: message.From || "Unknown Sender",
                 subject: message.Subject || "No Subject",
                 receivedAt: Timestamp.fromMillis(event.timestamp * 1000),
+                createdAt: Timestamp.now(),
                 htmlContent: cleanHtml,
                 textContent: message["stripped-text"] || message["body-plain"] || "No text content.",
                 rawContent: JSON.stringify(message, null, 2),

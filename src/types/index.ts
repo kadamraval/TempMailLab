@@ -9,6 +9,7 @@ export interface Email {
   senderName: string;
   subject: string;
   receivedAt: string | Timestamp; // Allow both for client/server
+  createdAt: Timestamp;
   htmlContent?: string;
   textContent?: string;
   rawContent?: string;
