@@ -138,7 +138,10 @@ export const fetchEmails = onCall(
 
         const existingEmailRef = emailsCollectionRef.doc(messageId);
         const existingEmailSnap = await existingEmailRef.get();
-        if (existingEmailSnap.exists) continue;
+        if (existingEmailSnap.exists) {
+            log.push(`[INFO] Skipping email ${messageId}: already exists in database.`);
+            continue;
+        }
         
         const storageUrl = event.storage?.url;
         if (!storageUrl) {
@@ -146,7 +149,7 @@ export const fetchEmails = onCall(
             continue; 
         }
         
-        log.push(`Fetching content for message ${messageId}...`);
+        log.push(`[INFO] Fetching content for message ${messageId}...`);
         const fetch = (await import('node-fetch')).default;
         const response = await fetch(storageUrl, {
             headers: { Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}` }
@@ -155,6 +158,8 @@ export const fetchEmails = onCall(
         if (!response.ok) {
             log.push(`[ERROR] Failed to fetch content from Mailgun storage for message ${messageId}. Status: ${response.status}. This likely means your Mailgun API Key is invalid or lacks permissions.`);
             continue; 
+        } else {
+            log.push(`[SUCCESS] Fetched content for message ${messageId}.`);
         }
         
         const message = await response.json() as any;
@@ -177,7 +182,7 @@ export const fetchEmails = onCall(
         
         batch.set(existingEmailRef, emailData);
         newEmailsFound++;
-        log.push(`Prepared email ${messageId} for batch write.`);
+        log.push(`[INFO] Prepared email ${messageId} for batch write.`);
       }
       
       if (newEmailsFound > 0) {
@@ -235,6 +240,8 @@ export const onUserDeleted = functions.auth.user().onDelete(async (user) => {
         logger.error(`Error deleting data for user ${userId}`, error);
     }
 });
+
+    
 
     
 
