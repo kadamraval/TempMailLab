@@ -5,7 +5,7 @@ import * as crypto from 'crypto';
 import DOMPurify from 'isomorphic-dompurify';
 import type { Email } from '@/types';
 import { Timestamp } from 'firebase-admin/firestore';
-import busboy from 'busboy';
+import Busboy from 'busboy';
 
 // Helper to verify Mailgun's signature
 const verifyMailgunSignature = (signingKey: string, timestamp: string, token: string, signature: string): boolean => {
@@ -24,51 +24,53 @@ const verifyMailgunSignature = (signingKey: string, timestamp: string, token: st
 
 // Helper to parse the multipart/form-data
 const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> => {
-    return new Promise((resolve, reject) => {
-        const fields: Record<string, string> = {};
-        const contentType = req.headers.get('content-type');
-        if (!contentType) {
-          return reject(new Error("Missing Content-Type header"));
-        }
-        
-        try {
-            const bb = busboy({ headers: { 'content-type': contentType } });
+  return new Promise((resolve, reject) => {
+    const fields: Record<string, string> = {};
+    const contentType = req.headers.get('content-type');
+    if (!contentType) {
+      return reject(new Error("Missing Content-Type header"));
+    }
 
-            bb.on('field', (name, val) => {
-                fields[name] = val;
-            });
+    try {
+      const busboy = Busboy({ headers: { 'content-type': contentType } });
 
-            bb.on('finish', () => {
-                console.log('[MAILGUN_WEBHOOK] Busboy finished parsing.');
-                resolve(fields);
-            });
+      busboy.on('field', (name, val) => {
+        fields[name] = val;
+      });
 
-            bb.on('error', (err) => {
-                console.error('[MAILGUN_WEBHOOK] Busboy parsing error:', err);
-                reject(err);
-            });
-            
-            const reader = req.body!.getReader();
-            const pump = () => {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        bb.end();
-                        return;
-                    }
-                    bb.write(value);
-                    pump();
-                }).catch(err => {
-                    console.error('[MAILGUN_WEBHOOK] Stream read error:', err);
-                    reject(err);
-                });
-            };
-            pump();
+      busboy.on('finish', () => {
+        console.log('[MAILGUN_WEBHOOK] Busboy finished parsing.');
+        resolve(fields);
+      });
 
-        } catch (err) {
-             console.error('[MAILGUN_WEBHOOK] Busboy instantiation error:', err);
-             reject(err);
-        }
-    });
+      busboy.on('error', (err) => {
+        console.error('[MAILGUN_WEBHOOK] Busboy parsing error:', err);
+        reject(err);
+      });
+
+      const reader = req.body!.getReader();
+      const pump = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            busboy.end();
+            return;
+          }
+          if (value) {
+            busboy.write(value);
+          }
+          pump();
+        }).catch(err => {
+          console.error('[MAILGUN_WEBHOOK] Stream read error:', err);
+          reject(err);
+        });
+      };
+      pump();
+
+    } catch (err) {
+      console.error('[MAILGUN_WEBHOOK] Busboy instantiation error:', err);
+      reject(err);
+    }
+  });
 };
 
 
@@ -191,3 +193,5 @@ export async function POST(req: NextRequest) {
     return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
   }
 }
+
+    
