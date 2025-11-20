@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -78,7 +79,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 apiKey: settings.apiKey,
                 domain: settings.domain,
                 region: settings.region,
-                enabled: !!(settings.signingKey && settings.apiKey && settings.domain)
+                enabled: !!(settings.apiKey && settings.domain)
             };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -164,6 +165,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
     }
 
+    const isMailgunFormIncomplete = integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain);
+
     return (
         <Card>
             <CardHeader>
@@ -196,7 +199,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings}>
+                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings || isMailgunFormIncomplete}>
                         {(isSaving || isLoadingSettings) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
                     </Button>
