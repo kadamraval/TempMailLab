@@ -43,9 +43,11 @@ service cloud.firestore {
         // Allow a user to read or update their own emails if they are the owner of the parent inbox.
         allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
-        // Creation and deletion of emails are only allowed by the trusted server-side function.
-        // This rule effectively denies direct client-side creation/deletion.
+        // Creation of emails is only allowed by the trusted server-side function.
+        // This rule effectively denies direct client-side creation.
         allow create: if false;
+
+        // Deletion of emails is disallowed from the client for data integrity.
         allow delete: if false;
     }
 

@@ -33,7 +33,6 @@ const verifyMailgunSignature = (
   );
 };
 
-
 export const mailgunWebhook = onRequest(
   { region: "us-central1", secrets: ["MAILGUN_API_KEY"], cors: true },
   async (req, res) => {
@@ -90,7 +89,6 @@ export const mailgunWebhook = onRequest(
         return;
       }
       logger.info("Mailgun signature verified successfully.");
-
 
       const recipient = fields['recipient'];
       const from = fields['From'] || "Unknown Sender";
@@ -168,6 +166,7 @@ export const mailgunWebhook = onRequest(
         textContent: fetchedEmailData['stripped-text'] || fetchedEmailData['body-plain'] || "No text content.",
         rawContent: JSON.stringify(fetchedEmailData, null, 2),
         read: false,
+        attachments: fetchedEmailData.attachments || []
       };
 
       await emailRef.set(emailData);
