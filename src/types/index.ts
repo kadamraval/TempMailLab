@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 
 export interface Email {
@@ -35,6 +36,8 @@ export interface Inbox {
   id: string;
   userId: string;
   emailAddress: string;
+  domain: string;
+  emailCount: number;
   createdAt?: Timestamp; // Make optional for client-side creation
   expiresAt: string;
 }

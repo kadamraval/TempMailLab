@@ -118,6 +118,8 @@ export function DashboardClient() {
         const newInboxData = {
             userId: activeUser.uid,
             emailAddress,
+            domain: randomDomain,
+            emailCount: 0,
             expiresAt: expiresAt.toISOString(),
             createdAt: serverTimestamp(),
         };

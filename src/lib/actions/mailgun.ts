@@ -2,7 +2,7 @@
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import type { Email } from '@/types';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
@@ -36,6 +36,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         const mg = mailgun.client({ username: 'api', key: mailgunSettings.apiKey });
 
         const firestore = getAdminFirestore();
+        const inboxRef = firestore.doc(`inboxes/${inboxId}`);
         
         const eventsResponse = await mg.events.get(mailgunSettings.domain, {
             recipient: emailAddress,
@@ -63,7 +64,12 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
             // A more robust solution would be to use a webhook.
             if (!event.storage || !event.storage.url) continue;
 
-            const rawMessage = await mg.messages.get(event.storage.url, { raw: true });
+            // The URL provided by mailgun is already authenticated for a short period of time.
+            // We just need to fetch it.
+            const rawMessageResponse = await fetch(event.storage.url, {
+                headers: { 'Accept': 'message/rfc2822' }
+            });
+            const rawMessage = await rawMessageResponse.text();
             
             const parsedEmail = await simpleParser(rawMessage);
 
@@ -82,12 +88,18 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                     filename: att.filename || 'attachment',
                     contentType: att.contentType,
                     size: att.size,
-                    url: ''
+                    url: '' // URLs would need to be handled by storing the attachment in GCS and creating a download URL.
                 })) : []
             };
             
             await emailRef.set(emailData);
             newEmailsFound++;
+        }
+        
+        if (newEmailsFound > 0) {
+            await inboxRef.update({
+                emailCount: FieldValue.increment(newEmailsFound)
+            });
         }
         
         return { success: true, message: newEmailsFound > 0 ? `Fetched ${newEmailsFound} new email(s).` : "Inbox is up to date." };
