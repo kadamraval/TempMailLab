@@ -22,6 +22,9 @@ const verifyMailgunWebhook = (
   signingKey: string,
   signature: MailgunWebhookSignature
 ): boolean => {
+  if (!signingKey || !signature || !signature.timestamp || !signature.token || !signature.signature) {
+    return false;
+  }
   const hmac = crypto.createHmac("sha256", signingKey);
   hmac.update(`${signature.timestamp}${signature.token}`);
   const calculatedSignature = hmac.digest("hex");
@@ -48,16 +51,15 @@ export const mailgunWebhook = onRequest(
         throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
-      // The signature is at the top level of the body
       const signature = req.body.signature as MailgunWebhookSignature;
       const eventData = req.body['event-data'];
       
-      if (!signature || !signature.timestamp || !signature.token || !signature.signature) {
-        logger.error("Invalid or missing signature in webhook payload.");
-        res.status(400).send("Invalid or missing signature.");
+      if (!eventData) {
+        logger.error("Missing 'event-data' in webhook payload.");
+        res.status(400).send("Missing 'event-data'.");
         return;
       }
-
+      
       if (!verifyMailgunWebhook(mailgunApiKey, signature)) {
         logger.error("Invalid Mailgun webhook signature.");
         res.status(401).send("Invalid signature.");
@@ -71,6 +73,11 @@ export const mailgunWebhook = onRequest(
       }
       
       const recipientEmail = eventData.recipient;
+      if (!recipientEmail) {
+         logger.error("Recipient email not found in payload.");
+         res.status(400).send("Recipient email not found.");
+         return;
+      }
       logger.info(`Processing email for: ${recipientEmail}`);
 
       const inboxesRef = db.collection("inboxes");
@@ -102,8 +109,7 @@ export const mailgunWebhook = onRequest(
         return;
       }
 
-      const storageUrlArray = eventData.storage?.url;
-      const storageUrl = Array.isArray(storageUrlArray) ? storageUrlArray[0] : storageUrlArray;
+      const storageUrl = eventData.storage?.url;
 
       if (!storageUrl) {
         throw new Error("Storage URL not found in webhook payload.");

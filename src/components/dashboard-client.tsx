@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -120,7 +121,7 @@ export function DashboardClient() {
                     const localData = JSON.parse(localDataStr);
                     if (new Date(localData.expiresAt) > new Date()) {
                         const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
-                        if (inboxDoc.exists()) {
+                        if (inboxDoc.exists() && inboxDoc.data().userId === activeUser.uid) {
                             setCurrentInbox({ id: inboxDoc.id, ...inboxDoc.data() } as InboxType);
                             return;
                         }
@@ -137,7 +138,7 @@ export function DashboardClient() {
         }
     };
     
-    if (!isUserLoading && !isLoadingInboxes && !isLoadingPlan && firestore) {
+    if (!isUserLoading && !isLoadingInboxes && !isLoadingPlan && firestore && auth) {
       initializeSession();
     }
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
