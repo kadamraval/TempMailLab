@@ -8,23 +8,32 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const MAILGUN_API_HOSTS = ['api.mailgun.net', 'api.eu.mailgun.net'];
+const MAILGUN_API_HOSTS = {
+    us: 'api.mailgun.net',
+    eu: 'api.eu.mailgun.net',
+};
 
 async function getMailgunCredentials() {
-    const firestore = getAdminFirestore();
-    const settingsRef = firestore.doc('admin_settings/mailgun');
-    const settingsSnap = await settingsRef.get();
+    try {
+        const firestore = getAdminFirestore();
+        const settingsRef = firestore.doc('admin_settings/mailgun');
+        const settingsSnap = await settingsRef.get();
 
-    if (!settingsSnap.exists) {
-        throw new Error('Mailgun settings not found. Please configure the Mailgun integration in the admin panel.');
+        if (!settingsSnap.exists) {
+            throw new Error('Mailgun settings document not found. Please configure the Mailgun integration in the admin panel.');
+        }
+
+        const settings = settingsSnap.data();
+        if (!settings?.apiKey || !settings.domain) {
+            throw new Error('Mailgun API Key or Domain is missing from settings. Please check the configuration in the admin panel.');
+        }
+
+        return { apiKey: settings.apiKey, domain: settings.domain };
+    } catch (error: any) {
+        console.error('[MAILGUN_ACTION_ERROR] Failed to get credentials:', error);
+        // Re-throw the error to be caught by the main action handler
+        throw error;
     }
-
-    const settings = settingsSnap.data();
-    if (!settings?.apiKey || !settings.domain) {
-        throw new Error('Mailgun API Key or Domain is missing from settings. Please configure it in the admin panel.');
-    }
-
-    return { apiKey: settings.apiKey, domain: settings.domain };
 }
 
 export async function fetchEmailsWithCredentialsAction(
@@ -35,8 +44,9 @@ export async function fetchEmailsWithCredentialsAction(
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
     
     if (!emailAddress || !inboxId) {
-        const errorMsg = 'Action failed: Missing email address or inbox ID.';
+        const errorMsg = '[FATAL] Action failed: Missing email address or inbox ID.';
         log.push(errorMsg);
+        console.error(errorMsg);
         return { success: false, error: 'Email address and Inbox ID are required.', log };
     }
 
@@ -63,8 +73,8 @@ export async function fetchEmailsWithCredentialsAction(
         // Check events from the last 24 hours
         const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
 
-        for (const host of MAILGUN_API_HOSTS) {
-            log.push(`Querying Mailgun for 'accepted' events on host: ${host}...`);
+        for (const [region, host] of Object.entries(MAILGUN_API_HOSTS)) {
+            log.push(`Querying Mailgun '${region.toUpperCase()}' region for 'accepted' events on host: ${host}...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
@@ -77,15 +87,20 @@ export async function fetchEmailsWithCredentialsAction(
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} 'accepted' event(s) on ${host}.`);
+                    log.push(`Found ${events.items.length} 'accepted' event(s) in ${region.toUpperCase()} region.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No 'accepted' events found on ${host} for this recipient.`);
+                    log.push(`No 'accepted' events found in ${region.toUpperCase()} region for this recipient.`);
                 }
             } catch (hostError: any) {
-                const errorMsg = `[INFO] Could not fetch events from ${host}. This may be normal if your account is in a different region. Error: ${hostError.message}`;
-                log.push(errorMsg);
-                console.error(`[MAILGUN_ACTION_HOST_ERROR]`, { host, message: hostError.message, status: hostError.status });
+                // Log non-401 errors, as 401 (Unauthorized) is expected if the key isn't for this region.
+                if (hostError.status !== 401) {
+                     const errorMsg = `[WARN] Non-authentication error while querying ${host}: ${hostError.message}`;
+                     log.push(errorMsg);
+                     console.warn('[MAILGUN_ACTION_HOST_WARN]', { host, message: hostError.message, status: hostError.status });
+                } else {
+                    log.push(`[INFO] Key is not valid for ${region.toUpperCase()} region. This is expected if your account is in another region.`);
+                }
             }
         }
         
@@ -130,23 +145,16 @@ export async function fetchEmailsWithCredentialsAction(
                     }
                 });
             } catch (fetchError: any) {
-                console.error("[MAILGUN_ACTION_FETCH_ERROR]", {
-                    message: "Network error fetching Mailgun content from storage URL.",
-                    errorMessage: fetchError.message,
-                    url: storageUrl
-                });
-                throw new Error(`Failed to connect to Mailgun storage. Check network and DNS.`);
+                const errorMessage = `Failed to connect to Mailgun storage. Check network and DNS.`;
+                console.error("[MAILGUN_ACTION_FETCH_ERROR]", { message: errorMessage, errorMessage: fetchError.message, url: storageUrl });
+                throw new Error(errorMessage);
             }
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                console.error("[MAILGUN_ACTION_FETCH_ERROR]", {
-                    message: "Failed to fetch Mailgun content from storage URL.",
-                    status: response.status,
-                    body: errorBody,
-                    url: storageUrl
-                });
-                throw new Error(`Failed to fetch Mailgun content. Status: ${response.status}. Check API Key permissions.`);
+                const errorMessage = `Failed to fetch Mailgun content. Status: ${response.status}. This likely means your Mailgun API Key is invalid or lacks permissions.`;
+                 console.error("[MAILGUN_ACTION_FETCH_ERROR]", { message: errorMessage, status: response.status, body: errorBody, url: storageUrl });
+                throw new Error(errorMessage);
             }
 
             const message = await response.json() as any;
@@ -192,13 +200,14 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        const errorMessage = `[FATAL_ERROR]: ${error.message || 'An unknown server error occurred.'}`;
-        log.push(errorMessage);
+        const errorMessage = error.message || 'An unknown server error occurred.';
+        log.push(`[FATAL_ERROR]: ${errorMessage}`);
+        // This is the critical part: log the full error to Google Cloud Logging
         console.error("[MAILGUN_ACTION_ERROR]", {
-            errorMessage: error.message,
+            errorMessage: errorMessage,
             stack: error.stack,
             fullError: error
         });
-        return { success: false, error: error.message, log };
+        return { success: false, error: errorMessage, log };
     }
 }
