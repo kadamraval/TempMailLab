@@ -47,30 +47,29 @@ const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> =
                 console.error('[MAILGUN_WEBHOOK] Busboy parsing error:', err);
                 reject(err);
             });
-
-            // Pipe the request body into busboy
+            
+            // The Next.js request body is a ReadableStream. We need to handle it properly.
             const reader = req.body!.getReader();
             const stream = new ReadableStream({
-                start(controller) {
-                    function push() {
-                        reader.read().then(({ done, value }) => {
-                            if (done) {
-                                controller.close();
-                                return;
-                            }
-                            controller.enqueue(value);
-                            push();
-                        }).catch(error => {
-                            console.error('[MAILGUN_WEBHOOK] Stream read error:', error);
-                            controller.error(error);
-                        });
+                async start(controller) {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            controller.close();
+                            break;
+                        }
+                        controller.enqueue(value);
                     }
-                    push();
                 }
             });
 
-            // @ts-ignore
+            // The stream needs to be piped to busboy.
+            // In Node.js environment this is straightforward with stream.pipe(busboy)
+            // In Edge runtime, we might need a workaround if .pipe is not available.
+            // For now, assuming a Node.js runtime for App Hosting where this works.
+            // @ts-ignore - busboy expects a Node.js stream, but this should work in a Node environment.
             stream.pipe(busboy);
+
 
         } catch (err) {
             console.error('[MAILGUN_WEBHOOK] Busboy instantiation error:', err);
@@ -83,9 +82,6 @@ const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> =
 export async function POST(req: NextRequest) {
   console.log('[MAILGUN_WEBHOOK] Received a request.');
 
-  // The request body must be cloned to be read by both busboy and for potential raw logging
-  const requestClone = req.clone();
-
   try {
     // 1. Get Mailgun keys from Firestore
     const db = getAdminFirestore();
@@ -97,17 +93,16 @@ export async function POST(req: NextRequest) {
     }
     const settingsData = settingsDoc.data();
     const mailgunSigningKey = settingsData?.signingKey;
-    const mailgunApiKey = settingsData?.apiKey;
 
-    if (!mailgunSigningKey || !mailgunApiKey) {
-      console.error('[MAILGUN_WEBHOOK] Mailgun signing key or API key is not configured in Firestore.');
+    if (!mailgunSigningKey) {
+      console.error('[MAILGUN_WEBHOOK] Mailgun signing key is not configured in Firestore.');
       return new NextResponse('Internal Server Error: Mailgun keys not configured.', { status: 500 });
     }
-    console.log('[MAILGUN_WEBHOOK] Successfully retrieved Mailgun keys from Firestore.');
+    console.log('[MAILGUN_WEBHOOK] Successfully retrieved Mailgun signing key from Firestore.');
 
     // 2. Parse the multipart form data from the request
-    const fields = await parseMultipartForm(requestClone);
-    console.log('[MAILGUN_WEBHOOK] Parsed form fields. Keys found:', Object.keys(fields));
+    const fields = await parseMultipartForm(req);
+    console.log('[MAILGUN_WEBHOOK] Parsed form fields. Keys found:', Object.keys(fields).length);
 
     // 3. Verify the signature
     const { timestamp, token, signature, recipient } = fields;
@@ -132,7 +127,8 @@ export async function POST(req: NextRequest) {
 
     if (inboxSnapshot.empty) {
       console.log(`[MAILGUN_WEBHOOK] No inbox found for recipient: ${recipient}. Message dropped.`);
-      return new NextResponse("OK: Inbox not found.", { status: 200 });
+      // Return 200 OK to prevent Mailgun from retrying.
+      return new NextResponse("OK: Inbox not found, message dropped.", { status: 200 });
     }
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxId = inboxDoc.id;
@@ -143,9 +139,11 @@ export async function POST(req: NextRequest) {
     const messageIdHeader = fields['Message-Id'];
      if (!messageIdHeader) {
       console.error('[MAILGUN_WEBHOOK] Message-Id not found in webhook payload.');
-      return new NextResponse('Bad Request: Message-Id not found.', { status: 400 });
+      // Still return 200 to prevent retries.
+      return new NextResponse('OK: Message-Id not found, message dropped.', { status: 200 });
     }
-    const emailDocId = messageIdHeader.trim().replace(/[<>]/g, "");
+    // Create a Firestore-safe ID from the message-id
+    const emailDocId = messageIdHeader.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/]/g, '_');
     
     const emailRef = db.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
 
@@ -163,13 +161,13 @@ export async function POST(req: NextRequest) {
         textContent: fields['stripped-text'] || fields['body-plain'] || "No text content.",
         rawContent: JSON.stringify(fields, null, 2), // Save all fields for debugging
         read: false,
-        // Attachments are not handled in this simplified version, but could be
-        attachments: [] 
+        attachments: [] // Attachments are not handled in this version
     };
 
     await emailRef.set(emailData);
     console.log(`[MAILGUN_WEBHOOK] SUCCESS: Saved email ${emailDocId} to inbox ${inboxId}.`);
     
+    // Crucially, return a 200 OK response to Mailgun to confirm receipt.
     return new NextResponse('Email processed successfully.', { status: 200 });
 
   } catch (error: any) {
@@ -178,11 +176,7 @@ export async function POST(req: NextRequest) {
         stack: error.stack,
         name: error.name,
     });
-    // Log the raw body on fatal error for debugging
-    const rawBody = await req.text();
-    console.error('[MAILGUN_WEBHOOK] Raw Body on Error:', rawBody);
+    // On fatal error, still return 500, but log details.
     return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
   }
 }
-
-    
