@@ -8,9 +8,10 @@
  */
 
 import { onCall } from 'firebase-functions/v2/https';
+import * as functions from "firebase-functions";
 import * as logger from 'firebase-functions/logger';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, WriteBatch } from 'firebase-admin/firestore';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 
@@ -187,3 +188,46 @@ export const fetchEmails = onCall(
     }
   }
 );
+
+
+/**
+ * Triggered when a user is deleted from Firebase Authentication.
+ * Cleans up all associated user data from Firestore.
+ */
+export const onUserDeleted = functions.auth.user().onDelete(async (user) => {
+    const userId = user.uid;
+    logger.log(`User deleted: ${userId}. Cleaning up Firestore data...`);
+
+    const db = getFirestore();
+    const batch = db.batch();
+
+    // 1. Delete user document from `/users`
+    const userDocRef = db.doc(`users/${userId}`);
+    batch.delete(userDocRef);
+    logger.log(`Scheduled deletion for user document: /users/${userId}`);
+
+    // 2. Find and delete all inboxes (and their sub-collections) owned by the user
+    const inboxesQuery = db.collection("inboxes").where("userId", "==", userId);
+    const inboxSnaps = await inboxesQuery.get();
+
+    if (inboxSnaps.empty) {
+        logger.log(`No inboxes found for user ${userId}.`);
+    } else {
+        logger.log(`Found ${inboxSnaps.size} inbox(es) to delete for user ${userId}.`);
+        for (const doc of inboxSnaps.docs) {
+            // Delete the inbox document itself
+            batch.delete(doc.ref);
+            // Recursively delete the 'emails' sub-collection within each inbox
+            const emailsRef = doc.ref.collection("emails");
+            const emailSnaps = await emailsRef.get();
+            emailSnaps.forEach(emailDoc => batch.delete(emailDoc.ref));
+        }
+    }
+
+    try {
+        await batch.commit();
+        logger.log(`Successfully deleted all data for user ${userId}.`);
+    } catch (error) {
+        logger.error(`Error deleting data for user ${userId}`, error);
+    }
+});
