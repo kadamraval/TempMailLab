@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { AdminHeader } from '@/components/admin-header';
-import { useUser } from '@/firebase';
+import { useUser } from '@/firebase/auth/use-user';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 

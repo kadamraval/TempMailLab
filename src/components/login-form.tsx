@@ -73,6 +73,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     const userDoc = await getDoc(userRef);
     if (!userDoc.exists()) {
        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+       // We pass the currently authenticated anonymous user's ID to the server action
+       // so it knows which inbox to migrate.
        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
        if (!result.success) {
            await auth.signOut();
