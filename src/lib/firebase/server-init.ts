@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -23,24 +23,20 @@ function getAdminApp(): App {
     // If no app is initialized, proceed with initialization.
     // In a deployed Google Cloud environment (like App Hosting or Cloud Run), 
     // service account credentials should be automatically discovered.
-    // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable.
+    // This is the primary method for production.
     try {
         console.log("Attempting to initialize Firebase Admin SDK with default credentials...");
         adminApp = initializeApp();
         console.log("Firebase Admin SDK initialized successfully.");
+        return adminApp;
     } catch (error: any) {
-        console.error("Firebase Admin SDK initialization failed.", error);
+        console.error("Firebase Admin SDK default initialization failed.", error);
         
-        // Provide a more helpful error message for different environments.
-        if (error.code === 'app/invalid-credential') {
-             const errorMessage = 'CRITICAL: Could not initialize Firebase Admin SDK. The server environment is missing Google Application Credentials. In a local environment, ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable points to your service account JSON file. In a deployed environment, this indicates a problem with the service account permissions.';
-             throw new Error(errorMessage);
-        }
-        // For other errors, re-throw the original error.
-        throw error;
+        // This is a critical failure. The server environment is not configured correctly.
+        // Throw a clear error to make this problem visible in the logs.
+        const errorMessage = 'CRITICAL: Could not initialize Firebase Admin SDK. The server environment is missing Google Application Credentials. This is the root cause of server-side failures.';
+        throw new Error(errorMessage);
     }
-    
-    return adminApp!;
 }
 
 /**
