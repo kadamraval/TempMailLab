@@ -43,7 +43,6 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
-import { fetchAndStoreEmailsAction } from '@/lib/actions/mailgun';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
@@ -145,32 +144,17 @@ export function DashboardClient() {
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
-    if (!currentInbox || !user) return;
+    // This function is now effectively a no-op as webhooks handle email arrival.
+    // We can keep it to give users a sense of control or remove it.
+    // For now, it just shows a toast.
     setIsRefreshing(true);
-    setServerError(null);
-
-    try {
-        const result = await fetchAndStoreEmailsAction(currentInbox.emailAddress, currentInbox.id, user.uid);
-
-        if (result.success) {
-            toast({
-                title: "Inbox Refreshed",
-                description: result.message || "Checked for new emails.",
-            });
-        } else {
-            throw new Error(result.error || "An unknown error occurred while fetching emails.");
-        }
-    } catch (error: any) {
-        setServerError(error.message);
-        toast({
-            title: "Refresh Failed",
-            description: error.message,
-            variant: "destructive"
-        });
-    } finally {
-        setIsRefreshing(false);
-    }
-  }, [currentInbox, user, toast]);
+    await new Promise(resolve => setTimeout(resolve, 750)); // simulate a check
+    toast({
+        title: "Inbox is Live",
+        description: "New emails will appear automatically.",
+    });
+    setIsRefreshing(false);
+  }, [toast]);
   
    const handleGenerateNewInbox = async () => {
         if (isGenerating || !firestore || !activePlan || !auth) return;
