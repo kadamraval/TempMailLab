@@ -34,7 +34,11 @@ export async function saveMailgunSettingsAction(settings: MailgunSettings) {
         return { success: true };
 
     } catch (error: any) {
-        console.error("[SETTINGS_ACTION_ERROR]", error);
+        console.error("[SAVE_SETTINGS_ACTION_ERROR]", {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+        });
         return { error: error.message || 'An unknown server error occurred.' };
     }
 }

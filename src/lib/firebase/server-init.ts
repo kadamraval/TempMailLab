@@ -20,13 +20,22 @@ function getAdminServices(): AdminServices {
   }
 
   const apps = getApps();
-  const app: App = !apps.length
-    // Initialize the app with the service account credentials and Project ID.
-    ? initializeApp({
-        credential: credential.applicationDefault(),
-        projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'tempinbox-525dm',
-    })
-    : apps[0]!;
+  let app: App;
+
+  if (!apps.length) {
+      // Use application default credentials, which is the standard and most reliable way
+      // for server-side Google Cloud environments (like Cloud Run where this code executes)
+      // to authenticate.
+      const appCredential = credential.applicationDefault();
+      
+      app = initializeApp({
+          credential: appCredential,
+          // Explicitly setting the projectId removes any ambiguity and is a best practice.
+          projectId: process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 'tempinbox-525dm',
+      });
+  } else {
+      app = apps[0]!;
+  }
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
