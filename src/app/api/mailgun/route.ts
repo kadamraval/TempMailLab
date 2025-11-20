@@ -26,33 +26,48 @@ const verifyMailgunSignature = (signingKey: string, timestamp: string, token: st
 const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> => {
     return new Promise((resolve, reject) => {
         const fields: Record<string, string> = {};
-        const bb = busboy({ headers: { 'content-type': req.headers.get('content-type')! } });
-
-        bb.on('field', (name, val) => {
-            fields[name] = val;
-        });
-
-        bb.on('finish', () => {
-            resolve(fields);
-        });
-
-        bb.on('error', (err) => {
-            reject(err);
-        });
+        const contentType = req.headers.get('content-type');
+        if (!contentType) {
+          return reject(new Error("Missing Content-Type header"));
+        }
         
-        // This is the critical part to handle the ReadableStream from Next.js 13+
-        const reader = req.body!.getReader();
-        const pump = () => {
-            reader.read().then(({ done, value }) => {
-                if (done) {
-                    bb.end();
-                    return;
-                }
-                bb.write(value);
-                pump();
-            }).catch(reject);
-        };
-        pump();
+        try {
+            const bb = busboy({ headers: { 'content-type': contentType } });
+
+            bb.on('field', (name, val) => {
+                fields[name] = val;
+            });
+
+            bb.on('finish', () => {
+                console.log('[MAILGUN_WEBHOOK] Busboy finished parsing.');
+                resolve(fields);
+            });
+
+            bb.on('error', (err) => {
+                console.error('[MAILGUN_WEBHOOK] Busboy parsing error:', err);
+                reject(err);
+            });
+            
+            const reader = req.body!.getReader();
+            const pump = () => {
+                reader.read().then(({ done, value }) => {
+                    if (done) {
+                        bb.end();
+                        return;
+                    }
+                    bb.write(value);
+                    pump();
+                }).catch(err => {
+                    console.error('[MAILGUN_WEBHOOK] Stream read error:', err);
+                    reject(err);
+                });
+            };
+            pump();
+
+        } catch (err) {
+             console.error('[MAILGUN_WEBHOOK] Busboy instantiation error:', err);
+             reject(err);
+        }
     });
 };
 
