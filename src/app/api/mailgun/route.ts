@@ -39,21 +39,20 @@ const parseMultipartForm = (req: NextRequest): Promise<Record<string, string>> =
         bb.on('error', (err) => {
             reject(err);
         });
-
-        req.blob().then(blob => {
-            const reader = blob.stream().getReader();
-            function push() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        bb.end();
-                        return;
-                    }
-                    bb.write(value);
-                    push();
-                });
-            }
-            push();
-        }).catch(reject);
+        
+        // This is the critical part to handle the ReadableStream from Next.js 13+
+        const reader = req.body!.getReader();
+        const pump = () => {
+            reader.read().then(({ done, value }) => {
+                if (done) {
+                    bb.end();
+                    return;
+                }
+                bb.write(value);
+                pump();
+            }).catch(reject);
+        };
+        pump();
     });
 };
 
