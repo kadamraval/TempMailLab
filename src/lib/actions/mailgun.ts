@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -7,6 +8,8 @@ import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 import { simpleParser } from 'mailparser';
 import type { ClientOptions } from 'mailgun.js';
+import fetch from 'node-fetch';
+
 
 const MAILGUN_API_ENDPOINTS = {
     US: 'https://api.mailgun.net',
@@ -40,16 +43,10 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         
         const clientOptions: ClientOptions = {
             username: 'api',
-            key: mailgunSettings.apiKey
+            key: mailgunSettings.apiKey,
+            url: mailgunSettings.region === 'EU' ? MAILGUN_API_ENDPOINTS.EU : MAILGUN_API_ENDPOINTS.US,
         };
         
-        // Set the API endpoint based on the configured region
-        if (mailgunSettings.region === 'EU') {
-            clientOptions.url = MAILGUN_API_ENDPOINTS.EU;
-        } else {
-            clientOptions.url = MAILGUN_API_ENDPOINTS.US;
-        }
-
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client(clientOptions);
 
@@ -80,10 +77,20 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
             if (!event.storage || !event.storage.url) continue;
 
-            // The URL provided by mailgun is already authenticated for a short period of time.
-            const rawMessageResponse = await mg.get(event.storage.url.replace(MAILGUN_API_ENDPOINTS.US, ''));
+            // Use node-fetch to get the raw message from the storage URL
+            const rawMessageResponse = await fetch(event.storage.url, {
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`api:${mailgunSettings.apiKey}`).toString('base64')}`
+                }
+            });
 
-            const parsedEmail = await simpleParser(rawMessageResponse.body);
+            if (!rawMessageResponse.ok) {
+                 console.error(`Failed to fetch email from storage: ${rawMessageResponse.statusText}`);
+                 continue; // Skip this email if fetch fails
+            }
+
+            const rawEmailBody = await rawMessageResponse.text();
+            const parsedEmail = await simpleParser(rawEmailBody);
 
             const emailData: Omit<Email, 'id'> = {
                 inboxId: inboxId,
@@ -94,7 +101,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 createdAt: Timestamp.now(),
                 htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : "",
                 textContent: parsedEmail.text || "",
-                rawContent: rawMessageResponse.body,
+                rawContent: rawEmailBody,
                 read: false,
                 attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
                     filename: att.filename || 'attachment',
@@ -119,7 +126,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
     } catch (error: any) {
         console.error("[fetchAndStoreEmailsAction Error]", error);
         const errorMessage = error.status === 401 
-            ? "Mailgun authentication failed. Check API key and Region." 
+            ? "Mailgun authentication failed. Please check your API key and ensure the correct Region is selected in your settings." 
             : error.message || 'An unknown error occurred while fetching emails.';
         return { success: false, error: errorMessage };
     }
