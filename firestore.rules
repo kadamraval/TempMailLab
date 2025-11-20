@@ -33,8 +33,8 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // An anonymous user's client must provide the ownerToken to read the inbox.
-      allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid);
+      // Anonymous access is handled by the trusted cloud function, which has admin rights.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
 
       // Allow a registered (non-anonymous) user to list their own inboxes.
       allow list: if request.auth != null && !request.auth.token.firebase.sign_in_provider.endsWith('anonymous') && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;

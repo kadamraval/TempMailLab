@@ -254,9 +254,3 @@ export const onUserDeleted = functions.auth.user().onDelete(async (user) => {
         logger.error(`Error deleting data for user ${userId}`, error);
     }
 });
-
-    
-
-    
-
-    
