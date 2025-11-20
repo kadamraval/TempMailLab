@@ -32,7 +32,7 @@ const verifyMailgunWebhook = (
 };
 
 export const mailgunWebhook = onRequest(
-  { region: "us-central1" },
+  { region: "us-central1", secrets: ["MAILGUN_API_KEY"] },
   async (req, res) => {
     logger.info("Mailgun webhook received.", { body: req.body });
 
@@ -43,14 +43,9 @@ export const mailgunWebhook = onRequest(
     }
 
     try {
-      const settingsSnap = await db.doc("admin_settings/mailgun").get();
-      if (!settingsSnap.exists) {
-        throw new Error("Mailgun settings not found in Firestore.");
-      }
-      const { apiKey: mailgunApiKey, domain: mailgunDomain } =
-        settingsSnap.data() as { apiKey: string; domain: string };
-      if (!mailgunApiKey || !mailgunDomain) {
-        throw new Error("Mailgun API key or domain is not configured.");
+      const mailgunApiKey = process.env.MAILGUN_API_KEY;
+      if (!mailgunApiKey) {
+        throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
       const signature = req.body.signature as MailgunWebhookSignature;
@@ -82,8 +77,9 @@ export const mailgunWebhook = onRequest(
 
       const inboxDoc = inboxSnapshot.docs[0];
       const inboxId = inboxDoc.id;
+      const inboxData = inboxDoc.data();
 
-      const messageId = eventData.message.headers["message-id"];
+      const messageId = eventData.message?.headers?.["message-id"];
       if (!messageId) {
         throw new Error("Message ID not found in webhook payload.");
       }
@@ -97,7 +93,9 @@ export const mailgunWebhook = onRequest(
         return;
       }
 
-      const storageUrl = eventData.storage?.url;
+      const storageUrls = eventData.storage?.url;
+      const storageUrl = Array.isArray(storageUrls) ? storageUrls[0] : storageUrls;
+
       if (!storageUrl) {
         throw new Error("Storage URL not found in webhook payload.");
       }
@@ -112,6 +110,7 @@ export const mailgunWebhook = onRequest(
 
       const emailData: Omit<Email, "id"> = {
         inboxId: inboxId,
+        userId: inboxData.userId, // Denormalize userId for security rules
         senderName: messageContent.From || "Unknown Sender",
         subject: messageContent.Subject || "No Subject",
         receivedAt: Timestamp.fromMillis(eventData.timestamp * 1000),
@@ -131,14 +130,5 @@ export const mailgunWebhook = onRequest(
       logger.error("Error processing Mailgun webhook:", error);
       res.status(500).send(`Internal Server Error: ${error.message}`);
     }
-  }
-);
-
-// This function is kept for cleanup purposes but is no longer part of the primary email receiving flow.
-export const fetchEmails = onRequest(
-  { region: 'us-central1' },
-  (req, res) => {
-    logger.info("The 'fetchEmails' function is deprecated and should no longer be called directly.");
-    res.status(410).send("This function is deprecated.");
   }
 );
