@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -11,10 +10,9 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { doc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
-import { saveMailgunSettingsAction } from "@/lib/actions/settings";
 
 
 interface IntegrationSettingsFormProps {
@@ -29,8 +27,8 @@ interface IntegrationSettingsFormProps {
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
     const [settings, setSettings] = useState({
         enabled: false,
-        signingKey: "", // Changed from apiKey to signingKey
-        apiKey: "",     // Added for the Private API Key
+        signingKey: "", 
+        apiKey: "",
         domain: "",
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -67,7 +65,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const handleSaveChanges = async () => {
-        if (integration.slug !== 'mailgun') return;
+        if (integration.slug !== 'mailgun' || !settingsRef) return;
         
         setIsSaving(true);
         
@@ -76,12 +74,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 signingKey: settings.signingKey,
                 apiKey: settings.apiKey,
                 domain: settings.domain,
+                enabled: !!(settings.signingKey && settings.apiKey && settings.domain)
             };
-            const result = await saveMailgunSettingsAction(settingsToSave);
-            
-            if (result.error) {
-                 throw new Error(result.error);
-            }
+
+            await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
                 title: "Settings Saved",
