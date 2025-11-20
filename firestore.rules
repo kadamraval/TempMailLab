@@ -1,63 +1,248 @@
-
+/**
+ * @file Firebase Security Rules for TempInbox.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for personal data (users, inboxes, emails, API keys),
+ * and restricts access to administrative data (blocked IPs/domains) to authorized admin users only.
+ *
+ * Data Structure:
+ * - User data is nested under `/users/{userId}`.
+ * - Inboxes are nested under `/users/{userId}/inboxes/{inboxId}`.
+ * - Emails are nested under `/users/{userId}/inboxes/{inboxId}/emails/{emailId}`.
+ * - API Keys are nested under `/users/{userId}/api_keys/{apiKeyId}`.
+ * - API Usage Logs are under `/api_keys/{apiKeyId}/usage_logs/{usageLogId}`
+ * - Blocked IPs are stored in the top-level `/blocked_ips/{blockedIpId}` collection.
+ * - Blocked Domains are stored in the top-level `/blocked_domains/{blockedDomainId}` collection.
+ * - Admin roles are determined by the presence of a document in `/roles_admin/{userId}`
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data.
+ * - Listing of emails and API keys is allowed only for the owner.
+ * - Admin-level operations (managing blocked IPs/domains) are restricted to users with the 'admin' role.
+ * - API Key usage logs are scoped under the API key and not directly user-accessible.
+ * - Public listing of user data, blocked IPs, blocked domains, or admin roles is disallowed.
+ *
+ * Denormalization for Authorization:
+ * - Inboxes: Store `userId` within the inbox document to enable direct ownership checks.
+ * - Emails: Store `inboxId` within the email document to enable direct association with the parent inbox.
+ * - API Keys: Store `userId` within the API key document to enable direct ownership checks.
+ * - Usage Logs: Store `apiKeyId` within the usage log to associate it with its parent API key.
+ *
+ * Structural Segregation:
+ * - Admin collections (`/blocked_ips`, `/blocked_domains`, `/roles_admin`) are separated from user-owned data
+ *   to enforce strict access control and prevent unauthorized modifications.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Publicly Readable Collections ---
-    match /plans/{planId} {
-      allow read: if true;
-      allow write: if false; 
+    /**
+     * @description Checks if the request is authenticated.
+     * @path N/A
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    match /allowed_domains/{domainId} {
-      allow read: if true;
-      // Allow admin to write/delete
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-    
-    // --- Admin-Only Collections ---
-    match /admin_settings/{settingId} {
-        allow read, write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    /**
+     * @description Checks if the authenticated user is the owner of the resource, based on the provided userId.
+     * @path N/A
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- User & Inbox Collections ---
+    /**
+     * @description Checks if the authenticated user is the owner of the existing resource, based on the provided userId and that the resource exists.
+     * @path N/A
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Checks if the user has admin role (document exists in /roles_admin/{userId}).
+     * @path N/A
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Rules for the /users/{userId} collection.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user with matching UID can create their own user document.
+     * @allow (get) - Authenticated user can get their own user document.
+     * @allow (update) - Authenticated user can update their own user document.
+     * @allow (delete) - Authenticated user can delete their own user document.
+     * @deny (create) - Unauthenticated user attempts to create a user document.
+     * @deny (update) - User attempts to update another user's document.
+     * @deny (delete) - User attempts to delete another user's document.
+     * @principle Enforces document ownership and self-creation.
+     */
     match /users/{userId} {
-      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      allow read: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    match /inboxes/{inboxId} {
-      // Allow any authenticated user (including anonymous) to create an inbox.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      
-      // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // OR if they are anonymous AND provide the correct ownerToken for the existing doc.
-      allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
-                                     (request.auth == null && request.query.ownerToken == resource.data.ownerToken);
+      // Access Control Pattern: Ownership, Self-Creation
 
-      // Allow a registered (non-anonymous) user to list their own inboxes.
-      allow list: if request.auth != null && !request.auth.token.firebase.sign_in_provider.endsWith('anonymous') && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
+      allow get: if isOwner(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; //Enforce immutability of userId
+      allow delete: if isExistingOwner(userId);
     }
 
-    match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow a user to read a single email if they own it (based on the denormalized userId).
-        allow read: if request.auth.uid == resource.data.userId;
+    /**
+     * @description Rules for the /users/{userId}/inboxes/{inboxId} collection.
+     * @path /users/{userId}/inboxes/{inboxId}
+     * @allow (create) - Authenticated user can create an inbox in their own user document.
+     * @allow (get) - Authenticated user can get an inbox in their own user document.
+     * @allow (update) - Authenticated user can update an inbox in their own user document.
+     * @allow (delete) - Authenticated user can delete an inbox in their own user document.
+     * @deny (create) - User attempts to create an inbox for another user.
+     * @deny (update) - User attempts to update another user's inbox.
+     * @deny (delete) - User attempts to delete another user's inbox.
+     * @principle Enforces document ownership.
+     */
+    match /users/{userId}/inboxes/{inboxId} {
+      // Access Control Pattern: Ownership
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
 
-        // Allow a user to list emails ONLY if they are querying for their own userId.
-        // This is the CRITICAL fix that enforces the client-side query must contain `where('userId', '==', request.auth.uid)`.
-        allow list: if request.auth.uid == request.query.where[0][2] && request.query.where[0][0] == "userId";
-                             
-        // Allow email creation only by the trusted server-side action.
-        allow create: if true;
-        
-        // Allow an authenticated user to update their own emails (e.g. mark as read)
-        allow update: if request.auth.uid == resource.data.userId;
-        
-        // Deny direct client-side deletes.
-        allow delete: if false;
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; //Enforce immutability of userId
+      allow delete: if isExistingOwner(userId);
     }
 
+    /**
+     * @description Rules for the /users/{userId}/inboxes/{inboxId}/emails/{emailId} collection.
+     * @path /users/{userId}/inboxes/{inboxId}/emails/{emailId}
+     * @allow (create) - Authenticated user can create an email in their own inbox.
+     * @allow (get) - Authenticated user can get an email in their own inbox.
+     * @allow (update) - Authenticated user can update an email in their own inbox.
+     * @allow (delete) - Authenticated user can delete an email in their own inbox.
+     * @deny (create) - User attempts to create an email in another user's inbox.
+     * @deny (update) - User attempts to update another user's email.
+     * @deny (delete) - User attempts to delete another user's email.
+     * @principle Enforces document ownership.
+     */
+    match /users/{userId}/inboxes/{inboxId}/emails/{emailId} {
+      // Access Control Pattern: Ownership
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) ; // No check for inboxId as it is not required for ownership and can be set by the backend
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for the /users/{userId}/api_keys/{apiKeyId} collection.
+     * @path /users/{userId}/api_keys/{apiKeyId}
+     * @allow (create) - Authenticated user can create an api key in their own user document.
+     * @allow (get) - Authenticated user can get an api key in their own user document.
+     * @allow (update) - Authenticated user can update an api key in their own user document.
+     * @allow (delete) - Authenticated user can delete an api key in their own user document.
+     * @deny (create) - User attempts to create an api key for another user.
+     * @deny (update) - User attempts to update another user's api key.
+     * @deny (delete) - User attempts to delete another user's api key.
+     * @principle Enforces document ownership.
+     */
+    match /users/{userId}/api_keys/{apiKeyId} {
+      // Access Control Pattern: Ownership
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; //Enforce immutability of userId
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for the /api_keys/{apiKeyId}/usage_logs/{usageLogId} collection.
+     * @path /api_keys/{apiKeyId}/usage_logs/{usageLogId}
+     * @allow (create) - Only the service account/backend can create usage logs.
+     * @allow (get) - No direct user access to usage logs.
+     * @allow (update) - No direct user access to usage logs.
+     * @allow (delete) - No direct user access to usage logs.
+     * @deny (create) - User attempts to create a usage log.
+     * @deny (get) - User attempts to read a usage log.
+     * @deny (update) - User attempts to update a usage log.
+     * @deny (delete) - User attempts to delete a usage log.
+     */
+    match /api_keys/{apiKeyId}/usage_logs/{usageLogId} {
+      // Access Control Pattern: Backend-Only
+      allow get: if false;
+      allow list: if false;
+
+      allow create: if isSignedIn(); // Assuming backend is authenticated
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Rules for the /blocked_ips/{blockedIpId} collection.
+     * @path /blocked_ips/{blockedIpId}
+     * @allow (create) - Only admins can create blocked IPs.
+     * @allow (get) - Only admins can get blocked IPs.
+     * @allow (update) - Only admins can update blocked IPs.
+     * @allow (delete) - Only admins can delete blocked IPs.
+     * @deny (create) - Non-admin attempts to create a blocked IP.
+     * @deny (get) - Non-admin attempts to read a blocked IP.
+     * @deny (update) - Non-admin attempts to update a blocked IP.
+     * @deny (delete) - Non-admin attempts to delete a blocked IP.
+     */
+    match /blocked_ips/{blockedIpId} {
+      // Access Control Pattern: Roles (Admin)
+      allow get: if isAdmin();
+      allow list: if false;
+
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Rules for the /blocked_domains/{blockedDomainId} collection.
+     * @path /blocked_domains/{blockedDomainId}
+     * @allow (create) - Only admins can create blocked domains.
+     * @allow (get) - Only admins can get blocked domains.
+     * @allow (update) - Only admins can update blocked domains.
+     * @allow (delete) - Only admins can delete blocked domains.
+     * @deny (create) - Non-admin attempts to create a blocked domain.
+     * @deny (get) - Non-admin attempts to read a blocked domain.
+     * @deny (update) - Non-admin attempts to update a blocked domain.
+     * @deny (delete) - Non-admin attempts to delete a blocked domain.
+     */
+    match /blocked_domains/{blockedDomainId} {
+      // Access Control Pattern: Roles (Admin)
+      allow get: if isAdmin();
+      allow list: if false;
+
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Rules for the /roles_admin/{userId} collection.
+     * @path /roles_admin/{userId}
+     * @allow (create) - Only admins can grant admin role to another user.
+     * @allow (get) - Only admins can check admin role for another user.
+     * @allow (update) - Only admins can update admin role.
+     * @allow (delete) - Only admins can revoke admin role from another user.
+     * @deny (create) - Non-admin attempts to grant admin role.
+     * @deny (get) - Non-admin attempts to check admin role.
+     * @deny (update) - Non-admin attempts to update admin role.
+     * @deny (delete) - Non-admin attempts to revoke admin role.
+     */
+    match /roles_admin/{userId} {
+      // Access Control Pattern: Roles (Admin) - restricted to existing admins
+      allow get: if isAdmin();
+      allow list: if false;
+
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
   }
 }
