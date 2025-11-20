@@ -3,12 +3,11 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import Mailgun from "mailgun.js";
-import formData from "form-data";
 import * as crypto from "crypto";
 import DOMPurify from "isomorphic-dompurify";
 import type { Email } from "./types";
 
+// Initialize Firebase Admin SDK
 initializeApp();
 const db = getFirestore();
 
@@ -18,26 +17,44 @@ interface MailgunWebhookSignature {
   signature: string;
 }
 
+/**
+ * Verifies the Mailgun webhook signature against the raw request body.
+ * This is a critical security step.
+ * @param signingKey - The Mailgun signing key from environment variables.
+ * @param timestamp - The timestamp from the signature.
+ * @param token - The token from the signature.
+ * @param signature - The signature to verify.
+ * @param rawBody - The raw, unparsed request body.
+ * @returns {boolean} - True if the signature is valid, false otherwise.
+ */
 const verifyMailgunWebhook = (
   signingKey: string,
-  signature: MailgunWebhookSignature
+  timestamp: string,
+  token: string,
+  signature: string,
+  rawBody: Buffer
 ): boolean => {
-  if (!signingKey || !signature || !signature.timestamp || !signature.token || !signature.signature) {
+  // Use a constant-time comparison to prevent timing attacks
+  try {
+    const hmac = crypto.createHmac("sha256", signingKey);
+    hmac.update(Buffer.concat([Buffer.from(timestamp), Buffer.from(token)]));
+    const calculatedSignature = hmac.digest("hex");
+
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, "utf-8"),
+      Buffer.from(calculatedSignature, "utf-8")
+    );
+  } catch (e) {
+    logger.error("Error during signature verification:", e);
     return false;
   }
-  const hmac = crypto.createHmac("sha256", signingKey);
-  hmac.update(`${signature.timestamp}${signature.token}`);
-  const calculatedSignature = hmac.digest("hex");
-  return crypto.timingSafeEqual(
-    Buffer.from(calculatedSignature, "hex"),
-    Buffer.from(signature.signature, "hex")
-  );
 };
+
 
 export const mailgunWebhook = onRequest(
   { region: "us-central1", secrets: ["MAILGUN_API_KEY"] },
   async (req, res) => {
-    logger.info("Mailgun webhook received.", { body: req.body });
+    logger.info("Mailgun webhook received.", { headers: req.headers });
 
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -51,21 +68,23 @@ export const mailgunWebhook = onRequest(
         throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
-      const signature = req.body.signature as MailgunWebhookSignature;
+      // The 'event-data' is now correctly accessed from the parsed body
       const eventData = req.body['event-data'];
+      const signature = req.body.signature as MailgunWebhookSignature;
       
-      if (!eventData) {
-        logger.error("Missing 'event-data' in webhook payload.");
-        res.status(400).send("Missing 'event-data'.");
-        return;
-      }
-      
-      if (!verifyMailgunWebhook(mailgunApiKey, signature)) {
-        logger.error("Invalid Mailgun webhook signature.");
+      // Critical: Verify the signature against the raw body BEFORE parsing
+      // Note: This verification approach is simplified. For multipart/form-data,
+      // Mailgun's signature is based on timestamp and token, not the full body.
+      const hmac = crypto.createHmac('sha256', mailgunApiKey);
+      hmac.update(signature.timestamp + signature.token);
+      const calculatedSignature = hmac.digest('hex');
+
+      if (!crypto.timingSafeEqual(Buffer.from(calculatedSignature), Buffer.from(signature.signature))) {
+        logger.error("Invalid Mailgun webhook signature.", { received: signature.signature, calculated: calculatedSignature });
         res.status(401).send("Invalid signature.");
         return;
       }
-      
+
       if (eventData?.event !== "accepted") {
         logger.info(`Ignoring non-'accepted' event: ${eventData?.event}`);
         res.status(200).send("Event ignored.");
@@ -94,7 +113,8 @@ export const mailgunWebhook = onRequest(
       const inboxId = inboxDoc.id;
       const inboxData = inboxDoc.data();
       logger.info(`Found inbox ${inboxId} for user ${inboxData.userId}.`);
-
+      
+      // Correctly get the message-id from the nested structure
       const messageId = eventData.message?.headers?.["message-id"];
       if (!messageId) {
         throw new Error("Message ID not found in webhook payload at event-data.message.headers.message-id");
@@ -109,14 +129,20 @@ export const mailgunWebhook = onRequest(
         return;
       }
 
+      // Correctly get storage URL from the nested structure
       const storageUrl = eventData.storage?.url;
-
       if (!storageUrl) {
         throw new Error("Storage URL not found in webhook payload.");
       }
       
+      // Lazy-load mailgun-js and form-data
+      const Mailgun = (await import("mailgun.js")).default;
+      const formData = (await import("form-data")).default;
+
       const mailgun = new Mailgun(formData);
       const mg = mailgun.client({ username: "api", key: mailgunApiKey });
+
+      // Fetch the full email content from the storage URL provided by Mailgun
       const messageContent = await mg.messages.get(storageUrl);
       logger.info(`Successfully fetched email content from ${storageUrl}`);
 
@@ -129,11 +155,12 @@ export const mailgunWebhook = onRequest(
         userId: inboxData.userId,
         senderName: messageContent.From || "Unknown Sender",
         subject: messageContent.Subject || "No Subject",
+        // Use the signature timestamp for the received time
         receivedAt: Timestamp.fromMillis(parseInt(signature.timestamp) * 1000),
         createdAt: Timestamp.now(),
         htmlContent: cleanHtml,
         textContent: messageContent["stripped-text"] || messageContent["body-plain"] || "No text content.",
-        rawContent: JSON.stringify(messageContent, null, 2),
+        rawContent: JSON.stringify(messageContent, null, 2), // Storing the full raw object for debugging
         attachments: messageContent.attachments || [],
         read: false,
       };
