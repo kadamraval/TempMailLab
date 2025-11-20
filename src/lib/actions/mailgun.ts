@@ -8,13 +8,13 @@ import type { Email } from '@/types';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
-// Standard Mailgun API hosts. The code will check both.
+// Standard Mailgun API hosts.
 const MAILGUN_API_HOSTS = {
     us: 'api.mailgun.net',
     eu: 'api.eu.mailgun.net',
 };
 
-async function getMailgunCredentials() {
+async function getMailgunCredentials(log: string[]) {
     try {
         const firestore = getAdminFirestore();
         const settingsRef = firestore.doc('admin_settings/mailgun');
@@ -28,13 +28,16 @@ async function getMailgunCredentials() {
         if (!settings?.apiKey || !settings.domain) {
             throw new Error('Mailgun API Key or Domain is missing from settings. Please check the configuration.');
         }
-
+        
+        log.push("Successfully retrieved Mailgun credentials.");
         return { apiKey: settings.apiKey, domain: settings.domain };
     } catch (error: any) {
+        // This is a critical failure. Log it and re-throw.
         console.error("[MAILGUN_ACTION_ERROR] FATAL: Could not get Mailgun credentials.", {
             errorMessage: error.message,
             stack: error.stack,
         });
+        log.push(`[FATAL] Could not get Mailgun credentials: ${error.message}`);
         throw error;
     }
 }
@@ -54,21 +57,18 @@ export async function fetchEmailsWithCredentialsAction(
     }
 
     try {
-        log.push("Attempting to retrieve Mailgun credentials...");
-        const { apiKey, domain } = await getMailgunCredentials();
-        log.push(`Credentials retrieved for domain: ${domain}.`);
-
+        const { apiKey, domain } = await getMailgunCredentials(log);
         const firestore = getAdminFirestore();
+
         const inboxRef = firestore.doc(`inboxes/${inboxId}`);
         const inboxSnap = await inboxRef.get();
         if (!inboxSnap.exists) throw new Error(`Inbox with ID ${inboxId} not found.`);
-        const inboxData = inboxSnap.data();
-        if (!inboxData) throw new Error(`Could not retrieve data for inbox ${inboxId}.`);
-        const userId = inboxData.userId;
+        const userId = inboxSnap.data()?.userId;
+        if (!userId) throw new Error(`Could not retrieve user ID for inbox ${inboxId}.`);
         log.push(`Inbox found. Operating for user ID: ${userId}`);
-
+        
         const allEvents = [];
-        const beginTimestamp = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000); // 7 days as you suggested
+        const beginTimestamp = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
 
         for (const [region, host] of Object.entries(MAILGUN_API_HOSTS)) {
             log.push(`Querying Mailgun '${region.toUpperCase()}' region for "stored" events...`);
@@ -77,32 +77,32 @@ export async function fetchEmailsWithCredentialsAction(
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "stored", // Using 'stored' as you suggested
+                    event: "stored", // Using "stored" event as suggested.
                     limit: 300,
                     begin: beginTimestamp,
                     recipient: emailAddress,
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} event(s) in ${region.toUpperCase()}.`);
+                    log.push(`Found ${events.items.length} "stored" event(s) in ${region.toUpperCase()}.`);
                     allEvents.push(...events.items);
                 } else {
                     log.push(`No "stored" events found in ${region.toUpperCase()}.`);
                 }
             } catch (hostError: any) {
-                 if (hostError.status !== 401) { // 401 is expected if key is not for this region
-                    console.error(`[MAILGUN_ACTION_ERROR] Error querying Mailgun region '${region.toUpperCase()}'. This may be a network issue or an invalid domain.`, {
+                 if (hostError.status !== 401) { 
+                    console.error(`[MAILGUN_ACTION_ERROR] Error querying Mailgun region '${region.toUpperCase()}'.`, {
                         region, host, status: hostError.status, message: hostError.message
                     });
                     log.push(`[ERROR] Failed to query ${region.toUpperCase()} region: ${hostError.message}`);
                  } else {
-                    log.push(`[INFO] Key not valid for ${region.toUpperCase()} region (this is normal).`);
+                    log.push(`[INFO] Key not valid for ${region.toUpperCase()} region.`);
                  }
             }
         }
         
         if (allEvents.length === 0) {
-            log.push("No new 'stored' mail events found. Action complete.");
+            log.push("No new 'stored' mail events found across all regions. Action complete.");
             return { success: true, log };
         }
 
@@ -128,23 +128,18 @@ export async function fetchEmailsWithCredentialsAction(
                 continue;
             }
             
-            log.push(`Fetching content from storage URL for message ${messageId}...`);
+            log.push(`Fetching content for message ${messageId}...`);
             const fetch = (await import('node-fetch')).default;
             const response = await fetch(storageUrl, {
                 headers: { Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}` }
             });
 
             if (!response.ok) {
-                const errorBody = await response.text();
-                console.error("[MAILGUN_ACTION_ERROR] FATAL: Failed to fetch email content from Mailgun storage.", {
-                    messageId, storageUrl, status: response.status, body: errorBody
-                });
-                throw new Error(`Failed to fetch content from Mailgun. Status: ${response.status}. This likely means your Mailgun API Key is invalid or lacks permissions.`);
+                throw new Error(`Failed to fetch content from Mailgun storage for message ${messageId}. Status: ${response.status}. This likely means your Mailgun API Key is invalid or lacks permissions.`);
             }
-
+            
             const message = await response.json() as any;
-            const html = message["body-html"] || message["stripped-html"] || "";
-            const cleanHtml = DOMPurify.sanitize(html);
+            const cleanHtml = DOMPurify.sanitize(message["body-html"] || message["stripped-html"] || "");
             
             const emailData: Omit<Email, 'id'> = {
                 inboxId,
@@ -167,8 +162,20 @@ export async function fetchEmailsWithCredentialsAction(
         }
         
         if (newEmailsFound > 0) {
-            await batch.commit();
-            log.push(`SUCCESS: Batch write committed to Firestore with ${newEmailsFound} new email(s).`);
+            try {
+                await batch.commit();
+                log.push(`SUCCESS: Batch write of ${newEmailsFound} new email(s) committed to Firestore.`);
+            } catch (dbError: any) {
+                 // **THIS IS THE CRITICAL NEW LOGGING STEP.**
+                console.error("[MAILGUN_ACTION_ERROR] FATAL: Firestore batch commit failed.", {
+                    errorMessage: dbError.message,
+                    errorDetails: dbError.details,
+                    stack: dbError.stack,
+                });
+                log.push(`[FATAL_DB_ERROR] Could not save emails to database: ${dbError.message}`);
+                // Re-throw to ensure the outer catch block handles returning the error to the client.
+                throw dbError;
+            }
         } else {
             log.push("No new, unique emails needed to be written to the database.");
         }
@@ -176,10 +183,10 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
+        // This outer catch now handles all thrown errors, including the new dbError.
         console.error("[MAILGUN_ACTION_ERROR] An unexpected error occurred in the main action handler.", {
             errorMessage: error.message,
             stack: error.stack,
-            fullError: error
         });
         log.push(`[FATAL_ERROR]: ${error.message}`);
         return { success: false, error: error.message || 'An unknown server error occurred.', log };
