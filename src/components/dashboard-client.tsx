@@ -173,7 +173,9 @@ export function DashboardClient() {
       );
 
       // Prepend new logs to the existing logs
-      setActionLogs(prev => [...result.log.reverse(), ...prev]);
+      if(result.log) {
+        setActionLogs(prev => [...result.log.reverse(), ...prev]);
+      }
 
       if (result.error) {
         // Set the specific error from the server action

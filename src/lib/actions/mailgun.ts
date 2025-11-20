@@ -83,10 +83,9 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`No 'accepted' events found on ${host} for this recipient.`);
                 }
             } catch (hostError: any) {
-                const errorMsg = `[INFO] Could not fetch events from ${host}. Error: ${hostError.message}`;
+                const errorMsg = `[INFO] Could not fetch events from ${host}. This may be normal if your account is in a different region. Error: ${hostError.message}`;
                 log.push(errorMsg);
-                // Also log to server logs for deeper debugging
-                console.error(`[MAILGUN_ACTION_HOST_ERROR]`, { host, message: hostError.message });
+                console.error(`[MAILGUN_ACTION_HOST_ERROR]`, { host, message: hostError.message, status: hostError.status });
             }
         }
         
@@ -123,22 +122,31 @@ export async function fetchEmailsWithCredentialsAction(
             
             log.push(`Fetching content from storage URL...`);
             const fetch = (await import('node-fetch')).default;
-            const response = await fetch(storageUrl, {
-                headers: {
-                    Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
-                }
-            });
+            let response;
+            try {
+                response = await fetch(storageUrl, {
+                    headers: {
+                        Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString("base64")}`
+                    }
+                });
+            } catch (fetchError: any) {
+                console.error("[MAILGUN_ACTION_FETCH_ERROR]", {
+                    message: "Network error fetching Mailgun content from storage URL.",
+                    errorMessage: fetchError.message,
+                    url: storageUrl
+                });
+                throw new Error(`Failed to connect to Mailgun storage. Check network and DNS.`);
+            }
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                // This will now be logged in Google Cloud Logging.
                 console.error("[MAILGUN_ACTION_FETCH_ERROR]", {
                     message: "Failed to fetch Mailgun content from storage URL.",
                     status: response.status,
                     body: errorBody,
                     url: storageUrl
                 });
-                throw new Error(`Failed to fetch Mailgun content. Status: ${response.status}.`);
+                throw new Error(`Failed to fetch Mailgun content. Status: ${response.status}. Check API Key permissions.`);
             }
 
             const message = await response.json() as any;
@@ -186,7 +194,6 @@ export async function fetchEmailsWithCredentialsAction(
     } catch (error: any) {
         const errorMessage = `[FATAL_ERROR]: ${error.message || 'An unknown server error occurred.'}`;
         log.push(errorMessage);
-        // This is the critical debugging addition. It sends the full error to Cloud Logging.
         console.error("[MAILGUN_ACTION_ERROR]", {
             errorMessage: error.message,
             stack: error.stack,
