@@ -47,7 +47,7 @@ const verifyMailgunSignature = (
 export const mailgunWebhook = onRequest(
   { region: "us-central1", cors: true, memory: "256MiB" },
   async (req, res) => {
-    logger.info("mailgunWebhook function triggered.", { method: req.method });
+    logger.info("--- mailgunWebhook function triggered ---", { method: req.method, headers: req.headers });
 
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -81,13 +81,15 @@ export const mailgunWebhook = onRequest(
     });
 
     bb.on('finish', async () => {
-        logger.info("Busboy finished parsing. Raw fields received:", fields);
+        logger.info("DEBUG: Busboy finished parsing. All raw fields received:", fields);
 
         try {
             const { timestamp, token, signature, recipient, storage } = fields;
 
+            logger.info("DEBUG: Extracted fields for verification and processing.", { hasTimestamp: !!timestamp, hasToken: !!token, hasSignature: !!signature, recipient, hasStorage: !!storage });
+
             if (!timestamp || !token || !signature) {
-                logger.error("CRITICAL: Missing signature components in webhook payload.", { hasTimestamp: !!timestamp, hasToken: !!token, hasSignature: !!signature });
+                logger.error("CRITICAL: Missing signature components in webhook payload.", { fields });
                 res.status(400).send("Bad Request: Missing signature components.");
                 return;
             }
@@ -107,19 +109,24 @@ export const mailgunWebhook = onRequest(
             logger.info(`Processing email for recipient: ${recipient}`);
 
             if (!storage) {
-                logger.warn("No 'storage' field found. This might be an 'accepted' event without a stored message.", { event: fields.event });
-                res.status(200).send("OK: Event received, no action taken (no storage info).");
+                logger.warn("No 'storage' field found. This might be an 'accepted' event without a stored message. This is OK, but no email will be processed.", { event: fields.event });
+                res.status(200).send("OK: Event received, but no storage info provided.");
                 return;
             }
             
+            logger.info("DEBUG: 'storage' field found, parsing JSON.", { storageValue: storage });
             const storageInfo = JSON.parse(storage);
-            const messageUrl = storageInfo.url;
+            logger.info("DEBUG: 'storage' JSON parsed successfully.", { storageInfo });
+            
+            // Mailgun `url` field is an array of urls
+            const messageUrl = Array.isArray(storageInfo.url) ? storageInfo.url[0] : storageInfo.url;
             
             if (!messageUrl) {
                  logger.error("CRITICAL: 'url' not found in parsed storage object.", { storageInfo });
                  res.status(400).send("Bad Request: Message URL not found in storage info.");
                  return;
             }
+            logger.info(`DEBUG: Extracted message URL: ${messageUrl}`);
 
 
             const inboxesRef = db.collection("inboxes");
@@ -163,7 +170,8 @@ export const mailgunWebhook = onRequest(
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                throw new Error(`Failed to fetch email from Mailgun storage. Status: ${response.statusText}, Body: ${errorBody}`);
+                logger.error("ERROR: Failed to fetch email from Mailgun storage.", { status: response.status, statusText: response.statusText, body: errorBody });
+                throw new Error(`Failed to fetch email from Mailgun storage. Status: ${response.statusText}`);
             }
             
             const fetchedEmailData = await response.json();
@@ -187,10 +195,10 @@ export const mailgunWebhook = onRequest(
             };
 
             await emailRef.set(emailData);
-            logger.info(`SUCCESS: Processed and saved email ${emailDocId} to inbox ${inboxId}.`);
+            logger.info(`--- SUCCESS: Processed and saved email ${emailDocId} to inbox ${inboxId}. ---`);
             res.status(200).send("Email processed successfully.");
         } catch (error: any) {
-            logger.error("CRITICAL ERROR during webhook processing:", { errorMessage: error.message, stack: error.stack, fields });
+            logger.error("--- CRITICAL ERROR during webhook processing ---", { errorMessage: error.message, stack: error.stack, fields });
             res.status(500).send(`Internal Server Error: ${error.message}`);
         }
     });
@@ -198,5 +206,3 @@ export const mailgunWebhook = onRequest(
     req.pipe(bb);
   }
 );
-
-    
