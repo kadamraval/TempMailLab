@@ -169,6 +169,12 @@ export function DashboardClient() {
             }
         }
         
+        // This is the fix. Ensure activeUser is not null before proceeding.
+        if (!activeUser) {
+            setServerError("User session is not ready. Please try again in a moment.");
+            return;
+        }
+
         setIsGenerating(true);
         setServerError(null);
         setCurrentInbox(null);
@@ -192,7 +198,7 @@ export function DashboardClient() {
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
             const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
-                userId: activeUser.uid,
+                userId: activeUser.uid, // This is now safe to access
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
             };
