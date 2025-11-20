@@ -1,3 +1,4 @@
+
 /**
  * Import function triggers from their respective submodules:
  *
@@ -59,6 +60,8 @@ export const mailgunWebhook = onRequest(
   {
     region: "us-central1", // Specify region
     secrets: ["MAILGUN_SIGNING_KEY"],
+    invoker: "public", // Allow public access for the webhook
+    enforceAppCheck: false, // Do not require App Check for this webhook
   },
   async (req, res) => {
     logger.info("Mailgun webhook triggered.");
@@ -69,6 +72,7 @@ export const mailgunWebhook = onRequest(
       return;
     }
 
+    // Retrieve the key from the environment, which is populated by the secret manager.
     const signingKey = process.env.MAILGUN_SIGNING_KEY;
     if (!signingKey) {
       logger.error("CRITICAL: MAILGUN_SIGNING_KEY is not set in environment secrets.");
