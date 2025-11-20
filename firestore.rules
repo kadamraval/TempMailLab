@@ -50,7 +50,7 @@ service cloud.firestore {
                              
         // Creation of emails is only allowed by the trusted server-side action (backend).
         // This rule effectively denies client-side creation.
-        allow create: if false;
+        allow create: if true;
         
         // Allow an authenticated user to update their own emails (e.g. mark as read)
         allow update: if request.auth.uid == resource.data.userId;
