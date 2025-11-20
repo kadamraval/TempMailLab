@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -60,7 +61,6 @@ export function DashboardClient() {
 
   const planRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    // For now, everyone is on the free plan. This can be dynamic later.
     return doc(firestore, 'plans', 'free-default');
   }, [firestore]);
 
@@ -146,7 +146,6 @@ export function DashboardClient() {
         let activeUser = user;
         let foundInbox: InboxType | null = null;
 
-        // 1. Ensure we have an authenticated user (sign in anonymously if needed)
         if (!activeUser) {
             try {
                 const userCredential = await signInAnonymously(auth);
@@ -158,9 +157,8 @@ export function DashboardClient() {
                 return;
             }
         }
-        if (!activeUser) return; // Should not happen
+        if (!activeUser) return;
 
-        // 2. Try to find an existing inbox for the user
         if (activeUser.isAnonymous) {
             const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
             if (localDataStr) {
@@ -174,7 +172,7 @@ export function DashboardClient() {
                     }
                 } catch { /* Malformed local storage, ignore */ }
             }
-        } else { // For registered users
+        } else {
             const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', activeUser.uid));
             const userInboxesSnap = await getDocs(userInboxesQuery);
             const validInboxes = userInboxesSnap.docs
@@ -185,7 +183,6 @@ export function DashboardClient() {
             }
         }
         
-        // 3. Generate a new inbox if none was found
         if (!foundInbox) {
             foundInbox = await generateNewInbox(activeUser);
         }
@@ -453,4 +450,3 @@ export function DashboardClient() {
     </div>
   );
 }
-    

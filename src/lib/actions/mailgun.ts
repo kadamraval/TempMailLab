@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -36,11 +37,10 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
         const firestore = getAdminFirestore();
         
-        // 1. Get 'stored' events from Mailgun
         const eventsResponse = await mg.events.get(mailgunSettings.domain, {
             recipient: emailAddress,
             event: 'stored',
-            limit: 25, // Fetch up to 25 recent events
+            limit: 25,
         });
 
         if (eventsResponse.items.length === 0) {
@@ -49,40 +49,40 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         
         let newEmailsFound = 0;
 
-        // 2. Process each event
         for (const event of eventsResponse.items) {
             const messageId = event.message?.headers?.['message-id'];
             if (!messageId) continue;
 
-            // Use a sanitized message-id as the document ID to prevent duplicates
             const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
             const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
             const emailDoc = await emailRef.get();
 
-            if (emailDoc.exists) continue; // Skip already processed emails
+            if (emailDoc.exists) continue;
 
-            // 3. Fetch the full, raw message from the storage URL
+            // This is a temporary fix, as the `storage.url` is sometimes not available.
+            // A more robust solution would be to use a webhook.
+            if (!event.storage || !event.storage.url) continue;
+
             const rawMessage = await mg.messages.get(event.storage.url, { raw: true });
             
-            // 4. Parse the raw MIME message using mailparser
             const parsedEmail = await simpleParser(rawMessage);
 
             const emailData: Omit<Email, 'id'> = {
                 inboxId: inboxId,
-                userId: userId, // CRITICAL: Stamp the userId for security rules
+                userId: userId,
                 senderName: parsedEmail.from?.text || "Unknown Sender",
                 subject: parsedEmail.subject || "No Subject",
                 receivedAt: parsedEmail.date ? Timestamp.fromDate(parsedEmail.date) : Timestamp.fromMillis(event.timestamp * 1000),
                 createdAt: Timestamp.now(),
                 htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : "",
                 textContent: parsedEmail.text || "",
-                rawContent: rawMessage, // Store the raw content for source view
+                rawContent: rawMessage,
                 read: false,
                 attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
                     filename: att.filename || 'attachment',
                     contentType: att.contentType,
                     size: att.size,
-                    url: '' 
+                    url: ''
                 })) : []
             };
             
@@ -94,11 +94,9 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
     } catch (error: any) {
         console.error("[fetchAndStoreEmailsAction Error]", error);
-        // Provide a more user-friendly error message
         const errorMessage = error.status === 401 
             ? "Mailgun authentication failed. Check API key." 
             : error.message || 'An unknown error occurred while fetching emails.';
         return { success: false, error: errorMessage };
     }
 }
-    
