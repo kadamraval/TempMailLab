@@ -68,6 +68,7 @@ export async function signUpAction(uid: string, email: string, anonymousInboxDat
         
         // Revalidate paths to ensure data is fresh on the client.
         revalidatePath('/');
+        revalidatePath('/admin');
         revalidatePath('/dashboard/inbox');
 
         return { success: true, userId: uid };

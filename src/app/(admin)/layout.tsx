@@ -19,15 +19,13 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   const isLoginPage = pathname === '/login/admin';
-  
-  // This is the crucial check: isUserLoading is now the single source of truth for loading state.
   const isAuthorizedAdmin = user && !user.isAnonymous && userProfile?.isAdmin === true;
 
-  // This effect handles redirection logic once all loading is complete.
   useEffect(() => {
-    // Only perform redirects if we are not currently on the login page itself.
-    if (!isLoginPage && !isUserLoading) {
-      // If loading is finished and the user is not an authorized admin,
+    // This effect handles redirection logic once all loading is complete.
+    // It only runs if we are not currently loading and not on the login page.
+    if (!isUserLoading && !isLoginPage) {
+      // If loading is finished and the user is NOT an authorized admin,
       // redirect them to the admin login page.
       if (!isAuthorizedAdmin) {
         router.replace('/login/admin');
@@ -36,15 +34,16 @@ export default function AdminLayout({
   }, [isUserLoading, isAuthorizedAdmin, isLoginPage, router]);
 
 
-  // If the current page is the login page, render it directly.
-  // The login form itself will handle redirecting the user upon successful login.
+  // If the current page is the login page itself, render it directly.
+  // The login form will handle redirecting the user away upon successful login.
   if (isLoginPage) {
     return <>{children}</>;
   }
   
-  // If we are still waiting for auth or profile data to load,
-  // or if the user is not yet confirmed as an admin, show a loading screen.
-  // This prevents content from flashing before the redirect can happen.
+  // If we are still waiting for auth/profile data to load,
+  // OR if the user is not yet confirmed as an admin (and we're not on the login page),
+  // show a loading screen. This is the key change to prevent the redirect loop.
+  // It waits for a definitive "yes" or "no" on admin status before proceeding.
   if (isUserLoading || !isAuthorizedAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">

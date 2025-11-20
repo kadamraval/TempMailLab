@@ -57,7 +57,6 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     if (isAdminLogin) {
         if (userDoc.exists() && userDoc.data()?.isAdmin) {
              toast({ title: "Success", description: "Admin logged in successfully." });
-             // Instead of router.push, we use router.replace to prevent back button issues
              router.replace(redirectPath);
         } else {
              await auth.signOut();

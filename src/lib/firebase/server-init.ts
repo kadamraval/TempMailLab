@@ -36,10 +36,10 @@ function getAdminServices(): AdminServices {
   // it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable.
   if (!apps.length) {
     console.log("Initializing Firebase Admin SDK for the first time...");
-     app = initializeApp({
+    app = initializeApp({
         credential: applicationDefault(),
-        databaseURL: `https://${process.env.GCLOUD_PROJECT}.firebaseio.com`,
-     });
+        projectId: process.env.GCLOUD_PROJECT,
+    });
   } else {
     // If apps exist, use the already-initialized default app.
     console.log("Re-using existing Firebase Admin SDK app instance.");
