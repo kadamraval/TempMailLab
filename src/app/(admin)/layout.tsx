@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState, useEffect } from 'react';
@@ -17,21 +18,24 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  // If we are on the login page, render it without the admin layout wrapper.
-  // This prevents the redirect loop.
-  if (pathname === '/login/admin') {
-    return <>{children}</>;
-  }
-
   useEffect(() => {
     // This effect redirects non-admins away from protected admin pages.
-    // It runs after all hooks are resolved and checks if the user state is final.
+    // It runs after all loading is complete and checks if the user state is final.
     if (!isUserLoading && !isProfileLoading) {
+      // Do not redirect if we're already on the login page
+      if (pathname === '/login/admin') return;
+
       if (!user || !userProfile?.isAdmin) {
         router.push('/login/admin'); 
       }
     }
   }, [user, userProfile, isUserLoading, isProfileLoading, router, pathname]);
+
+  // If we are on the login page, render it without the admin layout wrapper.
+  // This prevents the redirect loop and avoids showing the loader.
+  if (pathname === '/login/admin') {
+    return <>{children}</>;
+  }
   
   // While we are verifying the user's admin status, show a full-page loader.
   // This prevents rendering the admin UI to unauthorized users and avoids flicker.
