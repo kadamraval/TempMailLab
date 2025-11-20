@@ -20,7 +20,7 @@ function getAdminServices(): AdminServices {
 
   // Ensure all required environment variables are present. This is the crucial check.
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-      throw new Error("Firebase Admin SDK environment variables are not set. Please check your .env file and ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are all populated.");
+      throw new Error("Firebase Admin SDK environment variables are not set. Please check your .env file and ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are all populated. You can get these from your Firebase project's service account settings.");
   }
 
   // Construct the service account credentials from the environment variables.
