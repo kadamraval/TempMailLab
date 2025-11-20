@@ -33,7 +33,6 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // Anonymous access is handled by the trusted cloud function, which has admin rights.
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
 
       // Allow a registered (non-anonymous) user to list their own inboxes.
@@ -41,22 +40,12 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow a user to read a single email if they own it (based on the denormalized userId).
-        allow read: if request.auth.uid == resource.data.userId;
-
-        // Allow a user to list emails ONLY if they are querying for their own userId.
-        // This is the CRITICAL fix that enforces the client-side query must contain `where('userId', '==', request.auth.uid)`.
-        allow list: if request.auth.uid == request.query.where[0][2] && request.query.where[0][0] == "userId";
+        // Allow a user to read their own emails if they are the owner of the parent inbox.
+        allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
-        // Creation of emails is only allowed by the trusted server-side action (backend).
-        // This rule effectively denies client-side creation.
-        allow create: if true;
-        
-        // Allow an authenticated user to update their own emails (e.g. mark as read)
-        allow update: if request.auth.uid == resource.data.userId;
-        
-        // Deny direct client-side deletes.
-        allow delete: if false;
+        // Creation and deletion of emails are only allowed by the trusted server-side function.
+        // This rule effectively denies direct client-side creation/deletion.
+        allow create, delete: if false;
     }
 
   }

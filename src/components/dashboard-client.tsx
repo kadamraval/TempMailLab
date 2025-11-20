@@ -39,7 +39,6 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { type Plan } from '@/app/(admin)/admin/packages/data';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -56,7 +55,6 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [actionLogs, setActionLogs] = useState<string[]>([]);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -81,13 +79,10 @@ export function DashboardClient() {
   }, [firestore, currentInbox?.id]);
   
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id || !user?.uid) return null;
+    if (!firestore || !currentInbox?.id) return null;
     // Querying the subcollection
-    return query(
-      collection(firestore, `inboxes/${currentInbox.id}/emails`),
-      where('userId', '==', user.uid)
-    );
-  }, [firestore, currentInbox?.id, user?.uid]);
+    return collection(firestore, `inboxes/${currentInbox.id}/emails`);
+  }, [firestore, currentInbox?.id]);
 
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(userPlanRef);
@@ -151,42 +146,17 @@ export function DashboardClient() {
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
-    if (!currentInbox?.emailAddress || !currentInbox.id || !auth) return;
-
+    // Refreshing is now implicit as we use a real-time listener (useCollection)
+    // We can show a toast or a visual cue to the user.
     setIsRefreshing(true);
-    setServerError(null);
-    setActionLogs(prev => [`[${new Date().toLocaleTimeString()}] Refresh triggered...`, ...prev]);
-    
-    const ownerToken = currentInbox.ownerToken;
-    const functions = getFunctions();
-    const fetchEmailsFn = httpsCallable(functions, 'fetchEmails');
-
-    try {
-      const result = await fetchEmailsFn({
-        emailAddress: currentInbox.emailAddress,
-        inboxId: currentInbox.id,
-        ownerToken,
-      });
-
-      const data = result.data as { success: boolean; error?: string; log?: string[] };
-
-      if (data.log) {
-        setActionLogs(prev => [...data.log!.reverse(), ...prev]);
-      }
-
-      if (!data.success || data.error) {
-        setServerError(data.error || "An unknown error occurred in the cloud function.");
-      } else {
-        setServerError(null);
-      }
-    } catch (error: any) {
-      const clientSideError = `[${new Date().toLocaleTimeString()}] [FATAL] Client-side error calling function: ${error.message}`;
-      setServerError(error.message);
-      setActionLogs(prev => [clientSideError, ...prev]);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [currentInbox, auth]);
+    toast({
+      title: "Checking for new mail...",
+      duration: 2000,
+    });
+    // The onSnapshot listener of useCollection will automatically update the UI.
+    // We just need to give a visual feedback.
+    setTimeout(() => setIsRefreshing(false), 1000);
+  }, [toast]);
   
    const handleGenerateNewInbox = async () => {
         if (isGenerating || !firestore || !activePlan || !auth) return;
@@ -204,7 +174,6 @@ export function DashboardClient() {
         
         setIsGenerating(true);
         setServerError(null);
-        setActionLogs([]);
         setCurrentInbox(null);
         setSelectedEmail(null);
 
@@ -231,10 +200,6 @@ export function DashboardClient() {
                 expiresAt: expiresAt.toISOString(),
             };
             
-            if (activeUser.isAnonymous) {
-                newInboxData.ownerToken = uuidv4();
-            }
-
             const newInboxRef = await addDoc(collection(firestore, `inboxes`), {
                 ...newInboxData,
                 createdAt: serverTimestamp(),
@@ -245,10 +210,9 @@ export function DashboardClient() {
                 const finalInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
                 setCurrentInbox(finalInbox);
 
-                if (activeUser.isAnonymous && finalInbox.ownerToken) {
-                    localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({
+                if (activeUser.isAnonymous) {
+                     localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({
                         id: finalInbox.id,
-                        ownerToken: finalInbox.ownerToken,
                         expiresAt: finalInbox.expiresAt,
                     }));
                 }
@@ -291,22 +255,6 @@ export function DashboardClient() {
     };
   }, [liveInbox, currentInbox, user?.isAnonymous]);
 
-  useEffect(() => {
-    let autoRefreshInterval: NodeJS.Timeout | null = null;
-    
-    if (currentInbox?.id && !isGenerating) {
-       autoRefreshInterval = setInterval(() => {
-          if (!isRefreshing) {
-            handleRefresh();
-          }
-       }, 15000); 
-    }
-    
-    return () => {
-      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-    };
-  }, [currentInbox?.id, isRefreshing, isGenerating, handleRefresh]);
-
 
   const handleCopyEmail = async () => {
     if (currentInbox?.emailAddress) {
@@ -324,7 +272,6 @@ export function DashboardClient() {
     }
     setCurrentInbox(null);
     setSelectedEmail(null);
-    setActionLogs([]);
   };
 
   const handleSelectEmail = async (email: Email) => {
@@ -423,7 +370,7 @@ export function DashboardClient() {
         </Alert>
       )}
 
-      <div className="flex-1 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_400px]">
+      <div className="flex-1 grid grid-cols-1 gap-4">
         <Card className="h-full">
           <CardContent className="p-0 h-full">
             <div className="grid grid-cols-1 md:grid-cols-[350px_1fr] h-full min-h-[calc(100vh-400px)]">
@@ -498,17 +445,8 @@ export function DashboardClient() {
             </div>
           </CardContent>
         </Card>
-        <Card className="h-full hidden lg:flex flex-col">
-            <CardContent className="p-4 flex-1 flex flex-col">
-                <h3 className="font-semibold flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> Action Log</h3>
-                <ScrollArea className="flex-1 rounded-md bg-muted p-2">
-                    <pre className="text-xs whitespace-pre-wrap font-mono">
-                        {actionLogs.length > 0 ? actionLogs.join('\n') : 'Logs from the mail server will appear here...'}
-                    </pre>
-                </ScrollArea>
-            </CardContent>
-        </Card>
       </div>
     </div>
   );
 }
+

@@ -4,8 +4,6 @@ import type { Timestamp } from "firebase/firestore";
 export interface Email {
   id: string; 
   inboxId: string;
-  userId: string; // Denormalized for security rules
-  recipient?: string;
   senderName: string;
   subject: string;
   receivedAt: string | Timestamp; // Allow both for client/server
@@ -39,7 +37,6 @@ export interface Inbox {
   emailAddress: string;
   createdAt: Timestamp; // Ensure this is a Timestamp for sorting
   expiresAt: string;
-  ownerToken?: string;
 }
 
     

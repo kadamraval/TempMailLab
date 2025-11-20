@@ -4,8 +4,6 @@ import type { Timestamp } from "firebase-admin/firestore";
 export interface Email {
   id: string; 
   inboxId: string;
-  userId: string; 
-  recipient?: string;
   senderName: string;
   subject: string;
   receivedAt: Timestamp; 
