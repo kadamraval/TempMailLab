@@ -13,8 +13,10 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
 
 
 interface IntegrationSettingsFormProps {
@@ -35,6 +37,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         region: "US" as "US" | "EU",
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [verificationMessage, setVerificationMessage] = useState('');
+
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -62,41 +67,59 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
+        setVerificationStatus('idle');
     };
 
     const handleRegionChange = (value: "US" | "EU") => {
         setSettings(prev => ({ ...prev, region: value }));
+        setVerificationStatus('idle');
     };
 
     const handleSaveChanges = async () => {
         if (integration.slug !== 'mailgun' || !settingsRef) return;
         
         setIsSaving(true);
+        setVerificationStatus('idle');
         
         try {
+            // Step 1: Verify credentials with the new server action
+            const verificationResult = await verifyMailgunSettingsAction({
+                apiKey: settings.apiKey,
+                domain: settings.domain,
+                region: settings.region,
+            });
+
+            if (!verificationResult.success) {
+                setVerificationStatus('error');
+                setVerificationMessage(verificationResult.error || "An unknown verification error occurred.");
+                throw new Error(verificationResult.error);
+            }
+
+            setVerificationStatus('success');
+            setVerificationMessage('Connection successful!');
+
+            // Step 2: If verification is successful, save the settings to Firestore
             const settingsToSave = {
                 signingKey: settings.signingKey,
                 apiKey: settings.apiKey,
                 domain: settings.domain,
                 region: settings.region,
-                enabled: !!(settings.apiKey && settings.domain)
+                enabled: true // Enable since verification passed
             };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
-                title: "Settings Saved",
-                description: `${integration.title} configuration has been updated.`,
+                title: "Settings Saved & Verified",
+                description: `${integration.title} configuration has been successfully verified and saved.`,
             });
-            router.push('/admin/settings/integrations');
+            
+            // Optionally redirect after a short delay
+            setTimeout(() => router.push('/admin/settings/integrations'), 2000);
 
         } catch (error: any) {
             console.error("Error saving settings:", error);
-            toast({
-                title: "Error Saving Settings",
-                description: error.message || "An unknown error occurred.",
-                variant: "destructive"
-            });
+            // Don't show a toast here since the inline alert is more specific
         } finally {
             setIsSaving(false);
         }
@@ -177,23 +200,15 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
-                 {integration.slug === 'mailgun' && (
-                    <>
-                    <Separator />
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                            <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
-                            <p className="text-sm text-muted-foreground">
-                                This is enabled automatically once you provide an API Key and Domain.
-                            </p>
-                        </div>
-                        <Switch 
-                            id="enable-integration"
-                            checked={settings.enabled}
-                            disabled={true}
-                        />
-                    </div>
-                    </>
+                {verificationStatus !== 'idle' && verificationMessage && (
+                    <Alert variant={verificationStatus === 'error' ? 'destructive' : 'default'} className={verificationStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}>
+                         {verificationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                        <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Failed'}</AlertTitle>
+                        <AlertDescription>
+                            {verificationMessage}
+                             {verificationStatus === 'success' && ' You may also need to check your domain\'s DNS records (like MX) and ensure "Storage" is enabled in your Mailgun dashboard.'}
+                        </AlertDescription>
+                    </Alert>
                 )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
@@ -201,7 +216,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings || isMailgunFormIncomplete}>
                         {(isSaving || isLoadingSettings) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        Verify & Save
                     </Button>
                 </div>
             </CardFooter>
