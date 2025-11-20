@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
+import { fetchAndStoreEmailsAction } from '@/lib/actions/mailgun';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
@@ -78,7 +79,6 @@ export function DashboardClient() {
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id) return null;
-    // Querying the subcollection
     return collection(firestore, `inboxes/${currentInbox.id}/emails`);
   }, [firestore, currentInbox?.id]);
 
@@ -144,17 +144,33 @@ export function DashboardClient() {
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
-    // This function is now effectively a no-op as webhooks handle email arrival.
-    // We can keep it to give users a sense of control or remove it.
-    // For now, it just shows a toast.
+    if (!currentInbox || !user) return;
     setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 750)); // simulate a check
-    toast({
-        title: "Inbox is Live",
-        description: "New emails will appear automatically.",
-    });
-    setIsRefreshing(false);
-  }, [toast]);
+    setServerError(null);
+
+    try {
+        const result = await fetchAndStoreEmailsAction(currentInbox.emailAddress, currentInbox.id, user.uid);
+
+        if (result.success) {
+            toast({
+                title: "Inbox Refreshed",
+                description: result.message || "Checked for new emails.",
+            });
+        } else {
+            throw new Error(result.error || "Failed to refresh inbox.");
+        }
+    } catch (error: any) {
+        console.error("Refresh Error:", error);
+        setServerError(error.message || "An unexpected error occurred while fetching emails.");
+        toast({
+            title: "Refresh Failed",
+            description: "Could not fetch new emails.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsRefreshing(false);
+    }
+  }, [currentInbox, user, toast]);
   
    const handleGenerateNewInbox = async () => {
         if (isGenerating || !firestore || !activePlan || !auth) return;
@@ -268,8 +284,6 @@ export function DashboardClient() {
 
   const handleDeleteCurrentInbox = async () => {
     if (currentInbox && firestore) {
-      // Intentionally not deleting subcollections for this example,
-      // but in a real app you'd use a Cloud Function for recursive delete.
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
       if (user?.isAnonymous) {
           localStorage.removeItem(LOCAL_INBOX_KEY);
@@ -385,10 +399,19 @@ export function DashboardClient() {
                     <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                       <Inbox className="h-16 w-16 mb-4" />
                       <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+                      <Button onClick={handleRefresh} variant="outline" disabled={isRefreshing}>
+                        {isRefreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Check for Mail
+                      </Button>
                     </div>
                   ) : (
                     <div className="p-2 space-y-1">
-                      {sortedEmails.map((email) => (
+                      {sortedEmails.length === 0 ? (
+                         <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                           <Inbox className="h-16 w-16 mb-4" />
+                           <p className="mt-4 text-lg">No emails yet.</p>
+                         </div>
+                      ) : sortedEmails.map((email) => (
                           <button
                             key={email.id}
                             onClick={() => handleSelectEmail(email)}
@@ -454,5 +477,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

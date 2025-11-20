@@ -33,29 +33,21 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the logged-in owner.
-      // OR if they are anonymous AND provide the correct ownerToken for the existing doc.
-      allow read, update, delete: if (request.auth != null && resource.data.userId == request.auth.uid) || 
-                                     (request.auth == null && request.query.ownerToken == resource.data.ownerToken);
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
 
       // Allow a registered (non-anonymous) user to list their own inboxes.
       allow list: if request.auth != null && !request.auth.token.firebase.sign_in_provider.endsWith('anonymous') && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow a user to read a single email if they own it (based on the denormalized userId).
-        allow read: if request.auth.uid == resource.data.userId;
-
-        // Allow a user to list emails ONLY if they are querying for their own userId.
-        // This is the CRITICAL fix that enforces the client-side query must contain `where('userId', '==', request.auth.uid)`.
-        allow list: if request.auth.uid == request.query.where[0][2] && request.query.where[0][0] == "userId";
+        // Allow a user to read or update their own emails if they are the owner of the parent inbox.
+        allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
-        // Allow email creation only by the trusted server-side action.
-        allow create: if true;
-        
-        // Allow an authenticated user to update their own emails (e.g. mark as read)
-        allow update: if request.auth.uid == resource.data.userId;
-        
-        // Deny direct client-side deletes.
+        // Creation of emails is only allowed by the trusted server-side function (which uses admin credentials).
+        // This rule effectively denies direct client-side creation.
+        allow create: if false;
+
+        // Deletion of emails is disallowed from the client for data integrity.
         allow delete: if false;
     }
 
