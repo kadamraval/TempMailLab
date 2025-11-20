@@ -70,16 +70,16 @@ export async function fetchEmailsWithCredentialsAction(
         log.push(`Inbox found. Operating for user ID: ${userId}`);
 
         const allEvents = [];
-        const beginTimestamp = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
+        const beginTimestamp = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000); // 7 days as you suggested
 
         for (const [region, host] of Object.entries(MAILGUN_API_HOSTS)) {
-            log.push(`Querying Mailgun '${region.toUpperCase()}' region for events...`);
+            log.push(`Querying Mailgun '${region.toUpperCase()}' region for "stored" events...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "accepted",
+                    event: "stored", // Using 'stored' as you suggested
                     limit: 300,
                     begin: beginTimestamp,
                     recipient: emailAddress,
@@ -89,7 +89,7 @@ export async function fetchEmailsWithCredentialsAction(
                     log.push(`Found ${events.items.length} event(s) in ${region.toUpperCase()}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No events found in ${region.toUpperCase()}.`);
+                    log.push(`No "stored" events found in ${region.toUpperCase()}.`);
                 }
             } catch (hostError: any) {
                  if (hostError.status !== 401) { // 401 is expected if key is not for this region
@@ -104,11 +104,11 @@ export async function fetchEmailsWithCredentialsAction(
         }
         
         if (allEvents.length === 0) {
-            log.push("No new mail events found. Action complete.");
+            log.push("No new 'stored' mail events found. Action complete.");
             return { success: true, log };
         }
 
-        log.push(`Total events found: ${allEvents.length}. Processing each email.`);
+        log.push(`Total "stored" events found: ${allEvents.length}. Processing each email.`);
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
@@ -189,5 +189,3 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: false, error: error.message || 'An unknown server error occurred.', log };
     }
 }
-
-    
