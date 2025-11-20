@@ -13,6 +13,7 @@ import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 
 interface IntegrationSettingsFormProps {
@@ -30,6 +31,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         signingKey: "", 
         apiKey: "",
         domain: "",
+        region: "US" as "US" | "EU",
     });
     const [isSaving, setIsSaving] = useState(false);
     const firestore = useFirestore();
@@ -50,6 +52,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 signingKey: existingSettings.signingKey ?? "",
                 apiKey: existingSettings.apiKey ?? "",
                 domain: existingSettings.domain ?? "",
+                region: existingSettings.region ?? "US",
             })
         }
     }, [existingSettings]);
@@ -60,8 +63,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setSettings(prev => ({ ...prev, [id]: value }));
     };
 
-    const handleSwitchChange = (checked: boolean) => {
-        setSettings(prev => ({ ...prev, enabled: checked }));
+    const handleRegionChange = (value: "US" | "EU") => {
+        setSettings(prev => ({ ...prev, region: value }));
     };
 
     const handleSaveChanges = async () => {
@@ -74,6 +77,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 signingKey: settings.signingKey,
                 apiKey: settings.apiKey,
                 domain: settings.domain,
+                region: settings.region,
                 enabled: !!(settings.signingKey && settings.apiKey && settings.domain)
             };
 
@@ -115,23 +119,38 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 return (
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="signingKey">HTTP Webhook Signing Key</Label>
-                            <Input id="signingKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.signingKey} onChange={handleInputChange} />
-                            <p className="text-sm text-muted-foreground">
-                                Your webhook verification key. Found under Sending &gt; Webhooks.
-                            </p>
-                        </div>
-                         <div className="space-y-2">
                             <Label htmlFor="apiKey">Private API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your secret API key. Found under Settings &gt; API Keys.
+                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
                             </p>
                         </div>
-                         <div className="space-y-2">
+                        <div className="space-y-2">
                             <Label htmlFor="domain">Mailgun Domain</Label>
                             <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="signingKey">HTTP Webhook Signing Key (Optional)</Label>
+                            <Input id="signingKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.signingKey} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Used to verify webhooks. Found under Sending &gt; Webhooks.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="region">Mailgun Region</Label>
+                             <Select value={settings.region} onValueChange={handleRegionChange}>
+                                <SelectTrigger id="region">
+                                    <SelectValue placeholder="Select your Mailgun account region" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="US">US (api.mailgun.net)</SelectItem>
+                                    <SelectItem value="EU">EU (api.eu.mailgun.net)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-sm text-muted-foreground">
+                                Select the region where your Mailgun account is hosted.
+                            </p>
                         </div>
                     </div>
                 );
@@ -162,13 +181,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-0.5">
                             <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
                             <p className="text-sm text-muted-foreground">
-                                This is enabled automatically once you provide all required keys and a domain.
+                                This is enabled automatically once you provide an API Key and Domain.
                             </p>
                         </div>
                         <Switch 
                             id="enable-integration"
                             checked={settings.enabled}
-                            onCheckedChange={handleSwitchChange}
                             disabled={true}
                         />
                     </div>

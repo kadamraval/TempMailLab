@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -7,6 +6,12 @@ import type { Email } from '@/types';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 import { simpleParser } from 'mailparser';
+import type { ClientOptions } from 'mailgun.js';
+
+const MAILGUN_API_ENDPOINTS = {
+    US: 'https://api.mailgun.net',
+    EU: 'https://api.eu.mailgun.net'
+};
 
 async function getMailgunSettings() {
     const firestore = getAdminFirestore();
@@ -14,7 +19,11 @@ async function getMailgunSettings() {
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
         throw new Error("Mailgun integration is not configured or enabled in the admin panel.");
     }
-    return settingsDoc.data();
+    const settings = settingsDoc.data();
+    if (!settings?.apiKey || !settings?.domain) {
+        throw new Error("Mailgun API key or domain is missing from settings.");
+    }
+    return settings;
 }
 
 /**
@@ -28,12 +37,21 @@ async function getMailgunSettings() {
 export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
     try {
         const mailgunSettings = await getMailgunSettings();
-        if (!mailgunSettings?.apiKey || !mailgunSettings?.domain) {
-            throw new Error("Mailgun API key or domain is missing from settings.");
+        
+        const clientOptions: ClientOptions = {
+            username: 'api',
+            key: mailgunSettings.apiKey
+        };
+        
+        // Set the API endpoint based on the configured region
+        if (mailgunSettings.region === 'EU') {
+            clientOptions.url = MAILGUN_API_ENDPOINTS.EU;
+        } else {
+            clientOptions.url = MAILGUN_API_ENDPOINTS.US;
         }
 
         const mailgun = new Mailgun(formData);
-        const mg = mailgun.client({ username: 'api', key: mailgunSettings.apiKey });
+        const mg = mailgun.client(clientOptions);
 
         const firestore = getAdminFirestore();
         const inboxRef = firestore.doc(`inboxes/${inboxId}`);
@@ -60,18 +78,12 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
             if (emailDoc.exists) continue;
 
-            // This is a temporary fix, as the `storage.url` is sometimes not available.
-            // A more robust solution would be to use a webhook.
             if (!event.storage || !event.storage.url) continue;
 
             // The URL provided by mailgun is already authenticated for a short period of time.
-            // We just need to fetch it.
-            const rawMessageResponse = await fetch(event.storage.url, {
-                headers: { 'Accept': 'message/rfc2822' }
-            });
-            const rawMessage = await rawMessageResponse.text();
-            
-            const parsedEmail = await simpleParser(rawMessage);
+            const rawMessageResponse = await mg.get(event.storage.url.replace(MAILGUN_API_ENDPOINTS.US, ''));
+
+            const parsedEmail = await simpleParser(rawMessageResponse.body);
 
             const emailData: Omit<Email, 'id'> = {
                 inboxId: inboxId,
@@ -82,7 +94,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 createdAt: Timestamp.now(),
                 htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : "",
                 textContent: parsedEmail.text || "",
-                rawContent: rawMessage,
+                rawContent: rawMessageResponse.body,
                 read: false,
                 attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
                     filename: att.filename || 'attachment',
@@ -107,7 +119,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
     } catch (error: any) {
         console.error("[fetchAndStoreEmailsAction Error]", error);
         const errorMessage = error.status === 401 
-            ? "Mailgun authentication failed. Check API key." 
+            ? "Mailgun authentication failed. Check API key and Region." 
             : error.message || 'An unknown error occurred while fetching emails.';
         return { success: false, error: errorMessage };
     }
