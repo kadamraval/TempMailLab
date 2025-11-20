@@ -34,7 +34,7 @@ const verifyMailgunSignature = (
 };
 
 export const mailgunWebhook = onRequest(
-  { region: "us-central1", cors: true }, // Removed secrets, as we fetch from Firestore
+  { region: "us-central1", cors: true },
   async (req, res) => {
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -42,37 +42,30 @@ export const mailgunWebhook = onRequest(
       return;
     }
 
+    let mailgunSigningKey: string;
     let mailgunApiKey: string;
     try {
         const settingsDoc = await db.doc("admin_settings/mailgun").get();
-        if (!settingsDoc.exists || !settingsDoc.data()?.apiKey) {
-            throw new Error("Mailgun API key is not configured in Firestore admin_settings/mailgun.");
+        if (!settingsDoc.exists || !settingsDoc.data()?.signingKey || !settingsDoc.data()?.apiKey) {
+            throw new Error("Mailgun signing key or API key is not configured in Firestore admin_settings/mailgun.");
         }
+        mailgunSigningKey = settingsDoc.data()?.signingKey;
         mailgunApiKey = settingsDoc.data()?.apiKey;
     } catch (error: any) {
-        logger.error("Failed to retrieve Mailgun API key from Firestore.", { message: error.message });
-        res.status(500).send("Internal Server Error: Could not retrieve API key.");
+        logger.error("Failed to retrieve Mailgun keys from Firestore.", { message: error.message });
+        res.status(500).send("Internal Server Error: Could not retrieve API keys.");
         return;
     }
 
     const bb = busboy({ headers: req.headers });
     const fields: Record<string, string> = {};
     
-    // Wrap busboy in a promise to handle async parsing
     const parsingPromise = new Promise<void>((resolve, reject) => {
       bb.on("field", (name, val) => {
         fields[name] = val;
       });
-
-      bb.on("finish", () => {
-        resolve();
-      });
-
-      bb.on("error", (err) => {
-        reject(err);
-      });
-      
-      // Pipe the raw request body into busboy.
+      bb.on("finish", () => resolve());
+      bb.on("error", (err) => reject(err));
       bb.end(req.rawBody);
     });
 
@@ -87,7 +80,7 @@ export const mailgunWebhook = onRequest(
         return;
       }
       
-      if (!verifyMailgunSignature(mailgunApiKey, timestamp, token, signature)) {
+      if (!verifyMailgunSignature(mailgunSigningKey, timestamp, token, signature)) {
         logger.error("Invalid Mailgun webhook signature.");
         res.status(401).send("Unauthorized: Invalid signature.");
         return;
@@ -105,7 +98,7 @@ export const mailgunWebhook = onRequest(
         res.status(400).send("Bad Request: Recipient not found.");
         return;
       }
-       if (!messageId) {
+      if (!messageId) {
         logger.error("Message-Id not found in payload.");
         res.status(400).send("Bad Request: Message-Id not found.");
         return;

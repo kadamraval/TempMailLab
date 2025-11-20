@@ -29,7 +29,8 @@ interface IntegrationSettingsFormProps {
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
     const [settings, setSettings] = useState({
         enabled: false,
-        apiKey: "",
+        signingKey: "", // Changed from apiKey to signingKey
+        apiKey: "",     // Added for the Private API Key
         domain: "",
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +49,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (existingSettings) {
             setSettings({
                 enabled: existingSettings.enabled ?? false,
+                signingKey: existingSettings.signingKey ?? "",
                 apiKey: existingSettings.apiKey ?? "",
                 domain: existingSettings.domain ?? "",
             })
@@ -71,6 +73,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const settingsToSave = {
+                signingKey: settings.signingKey,
                 apiKey: settings.apiKey,
                 domain: settings.domain,
             };
@@ -114,12 +117,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         switch (integration.slug) {
             case "mailgun":
                 return (
-                    <>
+                    <div className="space-y-6">
                         <div className="space-y-2">
-                            <Label htmlFor="apiKey">Mailgun Signing Key</Label>
+                            <Label htmlFor="signingKey">HTTP Webhook Signing Key</Label>
+                            <Input id="signingKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.signingKey} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Your webhook verification key. Found under Sending &gt; Webhooks.
+                            </p>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="apiKey">Private API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your <span className="font-semibold">HTTP webhook signing key</span>. You can find this in your Mailgun account under Sending &gt; Webhooks.
+                                Your secret API key. Found under Settings &gt; API Keys.
                             </p>
                         </div>
                          <div className="space-y-2">
@@ -127,7 +137,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
                         </div>
-                    </>
+                    </div>
                 );
             
             default:
@@ -156,7 +166,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <div className="space-y-0.5">
                             <Label htmlFor="enable-integration" className="text-base">Enable Integration</Label>
                             <p className="text-sm text-muted-foreground">
-                                This will be enabled automatically once you provide a valid Signing Key and Domain.
+                                This is enabled automatically once you provide all required keys and a domain.
                             </p>
                         </div>
                         <Switch 
