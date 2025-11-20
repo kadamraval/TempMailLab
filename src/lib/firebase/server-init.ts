@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 
@@ -25,7 +25,7 @@ function getAdminApp(): App {
     // service account credentials should be automatically discovered.
     // Locally, you must set the GOOGLE_APPLICATION_CREDENTIALS environment variable.
     try {
-        console.log("Attempting to initialize Firebase Admin SDK...");
+        console.log("Attempting to initialize Firebase Admin SDK with default credentials...");
         adminApp = initializeApp();
         console.log("Firebase Admin SDK initialized successfully.");
     } catch (error: any) {
@@ -33,7 +33,7 @@ function getAdminApp(): App {
         
         // Provide a more helpful error message for different environments.
         if (error.code === 'app/invalid-credential') {
-             const errorMessage = 'Could not initialize Firebase Admin SDK. This is a critical failure. In a local environment, ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable points to your service account JSON file. In a deployed environment, this indicates a problem with the service account permissions.';
+             const errorMessage = 'CRITICAL: Could not initialize Firebase Admin SDK. The server environment is missing Google Application Credentials. In a local environment, ensure the GOOGLE_APPLICATION_CREDENTIALS environment variable points to your service account JSON file. In a deployed environment, this indicates a problem with the service account permissions.';
              throw new Error(errorMessage);
         }
         // For other errors, re-throw the original error.
