@@ -20,28 +20,30 @@ export default function AdminLayout({
 
   const isLoginPage = pathname === '/login/admin';
   const finishedLoading = !isUserLoading && !isProfileLoading;
-  const isAuthorizedAdmin = user && userProfile?.isAdmin;
+  const isAuthorizedAdmin = user && !user.isAnonymous && userProfile?.isAdmin === true;
 
-  // This effect handles redirection after all loading is complete.
+  // This effect handles redirection logic once all loading is complete.
   useEffect(() => {
-    // Only run redirection logic when loading is finished.
-    if (finishedLoading) {
-      // If we are not on the login page and the user is not an authorized admin,
+    // Only perform redirects if we are not currently on the login page itself.
+    if (!isLoginPage && finishedLoading) {
+      // If loading is finished and the user is not an authorized admin,
       // redirect them to the admin login page.
-      if (!isLoginPage && !isAuthorizedAdmin) {
-        router.push('/login/admin');
+      if (!isAuthorizedAdmin) {
+        router.replace('/login/admin');
       }
     }
   }, [finishedLoading, isAuthorizedAdmin, isLoginPage, router]);
 
-  // If we are on the login page, render it directly.
-  // The logic inside LoginForm will handle redirection upon successful login.
+
+  // If the current page is the login page, render it directly.
+  // The login form itself will handle redirecting the user upon successful login.
   if (isLoginPage) {
     return <>{children}</>;
   }
   
-  // If loading is not finished OR the user is not yet confirmed as an admin,
-  // show a full-page loader. This prevents flicker and premature rendering.
+  // If we are still waiting for auth or profile data to load,
+  // or if the user is not yet confirmed as an admin, show a loading screen.
+  // This prevents content from flashing before the redirect can happen.
   if (!finishedLoading || !isAuthorizedAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">

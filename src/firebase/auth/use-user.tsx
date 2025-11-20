@@ -33,5 +33,14 @@ export const useUser = (): UserHookResultWithProfile => {
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  return { user, userProfile, isUserLoading, isProfileLoading: isUserLoading || isProfileLoading, error: userError };
+  // The final loading state is true if either the auth user is loading OR the profile is loading.
+  const combinedLoading = isUserLoading || isProfileLoading;
+
+  return { 
+    user, 
+    userProfile, 
+    isUserLoading: combinedLoading, // Report combined loading status
+    isProfileLoading: combinedLoading, // Keep this for more specific checks if needed
+    error: userError 
+  };
 };

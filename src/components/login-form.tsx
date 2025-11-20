@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore"
+import { doc, getDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -47,41 +47,36 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     },
   })
   
-  // This is the core logic for handling a successful sign-in
   async function handleLoginSuccess(user: User) {
     if (!firestore || !auth) return;
     
-    // Check if we are on the admin login page
     const isAdminLogin = redirectPath.startsWith('/admin');
-
     const userRef = doc(firestore, 'users', user.uid);
     const userDoc = await getDoc(userRef);
 
     if (isAdminLogin) {
         if (userDoc.exists() && userDoc.data()?.isAdmin) {
              toast({ title: "Success", description: "Admin logged in successfully." });
-             router.push(redirectPath);
+             // Instead of router.push, we use router.replace to prevent back button issues
+             router.replace(redirectPath);
         } else {
-             await auth.signOut(); // Log out the non-admin user
+             await auth.signOut();
              toast({ title: "Permission Denied", description: "You do not have administrative privileges.", variant: "destructive" });
         }
         return;
     }
     
-    // This logic handles a REGULAR user login
     if (!userDoc.exists()) {
-       // This is a first-time sign-in (e.g., via Google). Create their user doc.
-       // The signUpAction will also handle migrating any anonymous inbox.
        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
        if (!result.success) {
-           await auth.signOut(); // Log out if profile creation fails
+           await auth.signOut();
            throw new Error(result.error || "Failed to create user profile during login.");
        }
     }
     
     toast({ title: "Success", description: "Logged in successfully." });
-    router.push(redirectPath);
+    router.replace(redirectPath);
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
