@@ -54,3 +54,4 @@ export function getAdminFirestore() {
 export function getAdminAuth() {
     return getAuth(getAdminApp());
 };
+
