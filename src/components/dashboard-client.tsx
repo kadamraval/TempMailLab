@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -82,6 +81,7 @@ export function DashboardClient() {
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id || !user?.uid) return null;
+    // Querying the subcollection
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
       where('userId', '==', user.uid)
@@ -224,14 +224,14 @@ export function DashboardClient() {
             
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
-            const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
+            const newInboxData: Partial<InboxType> = {
                 userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
             };
             
             if (activeUser.isAnonymous) {
-                (newInboxData as any).ownerToken = uuidv4();
+                newInboxData.ownerToken = uuidv4();
             }
 
             const newInboxRef = await addDoc(collection(firestore, `inboxes`), {
@@ -511,3 +511,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

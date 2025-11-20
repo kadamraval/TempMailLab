@@ -20,7 +20,6 @@ export interface Email {
     url: string;
   }[];
   read?: boolean;
-  ownerToken?: string; // For anonymous security rule
 }
 
 export interface User {
@@ -42,3 +41,5 @@ export interface Inbox {
   expiresAt: string;
   ownerToken?: string;
 }
+
+    
