@@ -7,7 +7,6 @@ import * as crypto from "crypto";
 import DOMPurify from "isomorphic-dompurify";
 import type { Email } from "./types";
 import busboy from "busboy";
-import fetch from "node-fetch";
 
 // Initialize Firebase Admin SDK
 initializeApp();
@@ -34,7 +33,7 @@ const verifyMailgunSignature = (
 };
 
 export const mailgunWebhook = onRequest(
-  { region: "us-central1", cors: true },
+  { region: "us-central1", cors: true, secrets: ["MAILGUN_API_KEY"] },
   async (req, res) => {
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -45,14 +44,22 @@ export const mailgunWebhook = onRequest(
     let mailgunSigningKey: string;
     let mailgunApiKey: string;
     try {
+        // The API key for fetching is stored as a secret for better security.
+        mailgunApiKey = process.env.MAILGUN_API_KEY || "";
+        
+        // The signing key (less sensitive) is stored in Firestore for easier admin management.
         const settingsDoc = await db.doc("admin_settings/mailgun").get();
-        if (!settingsDoc.exists || !settingsDoc.data()?.signingKey || !settingsDoc.data()?.apiKey) {
-            throw new Error("Mailgun signing key or API key is not configured in Firestore admin_settings/mailgun.");
+
+        if (!settingsDoc.exists || !settingsDoc.data()?.signingKey) {
+            throw new Error("Mailgun signing key is not configured in Firestore 'admin_settings/mailgun'.");
+        }
+        if (!mailgunApiKey) {
+            throw new Error("MAILGUN_API_KEY secret is not configured in the function environment.");
         }
         mailgunSigningKey = settingsDoc.data()?.signingKey;
-        mailgunApiKey = settingsDoc.data()?.apiKey;
+        
     } catch (error: any) {
-        logger.error("Failed to retrieve Mailgun keys from Firestore.", { message: error.message });
+        logger.error("Failed to retrieve Mailgun keys.", { message: error.message });
         res.status(500).send("Internal Server Error: Could not retrieve API keys.");
         return;
     }
@@ -145,7 +152,7 @@ export const mailgunWebhook = onRequest(
       if (!response.ok) {
           throw new Error(`Failed to fetch email from Mailgun storage: ${response.statusText}`);
       }
-      const fetchedEmailData = await response.json();
+      const fetchedEmailData = await response.json() as any;
 
       const htmlBody = fetchedEmailData['body-html'] || fetchedEmailData['stripped-html'] || '';
       const cleanHtml = DOMPurify.sanitize(htmlBody);
