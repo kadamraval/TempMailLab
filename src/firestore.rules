@@ -5,7 +5,7 @@ service cloud.firestore {
 
     // --- Publicly Readable Collections ---
     match /plans/{planId} {
-      allow read: if true;
+      allow get, list: if true;
       allow write: if false; 
     }
 
