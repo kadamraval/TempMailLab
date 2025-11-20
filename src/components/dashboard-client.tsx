@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -11,7 +10,6 @@ import {
   Inbox,
   ServerCrash,
   Mail,
-  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -44,7 +42,6 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
-import { v4 as uuidv4 } from 'uuid';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
@@ -146,15 +143,13 @@ export function DashboardClient() {
   }, [user, isUserLoading, auth, firestore, isLoadingInboxes, userInboxes, isLoadingPlan]);
 
   const handleRefresh = useCallback(async () => {
-    // Refreshing is now implicit as we use a real-time listener (useCollection)
-    // We can show a toast or a visual cue to the user.
+    // The webhook handles email delivery, this is just for user feedback
     setIsRefreshing(true);
     toast({
       title: "Checking for new mail...",
+      description: "New messages will appear automatically.",
       duration: 2000,
     });
-    // The onSnapshot listener of useCollection will automatically update the UI.
-    // We just need to give a visual feedback.
     setTimeout(() => setIsRefreshing(false), 1000);
   }, [toast]);
   
@@ -194,7 +189,7 @@ export function DashboardClient() {
             
             const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
             
-            const newInboxData: Partial<InboxType> = {
+            const newInboxData: Omit<InboxType, 'id' | 'createdAt'> = {
                 userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
@@ -449,4 +444,3 @@ export function DashboardClient() {
     </div>
   );
 }
-

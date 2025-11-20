@@ -31,19 +31,13 @@ export async function signUpAction(uid: string, email: string, anonymousInboxDat
         }
 
         if (anonymousInboxData) {
-            const { id: inboxId, ownerToken } = JSON.parse(anonymousInboxData);
-            if (inboxId && ownerToken) {
+            const { id: inboxId } = JSON.parse(anonymousInboxData);
+            if (inboxId) {
                 const inboxRef = firestore.doc(`inboxes/${inboxId}`);
                 const inboxSnap = await inboxRef.get();
 
                 if (inboxSnap.exists) {
-                    const currentInboxData = inboxSnap.data() as Inbox;
-                    if (currentInboxData.ownerToken === ownerToken) {
-                        await inboxRef.update({
-                            userId: uid,
-                            ownerToken: null, 
-                        });
-                    }
+                     await inboxRef.update({ userId: uid });
                 }
             }
         }
