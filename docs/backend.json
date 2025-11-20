@@ -8,63 +8,55 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the User entity."
+          "description": "Unique identifier for the user."
         },
         "email": {
           "type": "string",
-          "description": "User's email address (used for login if not using Google).",
-          "format": "email"
+          "description": "User's email address (for login if not using Google)."
         },
         "googleId": {
           "type": "string",
-          "description": "User's Google ID (if logged in with Google)."
+          "description": "Google ID of the user, if logged in with Google."
         },
-        "isPremium": {
+        "premium": {
           "type": "boolean",
           "description": "Indicates if the user has a premium (ad-free) account."
         },
-        "createdAt": {
+        "apiKeyId": {
           "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
+          "description": "Reference to ApiKey. (Relationship: User 1:N ApiKey)"
         }
       },
       "required": [
         "id"
       ]
     },
-    "Inbox": {
+    "TempInbox": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Inbox",
+      "title": "TempInbox",
       "type": "object",
       "description": "Represents a temporary email inbox.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Inbox entity."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Inbox)"
+          "description": "Unique identifier for the temporary inbox."
         },
         "emailAddress": {
           "type": "string",
-          "description": "The temporary email address for this inbox."
+          "description": "The full email address of the temporary inbox."
         },
         "expirationTime": {
           "type": "string",
-          "description": "Timestamp indicating when the inbox will expire.",
+          "description": "The date and time when the inbox will expire.",
           "format": "date-time"
         },
-        "createdAt": {
+        "userId": {
           "type": "string",
-          "description": "Timestamp indicating when the inbox was created.",
-          "format": "date-time"
+          "description": "Reference to User. (Relationship: User 1:N TempInbox).  The user who created or owns this inbox. Null if anonymous."
         }
       },
       "required": [
         "id",
-        "userId",
         "emailAddress",
         "expirationTime"
       ]
@@ -73,107 +65,226 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Email",
       "type": "object",
-      "description": "Represents a single email message within an inbox.",
+      "description": "Represents a single email message received in a temporary inbox.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Email entity."
+          "description": "Unique identifier for the email message."
         },
         "inboxId": {
           "type": "string",
-          "description": "Reference to Inbox. (Relationship: Inbox 1:N Email)"
+          "description": "Reference to TempInbox. (Relationship: TempInbox 1:N Email). The inbox this email belongs to."
         },
         "senderName": {
           "type": "string",
-          "description": "Name of the sender."
+          "description": "The name of the email sender."
         },
         "subject": {
           "type": "string",
-          "description": "Subject line of the email."
+          "description": "The subject line of the email."
         },
-        "receivedAt": {
+        "receivedTime": {
           "type": "string",
-          "description": "Timestamp indicating when the email was received.",
+          "description": "The date and time when the email was received.",
           "format": "date-time"
         },
         "htmlContent": {
           "type": "string",
-          "description": "HTML content of the email."
+          "description": "The HTML content of the email."
         },
-        "textContent": {
+        "plainTextContent": {
           "type": "string",
-          "description": "Plain text content of the email."
+          "description": "The plain text content of the email."
         }
       },
       "required": [
         "id",
         "inboxId",
-        "senderName",
-        "subject",
-        "receivedAt"
+        "receivedTime"
+      ]
+    },
+    "AdminSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminSession",
+      "type": "object",
+      "description": "Represents an active admin session.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the admin session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N AdminSession). The admin user associated with this session."
+        },
+        "loginTime": {
+          "type": "string",
+          "description": "The date and time when the admin session started.",
+          "format": "date-time"
+        },
+        "lastActiveTime": {
+          "type": "string",
+          "description": "The date and time the admin session was last active.",
+          "format": "date-time"
+        },
+        "ipAddress": {
+          "type": "string",
+          "description": "The IP address of the admin session."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "loginTime"
+      ]
+    },
+    "BlockedIp": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BlockedIp",
+      "type": "object",
+      "description": "Represents a blocked IP address.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the blocked IP address."
+        },
+        "ipAddress": {
+          "type": "string",
+          "description": "The blocked IP address."
+        },
+        "blockTime": {
+          "type": "string",
+          "description": "The time when the IP address was blocked.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ipAddress",
+        "blockTime"
+      ]
+    },
+    "BlockedDomain": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BlockedDomain",
+      "type": "object",
+      "description": "Represents a blocked sender domain.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the blocked domain."
+        },
+        "domain": {
+          "type": "string",
+          "description": "The blocked sender domain."
+        },
+        "blockTime": {
+          "type": "string",
+          "description": "The time when the domain was blocked.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "domain",
+        "blockTime"
       ]
     },
     "ApiKey": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ApiKey",
       "type": "object",
-      "description": "Represents a developer API key for accessing the TempInbox API.",
+      "description": "Represents an API key for developer access.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the ApiKey entity."
+          "description": "Unique identifier for the API key."
+        },
+        "key": {
+          "type": "string",
+          "description": "The API key value."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ApiKey). Represents the user/developer who owns the API key."
+          "description": "Reference to User. (Relationship: User 1:N ApiKey). The user who owns this API key."
         },
-        "apiKey": {
+        "creationTime": {
           "type": "string",
-          "description": "The actual API key value."
-        },
-        "usageLimit": {
-          "type": "number",
-          "description": "The maximum number of API calls allowed per time period."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the API key was created.",
+          "description": "The date and time when the API key was created.",
           "format": "date-time"
+        },
+        "planId": {
+          "type": "string",
+          "description": "Reference to ApiPlan. (Relationship: ApiKey 1:1 ApiPlan).  The API plan associated with this key."
         }
       },
       "required": [
         "id",
+        "key",
         "userId",
-        "apiKey",
-        "usageLimit"
+        "creationTime"
       ]
     },
-    "UsageLog": {
+    "ApiPlan": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UsageLog",
+      "title": "ApiPlan",
       "type": "object",
-      "description": "Represents a log entry for API key usage.",
+      "description": "Represents a paid API plan.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the UsageLog entity."
+          "description": "Unique identifier for the API plan."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the API plan."
+        },
+        "rateLimit": {
+          "type": "number",
+          "description": "The rate limit for this API plan (requests per time unit)."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the API plan."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "rateLimit",
+        "price"
+      ]
+    },
+    "ApiUsageLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ApiUsageLog",
+      "type": "object",
+      "description": "Represents a log entry for API usage.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the API usage log entry."
         },
         "apiKeyId": {
           "type": "string",
-          "description": "Reference to ApiKey. (Relationship: ApiKey 1:N UsageLog)"
+          "description": "Reference to ApiKey. (Relationship: ApiKey 1:N ApiUsageLog). The API key that was used."
         },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp of the API call.",
+          "description": "The date and time of the API usage.",
           "format": "date-time"
         },
         "endpoint": {
           "type": "string",
-          "description": "The API endpoint that was called."
+          "description": "The API endpoint that was accessed."
         },
         "requestBody": {
           "type": "string",
-          "description": "The request body (optional)."
+          "description": "The request body of the API call."
+        },
+        "responseCode": {
+          "type": "number",
+          "description": "The HTTP response code of the API call."
         }
       },
       "required": [
@@ -181,64 +292,6 @@
         "apiKeyId",
         "timestamp",
         "endpoint"
-      ]
-    },
-    "BlockedIp": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BlockedIp",
-      "type": "object",
-      "description": "Stores blocked IP addresses.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the BlockedIp entity."
-        },
-        "ipAddress": {
-          "type": "string",
-          "description": "The blocked IP address."
-        },
-        "reason": {
-          "type": "string",
-          "description": "The reason for blocking the IP address."
-        },
-        "blockedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the IP address was blocked.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "ipAddress"
-      ]
-    },
-    "BlockedDomain": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "BlockedDomain",
-      "type": "object",
-      "description": "Stores blocked sender domains.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the BlockedDomain entity."
-        },
-        "domain": {
-          "type": "string",
-          "description": "The blocked sender domain."
-        },
-        "reason": {
-          "type": "string",
-          "description": "The reason for blocking the domain."
-        },
-        "blockedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the domain was blocked.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "domain"
       ]
     }
   },
@@ -257,127 +310,107 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user data. Root path for user-owned data.",
+          "description": "Stores user profiles.  Owned by the user identified by userId.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier for the user."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/inboxes/{inboxId}",
+        "path": "/users/{userId}/tempInboxes/{tempInboxId}",
         "definition": {
-          "entityName": "Inbox",
+          "entityName": "TempInbox",
           "schema": {
-            "$ref": "#/backend/entities/Inbox"
+            "$ref": "#/backend/entities/TempInbox"
           },
-          "description": "Stores temporary email inboxes for each user. Includes denormalized 'userId' for authorization independence.",
+          "description": "Stores temporary inboxes for each user. Owned by the user identified by userId.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier for the user."
             },
             {
-              "name": "inboxId",
-              "description": "The unique identifier of the inbox."
+              "name": "tempInboxId",
+              "description": "The unique identifier for the temporary inbox."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/inboxes/{inboxId}/emails/{emailId}",
+        "path": "/users/{userId}/tempInboxes/{tempInboxId}/emails/{emailId}",
         "definition": {
           "entityName": "Email",
           "schema": {
             "$ref": "#/backend/entities/Email"
           },
-          "description": "Stores emails within each inbox. Includes denormalized 'inboxId' for authorization independence.",
+          "description": "Stores emails for each temporary inbox. Owned by the user identified by userId, within tempInboxId.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier for the user."
             },
             {
-              "name": "inboxId",
-              "description": "The unique identifier of the inbox."
+              "name": "tempInboxId",
+              "description": "The unique identifier for the temporary inbox."
             },
             {
               "name": "emailId",
-              "description": "The unique identifier of the email."
+              "description": "The unique identifier for the email."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/api_keys/{apiKeyId}",
+        "path": "/apiKeys/{apiKeyId}",
         "definition": {
           "entityName": "ApiKey",
           "schema": {
             "$ref": "#/backend/entities/ApiKey"
           },
-          "description": "Stores API keys for each user. Includes denormalized 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "apiKeyId",
-              "description": "The unique identifier of the API key."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/api_keys/{apiKeyId}/usage_logs/{usageLogId}",
-        "definition": {
-          "entityName": "UsageLog",
-          "schema": {
-            "$ref": "#/backend/entities/UsageLog"
-          },
-          "description": "Stores usage logs for each API key. Includes denormalized 'apiKeyId' for authorization independence.",
+          "description": "Stores API keys. Each API key is associated with a userId. Enforces secure list operations. Denormalized `userId` is stored within the apiKey document for Authorization Independence.",
           "params": [
             {
               "name": "apiKeyId",
-              "description": "The unique identifier of the API key."
+              "description": "The unique identifier for the API key."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/apiKeys/{apiKeyId}/usageLogs/{apiUsageLogId}",
+        "definition": {
+          "entityName": "ApiUsageLog",
+          "schema": {
+            "$ref": "#/backend/entities/ApiUsageLog"
+          },
+          "description": "Stores API usage logs for each API key.  Associated with apiKeyId.",
+          "params": [
+            {
+              "name": "apiKeyId",
+              "description": "The unique identifier for the API key."
             },
             {
-              "name": "usageLogId",
-              "description": "The unique identifier of the usage log."
+              "name": "apiUsageLogId",
+              "description": "The unique identifier for the API usage log entry."
             }
           ]
         }
       },
       {
-        "path": "/blocked_ips/{blockedIpId}",
+        "path": "/apiPlans/{apiPlanId}",
         "definition": {
-          "entityName": "BlockedIp",
+          "entityName": "ApiPlan",
           "schema": {
-            "$ref": "#/backend/entities/BlockedIp"
+            "$ref": "#/backend/entities/ApiPlan"
           },
-          "description": "Stores blocked IP addresses. Accessible only by admins.",
+          "description": "Stores API plans.",
           "params": [
             {
-              "name": "blockedIpId",
-              "description": "The unique identifier of the blocked IP."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/blocked_domains/{blockedDomainId}",
-        "definition": {
-          "entityName": "BlockedDomain",
-          "schema": {
-            "$ref": "#/backend/entities/BlockedDomain"
-          },
-          "description": "Stores blocked sender domains. Accessible only by admins.",
-          "params": [
-            {
-              "name": "blockedDomainId",
-              "description": "The unique identifier of the blocked domain."
+              "name": "apiPlanId",
+              "description": "The unique identifier for the API plan."
             }
           ]
         }
@@ -385,20 +418,52 @@
       {
         "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "roles_admin",
+          "entityName": "AdminSession",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "$ref": "#/backend/entities/AdminSession"
           },
-          "description": "Indicates admin role. Document existence grants admin privileges.",
+          "description": "Collection to store admin user IDs, existence implies admin role.  Existence over content, DBAC. Enables secure list operations.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier for the admin user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/blockedIps/{blockedIpId}",
+        "definition": {
+          "entityName": "BlockedIp",
+          "schema": {
+            "$ref": "#/backend/entities/BlockedIp"
+          },
+          "description": "Stores blocked IP addresses.",
+          "params": [
+            {
+              "name": "blockedIpId",
+              "description": "The unique identifier for the blocked IP address."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/blockedDomains/{blockedDomainId}",
+        "definition": {
+          "entityName": "BlockedDomain",
+          "schema": {
+            "$ref": "#/backend/entities/BlockedDomain"
+          },
+          "description": "Stores blocked sender domains.",
+          "params": [
+            {
+              "name": "blockedDomainId",
+              "description": "The unique identifier for the blocked domain."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure security, scalability, and debuggability, adhering to the core principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters).  It leverages denormalization for authorization and structural segregation based on access requirements.\n\nAuthorization Independence is achieved by denormalizing user IDs and any other relevant authorization data (e.g., for collaborative inboxes, potentially membership maps) directly into the documents where access needs to be controlled. This avoids the need for `get()` calls in security rules, enabling atomic operations.\n\nQAPs (Rules are not Filters) is supported through structural segregation. For example, blocked IPs and domains are stored in dedicated collections with restricted access rules, preventing them from being listed or accessed by unauthorized users. User-owned data is segregated using hierarchical paths, ensuring only the owning user can list or access their inboxes and emails.  Admin roles are managed via the existence of documents in dedicated `/roles_admin/{uid}` collections.\n\nSpecific denormalization strategies:\n\n*   `Inboxes`: The `userId` is stored within each inbox document to directly link it to the owner.  This avoids needing to query or `get()` the user document to check ownership.\n*   `Emails`: The `inboxId` is stored within each email document to associate with its parent inbox. Again, this is done to simplify querying for emails within a specific inbox and for authorization rules.\n*   `ApiKeys` & `UsageLogs`: Both have `userId` or `apiKeyId` respectively denormalized to allow direct filtering and easier rule definitions to control access by the owning user or to the related ApiKey.\n\nAdmin collections like `/blocked_ips` and `/blocked_domains` are completely segregated, and write access is granted only to users with an admin role (verified through the presence of a document in the `/roles_admin/{uid}` collection)."
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. User data and inboxes are stored in separate, user-specific subcollections for easy management and security. Admin-related data is kept in separate collections with appropriate security rules. API keys and usage logs are also separated for efficient tracking and management. Denormalization is used where necessary to avoid complex `get()` calls in security rules, particularly for collaborative data scenarios and to enable atomic operations. This design facilitates secure `list` operations by ensuring homogeneous security postures within each collection."
   }
 }
