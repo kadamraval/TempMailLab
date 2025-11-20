@@ -14,27 +14,26 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { user, userProfile, isUserLoading, isProfileLoading } = useUser();
+  const { user, userProfile, isUserLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
 
   const isLoginPage = pathname === '/login/admin';
   
-  // This is the crucial check: loading is finished ONLY when both auth and profile are done.
-  const finishedLoading = !isUserLoading && !isProfileLoading;
+  // This is the crucial check: isUserLoading is now the single source of truth for loading state.
   const isAuthorizedAdmin = user && !user.isAnonymous && userProfile?.isAdmin === true;
 
   // This effect handles redirection logic once all loading is complete.
   useEffect(() => {
     // Only perform redirects if we are not currently on the login page itself.
-    if (!isLoginPage && finishedLoading) {
+    if (!isLoginPage && !isUserLoading) {
       // If loading is finished and the user is not an authorized admin,
       // redirect them to the admin login page.
       if (!isAuthorizedAdmin) {
         router.replace('/login/admin');
       }
     }
-  }, [finishedLoading, isAuthorizedAdmin, isLoginPage, router]);
+  }, [isUserLoading, isAuthorizedAdmin, isLoginPage, router]);
 
 
   // If the current page is the login page, render it directly.
@@ -46,7 +45,7 @@ export default function AdminLayout({
   // If we are still waiting for auth or profile data to load,
   // or if the user is not yet confirmed as an admin, show a loading screen.
   // This prevents content from flashing before the redirect can happen.
-  if (!finishedLoading || !isAuthorizedAdmin) {
+  if (isUserLoading || !isAuthorizedAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
