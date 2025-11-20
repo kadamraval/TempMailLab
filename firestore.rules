@@ -49,6 +49,12 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
+    
+    // --- Publicly Readable Collections ---
+    match /plans/{planId} {
+      allow get, list: if true;
+      allow write: if false; 
+    }
 
     /**
      * @description Security rules for user profiles.
