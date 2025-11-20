@@ -34,7 +34,7 @@ const verifyMailgunSignature = (
 };
 
 export const mailgunWebhook = onRequest(
-  { region: "us-central1", secrets: ["MAILGUN_API_KEY"], cors: true },
+  { region: "us-central1", cors: true }, // Removed secrets, as we fetch from Firestore
   async (req, res) => {
     if (req.method !== "POST") {
       logger.warn("Received non-POST request.", { method: req.method });
@@ -42,11 +42,17 @@ export const mailgunWebhook = onRequest(
       return;
     }
 
-    const mailgunApiKey = process.env.MAILGUN_API_KEY;
-    if (!mailgunApiKey) {
-      logger.error("MAILGUN_API_KEY secret not configured.");
-      res.status(500).send("Internal Server Error: Missing API Key configuration.");
-      return;
+    let mailgunApiKey: string;
+    try {
+        const settingsDoc = await db.doc("admin_settings/mailgun").get();
+        if (!settingsDoc.exists || !settingsDoc.data()?.apiKey) {
+            throw new Error("Mailgun API key is not configured in Firestore admin_settings/mailgun.");
+        }
+        mailgunApiKey = settingsDoc.data()?.apiKey;
+    } catch (error: any) {
+        logger.error("Failed to retrieve Mailgun API key from Firestore.", { message: error.message });
+        res.status(500).send("Internal Server Error: Could not retrieve API key.");
+        return;
     }
 
     const bb = busboy({ headers: req.headers });
