@@ -49,33 +49,30 @@ export const mailgunWebhook = onRequest(
       return;
     }
 
-    try {
-      // Use busboy to parse multipart/form-data
-      const bb = busboy({ headers: req.headers });
-      const fields: Record<string, string> = {};
+    const bb = busboy({ headers: req.headers });
+    const fields: Record<string, string> = {};
 
-      const parsingPromise = new Promise<void>((resolve, reject) => {
-        bb.on("field", (name, val) => {
-          fields[name] = val;
-        });
-
-        bb.on("error", (err) => {
-          logger.error("Busboy parsing error:", err);
-          reject(new Error("Error parsing form data."));
-        });
-
-        bb.on("finish", () => {
-          logger.info("Busboy finished parsing form data.");
-          resolve();
-        });
-
-        // Pipe the raw request body into busboy.
-        bb.end(req.rawBody);
+    const parsingPromise = new Promise<void>((resolve, reject) => {
+      bb.on("field", (name, val) => {
+        fields[name] = val;
       });
 
-      await parsingPromise;
+      bb.on("finish", () => {
+        resolve();
+      });
 
-      // Now that fields are populated, verify signature
+      bb.on("error", (err) => {
+        reject(err);
+      });
+      
+      // Pipe the raw request body into busboy. This is the correct way.
+      bb.end(req.rawBody);
+    });
+
+    try {
+      await parsingPromise;
+      logger.info("Successfully parsed form data fields.");
+
       const { timestamp, token, signature } = fields;
       if (!timestamp || !token || !signature) {
         logger.error("Missing signature components in webhook payload.", { fields });
@@ -89,22 +86,26 @@ export const mailgunWebhook = onRequest(
         return;
       }
       logger.info("Mailgun signature verified successfully.");
-
+      
       const recipient = fields['recipient'];
       const from = fields['From'] || "Unknown Sender";
       const subject = fields['subject'] || "No Subject";
       const messageId = fields['Message-Id'];
-      const storageUrl = fields['message-url'];
-
+      const messageUrl = fields['message-url'];
+      
       if (!recipient) {
-        logger.error("Recipient email not found in payload.");
-        res.status(400).send("Bad Request: Recipient email not found.");
+        logger.error("Recipient not found in payload.");
+        res.status(400).send("Bad Request: Recipient not found.");
         return;
       }
-      
-      if (!messageId) {
+       if (!messageId) {
         logger.error("Message-Id not found in payload.");
         res.status(400).send("Bad Request: Message-Id not found.");
+        return;
+      }
+      if (!messageUrl) {
+        logger.error("Message-Url not found in payload.");
+        res.status(400).send("Bad Request: message-url not found.");
         return;
       }
       
@@ -134,23 +135,17 @@ export const mailgunWebhook = onRequest(
         res.status(200).send("OK: Email already exists.");
         return;
       }
-      
-      // Fetch full email content from storage URL
-      let fetchedEmailData;
-      if (storageUrl) {
-         logger.info("Fetching full email from storage URL:", storageUrl);
-         const response = await fetch(storageUrl, {
-            headers: {
-                'Authorization': `Basic ${Buffer.from(`api:${mailgunApiKey}`).toString('base64')}`
-            }
-         });
-         if (!response.ok) {
-            throw new Error(`Failed to fetch email from Mailgun storage: ${response.statusText}`);
-         }
-         fetchedEmailData = await response.json();
-      } else {
-         throw new Error("message-url not found in webhook payload.");
+
+      logger.info("Fetching full email from storage URL:", messageUrl);
+      const response = await fetch(messageUrl, {
+          headers: {
+              'Authorization': `Basic ${Buffer.from(`api:${mailgunApiKey}`).toString('base64')}`
+          }
+      });
+      if (!response.ok) {
+          throw new Error(`Failed to fetch email from Mailgun storage: ${response.statusText}`);
       }
+      const fetchedEmailData = await response.json();
 
       const htmlBody = fetchedEmailData['body-html'] || fetchedEmailData['stripped-html'] || '';
       const cleanHtml = DOMPurify.sanitize(htmlBody);
