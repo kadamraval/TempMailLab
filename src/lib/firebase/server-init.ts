@@ -20,14 +20,18 @@ function getAdminServices(): AdminServices {
   let app: App;
 
   if (!apps.length) {
+    // This is the correct way to initialize in a Google Cloud environment.
+    // It automatically uses the service account credentials of the runtime environment.
     app = initializeApp();
   } else {
+    // If an app is already initialized, use it.
     app = apps[0];
   }
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
 
+  // Cache the initialized services in the singleton instance.
   adminServicesInstance = { app, auth, firestore };
 
   return adminServicesInstance;
