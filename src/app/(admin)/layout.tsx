@@ -19,20 +19,18 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   const isLoginPage = pathname === '/login/admin';
-  const isAuthorizedAdmin = user && !user.isAnonymous && userProfile?.isAdmin === true;
-
+  
   useEffect(() => {
     // This effect handles redirection logic once all loading is complete.
-    // It only runs if we are not currently loading and not on the login page.
-    if (!isUserLoading && !isLoginPage) {
-      // If loading is finished and the user is NOT an authorized admin,
+    // It only runs if we are not currently loading user data.
+    if (!isUserLoading) {
+      // If we are NOT on the login page and the user is NOT an authorized admin,
       // redirect them to the admin login page.
-      if (!isAuthorizedAdmin) {
+      if (!isLoginPage && (!user || user.isAnonymous || !userProfile?.isAdmin)) {
         router.replace('/login/admin');
       }
     }
-  }, [isUserLoading, isAuthorizedAdmin, isLoginPage, router]);
-
+  }, [isUserLoading, user, userProfile, isLoginPage, router, pathname]);
 
   // If the current page is the login page itself, render it directly.
   // The login form will handle redirecting the user away upon successful login.
@@ -44,7 +42,7 @@ export default function AdminLayout({
   // OR if the user is not yet confirmed as an admin (and we're not on the login page),
   // show a loading screen. This is the key change to prevent the redirect loop.
   // It waits for a definitive "yes" or "no" on admin status before proceeding.
-  if (isUserLoading || !isAuthorizedAdmin) {
+  if (isUserLoading || !userProfile?.isAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">

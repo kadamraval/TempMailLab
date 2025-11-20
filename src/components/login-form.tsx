@@ -51,13 +51,14 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     if (!firestore || !auth) return;
     
     const isAdminLogin = redirectPath.startsWith('/admin');
-    const userRef = doc(firestore, 'users', user.uid);
-    const userDoc = await getDoc(userRef);
-
+    
     if (isAdminLogin) {
+        const userRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
         if (userDoc.exists() && userDoc.data()?.isAdmin) {
              toast({ title: "Success", description: "Admin logged in successfully." });
-             router.replace(redirectPath);
+             router.push(redirectPath);
+             router.refresh(); // Force a refresh to ensure layout re-evaluates
         } else {
              await auth.signOut();
              toast({ title: "Permission Denied", description: "You do not have administrative privileges.", variant: "destructive" });
@@ -65,21 +66,21 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         return;
     }
     
-    // If a regular user logs in and they don't have a user document,
-    // it means this is their first login. We should create a profile for them.
+    // For regular user login, check if a profile exists. If not, create one.
+    const userRef = doc(firestore, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
     if (!userDoc.exists()) {
        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-       // We pass the currently saved anonymous inbox (if any) to be migrated.
        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
        if (!result.success) {
-           await auth.signOut(); // Log them out if profile creation fails.
+           await auth.signOut();
            throw new Error(result.error || "Failed to create user profile during login.");
        }
-       localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up after successful migration.
+       localStorage.removeItem(LOCAL_INBOX_KEY);
     }
     
     toast({ title: "Success", description: "Logged in successfully." });
-    router.replace(redirectPath);
+    router.push(redirectPath);
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
