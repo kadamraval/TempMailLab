@@ -17,7 +17,7 @@ const verifyMailgunSignature = (signingKey: string, timestamp: string, token: st
 
     return crypto.timingSafeEqual(Buffer.from(encodedToken), Buffer.from(signature));
   } catch (error) {
-    console.error('[MAILGUN_VERIFICATION_ERROR]', error);
+    console.error('[MAILGUN_WEBHOOK] Signature verification error:', error);
     return false;
   }
 };
