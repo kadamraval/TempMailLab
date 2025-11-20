@@ -97,7 +97,7 @@ export const fetchEmails = onCall(
           const mg = mailgun.client({ username: 'api', key: apiKey, host });
           
           const events = await mg.events.get(domain, {
-            event: "accepted", // <-- CORRECTED FROM "stored" TO "accepted"
+            event: "accepted",
             limit: 300,
             begin: beginTimestamp,
             recipient: emailAddress,
@@ -120,7 +120,7 @@ export const fetchEmails = onCall(
       }
       
       if (allEvents.length === 0) {
-        log.push("No new 'accepted' mail events found. Action complete.");
+        log.push("No new 'accepted' mail events found across all regions. Action complete.");
         return { success: true, log };
       }
 
@@ -235,5 +235,7 @@ export const onUserDeleted = functions.auth.user().onDelete(async (user) => {
         logger.error(`Error deleting data for user ${userId}`, error);
     }
 });
+
+    
 
     
