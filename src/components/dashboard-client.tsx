@@ -268,6 +268,8 @@ export function DashboardClient() {
 
   const handleDeleteCurrentInbox = async () => {
     if (currentInbox && firestore) {
+      // Intentionally not deleting subcollections for this example,
+      // but in a real app you'd use a Cloud Function for recursive delete.
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
       if (user?.isAnonymous) {
           localStorage.removeItem(LOCAL_INBOX_KEY);
@@ -452,3 +454,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

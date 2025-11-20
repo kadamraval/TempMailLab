@@ -1,3 +1,4 @@
+
 /**
  * Import function triggers from their respective submodules:
  *
@@ -12,9 +13,6 @@ import * as logger from "firebase-functions/logger";
 import {initializeApp, getApps} from "firebase-admin/app";
 import {getFirestore, Timestamp} from "firebase-admin/firestore";
 import Busboy from "busboy";
-import {getStorage} from "firebase-admin/storage";
-import Mailgun from "mailgun.js";
-import formData from "form-data";
 import DOMPurify from "isomorphic-dompurify";
 import {Email} from "./types";
 import {createHmac} from "crypto";
@@ -51,7 +49,7 @@ function validateMailgunWebhook(
 export const mailgunWebhook = onRequest(
   {
     region: "us-central1", // Specify region
-    secrets: ["MAILGUN_API_KEY", "MAILGUN_SIGNING_KEY", "MAILGUN_DOMAIN"],
+    secrets: ["MAILGUN_SIGNING_KEY"],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -78,7 +76,7 @@ export const mailgunWebhook = onRequest(
 
     busboy.on("finish", async () => {
       try {
-        logger.info("Parsed fields:", {fields: Object.keys(fields)});
+        logger.info("Parsed fields:", {fieldCount: Object.keys(fields).length});
 
         // Validate the webhook signature
         const {timestamp, token, signature} = fields;
@@ -108,7 +106,11 @@ export const mailgunWebhook = onRequest(
         const inboxSnap = await inboxQuery.get();
 
         if (inboxSnap.empty) {
-          throw new Error(`No inbox found for email address: ${recipient}`);
+          // It's common for webhooks to fire for already-deleted inboxes.
+          // Log it as info and return 200 OK to prevent Mailgun from retrying.
+          logger.info(`No inbox found for email address: ${recipient}. Acknowledging to prevent retries.`);
+          res.status(200).send("OK: No inbox found.");
+          return;
         }
 
         const inboxDoc = inboxSnap.docs[0];
@@ -120,6 +122,7 @@ export const mailgunWebhook = onRequest(
         if (!messageId) {
           throw new Error("Message-Id is missing from the payload.");
         }
+        // Create a Firestore-safe document ID from the message ID
         const emailDocId = messageId.trim()
           .replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
 
@@ -127,7 +130,7 @@ export const mailgunWebhook = onRequest(
         const emailDoc = await emailRef.get();
 
         if (emailDoc.exists) {
-          logger.warn(`Email ${emailDocId} already exists in inbox ${inboxId}.`);
+          logger.warn(`Email ${emailDocId} already exists in inbox ${inboxId}. Acknowledging to prevent retries.`);
           res.status(200).send("OK: Already processed.");
           return;
         }
@@ -166,3 +169,5 @@ export const mailgunWebhook = onRequest(
     req.pipe(busboy);
   }
 );
+
+    
