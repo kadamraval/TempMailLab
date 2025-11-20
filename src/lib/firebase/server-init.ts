@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
@@ -16,24 +16,27 @@ function getAdminServices(): AdminServices {
     return adminServicesInstance;
   }
 
-  const apps = getApps();
-  let app: App;
-
-  if (!apps.length) {
-    // This is the correct way to initialize in a Google Cloud environment.
-    // It automatically uses the service account credentials of the runtime environment.
-    app = initializeApp();
-  } else {
-    // If an app is already initialized, use it.
-    app = apps[0];
+  // Ensure all required environment variables are present
+  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      throw new Error("Firebase Admin SDK environment variables are not set. Please check your .env file.");
   }
+
+  const serviceAccount: ServiceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // The private key must have its newlines escaped in the .env file
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+  };
+
+  const apps = getApps();
+  const app: App = !apps.length
+    ? initializeApp({ credential: cert(serviceAccount) })
+    : apps[0];
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
 
-  // Cache the initialized services in the singleton instance.
   adminServicesInstance = { app, auth, firestore };
-
   return adminServicesInstance;
 }
 
