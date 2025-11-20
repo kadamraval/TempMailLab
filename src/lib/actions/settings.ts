@@ -17,13 +17,13 @@ const MAILGUN_API_ENDPOINTS = {
 };
 
 /**
- * Verifies Mailgun API credentials by making a test API call.
+ * Verifies Mailgun API credentials and domain settings, including checking for storage.
  * @param settings The Mailgun settings to verify.
- * @returns A result object indicating success or failure.
+ * @returns A result object indicating success or failure with a specific message.
  */
-export async function verifyMailgunSettingsAction(settings: MailgunSettings): Promise<{ success: boolean; error?: string; }> {
+export async function verifyMailgunSettingsAction(settings: MailgunSettings): Promise<{ success: boolean; message: string; }> {
     if (!settings.apiKey || !settings.domain) {
-        return { success: false, error: 'API Key and Domain are required.' };
+        return { success: false, message: 'API Key and Domain are required.' };
     }
 
     try {
@@ -36,26 +36,45 @@ export async function verifyMailgunSettingsAction(settings: MailgunSettings): Pr
         const mailgun = new Mailgun(formData);
         const mg = mailgun.client(clientOptions);
         
-        // Make a simple, low-cost API call to verify credentials.
-        // Fetching events with a limit of 1 is a good way to test.
-        await mg.events.get(settings.domain, { limit: 1 });
+        // 1. Verify credentials by fetching domain info. This is a low-cost and reliable check.
+        let domainSettings;
+        try {
+             domainSettings = await mg.domains.get(settings.domain);
+        } catch (error: any) {
+            if (error.status === 401) {
+                return { 
+                    success: false, 
+                    message: 'Authentication failed. Please double-check your API Key and ensure the selected Region is correct for your Mailgun account.' 
+                };
+            }
+             if (error.status === 404) {
+                return { 
+                    success: false, 
+                    message: `The domain '${settings.domain}' was not found in your Mailgun account for the selected region.`
+                };
+            }
+            throw error; // Re-throw other unexpected errors
+        }
 
-        return { success: true };
-
-    } catch (error: any) {
-        console.error("[verifyMailgunSettingsAction Error]", error);
-        
-        // Provide specific feedback for authentication errors.
-        if (error.status === 401) {
+        // 2. Check if storage is enabled for the domain.
+        // When storage is on, web_scheme is 'http' or 'https'. If off, it's null.
+        if (domainSettings.domain?.web_scheme) {
+            return { 
+                success: true, 
+                message: 'Connection successful! Storage is enabled for this domain.' 
+            };
+        } else {
             return { 
                 success: false, 
-                error: 'Authentication failed. Please double-check your API Key and ensure the selected Region is correct for your Mailgun account.' 
+                message: "Verification Failed: 'Storage' is not enabled for this domain in your Mailgun dashboard. Please find the domain in Mailgun, go to its settings, and enable the 'Store and Notify' feature." 
             };
         }
 
+    } catch (error: any) {
+        console.error("[verifyMailgunSettingsAction Error]", error);
         return { 
             success: false, 
-            error: error.message || 'An unknown error occurred while trying to connect to Mailgun.' 
+            message: error.message || 'An unknown error occurred while trying to connect to Mailgun.' 
         };
     }
 }

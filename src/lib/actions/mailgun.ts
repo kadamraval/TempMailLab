@@ -78,7 +78,6 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
                 if (!event.storage || !event.storage.url) continue;
 
-                // Use node-fetch to get the raw message from the storage URL
                 const rawMessageResponse = await fetch(event.storage.url, {
                     headers: {
                         'Authorization': `Basic ${Buffer.from(`api:${mailgunSettings.apiKey}`).toString('base64')}`
@@ -131,9 +130,10 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
 
     } catch (error: any) {
         console.error("[fetchAndStoreEmailsAction Error]", error);
-        const errorMessage = error.status === 401 
-            ? "Mailgun authentication failed. Please check your API key and ensure the correct Region is selected in your settings." 
-            : error.message || 'An unknown error occurred while fetching emails.';
+        let errorMessage = error.message || 'An unknown error occurred while fetching emails.';
+        if (error.status === 401) {
+             errorMessage = "Mailgun authentication failed. Please check your API key and ensure the correct Region is selected in your settings.";
+        }
         return { success: false, error: errorMessage };
     }
 }

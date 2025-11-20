@@ -6,8 +6,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
@@ -31,7 +29,6 @@ interface IntegrationSettingsFormProps {
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
     const [settings, setSettings] = useState({
         enabled: false,
-        signingKey: "", 
         apiKey: "",
         domain: "",
         region: "US" as "US" | "EU",
@@ -55,7 +52,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (existingSettings) {
             setSettings({
                 enabled: existingSettings.enabled ?? false,
-                signingKey: existingSettings.signingKey ?? "",
                 apiKey: existingSettings.apiKey ?? "",
                 domain: existingSettings.domain ?? "",
                 region: existingSettings.region ?? "US",
@@ -80,6 +76,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         setIsSaving(true);
         setVerificationStatus('idle');
+        setVerificationMessage('Verifying credentials...');
         
         try {
             // Step 1: Verify credentials with the new server action
@@ -89,29 +86,30 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 region: settings.region,
             });
 
+            setVerificationMessage(verificationResult.message);
+
             if (!verificationResult.success) {
                 setVerificationStatus('error');
-                setVerificationMessage(verificationResult.error || "An unknown verification error occurred.");
-                throw new Error(verificationResult.error);
+                // The toast is redundant if the alert is shown, but can be useful
+                toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
+                return; // Stop execution
             }
 
             setVerificationStatus('success');
-            setVerificationMessage('Connection successful!');
 
             // Step 2: If verification is successful, save the settings to Firestore
             const settingsToSave = {
-                signingKey: settings.signingKey,
                 apiKey: settings.apiKey,
                 domain: settings.domain,
                 region: settings.region,
-                enabled: true // Enable since verification passed
+                enabled: true // Enable since verification passed and settings are saved
             };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
                 title: "Settings Saved & Verified",
-                description: `${integration.title} configuration has been successfully verified and saved.`,
+                description: `Mailgun configuration has been successfully verified and saved.`,
             });
             
             // Optionally redirect after a short delay
@@ -119,7 +117,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
         } catch (error: any) {
             console.error("Error saving settings:", error);
-            // Don't show a toast here since the inline alert is more specific
+            setVerificationStatus('error');
+            setVerificationMessage(error.message || "An unexpected client-side error occurred.");
         } finally {
             setIsSaving(false);
         }
@@ -153,13 +152,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="domain">Mailgun Domain</Label>
                             <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="signingKey">HTTP Webhook Signing Key (Optional)</Label>
-                            <Input id="signingKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.signingKey} onChange={handleInputChange} />
-                            <p className="text-sm text-muted-foreground">
-                                Used to verify webhooks. Found under Sending &gt; Webhooks.
-                            </p>
                         </div>
                         <div className="space-y-2">
                              <Label htmlFor="region">Mailgun Region</Label>
@@ -203,10 +195,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 {verificationStatus !== 'idle' && verificationMessage && (
                     <Alert variant={verificationStatus === 'error' ? 'destructive' : 'default'} className={verificationStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}>
                          {verificationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                        <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Failed'}</AlertTitle>
+                        <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Status'}</AlertTitle>
                         <AlertDescription>
                             {verificationMessage}
-                             {verificationStatus === 'success' && ' You may also need to check your domain\'s DNS records (like MX) and ensure "Storage" is enabled in your Mailgun dashboard.'}
                         </AlertDescription>
                     </Alert>
                 )}
@@ -215,7 +206,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings || isMailgunFormIncomplete}>
-                        {(isSaving || isLoadingSettings) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Verify & Save
                     </Button>
                 </div>
