@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -79,14 +78,12 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 textContent: parsedEmail.text || "",
                 rawContent: rawMessage, // Store the raw content for source view
                 read: false,
-                attachments: parsedEmail.attachments.map(att => ({
+                attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
                     filename: att.filename || 'attachment',
                     contentType: att.contentType,
                     size: att.size,
-                    // Note: mailparser buffer needs to be handled if you want to store attachments
-                    // For now, we are just listing them. A full implementation would upload them to GCS.
                     url: '' 
-                }))
+                })) : []
             };
             
             await emailRef.set(emailData);
@@ -104,3 +101,4 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: errorMessage };
     }
 }
+    

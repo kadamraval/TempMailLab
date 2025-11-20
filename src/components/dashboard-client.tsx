@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -10,7 +9,6 @@ import {
   Trash2,
   Inbox,
   ServerCrash,
-  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -70,9 +68,7 @@ export function DashboardClient() {
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id) return null;
-    return query(collection(firestore, `inboxes/${currentInbox.id}/emails`), {
-        // Note: any required ordering would be done here
-    });
+    return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
   }, [firestore, currentInbox?.id]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
@@ -85,6 +81,15 @@ export function DashboardClient() {
           return timeB - timeA;
       });
   }, [inboxEmails]);
+
+  const generateRandomString = (length: number) => {
+    let result = '';
+    const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  };
 
   const generateNewInbox = useCallback(async (activeUser: import('firebase/auth').User) => {
     if (!firestore || !activePlan) {
@@ -176,7 +181,7 @@ export function DashboardClient() {
                 .map(d => ({ id: d.id, ...d.data() } as InboxType))
                 .filter(ib => new Date(ib.expiresAt) > new Date());
             if (validInboxes.length > 0) {
-                foundInbox = validInboxes[0]; // Get the most recent one if multiple exist
+                foundInbox = validInboxes.sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime())[0];
             }
         }
         
@@ -237,7 +242,6 @@ export function DashboardClient() {
         if (user?.isAnonymous) {
           localStorage.removeItem(LOCAL_INBOX_KEY);
         }
-        // After expiry, trigger a re-init to get a new inbox
         const reInit = async () => {
           if(auth?.currentUser) {
             const newInbox = await generateNewInbox(auth.currentUser);
@@ -262,11 +266,12 @@ export function DashboardClient() {
   };
 
   const handleDeleteAndRegenerate = async () => {
+    setIsLoading(true);
     if (currentInbox && firestore) {
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
-      if (user?.isAnonymous) {
-          localStorage.removeItem(LOCAL_INBOX_KEY);
-      }
+    }
+    if (user?.isAnonymous) {
+        localStorage.removeItem(LOCAL_INBOX_KEY);
     }
     setCurrentInbox(null);
     setSelectedEmail(null);
@@ -274,6 +279,7 @@ export function DashboardClient() {
         const newInbox = await generateNewInbox(auth.currentUser);
         setCurrentInbox(newInbox);
     }
+    setIsLoading(false);
   };
 
   const handleSelectEmail = async (email: Email) => {
@@ -293,15 +299,6 @@ export function DashboardClient() {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-  
-  function generateRandomString(length: number) {
-    let result = '';
-    const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
   };
 
   if (isLoading || isUserLoading || isLoadingPlan) {
@@ -378,9 +375,9 @@ export function DashboardClient() {
               <div className="flex flex-col border-r">
                 <ScrollArea className="flex-1">
                   {isLoadingEmails && sortedEmails.length === 0 ? (
-                    <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
-                      <Inbox className="h-16 w-16 mb-4" />
-                      <p className="mt-4 text-lg">Waiting for incoming emails...</p>
+                     <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                       <p className="mt-4 text-lg">Checking for emails...</p>
                     </div>
                   ) : (
                     <div className="p-2 space-y-1">
@@ -456,3 +453,4 @@ export function DashboardClient() {
     </div>
   );
 }
+    

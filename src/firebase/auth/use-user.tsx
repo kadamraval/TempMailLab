@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useFirebase } from '../provider';
@@ -6,6 +5,7 @@ import type { UserHookResult } from '../provider';
 import { useDoc, useMemoFirebase, useFirestore } from '..';
 import type { User } from '@/types';
 import { doc } from 'firebase/firestore';
+import { useMemo } from 'react';
 
 
 // This is the user profile from the `users` collection.
@@ -44,3 +44,4 @@ export const useUser = (): UserHookResultWithProfile => {
     userError: userError 
   };
 };
+    

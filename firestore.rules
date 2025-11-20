@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -44,7 +43,7 @@ service cloud.firestore {
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
         allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
-        // Allow a user to create emails in their own inbox. This is critical for the server action.
+        // Allow a user (or server action on their behalf) to create emails in their own inbox.
         allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
 
         // Deletion of emails is disallowed from the client for data integrity.
@@ -53,3 +52,4 @@ service cloud.firestore {
 
   }
 }
+    

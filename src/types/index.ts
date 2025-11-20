@@ -1,4 +1,3 @@
-
 import type { Timestamp } from "firebase/firestore";
 
 export interface Email {
@@ -13,10 +12,10 @@ export interface Email {
   textContent?: string;
   rawContent?: string;
   attachments?: {
-    "content-type": string;
     filename: string;
+    contentType: string;
     size: number;
-    url: string;
+    url: string; 
   }[];
   read?: boolean;
 }
@@ -39,3 +38,4 @@ export interface Inbox {
   createdAt?: Timestamp; // Make optional for client-side creation
   expiresAt: string;
 }
+    
