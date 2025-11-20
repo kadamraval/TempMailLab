@@ -52,6 +52,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     
     const isAdminLogin = redirectPath.startsWith('/admin');
     
+    // For admin login, perform the isAdmin check immediately.
     if (isAdminLogin) {
         const userRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userRef);
@@ -60,6 +61,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
              router.push(redirectPath);
              router.refresh(); // Force a refresh to ensure layout re-evaluates
         } else {
+             // If not an admin, show an error and sign them out immediately.
              await auth.signOut();
              toast({ title: "Permission Denied", description: "You do not have administrative privileges.", variant: "destructive" });
         }

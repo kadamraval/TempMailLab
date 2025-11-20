@@ -38,10 +38,9 @@ export default function AdminLayout({
     return <>{children}</>;
   }
   
-  // If we are still waiting for auth/profile data to load,
-  // OR if the user is not yet confirmed as an admin (and we're not on the login page),
+  // While we are waiting for a definitive answer on the user's auth/admin status,
   // show a loading screen. This is the key change to prevent the redirect loop.
-  // It waits for a definitive "yes" or "no" on admin status before proceeding.
+  // It waits for a definitive "yes" or "no" on admin status before rendering the page or redirecting.
   if (isUserLoading || !userProfile?.isAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
