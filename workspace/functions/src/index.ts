@@ -48,9 +48,9 @@ export const mailgunWebhook = onRequest(
         throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
-      // The entire request body is the event data.
-      const eventData = req.body;
-      const signature = eventData.signature as MailgunWebhookSignature;
+      // The signature is at the top level of the body
+      const signature = req.body.signature as MailgunWebhookSignature;
+      const eventData = req.body['event-data'];
       
       if (!signature || !signature.timestamp || !signature.token || !signature.signature) {
         logger.error("Invalid or missing signature in webhook payload.");
@@ -64,8 +64,8 @@ export const mailgunWebhook = onRequest(
         return;
       }
       
-      if (eventData['event-data']?.event !== "accepted") {
-        logger.info(`Ignoring non-'accepted' event: ${eventData['event-data']?.event}`);
+      if (eventData?.event !== "accepted") {
+        logger.info(`Ignoring non-'accepted' event: ${eventData?.event}`);
         res.status(200).send("Event ignored.");
         return;
       }
@@ -90,7 +90,7 @@ export const mailgunWebhook = onRequest(
 
       const messageId = eventData.message?.headers?.["message-id"];
       if (!messageId) {
-        throw new Error("Message ID not found in webhook payload at message.headers.message-id");
+        throw new Error("Message ID not found in webhook payload at event-data.message.headers.message-id");
       }
 
       const emailRef = db.doc(`inboxes/${inboxId}/emails/${messageId}`);
@@ -120,10 +120,10 @@ export const mailgunWebhook = onRequest(
 
       const emailData: Omit<Email, "id"> = {
         inboxId: inboxId,
-        userId: inboxData.userId, // Denormalize userId for security rules
+        userId: inboxData.userId,
         senderName: messageContent.From || "Unknown Sender",
         subject: messageContent.Subject || "No Subject",
-        receivedAt: Timestamp.fromMillis(parseInt(signature.timestamp) * 1000), // Use the signature timestamp
+        receivedAt: Timestamp.fromMillis(parseInt(signature.timestamp) * 1000),
         createdAt: Timestamp.now(),
         htmlContent: cleanHtml,
         textContent: messageContent["stripped-text"] || messageContent["body-plain"] || "No text content.",
