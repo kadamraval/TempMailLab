@@ -64,8 +64,8 @@ export const mailgunWebhook = onRequest(
         return;
       }
       
-      if (eventData.event !== "accepted") {
-        logger.info(`Ignoring non-'accepted' event: ${eventData.event}`);
+      if (eventData['event-data']?.event !== "accepted") {
+        logger.info(`Ignoring non-'accepted' event: ${eventData['event-data']?.event}`);
         res.status(200).send("Event ignored.");
         return;
       }
