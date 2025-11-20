@@ -1,45 +1,69 @@
 
 import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth, Auth } from 'firebase-admin/auth';
 
-// This function ensures the Firebase Admin app is a singleton and handles initialization correctly.
-function getAdminApp(): App {
-    // If there's an already initialized app, return it. This is the common case.
-    const alreadyInitializedApp = getApps().find(app => app.name === '[DEFAULT]');
-    if (alreadyInitializedApp) {
-        return alreadyInitializedApp;
-    }
-    
-    // If no app is initialized, proceed with the default initialization.
-    // In a deployed Google Cloud environment like App Hosting, this call
-    // automatically discovers the service account credentials. It does not
-    // require any manual configuration or key files. This is the critical step.
-    try {
-        console.log("Attempting to initialize Firebase Admin SDK with default credentials...");
-        const app = initializeApp();
-        console.log("Firebase Admin SDK initialized successfully.");
-        return app;
-    } catch (error: any) {
-        console.error("CRITICAL: Firebase Admin SDK default initialization failed.", error);
-        // If this block runs, it signifies a fundamental problem with the hosting environment's
-        // ability to provide credentials, which is highly unlikely.
-        throw new Error('Could not initialize Firebase Admin SDK. The server environment is not configured correctly.');
-    }
+// This interface defines the structure of our admin services singleton.
+interface AdminServices {
+  app: App;
+  auth: Auth;
+  firestore: Firestore;
+}
+
+// A global variable to hold the singleton instance.
+let adminServicesInstance: AdminServices | null = null;
+
+/**
+ * Initializes and/or returns a singleton instance of the Firebase Admin SDK services.
+ * This pattern ensures that initializeApp() is called only once, preventing errors
+ * in environments like Next.js server actions.
+ *
+ * @returns {AdminServices} An object containing the initialized admin app, auth, and firestore services.
+ */
+function getAdminServices(): AdminServices {
+  // If the instance already exists, return it immediately.
+  if (adminServicesInstance) {
+    return adminServicesInstance;
+  }
+
+  // Check if there are any initialized apps. The getApps() function returns an array.
+  const apps = getApps();
+  let app: App;
+
+  // If no apps are initialized, call initializeApp() without arguments.
+  // In a Google Cloud environment (like App Hosting), this automatically
+  // discovers the service account credentials from the environment.
+  if (!apps.length) {
+    console.log("Initializing Firebase Admin SDK for the first time...");
+    app = initializeApp();
+  } else {
+    // If apps exist, use the already-initialized default app.
+    console.log("Re-using existing Firebase Admin SDK app instance.");
+    app = apps[0];
+  }
+
+  // Create the services object.
+  const auth = getAuth(app);
+  const firestore = getFirestore(app);
+
+  // Store the new instance in the global variable for future calls.
+  adminServicesInstance = { app, auth, firestore };
+
+  return adminServicesInstance;
 }
 
 /**
  * Returns an initialized Firebase Admin Firestore instance.
- * It's a singleton, so it won't be re-initialized on every call.
+ * This is a convenience function that uses the singleton pattern.
  */
-export function getAdminFirestore() {
-    return getFirestore(getAdminApp());
-};
+export function getAdminFirestore(): Firestore {
+  return getAdminServices().firestore;
+}
 
 /**
-* Returns an initialized Firebase Admin Auth instance.
-* It's a singleton, so it won't be re-initialized on every call.
-*/
-export function getAdminAuth() {
-    return getAuth(getAdminApp());
-};
+ * Returns an initialized Firebase Admin Auth instance.
+ * This is a convenience function that uses the singleton pattern.
+ */
+export function getAdminAuth(): Auth {
+  return getAdminServices().auth;
+}
