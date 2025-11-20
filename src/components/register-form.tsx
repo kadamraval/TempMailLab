@@ -16,12 +16,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, getRedirectResult, linkWithCredential, EmailAuthProvider } from "firebase/auth"
+import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUpAction } from "@/lib/actions/auth"
-import { useEffect } from "react"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -49,9 +48,10 @@ export function RegisterForm() {
     },
   });
 
-  const handleRegistration = async (email: string, credential?: any) => {
-    if (!auth || !anonymousUser) {
-        toast({ title: "Error", description: "Authentication service not available.", variant: "destructive" });
+  // A generic handler for linking credentials and finalizing registration
+  const handleRegistration = async (credential: any, email: string) => {
+    if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
+        toast({ title: "Error", description: "No active anonymous session to upgrade.", variant: "destructive" });
         return;
     }
 
@@ -74,10 +74,11 @@ export function RegisterForm() {
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during registration.";
         if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This email address is already in use by another account.";
+            errorMessage = "This email address is already in use by another account. Please try logging in instead.";
         } else if (error.code === 'auth/provider-already-linked') {
             errorMessage = "This social account is already linked to another user."
         }
+        console.error("Registration Error: ", error);
         toast({ title: "Registration Failed", description: errorMessage, variant: "destructive" });
     }
   };
@@ -85,12 +86,28 @@ export function RegisterForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const credential = EmailAuthProvider.credential(values.email, values.password);
-    await handleRegistration(values.email, credential);
+    await handleRegistration(credential, values.email);
   }
 
   async function handleGoogleSignIn() {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
-    await handleRegistration("Google Sign-In", provider);
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential) {
+            throw new Error("Could not get credential from Google sign-in.");
+        }
+        // Use the email from the Google result for the sign-up action
+        await handleRegistration(credential, result.user.email!);
+    } catch (error: any) {
+         let errorMessage = "An unknown error occurred during registration.";
+        if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {
+            errorMessage = "This email address is already in use by another account. Please try logging in instead.";
+        }
+        console.error("Google Sign In Error:", error);
+        toast({ title: "Google Sign-In Failed", description: errorMessage, variant: "destructive" });
+    }
   }
   
   return (
