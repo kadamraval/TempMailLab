@@ -48,8 +48,10 @@ export const mailgunWebhook = onRequest(
         throw new Error("MAILGUN_API_KEY secret not configured.");
       }
 
-      // The signature is now at the top level of the body
-      const signature = req.body.signature as MailgunWebhookSignature;
+      // The entire request body is the event data.
+      const eventData = req.body;
+      const signature = eventData.signature as MailgunWebhookSignature;
+      
       if (!signature || !signature.timestamp || !signature.token || !signature.signature) {
         logger.error("Invalid or missing signature in webhook payload.");
         res.status(400).send("Invalid or missing signature.");
@@ -62,8 +64,6 @@ export const mailgunWebhook = onRequest(
         return;
       }
       
-      const eventData = req.body;
-
       if (eventData.event !== "accepted") {
         logger.info(`Ignoring non-'accepted' event: ${eventData.event}`);
         res.status(200).send("Event ignored.");
