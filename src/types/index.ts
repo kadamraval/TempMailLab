@@ -1,5 +1,4 @@
 
-
 import type { Timestamp } from "firebase/firestore";
 
 export interface Email {
@@ -40,5 +39,3 @@ export interface Inbox {
   createdAt: Timestamp; // Ensure this is a Timestamp for sorting
   expiresAt: string;
 }
-
-    

@@ -1,5 +1,4 @@
 
-
 import type { Timestamp } from "firebase-admin/firestore";
 
 export interface Email {
@@ -21,5 +20,3 @@ export interface Email {
   }[];
   read?: boolean;
 }
-
-    
