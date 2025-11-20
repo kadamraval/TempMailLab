@@ -36,6 +36,6 @@ export interface Inbox {
   id: string;
   userId: string;
   emailAddress: string;
-  createdAt: Timestamp; // Ensure this is a Timestamp for sorting
+  createdAt?: Timestamp; // Make optional for client-side creation
   expiresAt: string;
 }

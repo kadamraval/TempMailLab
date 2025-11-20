@@ -110,10 +110,17 @@ export async function POST(req: NextRequest) {
     console.log(`[MAILGUN_WEBHOOK] Found matching inbox: ${inboxId} for user ${inboxData.userId}`);
     
     // 5. Fetch the email content from Mailgun's storage URL
-    const storageUrl = fields['storage-url'];
+    const storageField = fields['storage'];
+    if (!storageField) {
+        console.error('[MAILGUN_WEBHOOK] "storage" field not found in webhook payload.');
+        return new NextResponse("Bad Request: storage field not found.", { status: 400 });
+    }
+
+    const storageInfo = JSON.parse(storageField);
+    const storageUrl = storageInfo.url;
     if (!storageUrl) {
-        console.error('[MAILGUN_WEBHOOK] "storage-url" not found in webhook payload.');
-        return new NextResponse("Bad Request: storage-url not found.", { status: 400 });
+      console.error('[MAILGUN_WEBHOOK] "url" not found in storage object.');
+      return new NextResponse("Bad Request: url not found in storage object.", { status: 400 });
     }
 
     console.log(`[MAILGUN_WEBHOOK] Fetching email content from: ${storageUrl}`);
@@ -162,7 +169,11 @@ export async function POST(req: NextRequest) {
     return new NextResponse('Email processed successfully.', { status: 200 });
 
   } catch (error: any) {
-    console.error('[MAILGUN_WEBHOOK_FATAL_ERROR]', error);
+    console.error('[MAILGUN_WEBHOOK_FATAL_ERROR]', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+    });
     return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
   }
 }
