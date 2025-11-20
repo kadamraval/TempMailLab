@@ -31,12 +31,10 @@ async function getMailgunCredentials() {
 
         return { apiKey: settings.apiKey, domain: settings.domain };
     } catch (error: any) {
-        // This is a critical failure. Log it clearly.
         console.error("[MAILGUN_ACTION_ERROR] FATAL: Could not get Mailgun credentials.", {
             errorMessage: error.message,
             stack: error.stack,
         });
-        // Re-throw to be caught by the main action handler and returned to the client.
         throw error;
     }
 }
@@ -138,7 +136,6 @@ export async function fetchEmailsWithCredentialsAction(
 
             if (!response.ok) {
                 const errorBody = await response.text();
-                // This is a CRITICAL error. Log everything.
                 console.error("[MAILGUN_ACTION_ERROR] FATAL: Failed to fetch email content from Mailgun storage.", {
                     messageId, storageUrl, status: response.status, body: errorBody
                 });
@@ -179,7 +176,6 @@ export async function fetchEmailsWithCredentialsAction(
         return { success: true, log };
 
     } catch (error: any) {
-        // This is the final catch-all. Ensure any uncaught error is logged.
         console.error("[MAILGUN_ACTION_ERROR] An unexpected error occurred in the main action handler.", {
             errorMessage: error.message,
             stack: error.stack,
