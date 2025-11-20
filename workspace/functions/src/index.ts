@@ -82,7 +82,21 @@ export const fetchEmails = onCall(
       const inboxSnap = await inboxRef.get();
       if (!inboxSnap.exists) throw new Error(`Inbox with ID ${inboxId} not found.`);
       
-      const userId = inboxSnap.data()?.userId;
+      const inboxData = inboxSnap.data();
+      if (!inboxData) throw new Error("Inbox data is missing.");
+
+      // Security Check
+      if (request.auth) { // User is logged in
+        if(inboxData.userId !== request.auth.uid) {
+           throw new Error("User is not authorized to access this inbox.");
+        }
+      } else { // User is anonymous
+        if (!ownerToken || inboxData.ownerToken !== ownerToken) {
+           throw new Error("Anonymous user is not authorized to access this inbox.");
+        }
+      }
+      
+      const userId = inboxData.userId;
       if (!userId) throw new Error(`Could not retrieve user ID for inbox ${inboxId}.`);
       
       log.push(`Inbox found. Operating for user ID: ${userId}`);
