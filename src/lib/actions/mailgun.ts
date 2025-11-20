@@ -82,23 +82,23 @@ export async function fetchEmailsWithCredentialsAction(
         const beginTimestamp = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
 
         for (const [region, host] of Object.entries(MAILGUN_API_HOSTS)) {
-            log.push(`Querying Mailgun '${region.toUpperCase()}' region for "stored" events...`);
+            log.push(`Querying Mailgun '${region.toUpperCase()}' region for "accepted" events...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "stored",
+                    event: "accepted",
                     limit: 300,
                     begin: beginTimestamp,
                     recipient: emailAddress,
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} "stored" event(s) in ${region.toUpperCase()}.`);
+                    log.push(`Found ${events.items.length} "accepted" event(s) in ${region.toUpperCase()}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No "stored" events found in ${region.toUpperCase()}.`);
+                    log.push(`No "accepted" events found in ${region.toUpperCase()}.`);
                 }
             } catch (hostError: any) {
                  if (hostError.status !== 401) { 
@@ -113,11 +113,11 @@ export async function fetchEmailsWithCredentialsAction(
         }
         
         if (allEvents.length === 0) {
-            log.push("No new 'stored' mail events found across all regions. Action complete.");
+            log.push("No new 'accepted' mail events found across all regions. Action complete.");
             return { success: true, log };
         }
 
-        log.push(`Total "stored" events found: ${allEvents.length}. Processing each email.`);
+        log.push(`Total "accepted" events found: ${allEvents.length}. Processing each email.`);
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
