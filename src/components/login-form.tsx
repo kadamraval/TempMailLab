@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, linkWithCredential, EmailAuthProvider, type User } from "firebase/auth"
-import { doc, setDoc, getDoc, writeBatch, collection, serverTimestamp, getDocs, query, where, updateDoc } from "firebase/firestore"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore"
 import { useAuth, useFirestore } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { type Inbox } from "@/types"
+import { signUpAction } from "@/lib/actions/auth"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -31,7 +31,9 @@ interface LoginFormProps {
   redirectPath?: string;
 }
 
-export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps) {
+const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
+
+export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth()
@@ -44,48 +46,63 @@ export function LoginForm({ redirectPath = "/dashboard/inbox" }: LoginFormProps)
       password: "",
     },
   })
-
-  async function handleLoginSuccess(finalUser: User) {
+  
+  // This is the core logic for handling a successful sign-in
+  async function handleLoginSuccess(user: User) {
     if (!firestore) return;
     
-    const userRef = doc(firestore, 'users', finalUser.uid);
-    const userDoc = await getDoc(userRef);
-    
-    // If it's a first-time login (user doc doesn't exist)
-    if (!userDoc.exists()) {
-        await setDoc(userRef, {
-            uid: finalUser.uid,
-            email: finalUser.email,
-            planId: 'free-default',
-            isAdmin: false,
-            createdAt: serverTimestamp(),
-        }, { merge: true });
-    }
+    // Check if we are on the admin login page
+    const isAdminLogin = redirectPath.startsWith('/admin');
 
-    toast({
-        title: "Success",
-        description: "Logged in successfully.",
-    })
-    router.push(redirectPath) 
+    const userRef = doc(firestore, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+
+    if (isAdminLogin) {
+        if (userDoc.exists() && userDoc.data()?.isAdmin) {
+             toast({ title: "Success", description: "Admin logged in successfully." });
+             router.push(redirectPath);
+        } else {
+             await auth?.signOut(); // Log out the non-admin user
+             toast({ title: "Permission Denied", description: "You do not have administrative privileges.", variant: "destructive" });
+        }
+        return;
+    }
+    
+    if (userDoc.exists()) {
+        // This is a returning user.
+    } else {
+       // This is a first-time sign-in (e.g., via Google). Create their user doc.
+       // The signUpAction will also handle migrating any anonymous inbox.
+       const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+       const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
+       if (!result.success) {
+           throw new Error(result.error || "Failed to create user profile during login.");
+       }
+    }
+    
+    toast({ title: "Success", description: "Logged in successfully." });
+    router.push(redirectPath);
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth || !firestore) return;
 
-    try {
-        const result = await signInWithEmailAndPassword(auth, values.email, values.password);
-        await handleLoginSuccess(result.user);
-    } catch (error: any) {
-        let errorMessage = "An unknown error occurred.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage = "Invalid email or password. Please try again.";
+    form.handleSubmit(async () => {
+        try {
+            const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+            await handleLoginSuccess(result.user);
+        } catch (error: any) {
+            let errorMessage = "An unknown error occurred.";
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                errorMessage = "Invalid email or password. Please try again.";
+            }
+            toast({
+                title: "Login Failed",
+                description: errorMessage,
+                variant: "destructive",
+            })
         }
-        toast({
-            title: "Login Failed",
-            description: errorMessage,
-            variant: "destructive",
-        })
-    }
+    })();
   }
 
   async function handleGoogleSignIn() {

@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, type User, updateProfile } from "firebase/auth"
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore"
-import { useAuth, useFirestore } from "@/firebase"
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, getRedirectResult, linkWithCredential, EmailAuthProvider } from "firebase/auth"
+import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { signUpAction } from "@/lib/actions/auth"
+import { useEffect } from "react"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -31,12 +32,13 @@ const formSchema = z.object({
     path: ["confirmPassword"],
 });
 
+const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
 export function RegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth();
-  const firestore = useFirestore();
+  const { user: anonymousUser } = useUser(); // Get the current anonymous user
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,79 +47,52 @@ export function RegisterForm() {
       password: "",
       confirmPassword: "",
     },
-  })
-  
-  async function handleRegistrationSuccess(finalUser: User) {
-    if (!firestore) return;
+  });
 
-    const userRef = doc(firestore, 'users', finalUser.uid);
-    
-    // Create the user document first
-    await setDoc(userRef, {
-        uid: finalUser.uid,
-        email: finalUser.email,
-        planId: 'free-default',
-        isAdmin: false,
-        createdAt: serverTimestamp(),
-    });
-    
-    toast({
-      title: "Success",
-      description: "Account created successfully.",
-    });
-    router.push("/dashboard/inbox");
-  }
+  const handleRegistration = async (email: string, credential?: any) => {
+    if (!auth || !anonymousUser) {
+        toast({ title: "Error", description: "Authentication service not available.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        // Link the anonymous account with the new credential
+        const userCredential = await linkWithCredential(anonymousUser, credential);
+        const registeredUser = userCredential.user;
+        
+        // Call the server action to create the user document in Firestore and migrate the inbox
+        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+        const result = await signUpAction(registeredUser.uid, email, anonymousInboxData);
+
+        if (result.success) {
+            localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
+            toast({ title: "Success", description: "Account created successfully." });
+            router.push("/");
+        } else {
+            throw new Error(result.error || "Server-side registration failed.");
+        }
+    } catch (error: any) {
+        let errorMessage = "An unknown error occurred during registration.";
+        if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {
+            errorMessage = "This email address is already in use by another account.";
+        } else if (error.code === 'auth/provider-already-linked') {
+            errorMessage = "This social account is already linked to another user."
+        }
+        toast({ title: "Registration Failed", description: errorMessage, variant: "destructive" });
+    }
+  };
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!auth) return;
-    
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-        await handleRegistrationSuccess(userCredential.user);
-    } catch (error: any) {
-        let errorMessage = "An unknown error occurred during sign up.";
-        if (error.code === 'auth/email-already-in-use') {
-            errorMessage = "This email address is already in use by another account.";
-        }
-        toast({
-            title: "Registration Failed",
-            description: errorMessage,
-            variant: "destructive",
-        })
-    }
+    const credential = EmailAuthProvider.credential(values.email, values.password);
+    await handleRegistration(values.email, credential);
   }
 
   async function handleGoogleSignIn() {
-    if (!auth || !firestore) return;
     const provider = new GoogleAuthProvider();
-    
-    try {
-        const result = await signInWithPopup(auth, provider);
-        const userRef = doc(firestore, 'users', result.user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          // It's a new registration via Google
-          await handleRegistrationSuccess(result.user);
-        } else {
-          // It's a login for an existing user
-          toast({ title: "Welcome back!", description: "Successfully logged in with Google."});
-          router.push('/dashboard/inbox');
-        }
-    } catch (error: any) {
-        let errorMessage = error.message || "Could not sign up with Google. Please try again.";
-        if (error.code === 'auth/account-exists-with-different-credential' || error.code === 'auth/credential-already-in-use') {
-            errorMessage = "An account already exists with this email. Please log in with the original method."
-        }
-        toast({
-            title: "Google Sign-Up Failed",
-            description: errorMessage,
-            variant: "destructive",
-        });
-    }
+    await handleRegistration("Google Sign-In", provider);
   }
-
+  
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
