@@ -66,53 +66,59 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         let newEmailsFound = 0;
 
         for (const event of eventsResponse.items) {
-            const messageId = event.message?.headers?.['message-id'];
-            if (!messageId) continue;
+            try {
+                const messageId = event.message?.headers?.['message-id'];
+                if (!messageId) continue;
 
-            const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
-            const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
-            const emailDoc = await emailRef.get();
+                const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
+                const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
+                const emailDoc = await emailRef.get();
 
-            if (emailDoc.exists) continue;
+                if (emailDoc.exists) continue;
 
-            if (!event.storage || !event.storage.url) continue;
+                if (!event.storage || !event.storage.url) continue;
 
-            // Use node-fetch to get the raw message from the storage URL
-            const rawMessageResponse = await fetch(event.storage.url, {
-                headers: {
-                    'Authorization': `Basic ${Buffer.from(`api:${mailgunSettings.apiKey}`).toString('base64')}`
+                // Use node-fetch to get the raw message from the storage URL
+                const rawMessageResponse = await fetch(event.storage.url, {
+                    headers: {
+                        'Authorization': `Basic ${Buffer.from(`api:${mailgunSettings.apiKey}`).toString('base64')}`
+                    }
+                });
+
+                if (!rawMessageResponse.ok) {
+                    console.error(`Failed to fetch email from storage: ${rawMessageResponse.statusText}`);
+                    // Potentially throw an error here to be caught by the outer catch block if you want to stop processing
+                    continue; 
                 }
-            });
 
-            if (!rawMessageResponse.ok) {
-                 console.error(`Failed to fetch email from storage: ${rawMessageResponse.statusText}`);
-                 continue; // Skip this email if fetch fails
+                const rawEmailBody = await rawMessageResponse.text();
+                const parsedEmail = await simpleParser(rawEmailBody);
+
+                const emailData: Omit<Email, 'id'> = {
+                    inboxId: inboxId,
+                    userId: userId,
+                    senderName: parsedEmail.from?.text || "Unknown Sender",
+                    subject: parsedEmail.subject || "No Subject",
+                    receivedAt: parsedEmail.date ? Timestamp.fromDate(parsedEmail.date) : Timestamp.fromMillis(event.timestamp * 1000),
+                    createdAt: Timestamp.now(),
+                    htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : "",
+                    textContent: parsedEmail.text || "",
+                    rawContent: rawEmailBody,
+                    read: false,
+                    attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
+                        filename: att.filename || 'attachment',
+                        contentType: att.contentType,
+                        size: att.size,
+                        url: '' // URLs would need to be handled by storing the attachment in GCS and creating a download URL.
+                    })) : []
+                };
+                
+                await emailRef.set(emailData);
+                newEmailsFound++;
+            } catch (innerError: any) {
+                console.error(`[fetchAndStoreEmailsAction] Error processing individual email: ${innerError.message}`);
+                // Continue to next email
             }
-
-            const rawEmailBody = await rawMessageResponse.text();
-            const parsedEmail = await simpleParser(rawEmailBody);
-
-            const emailData: Omit<Email, 'id'> = {
-                inboxId: inboxId,
-                userId: userId,
-                senderName: parsedEmail.from?.text || "Unknown Sender",
-                subject: parsedEmail.subject || "No Subject",
-                receivedAt: parsedEmail.date ? Timestamp.fromDate(parsedEmail.date) : Timestamp.fromMillis(event.timestamp * 1000),
-                createdAt: Timestamp.now(),
-                htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : "",
-                textContent: parsedEmail.text || "",
-                rawContent: rawEmailBody,
-                read: false,
-                attachments: parsedEmail.attachments ? parsedEmail.attachments.map(att => ({
-                    filename: att.filename || 'attachment',
-                    contentType: att.contentType,
-                    size: att.size,
-                    url: '' // URLs would need to be handled by storing the attachment in GCS and creating a download URL.
-                })) : []
-            };
-            
-            await emailRef.set(emailData);
-            newEmailsFound++;
         }
         
         if (newEmailsFound > 0) {
