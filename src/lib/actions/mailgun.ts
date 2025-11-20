@@ -49,17 +49,6 @@ export async function fetchEmailsWithCredentialsAction(
 ): Promise<{ success: boolean; error?: string; log: string[] }> {
     const log: string[] = [`[${new Date().toLocaleTimeString()}] Action started for ${emailAddress}.`];
     
-    // --- ADMIN SDK DIAGNOSTIC TEST ---
-    try {
-        getAdminFirestore();
-        console.log("[ADMIN_SDK_TEST] SUCCESS: Firebase Admin SDK initialized successfully.");
-    } catch (e: any) {
-        console.error("[ADMIN_SDK_TEST] FAILURE: Could not initialize Firebase Admin SDK.", e);
-        const errorMsg = "Server is not configured for backend operations. Admin SDK failed to initialize.";
-        return { success: false, error: errorMsg, log: [errorMsg] };
-    }
-    // --- END DIAGNOSTIC TEST ---
-
     if (!emailAddress || !inboxId) {
         const errorMsg = '[FATAL] Action failed: Missing email address or inbox ID.';
         log.push(errorMsg);
@@ -82,23 +71,23 @@ export async function fetchEmailsWithCredentialsAction(
         const beginTimestamp = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
 
         for (const [region, host] of Object.entries(MAILGUN_API_HOSTS)) {
-            log.push(`Querying Mailgun '${region.toUpperCase()}' region for "accepted" events...`);
+            log.push(`Querying Mailgun '${region.toUpperCase()}' region for "stored" events...`);
             try {
                 const mailgun = new Mailgun(formData);
                 const mg = mailgun.client({ username: 'api', key: apiKey, host });
                 
                 const events = await mg.events.get(domain, {
-                    event: "accepted",
+                    event: "stored", // Use the 'stored' event
                     limit: 300,
                     begin: beginTimestamp,
                     recipient: emailAddress,
                 });
 
                 if (events?.items?.length > 0) {
-                    log.push(`Found ${events.items.length} "accepted" event(s) in ${region.toUpperCase()}.`);
+                    log.push(`Found ${events.items.length} "stored" event(s) in ${region.toUpperCase()}.`);
                     allEvents.push(...events.items);
                 } else {
-                    log.push(`No "accepted" events found in ${region.toUpperCase()}.`);
+                    log.push(`No "stored" events found in ${region.toUpperCase()}.`);
                 }
             } catch (hostError: any) {
                  if (hostError.status !== 401) { 
@@ -107,17 +96,17 @@ export async function fetchEmailsWithCredentialsAction(
                     });
                     log.push(`[ERROR] Failed to query ${region.toUpperCase()} region: ${hostError.message}`);
                  } else {
-                    log.push(`[INFO] Key not valid for ${region.toUpperCase()} region.`);
+                    log.push(`[INFO] Key not valid for ${region.toUpperCase()} region, skipping.`);
                  }
             }
         }
         
         if (allEvents.length === 0) {
-            log.push("No new 'accepted' mail events found across all regions. Action complete.");
+            log.push("No new 'stored' mail events found across all regions. Action complete.");
             return { success: true, log };
         }
 
-        log.push(`Total "accepted" events found: ${allEvents.length}. Processing each email.`);
+        log.push(`Total "stored" events found: ${allEvents.length}. Processing each email.`);
         const batch = firestore.batch();
         const emailsCollectionRef = firestore.collection(`inboxes/${inboxId}/emails`);
         let newEmailsFound = 0;
@@ -133,7 +122,7 @@ export async function fetchEmailsWithCredentialsAction(
             const existingEmailSnap = await existingEmailRef.get();
             if (existingEmailSnap.exists) continue;
             
-            const storageUrl = event.storage?.url?.[0]; // Correctly handle the URL array
+            const storageUrl = event.storage?.url; // Correctly handle the URL
             if (!storageUrl) {
                 log.push(`[WARN] Skipping event ${event.id} - no storage URL present.`);
                 continue;

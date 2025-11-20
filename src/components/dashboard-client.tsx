@@ -235,6 +235,7 @@ export function DashboardClient() {
                 userId: activeUser.uid,
                 emailAddress,
                 expiresAt: expiresAt.toISOString(),
+                ownerToken: undefined
             };
 
             if (activeUser.isAnonymous) {

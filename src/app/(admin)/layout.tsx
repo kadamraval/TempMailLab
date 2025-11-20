@@ -18,28 +18,31 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  useEffect(() => {
-    // This effect redirects non-admins away from protected admin pages.
-    // It runs after all loading is complete and checks if the user state is final.
-    if (!isUserLoading && !isProfileLoading) {
-      // Do not redirect if we're already on the login page
-      if (pathname === '/login/admin') return;
+  const isLoginPage = pathname === '/login/admin';
+  const finishedLoading = !isUserLoading && !isProfileLoading;
+  const isAuthorizedAdmin = user && userProfile?.isAdmin;
 
-      if (!user || !userProfile?.isAdmin) {
-        router.push('/login/admin'); 
+  // This effect handles redirection after all loading is complete.
+  useEffect(() => {
+    // Only run redirection logic when loading is finished.
+    if (finishedLoading) {
+      // If we are not on the login page and the user is not an authorized admin,
+      // redirect them to the admin login page.
+      if (!isLoginPage && !isAuthorizedAdmin) {
+        router.push('/login/admin');
       }
     }
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, pathname]);
+  }, [finishedLoading, isAuthorizedAdmin, isLoginPage, router]);
 
-  // If we are on the login page, render it without the admin layout wrapper.
-  // This prevents the redirect loop and avoids showing the loader.
-  if (pathname === '/login/admin') {
+  // If we are on the login page, render it directly.
+  // The logic inside LoginForm will handle redirection upon successful login.
+  if (isLoginPage) {
     return <>{children}</>;
   }
   
-  // While we are verifying the user's admin status, show a full-page loader.
-  // This prevents rendering the admin UI to unauthorized users and avoids flicker.
-  if (isUserLoading || isProfileLoading || !userProfile?.isAdmin) {
+  // If loading is not finished OR the user is not yet confirmed as an admin,
+  // show a full-page loader. This prevents flicker and premature rendering.
+  if (!finishedLoading || !isAuthorizedAdmin) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
@@ -50,7 +53,7 @@ export default function AdminLayout({
       );
   }
   
-  // If the user is a verified admin, render the full admin layout.
+  // If all checks pass, render the full admin layout.
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />

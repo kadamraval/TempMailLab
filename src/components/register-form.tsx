@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup } from "firebase/auth"
+import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup, AuthCredential } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -49,9 +49,9 @@ export function RegisterForm() {
   });
 
   // A generic handler for linking credentials and finalizing registration
-  const handleRegistration = async (credential: any, email: string) => {
+  const handleRegistration = async (credential: AuthCredential, email: string) => {
     if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
-        toast({ title: "Error", description: "No active anonymous session to upgrade.", variant: "destructive" });
+        toast({ title: "Error", description: "No active anonymous session to upgrade. Please refresh and try again.", variant: "destructive" });
         return;
     }
 
@@ -90,16 +90,35 @@ export function RegisterForm() {
   }
 
   async function handleGoogleSignIn() {
-    if (!auth) return;
+    if (!auth || !anonymousUser) {
+       toast({ title: "Error", description: "Authentication service not ready. Please try again in a moment.", variant: "destructive" });
+       return;
+    };
     const provider = new GoogleAuthProvider();
+    
+    // Instead of linking here, we sign in with popup *if the user is anonymous*
+    // This is because linking an anonymous user to a popup requires a different flow
+    // that is better handled by getting the credential first.
     try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(anonymousUser, provider);
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (!credential) {
             throw new Error("Could not get credential from Google sign-in.");
         }
-        // Use the email from the Google result for the sign-up action
-        await handleRegistration(credential, result.user.email!);
+        // The handleRegistration function is no longer needed here as signInWithPopup with an anon user
+        // automatically upgrades the user. We just need to call our server action.
+        const registeredUser = result.user;
+        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+        const signUpResult = await signUpAction(registeredUser.uid, registeredUser.email!, anonymousInboxData);
+
+        if (signUpResult.success) {
+             localStorage.removeItem(LOCAL_INBOX_KEY);
+             toast({ title: "Success", description: "Account created successfully." });
+             router.push('/');
+        } else {
+            throw new Error(signUpResult.error || "Server-side registration failed.");
+        }
+
     } catch (error: any) {
          let errorMessage = "An unknown error occurred during registration.";
         if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {

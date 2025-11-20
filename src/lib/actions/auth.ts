@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getAdminAuth, getAdminFirestore } from '@/lib/firebase/server-init';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { revalidatePath } from 'next/cache';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Inbox } from '@/types';

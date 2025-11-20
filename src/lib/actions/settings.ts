@@ -16,11 +16,10 @@ interface MailgunSettings {
  */
 export async function saveMailgunSettingsAction(settings: MailgunSettings) {
     try {
-        const firestore = await getAdminFirestore();
+        const firestore = getAdminFirestore();
         const settingsRef = firestore.doc("admin_settings/mailgun");
 
         // Automatically enable if API key and domain are provided.
-        // The region is no longer stored as it's handled dynamically.
         const finalSettings = {
             ...settings,
             enabled: !!(settings.apiKey && settings.domain)

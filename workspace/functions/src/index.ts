@@ -1,3 +1,4 @@
+
 /**
  * Import function triggers from their respective submodules:
  *
@@ -11,11 +12,19 @@ import { onCall } from 'firebase-functions/v2/https';
 import * as functions from "firebase-functions";
 import * as logger from 'firebase-functions/logger';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, WriteBatch } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import Mailgun from 'mailgun.js';
 import formData from 'form-data';
 
-initializeApp();
+// Initialize Firebase Admin SDK.
+// It will automatically use service account credentials in a Google Cloud environment.
+try {
+  initializeApp();
+  logger.info("Firebase Admin SDK initialized successfully.");
+} catch (e) {
+  logger.error("Error initializing Firebase Admin SDK", e);
+}
+
 
 const firestore = getFirestore();
 

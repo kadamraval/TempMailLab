@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
@@ -30,11 +30,14 @@ function getAdminServices(): AdminServices {
   const apps = getApps();
   let app: App;
 
-  // If no apps are initialized, call initializeApp() without arguments.
+  // If no apps are initialized, call initializeApp().
   // In a Google Cloud environment (like App Hosting), this automatically
-  // discovers the service account credentials from the environment via ADC.
+  // discovers the service account credentials. For local development,
+  // it relies on the GOOGLE_APPLICATION_CREDENTIALS environment variable.
   if (!apps.length) {
     console.log("Initializing Firebase Admin SDK for the first time...");
+    // This will automatically use service account credentials if available
+    // either from the environment or from GOOGLE_APPLICATION_CREDENTIALS
     app = initializeApp();
   } else {
     // If apps exist, use the already-initialized default app.
