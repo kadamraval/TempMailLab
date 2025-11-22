@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -82,6 +83,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 if (!verificationResult.success) {
                     setVerificationStatus('error');
                     toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
+                    setIsSaving(false); // Stop saving process on verification failure
                     return; 
                 }
 
@@ -90,6 +92,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             } catch (error: any) {
                 setVerificationStatus('error');
                 setVerificationMessage(error.message || "An unexpected client-side error occurred.");
+                setIsSaving(false); // Stop saving process on verification failure
                 return;
             }
         }
@@ -104,9 +107,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 description: `${integration.title} configuration has been successfully saved.`,
             });
             
-            setTimeout(() => router.push('/admin/settings/integrations'), 2000);
+            setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any) {
+        } catch (error: any)
+{
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -202,7 +206,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
-                {verificationStatus !== 'idle' && verificationMessage && (
+                {verificationStatus !== 'idle' && verificationMessage && integration.slug === 'mailgun' && (
                     <Alert variant={verificationStatus === 'error' ? 'destructive' : 'default'} className={verificationStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}>
                          {verificationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
                         <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Status'}</AlertTitle>
@@ -217,7 +221,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaveDisabled()}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Verify & Save
+                        {integration.slug === 'mailgun' ? 'Verify & Save' : 'Save'}
                     </Button>
                 </div>
             </CardFooter>
