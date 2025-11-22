@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -26,13 +25,19 @@ const navItems = [
 export function SettingsSidebar() {
   const pathname = usePathname();
 
+  const isLinkActive = (href: string) => {
+    if (href === "/admin/settings" && pathname === "/admin/settings") return true;
+    if (href !== "/admin/settings" && pathname.startsWith(href)) return true;
+    return false;
+  }
+
   return (
     <nav className="grid gap-1">
       {navItems.map((item) => (
         <Button
           key={item.href}
           asChild
-          variant={pathname.startsWith(item.href) && (item.href !== "/admin/settings" || pathname === "/admin/settings") ? "secondary" : "ghost"}
+          variant={isLinkActive(item.href) ? "secondary" : "ghost"}
           className="justify-start"
         >
           <Link href={item.href}>

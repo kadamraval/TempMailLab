@@ -42,7 +42,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
-import { fetchAndStoreEmailsAction } from '@/lib/actions/mailgun';
+import { fetchAndStoreEmailsAction } from '@/lib/actions/inbox';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 

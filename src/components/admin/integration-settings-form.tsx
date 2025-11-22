@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -27,12 +27,7 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState({
-        enabled: false,
-        apiKey: "",
-        domain: "",
-        region: "US" as "US" | "EU",
-    });
+    const [settings, setSettings] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -42,20 +37,15 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const router = useRouter();
 
     const settingsRef = useMemoFirebase(() => {
-        if (!firestore || integration.slug !== 'mailgun') return null;
+        if (!firestore) return null;
         return doc(firestore, "admin_settings", integration.slug);
-    }, [firestore, integration.slug])
+    }, [firestore, integration.slug]);
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
     useEffect(() => {
         if (existingSettings) {
-            setSettings({
-                enabled: existingSettings.enabled ?? false,
-                apiKey: existingSettings.apiKey ?? "",
-                domain: existingSettings.domain ?? "",
-                region: existingSettings.region ?? "US",
-            })
+            setSettings(existingSettings);
         }
     }, [existingSettings]);
 
@@ -66,59 +56,63 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
     };
 
-    const handleRegionChange = (value: "US" | "EU") => {
-        setSettings(prev => ({ ...prev, region: value }));
+    const handleSelectChange = (id: string, value: string) => {
+        setSettings(prev => ({...prev, [id]: value}));
         setVerificationStatus('idle');
-    };
+    }
 
     const handleSaveChanges = async () => {
-        if (integration.slug !== 'mailgun' || !settingsRef) return;
+        if (!settingsRef) return;
         
         setIsSaving(true);
         setVerificationStatus('idle');
-        setVerificationMessage('Verifying credentials...');
         
-        try {
-            // Step 1: Verify credentials with the new server action
-            const verificationResult = await verifyMailgunSettingsAction({
-                apiKey: settings.apiKey,
-                domain: settings.domain,
-                region: settings.region,
-            });
+        // Specific logic for Mailgun verification
+        if (integration.slug === 'mailgun') {
+            setVerificationMessage('Verifying credentials...');
+            try {
+                const verificationResult = await verifyMailgunSettingsAction({
+                    apiKey: settings.apiKey,
+                    domain: settings.domain,
+                    region: settings.region || 'US',
+                });
 
-            setVerificationMessage(verificationResult.message);
+                setVerificationMessage(verificationResult.message);
 
-            if (!verificationResult.success) {
+                if (!verificationResult.success) {
+                    setVerificationStatus('error');
+                    toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
+                    return; 
+                }
+
+                setVerificationStatus('success');
+
+            } catch (error: any) {
                 setVerificationStatus('error');
-                // The toast is redundant if the alert is shown, but can be useful
-                toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
-                return; // Stop execution
+                setVerificationMessage(error.message || "An unexpected client-side error occurred.");
+                return;
             }
-
-            setVerificationStatus('success');
-
-            // Step 2: If verification is successful, save the settings to Firestore
-            const settingsToSave = {
-                apiKey: settings.apiKey,
-                domain: settings.domain,
-                region: settings.region,
-                enabled: true // Enable since verification passed and settings are saved
-            };
-
+        }
+        
+        // Save settings to Firestore
+        try {
+            const settingsToSave = { ...settings, enabled: true };
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
-                title: "Settings Saved & Verified",
-                description: `Mailgun configuration has been successfully verified and saved.`,
+                title: "Settings Saved",
+                description: `${integration.title} configuration has been successfully saved.`,
             });
             
-            // Optionally redirect after a short delay
             setTimeout(() => router.push('/admin/settings/integrations'), 2000);
 
         } catch (error: any) {
             console.error("Error saving settings:", error);
-            setVerificationStatus('error');
-            setVerificationMessage(error.message || "An unexpected client-side error occurred.");
+             toast({
+                title: "Save Failed",
+                description: error.message || "Could not save settings to the database.",
+                variant: "destructive"
+            });
         } finally {
             setIsSaving(false);
         }
@@ -129,7 +123,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const renderFormFields = () => {
-        if (isLoadingSettings && integration.slug === 'mailgun') {
+        if (isLoadingSettings) {
             return (
                 <div className="flex items-center justify-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -143,19 +137,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <Label htmlFor="apiKey">Private API Key</Label>
-                            <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey} onChange={handleInputChange} />
+                            <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
                                 Your secret API key. Found under Settings &gt; API Keys in Mailgun.
                             </p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="domain">Mailgun Domain</Label>
-                            <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain} onChange={handleInputChange} />
+                            <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain || ''} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
                         </div>
                         <div className="space-y-2">
                              <Label htmlFor="region">Mailgun Region</Label>
-                             <Select value={settings.region} onValueChange={handleRegionChange}>
+                             <Select value={settings.region || 'US'} onValueChange={(value) => handleSelectChange('region', value)}>
                                 <SelectTrigger id="region">
                                     <SelectValue placeholder="Select your Mailgun account region" />
                                 </SelectTrigger>
@@ -170,7 +164,18 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         </div>
                     </div>
                 );
-            
+            case "inbound-new":
+                 return (
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="apiKey">API Key</Label>
+                            <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Your API key from the inbound.new dashboard.
+                            </p>
+                        </div>
+                    </div>
+                );
             default:
                 return (
                      <p className="text-sm text-muted-foreground">
@@ -180,7 +185,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
     }
 
-    const isMailgunFormIncomplete = integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain);
+    const isSaveDisabled = () => {
+        if (isSaving || isLoadingSettings) return true;
+        if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
+        if (integration.slug === 'inbound-new' && !settings.apiKey) return true;
+        return false;
+    };
 
     return (
         <Card>
@@ -205,7 +215,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-                    <Button onClick={handleSaveChanges} disabled={integration.slug !== 'mailgun' || isSaving || isLoadingSettings || isMailgunFormIncomplete}>
+                    <Button onClick={handleSaveChanges} disabled={isSaveDisabled()}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Verify & Save
                     </Button>

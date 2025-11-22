@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -23,6 +22,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   Shield,
+  Mail,
 } from "lucide-react"
 import {
   Tooltip,
@@ -83,6 +83,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
     if (item.href !== '/admin' && pathname.startsWith(item.href)) return true;
     if (item.label === "Settings" && pathname.startsWith('/admin/settings')) return true;
     if (item.label === "Domain" && pathname.startsWith('/admin/domain')) return true;
+    if (item.label === "Email" && pathname.startsWith('/admin/settings/email')) return true;
     return false;
   }
 
