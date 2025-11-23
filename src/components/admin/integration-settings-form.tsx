@@ -201,10 +201,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </p>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key (for Webhook Verification)</Label>
+                            <Label htmlFor="apiKey">API Key (for Webhook Security)</Label>
                             <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                This key is used to securely verify that incoming webhook requests are authentic. Find it in your inbound.new dashboard.
+                                This key is used to secure your webhook. Add a custom header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> with this key as the value in your inbound.new webhook configuration.
                             </p>
                         </div>
                     </div>

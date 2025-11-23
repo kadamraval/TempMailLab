@@ -4,11 +4,34 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { NextRequest, NextResponse } from 'next/server';
 import { simpleParser } from 'mailparser';
 import type { Email } from '@/types';
+import { headers } from 'next/headers';
 
 // This is the new, dedicated webhook endpoint for receiving emails from inbound.new
-
 export async function POST(req: NextRequest) {
+    const firestore = getAdminFirestore();
+
     try {
+        // --- SECURITY VERIFICATION ---
+        const headersList = headers();
+        const secretHeader = headersList.get('x-inbound-secret');
+
+        const settingsDoc = await firestore.doc('admin_settings/inbound-new').get();
+        const storedSecret = settingsDoc.exists ? settingsDoc.data()?.apiKey : null;
+
+        if (!storedSecret) {
+            // If no secret is configured, we cannot securely accept webhooks.
+            console.warn('[inbound.new Webhook] No secret key configured in admin settings. Rejecting request.');
+            return NextResponse.json({ error: 'Webhook service not configured.' }, { status: 503 });
+        }
+
+        if (secretHeader !== storedSecret) {
+            // If the header is missing or incorrect, reject the request.
+            console.warn('[inbound.new Webhook] Invalid or missing secret header. Rejecting unauthorized request.');
+            return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+        }
+        // --- END SECURITY VERIFICATION ---
+
+
         // The raw email content is sent as the request body
         const rawEmail = await req.text();
 
@@ -19,8 +42,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Could not determine recipient address.' }, { status: 400 });
         }
         
-        const firestore = getAdminFirestore();
-
         // Find the inbox that matches the recipient email address
         const inboxesQuery = firestore.collection('inboxes').where('emailAddress', '==', toAddress).limit(1);
         const inboxesSnapshot = await inboxesQuery.get();
