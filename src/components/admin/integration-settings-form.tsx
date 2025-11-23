@@ -50,7 +50,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            setSettings(prev => ({ ...prev, secret: uuidv4(), headerName: 'x-inbound-secret' }));
+            // Pre-populate with defaults for a better UX
+            setSettings(prev => ({ 
+                ...prev, 
+                secret: uuidv4(), 
+                headerName: 'x-inbound-secret' 
+            }));
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
 
@@ -166,7 +171,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <li>Go to **Receiving &gt; Routes** and create a new route.</li>
                                     <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
                                     <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`.</li>
-                                    <li>For local testing, use the "Refresh" button on the inbox page.</li>
+                                    <li>For local testing, you can use the "Refresh" button on the inbox page.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -221,7 +226,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="apiKey">inbound.new API Key (for testing)</Label>
                             <Input id="apiKey" type="password" placeholder="Paste your API key here" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Used for the manual "Refresh" button. Found in your `inbound.new` dashboard under **Settings &gt; API Keys**.
+                                Required for the manual "Refresh" button. Found in your `inbound.new` dashboard under **Settings &gt; API Keys**.
                             </p>
                         </div>
 
@@ -270,7 +275,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && !settings.apiKey) return true; // API key is required for dev
+        // For inbound.new, the API key is essential for the app to function in dev mode.
+        // The webhook secret/header can be added later for production.
+        if (integration.slug === 'inbound-new' && !settings.apiKey) return true; 
         return false;
     };
 
@@ -306,5 +313,3 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
-
-    

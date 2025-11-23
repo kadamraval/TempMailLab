@@ -4,11 +4,14 @@
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { simpleParser } from 'mailparser';
+import { revalidatePath } from 'next/cache';
 
 async function getProviderSettings() {
     const firestore = getAdminFirestore();
     const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
-    const activeProvider = emailSettingsDoc.exists && emailSettingsDoc.data()?.provider ? emailSettingsDoc.data()?.provider : 'inbound-new';
+    const activeProvider = emailSettingsDoc.exists && emailSettingsDoc.data()?.provider 
+        ? emailSettingsDoc.data()?.provider 
+        : 'inbound-new'; // Default to inbound.new
     
     const settingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
@@ -22,15 +25,17 @@ async function getProviderSettings() {
 }
 
 async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promise<any[]> {
+    // This API endpoint returns all stored emails for a given address.
     const url = `https://api.inbound.new/v1/emails?to=${encodeURIComponent(emailAddress)}`;
     const response = await fetch(url, {
         headers: { 'X-Api-Key': apiKey },
-        cache: 'no-store'
+        cache: 'no-store' // Ensure we always get the latest data
     });
+
     if (!response.ok) {
         const errorBody = await response.text();
         console.error("inbound.new API Error:", response.status, errorBody);
-        throw new Error(`Failed to fetch emails from inbound.new. Status: ${response.status}`);
+        throw new Error(`Failed to fetch emails from inbound.new. Status: ${response.status}. Check your API key.`);
     }
     const data = await response.json();
     return data.data || []; // The API response nests emails in a "data" array
@@ -38,16 +43,19 @@ async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promis
 
 async function saveEmailToFirestore(emailData: any, inboxId: string, userId: string) {
     const firestore = getAdminFirestore();
+    // Parse the raw MIME email content
     const parsedEmail = await simpleParser(emailData.raw);
+    
+    // Create a unique, URL-safe document ID from the email's Message-ID to prevent duplicates
     const messageId = parsedEmail.messageId || firestore.collection('tmp').doc().id;
-
     const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
     
     const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
     const emailDoc = await emailRef.get();
 
+    // If this email has already been processed, skip it.
     if (emailDoc.exists) {
-        return; // Email already processed, skip
+        return; 
     }
 
     const newEmail = {
@@ -65,11 +73,12 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
             filename: att.filename || 'attachment',
             contentType: att.contentType,
             size: att.size,
-            url: '' // Placeholder
+            url: '' // Placeholder - a real app would upload this to cloud storage and save the URL
         })),
     };
 
     await emailRef.set(newEmail);
+    // Atomically increment the email count on the parent inbox
     await firestore.doc(`inboxes/${inboxId}`).update({
         emailCount: FieldValue.increment(1),
     });
@@ -94,6 +103,9 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
                 await saveEmailToFirestore(emailData, inboxId, userId);
             }
         }
+        
+        // Revalidate the path to ensure the client-side sees the new data
+        revalidatePath('/', 'layout');
 
         return { success: true, message: `Found and processed ${fetchedEmails.length} new email(s).` };
 
@@ -102,5 +114,3 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: error.message || 'An unknown error occurred while fetching emails.' };
     }
 }
-
-    

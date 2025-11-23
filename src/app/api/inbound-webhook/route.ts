@@ -34,9 +34,10 @@ export async function POST(request: Request) {
     const headersList = headers();
     const { secret, headerName } = providerConfig.settings || {};
     
-    if (providerConfig.provider === 'inbound-new') {
+    // For production, we must have a secret and headerName to secure the webhook.
+    if (process.env.NODE_ENV === 'production' && providerConfig.provider === 'inbound-new') {
         if (!secret || !headerName) {
-            console.warn(`Webhook security not configured for inbound.new. Missing secret or headerName.`);
+            console.error(`CRITICAL: Production webhook security not configured for inbound.new. Missing secret or headerName.`);
             return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
         }
         const requestSecret = headersList.get(headerName.toLowerCase());
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
         }
     } else if (providerConfig.provider === 'mailgun') {
         // Mailgun signature verification would be implemented here for production
+        // This is a complex process involving timestamps and signatures, skipped for this example.
     }
 
 
@@ -81,6 +83,8 @@ export async function POST(request: Request) {
     const inboxData = inboxDoc.data();
 
     // --- Create Email Document ---
+    // Use the unique message-id from the email header to prevent duplicates.
+    // Fallback to a new Firestore ID if message-id is somehow missing.
     const emailDocId = messageId ? messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_") : firestore.collection('tmp').doc().id;
 
     const newEmail = {
@@ -98,12 +102,13 @@ export async function POST(request: Request) {
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: ''
+        url: '' // URLs would be handled by uploading attachments to a storage bucket in a real app
       })),
     };
 
     await firestore.collection(`inboxes/${inboxDoc.id}/emails`).doc(emailDocId).set(newEmail);
     
+    // Update the email count on the parent inbox
     await inboxDoc.ref.update({
       emailCount: FieldValue.increment(1),
     });
@@ -113,6 +118,7 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
+    // Attempt to log the request body for debugging, but be careful with large payloads.
     try {
         const rawBodyForError = await new Response(request.body).text();
         console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');
@@ -123,5 +129,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
-
-    
