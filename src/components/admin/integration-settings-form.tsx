@@ -172,7 +172,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <li>For the "Expression Type", select "Match Recipient".</li>
                                     <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
                                     <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
-                                    <li>Also check "Store and Notify".</li>
+                                    <li>Also check "Store and Notify". This is required for manual refreshing to work.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -214,6 +214,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                      <li>
+                                        <strong>Development (Testing):</strong> To test in the development environment, send an email to your temporary address and then click the **Refresh** button on the main inbox page to manually check for new mail.
+                                    </li>
+                                     <li>
                                         <strong>Production (Live App):</strong> To receive emails automatically when your app is live, combine your public domain with the webhook path below and paste it into your `inbound.new` webhook settings.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
@@ -222,9 +225,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                             </Button>
                                         </div>
                                         <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
-                                    </li>
-                                     <li>
-                                        <strong>Development (Testing):</strong> Webhooks do not work in the local development environment. To test, send an email to your temporary address and then click the **Refresh** button on the inbox page to manually check for new mail.
                                     </li>
                                     <li>In your provider's dashboard, copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into the "Custom Headers" section to secure your endpoint for production.</li>
                                 </ol>
