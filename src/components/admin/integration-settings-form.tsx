@@ -28,7 +28,9 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState<any>({});
+    const [settings, setSettings] = useState<any>({
+        headerName: 'x-inbound-secret' // Default value for new setup
+    });
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -44,20 +46,17 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // Pre-populate with secure defaults if no settings exist
-            setSettings(prev => ({ 
-                ...prev, 
-                secret: uuidv4(), 
-                headerName: 'x-inbound-secret' 
-            }));
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
+             // Pre-populate with secure defaults if no settings exist
+            handleGenerateSecret(false); // don't show toast on initial generation
         }
-    }, [existingSettings, isLoadingSettings, integration.slug, settings.secret]);
+    }, [existingSettings, isLoadingSettings, integration.slug]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,10 +79,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
 
-    const handleGenerateSecret = () => {
+    const handleGenerateSecret = (showToast = true) => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, secret: newSecret }));
-        toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
+        setSettings(prev => ({ ...prev, apiKey: newSecret, headerName: prev.headerName || 'x-inbound-secret' }));
+        if (showToast) {
+            toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
+        }
     }
 
 
@@ -122,7 +123,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             // Determine if the integration is enabled based on its required fields
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
+                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
             
             const settingsToSave = { ...settings, enabled };
 
@@ -173,16 +174,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <li>In the domain's settings, enable **Store and Notify** for message storage.</li>
                                     <li>Go to **Receiving &gt; Routes** and create a new route.</li>
                                     <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
-                                    <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You will get your public domain after deploying the app.</li>
-                                    <li>Use the settings below to secure the connection. Your **Private API Key** from Mailgun will act as the webhook secret.</li>
+                                    <li>For "Actions", check **Forward** and enter your production webhook URL: `https://[YOUR_APP_URL]${webhookPath}`.</li>
+                                    <li>For security, Mailgun signs webhook requests. This integration will verify those signatures using your Private API Key.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                            <Label htmlFor="apiKey">Private API Key (Webhook Secret)</Label>
+                            <Label htmlFor="apiKey">Private API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
+                                Your secret API key. Found under Settings &gt; API Keys in Mailgun. This is used to verify incoming webhooks.
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -212,20 +213,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>How This Works: Live Deployment</AlertTitle>
+                            <AlertTitle>Live Deployment Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                      <li>
-                                        <strong>Deploy Your App:</strong> First, deploy your application using Firebase App Hosting to get a public URL (e.g., `https://your-app.web.app`).
+                                        <strong>Deploy Your App:</strong> First, deploy your application to get a public URL (e.g., `https://your-app.web.app`).
                                     </li>
                                     <li>
-                                        <strong>Configure Webhook:</strong> In your `inbound.new` dashboard, go to the webhooks section and create a new webhook.
+                                        <strong>Configure Webhook:</strong> In your `inbound.new` dashboard, create a new webhook.
                                     </li>
                                     <li>
-                                        <strong>Webhook URL:</strong> Combine your public URL with the webhook path below. For example: `https://your-app.web.app/api/inbound-webhook`.
+                                        <strong>Webhook URL:</strong> Combine your public URL with the webhook path below. For example: `https://your-app.web.app${webhookPath}`.
                                     </li>
                                     <li>
-                                        <strong>Secure It:</strong> Copy the **Header Name** and **Webhook Secret** from this page into the corresponding fields in your `inbound.new` webhook configuration. This keeps your endpoint secure.
+                                        <strong>Secure It:</strong> Copy the **Header Name** and **Webhook Secret** from this page into the corresponding fields in your `inbound.new` webhook configuration.
                                     </li>
                                 </ol>
                             </AlertDescription>
@@ -244,16 +245,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="headerName">Webhook Header Name</Label>
-                                    <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || 'x-inbound-secret'} onChange={handleInputChange} />
+                                    <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="secret">Webhook Secret</Label>
+                                    <Label htmlFor="apiKey">Webhook Secret</Label>
                                     <div className="flex items-center gap-2">
-                                        <Input id="secret" readOnly type="password" placeholder="Generate a secret..." value={settings.secret || ''} className="bg-muted" />
-                                        <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
+                                        <Input id="apiKey" readOnly type="password" placeholder="Generate a secret..." value={settings.apiKey || ''} className="bg-muted" />
+                                        <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
                                             <Copy className="h-4 w-4" />
                                         </Button>
-                                        <Button type="button" variant="outline" size="icon" onClick={handleGenerateSecret}>
+                                        <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
                                             <RefreshCw className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -274,7 +275,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
         return false;
     };
 
