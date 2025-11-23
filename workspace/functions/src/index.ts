@@ -16,7 +16,7 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 // Define and export the webhook function
-exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
+exports.inboundWebhook = functions.https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {
 
         if (req.method !== 'POST') {
