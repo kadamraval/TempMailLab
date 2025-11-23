@@ -214,10 +214,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                      <li>
-                                        <strong>Development (Testing):</strong> To test in the development environment, send an email to your temporary address and then click the **Refresh** button on the main inbox page to manually check for new mail.
+                                        <strong>Development (Testing):</strong> To test this service, send an email to your temporary address and then click the **Refresh** button on the main inbox page to manually check for new mail. You do not need to configure a webhook URL for testing.
                                     </li>
                                      <li>
-                                        <strong>Production (Live App):</strong> To receive emails automatically when your app is live, combine your public domain with the webhook path below and paste it into your `inbound.new` webhook settings.
+                                        <strong>Production (Live App):</strong> To receive emails automatically when your app is live, combine your public domain with the webhook path below and paste it into your `inbound.new` webhook settings for real-time delivery.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
@@ -226,7 +226,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         </div>
                                         <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
-                                    <li>In your provider's dashboard, copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into the "Custom Headers" section to secure your endpoint for production.</li>
+                                    <li>In your provider's dashboard, copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into the "Custom Headers" section to secure your production webhook.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
