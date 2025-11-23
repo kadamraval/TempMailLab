@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -21,24 +20,16 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null;
 }
 
-export interface InternalQuery extends Query<DocumentData> {
-  _query: {
-    path: {
-      canonicalString(): string;
-      toString(): string;
-    }
-  }
-}
-
 function getPathFromRefOrQuery(refOrQuery: CollectionReference | Query): string {
     if (refOrQuery.type === 'collection') {
         return refOrQuery.path;
     } else {
-        // This is a workaround to access the internal path of a query.
-        // It is not officially documented and might break in future SDK updates.
-        return (refOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+        // Accessing the path from a query has changed in recent SDK versions.
+        // We now need to access it through the CollectionReference it's based on.
+        return refOrQuery.converter ? (refOrQuery as Query<DocumentData>).path : (refOrQuery as CollectionReference<DocumentData>).path;
     }
 }
+
 
 export function useCollection<T = any>(
     memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
