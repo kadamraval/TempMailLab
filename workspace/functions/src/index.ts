@@ -6,14 +6,16 @@ import { simpleParser } from "mailparser";
 import type { Email } from "./types";
 import * as cors from "cors";
 
+// Initialize CORS middleware
 const corsHandler = cors({ origin: true });
 
+// Initialize Firebase Admin SDK
 if (getApps().length === 0) {
   initializeApp();
 }
-
 const db = getFirestore();
 
+// Define and export the webhook function
 exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
     corsHandler(req, res, async () => {
 
