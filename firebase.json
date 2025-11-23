@@ -7,7 +7,7 @@
     "source": "workspace/functions",
     "runtime": "nodejs18",
     "predeploy": [
-      "cd workspace/functions && npm install && npm run build"
+      "npm install && npm run build"
     ]
   },
   "hosting": {
