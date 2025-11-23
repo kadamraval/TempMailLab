@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
@@ -32,6 +32,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
+    const [webhookUrl, setWebhookUrl] = useState('');
+
 
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -48,6 +50,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (existingSettings) {
             setSettings(existingSettings);
         }
+         if (typeof window !== 'undefined') {
+            const url = `${window.location.origin}/api/inbound/webhook`;
+            setWebhookUrl(url);
+        }
     }, [existingSettings]);
 
 
@@ -62,13 +68,17 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
     }
 
+    const handleCopyWebhookUrl = () => {
+        navigator.clipboard.writeText(webhookUrl);
+        toast({ title: 'Copied!', description: 'Webhook URL copied to clipboard.' });
+    };
+
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
         
         setIsSaving(true);
         setVerificationStatus('idle');
         
-        // Specific logic for Mailgun verification
         if (integration.slug === 'mailgun') {
             setVerificationMessage('Verifying credentials...');
             try {
@@ -83,7 +93,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 if (!verificationResult.success) {
                     setVerificationStatus('error');
                     toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
-                    setIsSaving(false); // Stop saving process on verification failure
+                    setIsSaving(false);
                     return; 
                 }
 
@@ -92,14 +102,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             } catch (error: any) {
                 setVerificationStatus('error');
                 setVerificationMessage(error.message || "An unexpected client-side error occurred.");
-                setIsSaving(false); // Stop saving process on verification failure
+                setIsSaving(false);
                 return;
             }
         }
         
-        // Save settings to Firestore
         try {
-            const settingsToSave = { ...settings, enabled: true };
+            const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
+                            (integration.slug === 'inbound-new' && !!settings.apiKey);
+            const settingsToSave = { ...settings, enabled };
+
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
@@ -109,8 +121,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any)
-{
+        } catch (error: any) {
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -171,11 +182,27 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             case "inbound-new":
                  return (
                     <div className="space-y-6">
+                        <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Setup Instructions</AlertTitle>
+                            <AlertDescription>
+                                Copy the webhook URL below and paste it into the "Webhook URL" field in your inbound.new account settings.
+                            </AlertDescription>
+                        </Alert>
                         <div className="space-y-2">
+                            <Label htmlFor="webhookUrl">Webhook URL</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="webhookUrl" readOnly value={webhookUrl} className="bg-muted" />
+                                <Button type="button" variant="outline" size="icon" onClick={handleCopyWebhookUrl}>
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                         <div className="space-y-2">
                             <Label htmlFor="apiKey">API Key</Label>
                             <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your API key from the inbound.new dashboard.
+                                Your API key from the inbound.new dashboard. This is used to verify incoming webhook requests.
                             </p>
                         </div>
                     </div>

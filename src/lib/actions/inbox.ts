@@ -106,13 +106,11 @@ async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: s
     return { success: true, message: newEmailsFound > 0 ? `Fetched ${newEmailsFound} new email(s).` : "Inbox is up to date." };
 }
 
+// Polling for inbound.new is now obsolete as we are using a webhook.
+// We keep this function here to demonstrate the multi-provider architecture,
+// but it will simply report that it's not implemented for polling.
 async function fetchFromInboundNew(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
-    // This is a placeholder implementation for the new service.
-    // We would need to know the actual API structure, authentication, etc.
-    // For now, it will simulate finding no new emails.
-    console.log(`Fetching from inbound.new for ${emailAddress}...`);
-    // Example: const response = await fetch(`https://inbound.new/api/v1/emails?to=${emailAddress}`, { headers: { 'X-Api-Key': '...' } });
-    return { success: true, message: "inbound.new provider is not yet fully implemented." };
+    return { success: true, message: "inbound.new is configured for real-time webhooks. Manual refresh is not needed." };
 }
 
 
@@ -122,11 +120,12 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
         const activeProvider = emailSettingsDoc.exists ? emailSettingsDoc.data()?.provider : 'mailgun';
 
+        // If inbound.new is active, we rely on webhooks, so manual refresh (polling) is not necessary.
         if (activeProvider === 'inbound.new') {
             return await fetchFromInboundNew(emailAddress, inboxId, userId);
         }
         
-        // Default to mailgun
+        // Default to Mailgun's polling method if it's the active provider.
         return await fetchFromMailgun(emailAddress, inboxId, userId);
 
     } catch (error: any) {
