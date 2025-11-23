@@ -11,7 +11,7 @@ async function getProviderSettings() {
     const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
     const activeProvider = emailSettingsDoc.exists && emailSettingsDoc.data()?.provider 
         ? emailSettingsDoc.data()?.provider 
-        : 'inbound-new';
+        : 'inbound-new'; // Default to inbound-new if not set
     
     const settingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
@@ -92,6 +92,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         if (provider === 'inbound-new') {
             fetchedEmails = await fetchFromInboundNew(settings.apiKey, emailAddress);
         } else if (provider === 'mailgun') {
+            // For Mailgun, manual fetch isn't the primary method, so we return a helpful message.
             return { success: true, message: "Mailgun manual fetch is not enabled. Emails arrive via webhook in production." };
         } else {
             throw new Error(`Unsupported email provider configured for manual fetch: ${provider}`);
@@ -115,3 +116,5 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: error.message || 'An unknown error occurred while fetching emails.' };
     }
 }
+
+    
