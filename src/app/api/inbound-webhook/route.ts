@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -16,10 +17,9 @@ async function getInboundProviderSettings() {
         return { provider: activeProvider, settings: providerSettingsDoc.data() };
     }
     
-    console.warn(`No enabled inbound email provider found for '${activeProvider}'. The webhook will not process emails.`);
+    console.warn(`Webhook Error: No enabled inbound email provider found for '${activeProvider}'.`);
     return null;
 }
-
 
 export async function POST(request: Request) {
   try {
@@ -31,20 +31,23 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
 
     // --- Security Check ---
+    const headersList = headers();
+    const { secret, headerName } = providerConfig.settings || {};
+    
     if (providerConfig.provider === 'inbound-new') {
-        const { secret, headerName } = providerConfig.settings || {};
         if (!secret || !headerName) {
             console.warn(`Webhook security not configured for inbound.new. Missing secret or headerName.`);
             return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
         }
-        const headersList = headers();
         const requestSecret = headersList.get(headerName.toLowerCase());
         if (requestSecret !== secret) {
             console.warn(`Unauthorized webhook access attempt for inbound-new. Invalid secret.`);
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
+    } else if (providerConfig.provider === 'mailgun') {
+        // Mailgun signature verification would be implemented here for production
     }
-    // Note: A full Mailgun implementation would verify its signature here.
+
 
     // --- Body Parsing ---
     const rawBody = await request.text();
@@ -78,7 +81,6 @@ export async function POST(request: Request) {
     const inboxData = inboxDoc.data();
 
     // --- Create Email Document ---
-    // Use the email's Message-ID for idempotency to prevent duplicate processing
     const emailDocId = messageId ? messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_") : firestore.collection('tmp').doc().id;
 
     const newEmail = {
@@ -86,28 +88,27 @@ export async function POST(request: Request) {
       userId: inboxData.userId,
       senderName: fromAddress || "Unknown Sender",
       subject: subject || "No Subject",
-      receivedAt: parsedEmail.date || Timestamp.now(),
-      createdAt: Timestamp.now(), // Firestore server timestamp
+      receivedAt: parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : Timestamp.now(),
+      createdAt: Timestamp.now(),
       htmlContent,
       textContent,
-      rawContent: rawBody, // Store the full raw content for debugging or source view
+      rawContent: rawBody,
       read: false,
       attachments: parsedEmail.attachments.map(att => ({
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: '' // Placeholder: URL would be populated if attachments were uploaded to a storage bucket
+        url: ''
       })),
     };
 
     await firestore.collection(`inboxes/${inboxDoc.id}/emails`).doc(emailDocId).set(newEmail);
     
-    // --- Update Inbox Metadata ---
     await inboxDoc.ref.update({
       emailCount: FieldValue.increment(1),
     });
 
-    console.log(`Email successfully processed and stored for ${toAddress}`);
+    console.log(`Webhook: Email successfully processed and stored for ${toAddress}`);
     return NextResponse.json({ message: "Email processed successfully" }, { status: 200 });
 
   } catch (error: any) {
@@ -122,3 +123,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
+
+    

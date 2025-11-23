@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -32,13 +33,7 @@ async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promis
         throw new Error(`Failed to fetch emails from inbound.new. Status: ${response.status}`);
     }
     const data = await response.json();
-    return data.emails || [];
-}
-
-async function fetchFromMailgun(apiKey: string, domain: string, region: 'US' | 'EU', emailAddress: string): Promise<any[]> {
-    // Mailgun's Events API is more complex, this is a simplified example
-    // A more robust solution might involve filtering events for 'stored' messages.
-    return []; // Placeholder
+    return data.data || []; // The API response nests emails in a "data" array
 }
 
 async function saveEmailToFirestore(emailData: any, inboxId: string, userId: string) {
@@ -46,7 +41,6 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
     const parsedEmail = await simpleParser(emailData.raw);
     const messageId = parsedEmail.messageId || firestore.collection('tmp').doc().id;
 
-    // Use a hash of the message-ID for a more Firestore-friendly document ID
     const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
     
     const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
@@ -61,7 +55,7 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
         userId,
         senderName: parsedEmail.from?.text || "Unknown Sender",
         subject: parsedEmail.subject || "No Subject",
-        receivedAt: parsedEmail.date || Timestamp.now(),
+        receivedAt: parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : Timestamp.now(),
         createdAt: Timestamp.now(),
         htmlContent: typeof parsedEmail.html === 'string' ? parsedEmail.html : '',
         textContent: parsedEmail.text,
@@ -89,9 +83,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         if (provider === 'inbound-new') {
             fetchedEmails = await fetchFromInboundNew(settings.apiKey, emailAddress);
         } else if (provider === 'mailgun') {
-            // Note: Mailgun fetching is more complex and might require using their Events API.
-            // This is a placeholder for that logic.
-            // fetchedEmails = await fetchFromMailgun(settings.apiKey, settings.domain, settings.region, emailAddress);
+            // Note: Mailgun fetching would be implemented here using its Events API
             return { success: true, message: "Mailgun manual fetch is not fully implemented in this example. Emails will arrive via webhook in production." };
         } else {
             throw new Error(`Unsupported email provider configured for manual fetch: ${provider}`);
@@ -110,3 +102,5 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: error.message || 'An unknown error occurred while fetching emails.' };
     }
 }
+
+    

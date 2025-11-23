@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -27,9 +28,7 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState<any>({
-        headerName: 'x-inbound-secret' // Default value
-    });
+    const [settings, setSettings] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -45,17 +44,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
-            setSettings({
-                headerName: 'x-inbound-secret', // Default value
-                ...existingSettings
-            });
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
-            handleGenerateSecret();
+            setSettings(existingSettings);
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
+            setSettings(prev => ({ ...prev, secret: uuidv4(), headerName: 'x-inbound-secret' }));
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
 
@@ -72,18 +67,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     }
 
     const handleCopy = (text: string, subject: string) => {
+        if (!text) {
+             toast({ title: 'Nothing to copy', description: `Generate a ${subject.toLowerCase()} first.`, variant: 'destructive'});
+             return;
+        }
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
 
-    const handleGenerateSecret = (regenerate = false) => {
+    const handleGenerateSecret = () => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
-        if (regenerate) {
-             toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
-        }
+        setSettings(prev => ({ ...prev, secret: newSecret }));
+        toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
     }
-
 
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
@@ -108,9 +104,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     setIsSaving(false);
                     return; 
                 }
-
                 setVerificationStatus('success');
-
             } catch (error: any) {
                 setVerificationStatus('error');
                 setVerificationMessage(error.message || "An unexpected client-side error occurred.");
@@ -121,7 +115,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
+                            (integration.slug === 'inbound-new' && !!settings.apiKey);
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -167,12 +161,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Important: Mailgun Setup</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>In your Mailgun dashboard, select the desired domain.</li>
-                                    <li>Go to the "Routes" tab and create a new route.</li>
-                                    <li>For the "Expression Type", select "Match Recipient".</li>
-                                    <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
-                                    <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
-                                    <li>Also check "Store and Notify".</li>
+                                    <li>In your Mailgun dashboard, go to **Sending &gt; Domains**, select your domain.</li>
+                                    <li>In the domain's settings, enable **Store and Notify** for message storage.</li>
+                                    <li>Go to **Receiving &gt; Routes** and create a new route.</li>
+                                    <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
+                                    <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`.</li>
+                                    <li>For local testing, use the "Refresh" button on the inbox page.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -213,8 +207,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                     <li>
-                                        <strong>For Development/Testing:</strong> To test email receiving, go to your `inbound.new` dashboard, get your **API Key**, and paste it below. Then use the **Refresh** button on the main inbox page to check for mail. You do not need to configure a webhook for local testing.
+                                    <li>
+                                        <strong>For Development/Testing:</strong> To test email receiving, get your API Key from your `inbound.new` dashboard and paste it below. Then use the **"Refresh" button** on the main inbox page to check for mail. **You do not need to configure a webhook for local testing.**
                                     </li>
                                     <li>
                                         <strong>For Production (Live App):</strong> To receive emails automatically, configure a webhook in `inbound.new`. Use the URL path below combined with your public domain (e.g., `https://yourapp.com/api/inbound-webhook`). Secure it by adding a custom header with the **Header Name** and **Webhook Secret** from this page.
@@ -223,39 +217,42 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </AlertDescription>
                         </Alert>
 
-                         <div className="space-y-2">
+                         <div className="space-y-2 border-b pb-6">
                             <Label htmlFor="apiKey">inbound.new API Key (for testing)</Label>
                             <Input id="apiKey" type="password" placeholder="Paste your API key here" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Used for the manual "Refresh" button in development. Found in your `inbound.new` dashboard under **Settings &gt; API Keys**.
+                                Used for the manual "Refresh" button. Found in your `inbound.new` dashboard under **Settings &gt; API Keys**.
                             </p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="webhookPath">Production Webhook Path</Label>
-                             <div className="flex items-center gap-2">
-                                <Input readOnly value={webhookPath} className="bg-muted font-mono" />
-                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
-                                    <Copy className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4 pt-4">
+                            <h3 className="text-md font-semibold">Production Webhook Settings</h3>
                             <div className="space-y-2">
-                                <Label htmlFor="headerName">Production Webhook Header</Label>
-                                <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="secret">Production Webhook Secret</Label>
+                                <Label htmlFor="webhookPath">Production Webhook Path</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="secret" readOnly type="password" placeholder="Generate a secret..." value={settings.secret || ''} className="bg-muted" />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => settings.secret && handleCopy(settings.secret, 'Webhook Secret')}>
+                                    <Input readOnly value={webhookPath} className="bg-muted font-mono" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
                                         <Copy className="h-4 w-4" />
                                     </Button>
-                                     <Button type="button" variant="outline" size="icon" onClick={() => setSettings(prev => ({...prev, secret: uuidv4()}))}>
-                                        <RefreshCw className="h-4 w-4" />
-                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="headerName">Production Webhook Header</Label>
+                                    <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || 'x-inbound-secret'} onChange={handleInputChange} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="secret">Production Webhook Secret</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Input id="secret" readOnly type="password" placeholder="Generate a secret..." value={settings.secret || ''} className="bg-muted" />
+                                        <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                        <Button type="button" variant="outline" size="icon" onClick={handleGenerateSecret}>
+                                            <RefreshCw className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -273,8 +270,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        // For inbound.new, apiKey is now required for dev, and header/secret for prod. We can just check for apiKey for simplicity of the save button
-        if (integration.slug === 'inbound-new' && !settings.apiKey) return true;
+        if (integration.slug === 'inbound-new' && !settings.apiKey) return true; // API key is required for dev
         return false;
     };
 
@@ -310,3 +306,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    
