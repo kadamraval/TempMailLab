@@ -12,7 +12,8 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-export const inboundWebhook = functions.https.onRequest(async (req, res) => {
+// Specify the region for the function to ensure the URL is predictable.
+export const inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
     // Enable CORS for all origins for the preflight OPTIONS request
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
