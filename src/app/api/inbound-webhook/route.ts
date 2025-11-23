@@ -5,7 +5,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { simpleParser } from 'mailparser';
+import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
@@ -21,6 +21,38 @@ async function getInboundProviderSettings() {
     return null;
 }
 
+/**
+ * Extracts the recipient email address from various possible headers.
+ * @param parsedEmail The parsed email object from mailparser.
+ * @returns The recipient email address string or null if not found.
+ */
+function getRecipientAddress(parsedEmail: ParsedMail): string | null {
+    if (parsedEmail.to && typeof parsedEmail.to !== 'string' && parsedEmail.to.text) {
+        return parsedEmail.to.text;
+    }
+    
+    const headerLines = parsedEmail.headerLines;
+    if (headerLines) {
+        const headersToTry = ['delivered-to', 'x-original-to', 'to'];
+        for (const headerName of headersToTry) {
+            const header = headerLines.find(h => h.key.toLowerCase() === headerName);
+            if (header && typeof header.line === 'string') {
+                 // Extract email from "User <email@example.com>" format
+                const match = header.line.match(/<([^>]+)>/);
+                if (match && match[1]) {
+                    return match[1];
+                }
+                // Fallback for just email@example.com
+                const plainEmail = header.line.split(' ').pop();
+                if (plainEmail) return plainEmail;
+            }
+        }
+    }
+    
+    return null;
+}
+
+
 export async function POST(request: Request) {
   try {
     const providerConfig = await getInboundProviderSettings();
@@ -31,37 +63,16 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    // Correctly read settings based on provider
-    const { headerName, apiKey } = providerConfig.settings || {};
-    
-    let expectedSecret;
-    let expectedHeaderName;
+    const { apiKey, headerName } = providerConfig.settings || {};
 
-    if (providerConfig.provider === 'mailgun') {
-        // Mailgun uses the 'apiKey' as the secret for signature verification, 
-        // but the header is 'x-mailgun-signature' which contains timestamp/token, not a simple secret.
-        // For Mailgun, proper webhook verification is more complex (HMAC), but for a simple secret check:
-        // We will assume a different logic for Mailgun if it were fully implemented.
-        // For now, let's stick to the simple secret validation for inbound.new
-        // A simple secret check for mailgun is not standard.
-        // The code below is now primarily for inbound.new
-        expectedSecret = apiKey; // This would need to be HMAC checked for mailgun
-        expectedHeaderName = 'x-mailgun-signature'; // This name holds the signature, not a plain secret. This logic is flawed for mailgun.
-                                                    // Sticking to simple secret check for now.
-    } else { // 'inbound-new' and others
-        expectedSecret = apiKey; // THIS IS THE FIX: The form saves it as 'apiKey' not 'secret'
-        expectedHeaderName = headerName;
-    }
-
-    if (!expectedSecret || !expectedHeaderName) {
-        console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
+    if (!apiKey || !headerName) {
+        console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
     
-    const requestSecret = headersList.get(expectedHeaderName.toLowerCase());
+    const requestSecret = headersList.get(headerName.toLowerCase());
     
-    // This check is too simple for Mailgun's actual HMAC verification, but will work for a simple secret header.
-    if (requestSecret !== expectedSecret) {
+    if (requestSecret !== apiKey) {
         console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret received.`);
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
@@ -69,17 +80,18 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     const parsedEmail = await simpleParser(rawBody);
     
-    const toAddress = parsedEmail.to?.text;
+    const toAddress = getRecipientAddress(parsedEmail);
+    
+    if (!toAddress) {
+      console.warn("Webhook received but no recipient address could be extracted. Headers inspected:", JSON.stringify(parsedEmail.headerLines?.map(h => h.line), null, 2));
+      return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
+    }
+    
     const fromAddress = parsedEmail.from?.text;
     const subject = parsedEmail.subject;
     const htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
     const textContent = parsedEmail.text;
     const messageId = parsedEmail.messageId;
-
-    if (!toAddress) {
-      console.warn("Webhook received but no recipient (To:) address found in email.");
-      return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
-    }
     
     const inboxQuery = firestore
       .collection("inboxes")
@@ -128,7 +140,6 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
     try {
-        // Create a new response from the request body to read it, as it might have been consumed.
         const rawBodyForError = await new Response(request.body).text();
         console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');
     } catch (e) {
