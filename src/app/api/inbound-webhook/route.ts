@@ -31,12 +31,14 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
 
     const headersList = headers();
+    // Correctly use `secret` and `headerName` from settings
     const { secret, headerName } = providerConfig.settings || {};
     
     if (!secret || !headerName) {
         console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
+    
     const requestSecret = headersList.get(headerName.toLowerCase());
     if (requestSecret !== secret) {
         console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret.`);

@@ -44,12 +44,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
+            // Pre-populate with defaults if no settings exist for inbound.new
             setSettings(prev => ({ 
                 ...prev, 
                 secret: uuidv4(), 
@@ -85,6 +87,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
     }
 
+
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
         
@@ -108,7 +111,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     setIsSaving(false);
                     return; 
                 }
+
                 setVerificationStatus('success');
+
             } catch (error: any) {
                 setVerificationStatus('error');
                 setVerificationMessage(error.message || "An unexpected client-side error occurred.");
@@ -119,7 +124,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey);
+                            (integration.slug === 'inbound-new' && !!settings.apiKey); // Enabled if API key exists
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
