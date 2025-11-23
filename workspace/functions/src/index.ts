@@ -1,4 +1,3 @@
-
 import * as functions from "firebase-functions";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
