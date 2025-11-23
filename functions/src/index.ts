@@ -3,7 +3,10 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as cors from "cors";
 
+// Initialize the Firebase Admin SDK.
+// This was the missing line causing the function to fail.
 admin.initializeApp();
+
 const db = admin.firestore();
 const corsHandler = cors({ origin: true });
 
