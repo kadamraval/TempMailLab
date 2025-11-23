@@ -1,13 +1,37 @@
 
+import type { NextApiRequest, NextApiResponse } from 'next';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
-import { NextRequest, NextResponse } from 'next/server';
 import { simpleParser } from 'mailparser';
 import type { Email } from '@/types';
-import { headers } from 'next/headers';
+import { Buffer }from 'buffer';
 
-// This is the new, dedicated webhook endpoint for receiving emails from inbound.new
-export async function POST(req: NextRequest) {
+// Helper to get raw body from request
+async function getRawBody(req: NextApiRequest): Promise<string> {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString();
+        });
+        req.on('end', () => {
+            resolve(body);
+        });
+        req.on('error', reject);
+    });
+}
+
+export const config = {
+    api: {
+        bodyParser: false, // We need the raw body to parse the email
+    },
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        return res.status(405).end('Method Not Allowed');
+    }
+
     const firestore = getAdminFirestore();
 
     try {
@@ -15,45 +39,34 @@ export async function POST(req: NextRequest) {
         const settingsData = settingsDoc.exists ? settingsDoc.data() : null;
 
         if (!settingsData || !settingsData.apiKey || !settingsData.headerName) {
-            // If no secret is configured, we cannot securely accept webhooks.
-            console.warn('[inbound.new Webhook] Webhook secret/header not configured in admin settings. Rejecting request.');
-            return NextResponse.json({ error: 'Webhook service not configured.' }, { status: 503 });
+            console.warn('[inbound.new Webhook] Webhook secret/header not configured. Rejecting request.');
+            return res.status(503).json({ error: 'Webhook service not configured.' });
         }
         
         const storedSecret = settingsData.apiKey;
         const headerName = settingsData.headerName;
 
-        // --- SECURITY VERIFICATION ---
-        const headersList = headers();
-        // Use the configured header name directly without changing its case.
-        const secretHeader = headersList.get(headerName);
+        const secretHeader = req.headers[headerName.toLowerCase()];
 
         if (secretHeader !== storedSecret) {
-            // If the header is missing or incorrect, reject the request.
             console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Rejecting unauthorized request.`);
-            return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+            return res.status(401).json({ error: 'Unauthorized.' });
         }
-        // --- END SECURITY VERIFICATION ---
 
-
-        // The raw email content is sent as the request body
-        const rawEmail = await req.text();
+        const rawEmail = await getRawBody(req);
 
         const parsedEmail = await simpleParser(rawEmail);
         
         const toAddress = typeof parsedEmail.to === 'object' && parsedEmail.to?.value[0]?.address;
         if (!toAddress) {
-            return NextResponse.json({ error: 'Could not determine recipient address.' }, { status: 400 });
+            return res.status(400).json({ error: 'Could not determine recipient address.' });
         }
         
-        // Find the inbox that matches the recipient email address
         const inboxesQuery = firestore.collection('inboxes').where('emailAddress', '==', toAddress).limit(1);
         const inboxesSnapshot = await inboxesQuery.get();
 
         if (inboxesSnapshot.empty) {
-            // If no inbox is found, we can't process the email. This is not an error,
-            // as we might receive mail for expired or non-existent inboxes.
-            return NextResponse.json({ message: `No active inbox found for ${toAddress}. Ignoring.` }, { status: 200 });
+            return res.status(200).json({ message: `No active inbox found for ${toAddress}. Ignoring.` });
         }
 
         const inboxDoc = inboxesSnapshot.docs[0];
@@ -61,12 +74,10 @@ export async function POST(req: NextRequest) {
         const inboxId = inboxDoc.id;
         const userId = inboxData.userId;
 
-        // Generate a unique ID for the email document based on the message ID
         const messageId = parsedEmail.messageId || `no-id-${Date.now()}`;
         const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
         const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
 
-        // Construct the email data object to be saved in Firestore
         const emailData: Omit<Email, 'id'> = {
             inboxId,
             userId,
@@ -82,20 +93,17 @@ export async function POST(req: NextRequest) {
                 filename: att.filename || 'attachment',
                 contentType: att.contentType,
                 size: att.size,
-                url: '' // URL would be handled if we were storing attachments in Cloud Storage
+                url: '' 
             }))
         };
         
-        // Save the new email and update the inbox's email count
         await emailRef.set(emailData);
         await inboxDoc.ref.update({ emailCount: FieldValue.increment(1) });
 
-        // Respond to inbound.new that we have successfully processed the email
-        return NextResponse.json({ message: 'Email processed successfully.' }, { status: 200 });
+        return res.status(200).json({ message: 'Email processed successfully.' });
 
     } catch (error: any) {
         console.error('[inbound.new Webhook Error]', error);
-        // In case of an unexpected error, report it
-        return NextResponse.json({ error: 'Internal server error processing email.' }, { status: 500 });
+        return res.status(500).json({ error: 'Internal server error processing email.' });
     }
 }
