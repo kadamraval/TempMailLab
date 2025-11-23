@@ -15,36 +15,29 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
     try {
       const body = req.body;
       if (!body) {
+        console.warn("Webhook received with an empty body.");
         return res.status(400).send("Bad Request: Empty body.");
       }
-
-      // Extract email data from Mailgun webhook payload
+      
       const to = body.recipient || body.To;
-      const from = body.from || body.From;
-      const subject = body.subject || body.Subject;
-      const textContent = body['body-plain'] || '';
-      const htmlContent = body['body-html'] || '';
-
       if (!to) {
         console.warn("Webhook received without a recipient address.");
         return res.status(400).send("Bad Request: Recipient not found.");
       }
 
+      // Security check: Use a secret stored in admin_settings
       const settingsDoc = await db.doc("admin_settings/inbound-new").get();
-      if (!settingsDoc.exists) {
-        console.warn("Webhook security settings not configured.");
-        return res.status(401).send("Unauthorized: Webhook not configured");
-      }
-
-      const { apiKey, headerName } = settingsDoc.data() || {};
-      const requestSecret = req.get(headerName || "x-inbound-secret");
-
-      if (!apiKey || !requestSecret || requestSecret !== apiKey) {
-        console.warn("Unauthorized webhook access attempt.", {
-          recipient: to,
-          from: from,
-        });
-        return res.status(401).send("Unauthorized");
+      if (settingsDoc.exists) {
+        const { apiKey, headerName } = settingsDoc.data() || {};
+        if (apiKey && headerName) {
+           const requestSecret = req.get(headerName);
+           if (requestSecret !== apiKey) {
+               console.warn("Unauthorized webhook access attempt.", { recipient: to });
+               return res.status(401).send("Unauthorized");
+           }
+        } else {
+             console.warn("Webhook security settings (apiKey/headerName) not configured.");
+        }
       }
 
       const inboxQuery = db
@@ -54,9 +47,8 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
       const inboxSnapshot = await inboxQuery.get();
 
       if (inboxSnapshot.empty) {
-        // It's important to return a 200 OK even if the inbox doesn't exist.
-        // This prevents the email provider from retrying and indicates we handled the request.
-        return res.status(200).send("OK: No active inbox found for this address, email dropped.");
+        console.log(`OK: No active inbox for ${to}. Email dropped.`);
+        return res.status(200).send("OK: No active inbox found for this address.");
       }
 
       const inboxDoc = inboxSnapshot.docs[0];
@@ -65,12 +57,12 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
       const newEmail = {
         inboxId: inboxDoc.id,
         userId: inboxData.userId,
-        senderName: from || "Unknown Sender",
-        subject: subject || "No Subject",
+        senderName: body.from || body.From || "Unknown Sender",
+        subject: body.subject || body.Subject || "No Subject",
         receivedAt: admin.firestore.Timestamp.now(),
         createdAt: admin.firestore.Timestamp.now(),
-        htmlContent: htmlContent || "",
-        textContent: textContent || "",
+        htmlContent: body['body-html'] || "",
+        textContent: body['body-plain'] || "",
         rawContent: JSON.stringify(body),
         read: false,
         attachments: [], // Placeholder for attachments feature
@@ -78,12 +70,13 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
 
       await db.collection(`inboxes/${inboxDoc.id}/emails`).add(newEmail);
       
-      // Optionally update a counter on the inbox
       await inboxDoc.ref.update({
         emailCount: admin.firestore.FieldValue.increment(1),
       });
 
+      console.log(`Email processed successfully for ${to}`);
       return res.status(200).send("Email processed successfully");
+
     } catch (error) {
       console.error("Critical error in inboundWebhook function:", error);
       return res.status(500).send("Internal Server Error");
