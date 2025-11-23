@@ -35,7 +35,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
-    const [webhookUrl, setWebhookUrl] = useState('');
+    const [webhookUrl, setWebhookUrl] = useState('https://<your-domain.com>/api/inbound-webhook');
 
 
     const firestore = useFirestore();
@@ -50,11 +50,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const { data: existingSettings, isLoading: isLoadingSettings, refetch } = useDoc(settingsRef);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-          const url = `${window.location.origin}/api/inbound-webhook`;
-          setWebhookUrl(url);
-        }
-    
         if (existingSettings) {
             setSettings({
                 headerName: 'x-inbound-secret', // Default value
@@ -207,7 +202,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>Copy your public <strong>Webhook URL</strong> below.</li>
+                                    <li>Copy your public <strong>Webhook URL</strong> below. You must replace `your-domain.com` with your app's actual public domain name.</li>
                                     <li>In your email provider's dashboard, paste it into the "Webhook URL" field.</li>
                                     <li>Copy the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> from below.</li>
                                     <li>In your provider's dashboard, add a "Custom Header" and paste these values to secure your endpoint.</li>
