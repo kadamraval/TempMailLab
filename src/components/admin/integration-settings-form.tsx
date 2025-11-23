@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -199,10 +198,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </div>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key</Label>
+                            <Label htmlFor="apiKey">API Key (for Webhook Verification)</Label>
                             <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your API key from the inbound.new dashboard. This is used to verify incoming webhook requests.
+                                Your API key from the inbound.new dashboard. This is used to securely verify that incoming webhook requests are authentic.
                             </p>
                         </div>
                     </div>
