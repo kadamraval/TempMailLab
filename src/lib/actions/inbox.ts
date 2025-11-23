@@ -23,7 +23,7 @@ async function getMailgunSettings() {
     }
     const settings = settingsDoc.data();
     if (!settings?.apiKey || !settings?.domain) {
-        throw new Error("Mailgun API key or domain is missing from settings.");
+        throw new Error("Mailgun API key or a default domain is missing from settings.");
     }
     return settings;
 }
@@ -31,6 +31,14 @@ async function getMailgunSettings() {
 async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
     const mailgunSettings = await getMailgunSettings();
     
+    // --- Start Multi-Domain Logic ---
+    // Extract the domain from the user's specific email address.
+    const recipientDomain = emailAddress.split('@')[1];
+    if (!recipientDomain) {
+        return { success: false, error: "Could not determine the domain from the email address." };
+    }
+    // --- End Multi-Domain Logic ---
+
     const clientOptions: ClientOptions = {
         username: 'api',
         key: mailgunSettings.apiKey,
@@ -43,14 +51,15 @@ async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: s
     const firestore = getAdminFirestore();
     const inboxRef = firestore.doc(`inboxes/${inboxId}`);
     
-    const eventsResponse = await mg.events.get(mailgunSettings.domain, {
+    // Use the extracted domain for the API call, making it multi-domain capable.
+    const eventsResponse = await mg.events.get(recipientDomain, {
         recipient: emailAddress,
         event: 'stored',
         limit: 25,
     });
 
     if (eventsResponse.items.length === 0) {
-        return { success: true, message: "No new emails found via Mailgun." };
+        return { success: true, message: "No new emails found." };
     }
     
     let newEmailsFound = 0;
