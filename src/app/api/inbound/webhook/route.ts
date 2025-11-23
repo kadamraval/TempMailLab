@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         }
         
         const storedSecret = settingsData.apiKey;
-        const headerName = settingsData.headerName.toLowerCase(); // a a standard, headers are lowercased
+        const headerName = settingsData.headerName;
 
         // --- SECURITY VERIFICATION ---
         const headersList = headers();
