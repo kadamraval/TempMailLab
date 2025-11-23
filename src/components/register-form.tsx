@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup, AuthCredential, createUserWithEmailAndPassword } from "firebase/auth"
+import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -179,3 +179,5 @@ export function RegisterForm() {
     </Card>
   )
 }
+
+    

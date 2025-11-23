@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, type User } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
-import { useAuth, useFirestore } from "@/firebase"
+import { useAuth, useFirestore, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUpAction } from "@/lib/actions/auth"
@@ -38,6 +38,7 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const router = useRouter()
   const auth = useAuth()
   const firestore = useFirestore()
+  const { user: currentUser } = useUser();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -69,15 +70,23 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         return;
     }
     
-    // For regular user login, check if a profile exists. If not, create one.
-    if (!userDoc.exists()) {
-       const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-       const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
-       if (!result.success) {
-           await auth.signOut();
-           throw new Error(result.error || "Failed to create user profile during login.");
-       }
-       localStorage.removeItem(LOCAL_INBOX_KEY);
+    // For regular user login, handle anonymous account merging.
+    if (currentUser?.isAnonymous) {
+        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+        // This action will create the user doc if it doesn't exist and link the inbox.
+        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
+        if (!result.success) {
+            await auth.signOut();
+            throw new Error(result.error || "Failed to finalize user profile during login.");
+        }
+        localStorage.removeItem(LOCAL_INBOX_KEY);
+    } else if (!userDoc.exists()) {
+        // This case handles a new login on a device without an anonymous session.
+        const result = await signUpAction(user.uid, user.email!, null);
+        if (!result.success) {
+            await auth.signOut();
+            throw new Error(result.error || "Failed to create user profile during login.");
+        }
     }
     
     toast({ title: "Success", description: "Logged in successfully." });
@@ -181,3 +190,5 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
       </div>
   )
 }
+
+    

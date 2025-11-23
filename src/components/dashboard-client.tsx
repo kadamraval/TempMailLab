@@ -62,10 +62,10 @@ export function DashboardClient() {
   const { toast } = useToast();
 
   const planRef = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
-    const planId = userProfile.planId || 'free-default';
+    if (!firestore || !user) return null; // Use user instead of userProfile here
+    const planId = userProfile?.planId || 'free-default';
     return doc(firestore, 'plans', planId);
-  }, [firestore, userProfile]);
+  }, [firestore, user, userProfile]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
@@ -120,7 +120,7 @@ export function DashboardClient() {
             emailAddress,
             domain: randomDomain,
             emailCount: 0,
-            expiresAt: expiresAt.toISOString(),
+            expiresAt: Timestamp.fromDate(expiresAt),
             createdAt: serverTimestamp(),
         };
         
@@ -188,8 +188,10 @@ export function DashboardClient() {
             const userInboxesSnap = await getDocs(userInboxesQuery);
             if (!userInboxesSnap.empty) {
                 const latestInbox = { id: userInboxesSnap.docs[0].id, ...userInboxesSnap.docs[0].data() } as InboxType;
-                if (new Date(latestInbox.expiresAt) > new Date()) {
-                    foundInbox = latestInbox;
+                 // Ensure expiresAt is a string for consistent comparison
+                const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
+                if (new Date(expiry) > new Date()) {
+                    foundInbox = { ...latestInbox, expiresAt: expiry };
                 }
             }
         }
@@ -237,7 +239,7 @@ export function DashboardClient() {
   
    
   useEffect(() => {
-    if (!currentInbox?.expiresAt || !activePlan) return;
+    if (!currentInbox?.expiresAt || !activePlan || !auth?.currentUser) return;
 
     const expiryDate = new Date(currentInbox.expiresAt);
     const interval = setInterval(async () => {
@@ -251,7 +253,7 @@ export function DashboardClient() {
             if (user?.isAnonymous) {
                 localStorage.removeItem(LOCAL_INBOX_KEY);
             }
-            if (auth?.currentUser) {
+            if (auth.currentUser) {
                 const newInbox = await generateNewInbox(auth.currentUser, activePlan);
                 setCurrentInbox(newInbox);
             }
@@ -270,7 +272,7 @@ export function DashboardClient() {
   };
 
   const handleDeleteAndRegenerate = async () => {
-    if (!activePlan) return;
+    if (!activePlan || !auth?.currentUser) return;
     setIsLoading(true);
     if (currentInbox && firestore) {
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
@@ -280,10 +282,8 @@ export function DashboardClient() {
     }
     setCurrentInbox(null);
     setSelectedEmail(null);
-    if(auth?.currentUser){
-        const newInbox = await generateNewInbox(auth.currentUser, activePlan);
-        setCurrentInbox(newInbox);
-    }
+    const newInbox = await generateNewInbox(auth.currentUser, activePlan);
+    setCurrentInbox(newInbox);
     setIsLoading(false);
   };
 
@@ -458,3 +458,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

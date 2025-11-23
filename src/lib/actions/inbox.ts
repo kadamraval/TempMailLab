@@ -5,13 +5,16 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { simpleParser } from 'mailparser';
 import { revalidatePath } from 'next/cache';
+import Mailgun from 'mailgun.js';
+import formData from 'form-data';
+import type { ClientOptions, MessagesList } from 'mailgun.js';
 
 async function getProviderSettings() {
     const firestore = getAdminFirestore();
     const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
     const activeProvider = emailSettingsDoc.exists && emailSettingsDoc.data()?.provider 
         ? emailSettingsDoc.data()?.provider 
-        : 'inbound-new'; // Default to inbound-new if not set
+        : 'inbound-new';
     
     const settingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
@@ -19,7 +22,6 @@ async function getProviderSettings() {
     }
     const settings = settingsDoc.data();
     
-    // The API key is essential for manual fetching.
     if (!settings?.apiKey) {
         throw new Error(`API key for '${activeProvider}' is missing. Please add it in Admin > Settings > Integrations > ${activeProvider}.`);
     }
@@ -41,6 +43,37 @@ async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promis
     }
     const data = await response.json();
     return data.data || [];
+}
+
+async function fetchFromMailgun(settings: any, emailAddress: string): Promise<any[]> {
+    const clientOptions: ClientOptions = {
+        username: 'api',
+        key: settings.apiKey,
+        url: settings.region === 'EU' ? 'https://api.eu.mailgun.net' : 'https://api.mailgun.net',
+    };
+    const mailgun = new Mailgun(formData);
+    const mg = mailgun.client(clientOptions);
+
+    const storedEvents = await mg.events.get(settings.domain, {
+        to: emailAddress,
+        event: 'stored'
+    });
+
+    if (!storedEvents?.items?.length) {
+        return [];
+    }
+    
+    const fetchedEmails = await Promise.all(storedEvents.items.map(async (event) => {
+        if (!event.storage || !event.storage.url) return null;
+
+        const emailDetailsResponse = await mg.get(event.storage.url);
+        
+        return {
+            raw: emailDetailsResponse['body-mime']
+        };
+    }));
+    
+    return fetchedEmails.filter(Boolean);
 }
 
 async function saveEmailToFirestore(emailData: any, inboxId: string, userId: string) {
@@ -92,8 +125,7 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         if (provider === 'inbound-new') {
             fetchedEmails = await fetchFromInboundNew(settings.apiKey, emailAddress);
         } else if (provider === 'mailgun') {
-            // For Mailgun, manual fetch isn't the primary method, so we return a helpful message.
-            return { success: true, message: "Mailgun manual fetch is not enabled. Emails arrive via webhook in production." };
+            fetchedEmails = await fetchFromMailgun(settings, emailAddress);
         } else {
             throw new Error(`Unsupported email provider configured for manual fetch: ${provider}`);
         }

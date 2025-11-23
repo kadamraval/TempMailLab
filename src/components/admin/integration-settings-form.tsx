@@ -171,11 +171,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>In your Mailgun dashboard, go to **Sending &gt; Domains**, select your domain.</li>
-                                    <li>In the domain's settings, enable **Store and Notify** for message storage.</li>
                                     <li>Go to **Receiving &gt; Routes** and create a new route.</li>
                                     <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
                                     <li>For "Actions", check **Forward** and enter your production webhook URL: `https://[YOUR_APP_URL]${webhookPath}`.</li>
-                                    <li>For security, Mailgun signs webhook requests. This integration will verify those signatures using your Private API Key.</li>
+                                    <li>For security, Mailgun signs webhook requests. This integration will verify those signatures using your Private API Key. The 'Store and Notify' feature is recommended for debugging but not required for this webhook to function.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -311,3 +310,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    
