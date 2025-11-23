@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
 
         // --- SECURITY VERIFICATION ---
         const headersList = headers();
+        // Use the configured header name directly without changing its case.
         const secretHeader = headersList.get(headerName);
 
         if (secretHeader !== storedSecret) {
