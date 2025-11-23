@@ -10,15 +10,14 @@ import { simpleParser } from 'mailparser';
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
     const emailSettingsDoc = await firestore.doc("admin_settings/email").get();
-    const activeProvider = emailSettingsDoc.data()?.provider || 'inbound-new'; // Default to inbound-new
+    const activeProvider = emailSettingsDoc.data()?.provider || 'inbound-new';
     
     const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (providerSettingsDoc.exists && providerSettingsDoc.data()?.enabled) {
         return { provider: activeProvider, settings: providerSettingsDoc.data() };
     }
     
-    // Fallback or specific error
-    console.warn(`No enabled inbound email provider found for '${activeProvider}'. Checking other providers.`);
+    console.warn(`No enabled inbound email provider found for '${activeProvider}'. The webhook will not process emails.`);
     return null;
 }
 
@@ -27,7 +26,6 @@ export async function POST(request: Request) {
   try {
     const providerConfig = await getInboundProviderSettings();
     if (!providerConfig) {
-      console.warn("No enabled inbound email provider found in admin_settings.");
       return NextResponse.json({ message: "Configuration error: No email provider enabled." }, { status: 500 });
     }
     
@@ -41,15 +39,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
         }
         const headersList = headers();
-        const requestSecret = headersList.get(headerName);
+        const requestSecret = headersList.get(headerName.toLowerCase());
         if (requestSecret !== apiKey) {
             console.warn(`Unauthorized webhook access attempt for inbound-new. Invalid secret.`);
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
     }
-    // Note: Mailgun signature verification is more complex and handled via their library,
-    // which is not used in this simplified webhook handler. For production, this would be required.
-
+    // Note: A full Mailgun implementation would verify its signature here.
 
     // --- Body Parsing ---
     const rawBody = await request.text();
@@ -61,7 +57,6 @@ export async function POST(request: Request) {
     const htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
     const textContent = parsedEmail.text;
     const messageId = parsedEmail.messageId;
-
 
     if (!toAddress) {
       console.warn("Webhook received but no recipient (To:) address found in email.");
@@ -118,7 +113,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
-    // Attempt to log the body on failure for debugging
     try {
         const rawBodyForError = await new Response(request.body).text();
         console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');

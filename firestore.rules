@@ -37,13 +37,13 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
 
       // Secure list operation: only allow querying for one's own inboxes.
-      // This rule is currently too restrictive for our use-case, let's open it up for authenticated users
-      allow list: if request.auth != null;
+      allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Allow public webhook creation. IMPORTANT: This is for the server-side API route.
         // This rule is intentionally broad for the webhook, which should have its own security (e.g., secret key).
+        // For client-side, the rules below are more restrictive.
         allow create: if true;
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.

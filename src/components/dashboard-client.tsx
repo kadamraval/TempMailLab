@@ -61,7 +61,8 @@ export function DashboardClient() {
 
   const planRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'plans', 'free-default');
+    const planId = 'free-default'; // In a real app, this would come from the user's profile
+    return doc(firestore, 'plans', planId);
   }, [firestore]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
