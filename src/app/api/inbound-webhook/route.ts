@@ -8,16 +8,14 @@ import { simpleParser } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
-    // Check for inbound.new first
-    const inboundNewSettings = await firestore.doc("admin_settings/inbound-new").get();
-    if (inboundNewSettings.exists && inboundNewSettings.data()?.enabled) {
-        return { provider: 'inbound-new', settings: inboundNewSettings.data() };
+    const emailSettingsDoc = await firestore.doc("admin_settings/email").get();
+    const activeProvider = emailSettingsDoc.data()?.provider || 'mailgun'; // Default to mailgun
+    
+    const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
+    if (providerSettingsDoc.exists && providerSettingsDoc.data()?.enabled) {
+        return { provider: activeProvider, settings: providerSettingsDoc.data() };
     }
-    // Fallback to mailgun
-    const mailgunSettings = await firestore.doc("admin_settings/mailgun").get();
-    if (mailgunSettings.exists && mailgunSettings.data()?.enabled) {
-        return { provider: 'mailgun', settings: mailgunSettings.data() };
-    }
+    
     return null;
 }
 
@@ -34,44 +32,30 @@ export async function POST(request: Request) {
 
     // Security Check: Verify the secret from the header
     const { apiKey, headerName } = providerConfig.settings || {};
-    if (apiKey && headerName) {
+    if (providerConfig.provider === 'inbound-new' && apiKey && headerName) {
       const headersList = headers();
       const requestSecret = headersList.get(headerName);
       if (requestSecret !== apiKey) {
-        console.warn(`Unauthorized webhook access attempt. Invalid secret from provider: ${providerConfig.provider}.`);
+        console.warn(`Unauthorized webhook access attempt. Invalid secret for inbound-new.`);
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
       }
-    } else {
-      console.warn(`Webhook security settings (apiKey/headerName) not configured for ${providerConfig.provider}.`);
-      // Decide if you want to proceed without security. For production, you should return an error.
-      return NextResponse.json({ message: "Configuration error: Webhook security not configured." }, { status: 500 });
+    } else if (providerConfig.provider === 'inbound-new') {
+        // Only enforce for inbound-new, as Mailgun has its own signature verification which is more complex
+        console.warn(`Webhook security settings (apiKey/headerName) not configured for inbound.new.`);
+        return NextResponse.json({ message: "Configuration error: Webhook security not configured." }, { status: 500 });
     }
 
     // --- Start of Body Parsing ---
     const rawBody = await request.text();
-    let body;
     let toAddress: string | undefined;
-    let fromAddress: string | undefined;
-    let subject: string | undefined;
-    let htmlContent: string | undefined = '';
-    let textContent: string | undefined = '';
+    
+    const parsedEmail = await simpleParser(rawBody);
+    toAddress = parsedEmail.to?.text;
+    const fromAddress = parsedEmail.from?.text;
+    const subject = parsedEmail.subject;
+    const htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
+    const textContent = parsedEmail.text;
 
-    if (providerConfig.provider === 'mailgun') {
-        // Mailgun sends form data, but we can parse it from the raw text
-        const parsedEmail = await simpleParser(rawBody);
-        toAddress = parsedEmail.to?.text;
-        fromAddress = parsedEmail.from?.text;
-        subject = parsedEmail.subject;
-        htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
-        textContent = parsedEmail.text;
-    } else { // Default to JSON for inbound.new and others
-        body = JSON.parse(rawBody);
-        toAddress = body.recipient || body.To;
-        fromAddress = body.from || body.From;
-        subject = body.subject || body.Subject;
-        htmlContent = body['body-html'] || '';
-        textContent = body['body-plain'] || '';
-    }
     // --- End of Body Parsing ---
 
     if (!toAddress) {
@@ -93,21 +77,31 @@ export async function POST(request: Request) {
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxData = inboxDoc.data();
 
+    // Use Mailgun's message-id for a more reliable unique ID
+    const messageId = parsedEmail.messageId;
+    const emailDocId = messageId ? messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_") : firestore.collection('tmp').doc().id;
+
+
     const newEmail = {
       inboxId: inboxDoc.id,
       userId: inboxData.userId,
       senderName: fromAddress || "Unknown Sender",
       subject: subject || "No Subject",
-      receivedAt: Timestamp.now(),
+      receivedAt: parsedEmail.date || Timestamp.now(),
       createdAt: Timestamp.now(),
       htmlContent,
       textContent,
       rawContent: rawBody, // Store the full raw content
       read: false,
-      attachments: [], // Attachment parsing can be added here if needed
+      attachments: parsedEmail.attachments.map(att => ({
+        filename: att.filename || 'attachment',
+        contentType: att.contentType,
+        size: att.size,
+        url: '' // URL would need to be populated if you store and serve attachments
+      })),
     };
 
-    await firestore.collection(`inboxes/${inboxDoc.id}/emails`).add(newEmail);
+    await firestore.collection(`inboxes/${inboxDoc.id}/emails`).doc(emailDocId).set(newEmail);
     
     await inboxDoc.ref.update({
       emailCount: FieldValue.increment(1),
