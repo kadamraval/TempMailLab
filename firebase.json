@@ -1,13 +1,13 @@
 
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
   "functions": {
     "source": "functions",
     "runtime": "nodejs18",
     "predeploy": [
       "npm --prefix \"$RESOURCE_DIR\" install"
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }
