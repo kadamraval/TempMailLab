@@ -31,7 +31,6 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
 
     const headersList = headers();
-    // Correctly use 'secret' and 'headerName' from the settings for webhook validation.
     const { secret, headerName } = providerConfig.settings || {};
     
     if (!secret || !headerName) {

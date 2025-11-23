@@ -453,5 +453,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
