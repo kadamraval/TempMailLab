@@ -17,7 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
 import { v4 as uuidv4 } from 'uuid';
-import { firebaseConfig } from "@/firebase/config";
 
 
 interface IntegrationSettingsFormProps {
@@ -51,6 +50,11 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const { data: existingSettings, isLoading: isLoadingSettings, refetch } = useDoc(settingsRef);
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+          const url = `${window.location.origin}/api/inbound-webhook`;
+          setWebhookUrl(url);
+        }
+    
         if (existingSettings) {
             setSettings({
                 headerName: 'x-inbound-secret', // Default value
@@ -59,18 +63,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
             // If it's the inbound.new page and there's no key yet, generate one.
             handleGenerateSecret();
-        }
-        
-        // Construct the public Cloud Function URL
-        // Example URL: https://us-central1-your-project-id.cloudfunctions.net/inboundWebhook
-        // NOTE: This assumes 'us-central1'. If your functions deploy elsewhere, this needs to be dynamic.
-        const projectId = firebaseConfig.projectId;
-        const region = 'us-central1'; // Or your function's region
-        const functionName = 'inboundWebhook';
-        
-        if (projectId) {
-            const url = `https://${region}-${projectId}.cloudfunctions.net/${functionName}`;
-            setWebhookUrl(url);
         }
 
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -216,9 +208,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>Copy your public <strong>Webhook URL</strong> below.</li>
-                                    <li>In your inbound.new dashboard, paste it into the "Webhook URL" field.</li>
+                                    <li>In your email provider's dashboard, paste it into the "Webhook URL" field.</li>
                                     <li>Copy the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> from below.</li>
-                                    <li>In inbound.new, add a "Custom Header" and paste these values. This secures your endpoint.</li>
+                                    <li>In your provider's dashboard, add a "Custom Header" and paste these values to secure your endpoint.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -299,5 +291,3 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
-
-    
