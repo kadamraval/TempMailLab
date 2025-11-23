@@ -40,12 +40,12 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
+        // Allow public webhook creation. IMPORTANT: This is for the server-side API route.
+        allow create: if true;
+
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
         allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
-        // Allow a user (or server action on their behalf) to create emails in their own inbox.
-        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-
         // Deletion of emails is disallowed from the client for data integrity.
         allow delete: if false;
     }
