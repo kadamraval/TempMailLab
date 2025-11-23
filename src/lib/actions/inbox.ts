@@ -19,7 +19,7 @@ async function getProviderSettings() {
     }
     const settings = settingsDoc.data();
     if (!settings?.apiKey) {
-        throw new Error(`API key for '${activeProvider}' is missing from settings. Please add it in the admin Integrations page.`);
+        throw new Error(`API key for '${activeProvider}' is missing. Please add it in Admin > Settings > Integrations > ${activeProvider}.`);
     }
     return { provider: activeProvider, settings };
 }
@@ -114,3 +114,5 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: error.message || 'An unknown error occurred while fetching emails.' };
     }
 }
+
+    

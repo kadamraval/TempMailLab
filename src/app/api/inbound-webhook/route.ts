@@ -34,20 +34,14 @@ export async function POST(request: Request) {
     const headersList = headers();
     const { secret, headerName } = providerConfig.settings || {};
     
-    // For production, we must have a secret and headerName to secure the webhook.
-    if (process.env.NODE_ENV === 'production') {
-        if (!secret || !headerName) {
-            console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
-            return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
-        }
-        const requestSecret = headersList.get(headerName.toLowerCase());
-        if (requestSecret !== secret) {
-            console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret.`);
-            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-        }
-    } else if (providerConfig.provider === 'mailgun') {
-        // Mailgun signature verification would be implemented here for production
-        // This is a complex process involving timestamps and signatures, skipped for this example.
+    if (!secret || !headerName) {
+        console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
+        return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
+    }
+    const requestSecret = headersList.get(headerName.toLowerCase());
+    if (requestSecret !== secret) {
+        console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret.`);
+        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
 
@@ -114,7 +108,7 @@ export async function POST(request: Request) {
     });
 
     console.log(`Webhook: Email successfully processed and stored for ${toAddress}`);
-    return NextResponse.json({ message: "Email processed successfully" }, { status: 200 });
+    return NextResponse.json({ message: "Email processed successfully" }, { status: 201 });
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
@@ -129,3 +123,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
+
+    

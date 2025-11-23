@@ -121,7 +121,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.apiKey);
-            const settingsToSave = { ...settings, enabled };
+            const settingsToSave = { ...settings, enabled: enabled, ...settings };
+
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
@@ -313,3 +314,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    
