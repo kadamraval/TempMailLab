@@ -14,7 +14,7 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
 
     try {
       const body = req.body;
-      if (!body) {
+      if (!body || Object.keys(body).length === 0) {
         console.warn("Webhook received with an empty body.");
         return res.status(400).send("Bad Request: Empty body.");
       }
