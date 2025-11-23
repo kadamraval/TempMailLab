@@ -12,8 +12,8 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-// Specify the region for the function to ensure the URL is predictable.
-exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
+// Define the HTTPS function for the webhook
+const inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
     // Enable CORS for all origins for the preflight OPTIONS request
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -26,7 +26,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
 
     if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
-        return res.status(405).send('Method Not Allowed');
+        res.status(405).send('Method Not Allowed');
+        return;
     }
 
     try {
@@ -35,7 +36,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
 
         if (!settingsData || !settingsData.apiKey || !settingsData.headerName) {
             console.warn('[inbound.new Webhook] Webhook secret/header not configured. Rejecting request.');
-            return res.status(503).json({ error: 'Webhook service not configured.' });
+            res.status(503).json({ error: 'Webhook service not configured.' });
+            return;
         }
         
         const storedSecret = settingsData.apiKey;
@@ -44,7 +46,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
 
         if (secretHeader !== storedSecret) {
             console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Request from IP: ${req.ip}.`);
-            return res.status(401).json({ error: 'Unauthorized.' });
+            res.status(401).json({ error: 'Unauthorized.' });
+            return;
         }
 
         const rawEmail = req.rawBody.toString('utf-8');
@@ -53,7 +56,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
         const toAddress = typeof parsedEmail.to === 'object' && parsedEmail.to?.value[0]?.address;
         if (!toAddress) {
             console.log('[inbound.new Webhook] Could not determine recipient address.');
-            return res.status(400).json({ error: 'Could not determine recipient address.' });
+            res.status(400).json({ error: 'Could not determine recipient address.' });
+            return;
         }
         
         const inboxesQuery = db.collection('inboxes').where('emailAddress', '==', toAddress).limit(1);
@@ -61,7 +65,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
 
         if (inboxesSnapshot.empty) {
             console.log(`[inbound.new Webhook] No active inbox for ${toAddress}. Ignoring.`);
-            return res.status(200).json({ message: `No active inbox for ${toAddress}. Ignoring.` });
+            res.status(200).json({ message: `No active inbox for ${toAddress}. Ignoring.` });
+            return;
         }
 
         const inboxDoc = inboxesSnapshot.docs[0];
@@ -74,7 +79,8 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
         
         const emailDocSnap = await emailRef.get();
         if (emailDocSnap.exists) {
-            return res.status(200).json({ message: 'Duplicate email ignored.' });
+            res.status(200).json({ message: 'Duplicate email ignored.' });
+            return;
         }
 
         const emailData: Omit<Email, 'id'> = {
@@ -100,10 +106,15 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
         await inboxDoc.ref.update({ emailCount: FieldValue.increment(1) });
 
         console.log(`[inbound.new Webhook] Successfully stored email for ${toAddress}`);
-        return res.status(200).json({ message: 'Email processed successfully.' });
+        res.status(200).json({ message: 'Email processed successfully.' });
 
     } catch (error: any) {
         console.error('[inbound.new Webhook Error]', error);
-        return res.status(500).json({ error: 'Internal server error processing email.' });
+        res.status(500).json({ error: 'Internal server error processing email.' });
     }
 });
+
+// Export the function using the module.exports syntax required by Firebase Functions
+module.exports = {
+  inboundWebhook
+};
