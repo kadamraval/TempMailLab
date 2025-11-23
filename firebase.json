@@ -5,7 +5,10 @@
   },
   "functions": {
     "source": "workspace/functions",
-    "runtime": "nodejs18"
+    "runtime": "nodejs18",
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run build"
+    ]
   },
   "hosting": {
     "source": ".",
@@ -19,5 +22,3 @@
     }
   }
 }
-
-    
