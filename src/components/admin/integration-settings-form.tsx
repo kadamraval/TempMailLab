@@ -29,7 +29,9 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState<any>({});
+    const [settings, setSettings] = useState<any>({
+        headerName: 'x-inbound-secret' // Default value
+    });
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -49,7 +51,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     useEffect(() => {
         if (existingSettings) {
-            setSettings(existingSettings);
+            setSettings({
+                headerName: 'x-inbound-secret', // Default value
+                ...existingSettings
+            });
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
             // If it's the inbound.new page and there's no key yet, generate one.
             handleGenerateSecret();
@@ -122,7 +127,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey);
+                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -197,37 +202,43 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>Important: Going Live</AlertTitle>
+                            <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
-                                When you deploy your site to production, this Webhook URL will change. You must copy the new URL from your live admin panel and update it in your inbound.new dashboard.
+                                <ol className="list-decimal list-inside space-y-2 mt-2">
+                                    <li>Copy your unique <strong>Webhook URL</strong> below.</li>
+                                    <li>In your inbound.new dashboard, paste it into the "Webhook URL" field.</li>
+                                    <li>Copy the <strong>Header Name</strong> and <strong>Webhook Secret</strong> from below.</li>
+                                    <li>In inbound.new, add a "Custom Header" and paste these values. This secures your endpoint.</li>
+                                    <li>When you go live on a new domain, this URL will change. Remember to update it in your inbound.new dashboard.</li>
+                                </ol>
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                            <Label htmlFor="webhookUrl">Step 1: Your Webhook URL</Label>
+                            <Label htmlFor="webhookUrl">Your Webhook URL</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="webhookUrl" readOnly value={webhookUrl} className="bg-muted" />
                                 <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookUrl, 'Webhook URL')}>
                                     <Copy className="h-4 w-4" />
                                 </Button>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                Copy this URL and paste it into the "Webhook URL" field in your inbound.new account settings.
-                            </p>
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="apiKey">Step 2: Your Webhook Secret</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
-                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
-                                    <Copy className="h-4 w-4" />
-                                </Button>
-                                 <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
-                                    <RefreshCw className="h-4 w-4" />
-                                </Button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="headerName">Header Name</Label>
+                                <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                In your inbound.new settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this generated key as its value for security.
-                            </p>
+                             <div className="space-y-2">
+                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                     <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
@@ -243,7 +254,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && !settings.apiKey) return true;
+        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
         return false;
     };
 

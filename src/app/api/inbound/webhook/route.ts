@@ -11,22 +11,25 @@ export async function POST(req: NextRequest) {
     const firestore = getAdminFirestore();
 
     try {
-        // --- SECURITY VERIFICATION ---
-        const headersList = headers();
-        const secretHeader = headersList.get('x-inbound-secret');
-
         const settingsDoc = await firestore.doc('admin_settings/inbound-new').get();
-        const storedSecret = settingsDoc.exists ? settingsDoc.data()?.apiKey : null;
+        const settingsData = settingsDoc.exists ? settingsDoc.data() : null;
 
-        if (!storedSecret) {
+        if (!settingsData || !settingsData.apiKey || !settingsData.headerName) {
             // If no secret is configured, we cannot securely accept webhooks.
-            console.warn('[inbound.new Webhook] No secret key configured in admin settings. Rejecting request.');
+            console.warn('[inbound.new Webhook] Webhook secret/header not configured in admin settings. Rejecting request.');
             return NextResponse.json({ error: 'Webhook service not configured.' }, { status: 503 });
         }
+        
+        const storedSecret = settingsData.apiKey;
+        const headerName = settingsData.headerName.toLowerCase(); // a a standard, headers are lowercased
+
+        // --- SECURITY VERIFICATION ---
+        const headersList = headers();
+        const secretHeader = headersList.get(headerName);
 
         if (secretHeader !== storedSecret) {
             // If the header is missing or incorrect, reject the request.
-            console.warn('[inbound.new Webhook] Invalid or missing secret header. Rejecting unauthorized request.');
+            console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Rejecting unauthorized request.`);
             return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
         }
         // --- END SECURITY VERIFICATION ---
