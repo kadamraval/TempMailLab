@@ -28,6 +28,7 @@ async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promis
     // This API endpoint returns all stored emails for a given address.
     const url = `https://api.inbound.new/v1/emails?to=${encodeURIComponent(emailAddress)}`;
     const response = await fetch(url, {
+        method: 'GET',
         headers: { 'X-Api-Key': apiKey },
         cache: 'no-store' // Ensure we always get the latest data
     });
@@ -55,7 +56,7 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
 
     // If this email has already been processed, skip it.
     if (emailDoc.exists) {
-        return; 
+        return false; 
     }
 
     const newEmail = {
@@ -82,32 +83,37 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
     await firestore.doc(`inboxes/${inboxId}`).update({
         emailCount: FieldValue.increment(1),
     });
+    return true;
 }
 
 export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
     try {
         const { provider, settings } = await getProviderSettings();
         let fetchedEmails: any[] = [];
+        let newEmailsCount = 0;
 
         if (provider === 'inbound-new') {
             fetchedEmails = await fetchFromInboundNew(settings.apiKey, emailAddress);
         } else if (provider === 'mailgun') {
             // Note: Mailgun fetching would be implemented here using its Events API
-            return { success: true, message: "Mailgun manual fetch is not fully implemented in this example. Emails will arrive via webhook in production." };
+            return { success: true, message: "Mailgun manual fetch is not enabled. Emails arrive via webhook in production." };
         } else {
             throw new Error(`Unsupported email provider configured for manual fetch: ${provider}`);
         }
 
         if (fetchedEmails.length > 0) {
             for (const emailData of fetchedEmails) {
-                await saveEmailToFirestore(emailData, inboxId, userId);
+                const wasNew = await saveEmailToFirestore(emailData, inboxId, userId);
+                if (wasNew) {
+                    newEmailsCount++;
+                }
             }
         }
         
         // Revalidate the path to ensure the client-side sees the new data
         revalidatePath('/', 'layout');
 
-        return { success: true, message: `Found and processed ${fetchedEmails.length} new email(s).` };
+        return { success: true, message: `Found and processed ${newEmailsCount} new email(s).` };
 
     } catch (error: any) {
         console.error("[fetchAndStoreEmailsAction Error]", error);

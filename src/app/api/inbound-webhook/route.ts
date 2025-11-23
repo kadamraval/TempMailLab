@@ -32,6 +32,7 @@ export async function POST(request: Request) {
 
     // --- Security Check ---
     const headersList = headers();
+    // Use the 'secret' and 'headerName' fields from the settings
     const { secret, headerName } = providerConfig.settings || {};
     
     if (!secret || !headerName) {

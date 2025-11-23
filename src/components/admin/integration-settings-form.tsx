@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -121,7 +122,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.apiKey);
-            const settingsToSave = { enabled, ...settings };
+            const settingsToSave = { ...settings, enabled };
 
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
