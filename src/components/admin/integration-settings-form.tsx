@@ -213,24 +213,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>
-                                        <strong>Webhook URL Path:</strong> Your webhook is located at the path below. To make it work, you must combine it with your app's public domain.
+                                     <li>
+                                        <strong>Production (Live App):</strong> To receive emails automatically when your app is live, combine your public domain with the webhook path below and paste it into your `inbound.new` webhook settings.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
+                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
                                      <li>
-                                        <strong>Testing:</strong> To test this in the development environment, a special temporary public URL will be provided. Use this full URL in your webhook provider's dashboard.
-                                        <Button variant="link" size="sm" className="h-auto p-0 ml-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
-                                            Learn More <ExternalLink className="ml-1 h-3 w-3" />
-                                        </Button>
+                                        <strong>Development (Testing):</strong> Webhooks do not work in the local development environment. To test, send an email to your temporary address and then click the **Refresh** button on the inbox page to manually check for new mail.
                                     </li>
-                                    <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
-                                    <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
+                                    <li>In your provider's dashboard, copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into the "Custom Headers" section to secure your endpoint for production.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
