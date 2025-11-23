@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup, AuthCredential } from "firebase/auth"
+import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup, AuthCredential, createUserWithEmailAndPassword } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -48,83 +48,56 @@ export function RegisterForm() {
     },
   });
 
-  // A generic handler for linking credentials and finalizing registration
-  const handleRegistration = async (credential: AuthCredential, email: string) => {
+  const handleRegistrationSuccess = async (uid: string, email: string) => {
+     const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
+     const result = await signUpAction(uid, email, anonymousInboxData);
+
+     if (result.success) {
+         localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
+         toast({ title: "Success", description: "Account created successfully." });
+         router.push("/");
+     } else {
+         throw new Error(result.error || "Server-side registration failed.");
+     }
+  }
+
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
         toast({ title: "Error", description: "No active anonymous session to upgrade. Please refresh and try again.", variant: "destructive" });
         return;
     }
-
+    
     try {
-        // Link the anonymous account with the new credential
+        const credential = EmailAuthProvider.credential(values.email, values.password);
         const userCredential = await linkWithCredential(anonymousUser, credential);
         const registeredUser = userCredential.user;
-        
-        // Call the server action to create the user document in Firestore and migrate the inbox
-        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-        const result = await signUpAction(registeredUser.uid, email, anonymousInboxData);
-
-        if (result.success) {
-            localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
-            toast({ title: "Success", description: "Account created successfully." });
-            router.push("/");
-        } else {
-            throw new Error(result.error || "Server-side registration failed.");
-        }
+        await handleRegistrationSuccess(registeredUser.uid, values.email);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during registration.";
-        if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This email address is already in use by another account. Please try logging in instead.";
-        } else if (error.code === 'auth/provider-already-linked') {
-            errorMessage = "This social account is already linked to another user."
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = "This email address is already in use. Please try logging in instead.";
         }
-        console.error("Registration Error: ", error);
         toast({ title: "Registration Failed", description: errorMessage, variant: "destructive" });
     }
-  };
-
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    const credential = EmailAuthProvider.credential(values.email, values.password);
-    await handleRegistration(credential, values.email);
   }
 
   async function handleGoogleSignIn() {
-    if (!auth || !anonymousUser) {
+    if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
        toast({ title: "Error", description: "Authentication service not ready. Please try again in a moment.", variant: "destructive" });
        return;
     };
     const provider = new GoogleAuthProvider();
     
-    // Instead of linking here, we sign in with popup *if the user is anonymous*
-    // This is because linking an anonymous user to a popup requires a different flow
-    // that is better handled by getting the credential first.
     try {
-        const result = await signInWithPopup(anonymousUser, provider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (!credential) {
-            throw new Error("Could not get credential from Google sign-in.");
-        }
-        // The handleRegistration function is no longer needed here as signInWithPopup with an anon user
-        // automatically upgrades the user. We just need to call our server action.
-        const registeredUser = result.user;
-        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-        const signUpResult = await signUpAction(registeredUser.uid, registeredUser.email!, anonymousInboxData);
-
-        if (signUpResult.success) {
-             localStorage.removeItem(LOCAL_INBOX_KEY);
-             toast({ title: "Success", description: "Account created successfully." });
-             router.push('/');
-        } else {
-            throw new Error(signUpResult.error || "Server-side registration failed.");
-        }
-
+        const userCredential = await linkWithCredential(anonymousUser, provider);
+        const registeredUser = userCredential.user;
+        await handleRegistrationSuccess(registeredUser.uid, registeredUser.email!);
     } catch (error: any) {
          let errorMessage = "An unknown error occurred during registration.";
-        if (error.code === 'auth/email-already-in-use' || error.code === 'auth/credential-already-in-use') {
-            errorMessage = "This email address is already in use by another account. Please try logging in instead.";
+        if (error.code === 'auth/credential-already-in-use') {
+            errorMessage = "This Google account is already linked to another user. Please log in with that account.";
         }
-        console.error("Google Sign In Error:", error);
         toast({ title: "Google Sign-In Failed", description: errorMessage, variant: "destructive" });
     }
   }

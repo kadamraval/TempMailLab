@@ -36,6 +36,8 @@ import {
   deleteDoc,
   Timestamp,
   updateDoc,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { type Plan } from '@/app/(admin)/admin/packages/data';
 import { cn } from '@/lib/utils';
@@ -56,31 +58,28 @@ export function DashboardClient() {
 
   const firestore = useFirestore();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user, userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const planRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    const planId = 'free-default'; // In a real app, this would come from the user's profile
+    if (!firestore || !userProfile) return null;
+    const planId = userProfile.planId || 'free-default';
     return doc(firestore, 'plans', planId);
-  }, [firestore]);
+  }, [firestore, userProfile]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id) return null;
-    return query(collection(firestore, `inboxes/${currentInbox.id}/emails`));
+    return query(collection(firestore, `inboxes/${currentInbox.id}/emails`), orderBy("receivedAt", "desc"));
   }, [firestore, currentInbox?.id]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   const sortedEmails = useMemo(() => {
       if (!inboxEmails) return [];
-      return [...inboxEmails].sort((a, b) => {
-          const timeA = a.receivedAt instanceof Timestamp ? a.receivedAt.toMillis() : new Date(a.receivedAt).getTime();
-          const timeB = b.receivedAt instanceof Timestamp ? b.receivedAt.toMillis() : new Date(b.receivedAt).getTime();
-          return timeB - timeA;
-      });
+      // Data is already sorted by the query
+      return inboxEmails;
   }, [inboxEmails]);
 
   const generateRandomString = (length: number) => {
@@ -92,8 +91,8 @@ export function DashboardClient() {
     return result;
   };
 
-  const generateNewInbox = useCallback(async (activeUser: import('firebase/auth').User) => {
-    if (!firestore || !activePlan) {
+  const generateNewInbox = useCallback(async (activeUser: import('firebase/auth').User, plan: Plan) => {
+    if (!firestore) {
         setServerError("Services not ready. Please try again in a moment.");
         return null;
     }
@@ -103,7 +102,7 @@ export function DashboardClient() {
 
     const domainsQuery = query(
       collection(firestore, 'allowed_domains'),
-      where('tier', 'in', activePlan.features.allowPremiumDomains ? ['free', 'premium'] : ['free'])
+      where('tier', 'in', plan.features.allowPremiumDomains ? ['free', 'premium'] : ['free'])
     );
 
     try {
@@ -114,7 +113,7 @@ export function DashboardClient() {
         const randomDomain = allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
         const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
         
-        const expiresAt = new Date(Date.now() + (activePlan.features.inboxLifetime || 10) * 60 * 1000);
+        const expiresAt = new Date(Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000);
         
         const newInboxData = {
             userId: activeUser.uid,
@@ -126,7 +125,7 @@ export function DashboardClient() {
         };
         
         const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-        const newInbox = { id: newInboxRef.id, ...newInboxData } as InboxType;
+        const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString() } as InboxType;
 
         if (activeUser.isAnonymous) {
              localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ id: newInbox.id, expiresAt: newInbox.expiresAt }));
@@ -139,29 +138,33 @@ export function DashboardClient() {
     } finally {
         setIsLoading(false);
     }
-  }, [firestore, activePlan]);
+  }, [firestore]);
 
 
   useEffect(() => {
     const initializeSession = async () => {
         if (isUserLoading || isLoadingPlan || !auth || !firestore) return;
 
+        // If activePlan is not loaded yet, wait.
+        if (!activePlan) return;
+
         let activeUser = user;
         let foundInbox: InboxType | null = null;
 
+        // Step 1: Ensure we have a user (sign in anonymously if needed)
         if (!activeUser) {
             try {
                 const userCredential = await signInAnonymously(auth);
                 activeUser = userCredential.user;
             } catch (error) {
-                console.error("Anonymous sign-in failed", error);
                 setServerError("Could not start a session. Please refresh the page.");
                 setIsLoading(false);
                 return;
             }
         }
-        if (!activeUser) return;
+        if (!activeUser) return; // Should not happen, but as a safeguard.
 
+        // Step 2: Try to find an existing inbox
         if (activeUser.isAnonymous) {
             const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
             if (localDataStr) {
@@ -173,21 +176,27 @@ export function DashboardClient() {
                             foundInbox = { id: inboxDoc.id, ...inboxDoc.data() } as InboxType;
                         }
                     }
-                } catch { /* Malformed local storage, ignore */ }
+                } catch { localStorage.removeItem(LOCAL_INBOX_KEY); }
             }
-        } else {
-            const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', activeUser.uid));
+        } else { // Registered User
+            const userInboxesQuery = query(
+                collection(firestore, 'inboxes'), 
+                where('userId', '==', activeUser.uid),
+                orderBy('createdAt', 'desc'),
+                limit(1)
+            );
             const userInboxesSnap = await getDocs(userInboxesQuery);
-            const validInboxes = userInboxesSnap.docs
-                .map(d => ({ id: d.id, ...d.data() } as InboxType))
-                .filter(ib => new Date(ib.expiresAt) > new Date());
-            if (validInboxes.length > 0) {
-                foundInbox = validInboxes.sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime())[0];
+            if (!userInboxesSnap.empty) {
+                const latestInbox = { id: userInboxesSnap.docs[0].id, ...userInboxesSnap.docs[0].data() } as InboxType;
+                if (new Date(latestInbox.expiresAt) > new Date()) {
+                    foundInbox = latestInbox;
+                }
             }
         }
         
+        // Step 3: If no valid inbox found, generate a new one
         if (!foundInbox) {
-            foundInbox = await generateNewInbox(activeUser);
+            foundInbox = await generateNewInbox(activeUser, activePlan);
         }
 
         setCurrentInbox(foundInbox);
@@ -195,7 +204,7 @@ export function DashboardClient() {
     };
     
     initializeSession();
-  }, [user, isUserLoading, isLoadingPlan, auth, firestore, generateNewInbox]);
+  }, [user, isUserLoading, isLoadingPlan, activePlan, auth, firestore, generateNewInbox]);
 
 
   const handleRefresh = useCallback(async () => {
@@ -215,7 +224,6 @@ export function DashboardClient() {
             throw new Error(result.error || "Failed to refresh inbox.");
         }
     } catch (error: any) {
-        console.error("Refresh Error:", error);
         setServerError(error.message || "An unexpected error occurred while fetching emails.");
         toast({
             title: "Refresh Failed",
@@ -229,33 +237,29 @@ export function DashboardClient() {
   
    
   useEffect(() => {
-    if (!currentInbox?.expiresAt) return;
+    if (!currentInbox?.expiresAt || !activePlan) return;
 
     const expiryDate = new Date(currentInbox.expiresAt);
-    const updateCountdown = () => {
-      const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
-      setCountdown(newCountdown);
+    const interval = setInterval(async () => {
+        const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
+        setCountdown(newCountdown);
 
-      if (newCountdown <= 0) {
-        setCurrentInbox(null);
-        setSelectedEmail(null);
-        if (user?.isAnonymous) {
-          localStorage.removeItem(LOCAL_INBOX_KEY);
+        if (newCountdown <= 0) {
+            clearInterval(interval);
+            setCurrentInbox(null);
+            setSelectedEmail(null);
+            if (user?.isAnonymous) {
+                localStorage.removeItem(LOCAL_INBOX_KEY);
+            }
+            if (auth?.currentUser) {
+                const newInbox = await generateNewInbox(auth.currentUser, activePlan);
+                setCurrentInbox(newInbox);
+            }
         }
-        const reInit = async () => {
-          if(auth?.currentUser) {
-            const newInbox = await generateNewInbox(auth.currentUser);
-            setCurrentInbox(newInbox);
-          }
-        }
-        reInit();
-      }
-    };
+    }, 1000);
 
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [currentInbox, user?.isAnonymous, auth, generateNewInbox]);
+  }, [currentInbox, user?.isAnonymous, auth, generateNewInbox, activePlan]);
 
 
   const handleCopyEmail = () => {
@@ -266,6 +270,7 @@ export function DashboardClient() {
   };
 
   const handleDeleteAndRegenerate = async () => {
+    if (!activePlan) return;
     setIsLoading(true);
     if (currentInbox && firestore) {
       await deleteDoc(doc(firestore, 'inboxes', currentInbox.id));
@@ -276,7 +281,7 @@ export function DashboardClient() {
     setCurrentInbox(null);
     setSelectedEmail(null);
     if(auth?.currentUser){
-        const newInbox = await generateNewInbox(auth.currentUser);
+        const newInbox = await generateNewInbox(auth.currentUser, activePlan);
         setCurrentInbox(newInbox);
     }
     setIsLoading(false);
@@ -301,7 +306,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (isLoading || isUserLoading || isLoadingPlan) {
+  if (isLoading || isUserLoading || isLoadingPlan || !activePlan) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

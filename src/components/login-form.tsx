@@ -52,14 +52,15 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     
     const isAdminLogin = redirectPath.startsWith('/admin');
     
+    const userRef = doc(firestore, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+
     // For admin login, perform the isAdmin check immediately.
     if (isAdminLogin) {
-        const userRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userRef);
         if (userDoc.exists() && userDoc.data()?.isAdmin) {
              toast({ title: "Success", description: "Admin logged in successfully." });
              router.push(redirectPath);
-             router.refresh(); // Force a refresh to ensure layout re-evaluates
+             router.refresh();
         } else {
              // If not an admin, show an error and sign them out immediately.
              await auth.signOut();
@@ -69,12 +70,8 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
     }
     
     // For regular user login, check if a profile exists. If not, create one.
-    const userRef = doc(firestore, 'users', user.uid);
-    const userDoc = await getDoc(userRef);
     if (!userDoc.exists()) {
        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-       // We pass the currently authenticated anonymous user's ID to the server action
-       // so it knows which inbox to migrate.
        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
        if (!result.success) {
            await auth.signOut();
