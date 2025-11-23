@@ -17,9 +17,11 @@
   "dependencies": {
     "firebase-admin": "^12.1.1",
     "firebase-functions": "^5.0.1",
-    "mailparser": "^3.7.1"
+    "mailparser": "^3.7.1",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/mailparser": "^3.4.4",
     "@typescript-eslint/eslint-plugin": "^5.12.0",
     "@typescript-eslint/parser": "^5.12.0",
