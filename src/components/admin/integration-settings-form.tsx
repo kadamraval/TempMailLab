@@ -218,7 +218,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="apiKey">Step 2: Your Webhook Secret</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
-                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Secret Key')}>
+                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
                                     <Copy className="h-4 w-4" />
                                 </Button>
                                  <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -226,7 +226,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 </Button>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                In your inbound.new settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this generated key as its value.
+                                In your inbound.new settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this generated key as its value for security.
                             </p>
                         </div>
                     </div>
@@ -280,3 +280,4 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     )
 }
 
+    
