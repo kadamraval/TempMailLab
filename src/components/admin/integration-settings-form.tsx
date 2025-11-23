@@ -120,7 +120,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.apiKey);
-            const settingsToSave = { ...settings, enabled: enabled, ...settings };
+            const settingsToSave = { enabled, ...settings };
 
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -132,7 +132,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any) {
+        } catch (error: any) => {
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -209,14 +209,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>How This Works</AlertTitle>
+                            <AlertTitle>How This Works (Dev vs. Production)</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
                                         <strong>For Development/Testing:</strong> You will use a manual "pull" method. After entering your API Key below, go to the main inbox page and use the **"Refresh" button**. This will securely fetch new emails directly from `inbound.new`'s servers. **You do not need a webhook for testing.**
                                     </li>
                                     <li>
-                                        <strong>For Production (Live App):</strong> When your app is deployed, it gets a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in `inbound.new` to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
+                                        <strong>For Production (Live App):</strong> When your app is deployed, it gets a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in your `inbound.new` dashboard to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
                                     </li>
                                 </ol>
                             </AlertDescription>
