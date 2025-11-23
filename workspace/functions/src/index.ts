@@ -1,3 +1,4 @@
+
 import * as functions from "firebase-functions";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
@@ -5,19 +6,15 @@ import { simpleParser } from "mailparser";
 import type { Email } from "./types";
 import * as cors from "cors";
 
-// Initialize CORS middleware
 const corsHandler = cors({ origin: true });
 
-// Initialize Firebase Admin SDK if not already done
 if (getApps().length === 0) {
   initializeApp();
 }
 
 const db = getFirestore();
 
-// Define the HTTPS function for the webhook
 exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
-    // Use the CORS middleware
     corsHandler(req, res, async () => {
 
         if (req.method !== 'POST') {
@@ -38,7 +35,7 @@ exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (
             
             const storedSecret = settingsData.apiKey;
             const headerName = settingsData.headerName;
-            const secretHeader = req.headers[headerName.toLowerCase()]; // Headers are lower-cased
+            const secretHeader = req.headers[headerName.toLowerCase()];
 
             if (secretHeader !== storedSecret) {
                 console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Request from IP: ${req.ip}.`);
