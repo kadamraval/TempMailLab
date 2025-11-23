@@ -18,13 +18,17 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
         return res.status(400).send("Bad Request: Empty body.");
       }
 
-      const {
-        recipient: to,
-        from,
-        subject,
-        "body-plain": textContent,
-        "body-html": htmlContent,
-      } = body;
+      // Extract email data from Mailgun webhook payload
+      const to = body.recipient || body.To;
+      const from = body.from || body.From;
+      const subject = body.subject || body.Subject;
+      const textContent = body['body-plain'] || '';
+      const htmlContent = body['body-html'] || '';
+
+      if (!to) {
+        console.warn("Webhook received without a recipient address.");
+        return res.status(400).send("Bad Request: Recipient not found.");
+      }
 
       const settingsDoc = await db.doc("admin_settings/inbound-new").get();
       if (!settingsDoc.exists) {
@@ -50,7 +54,9 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
       const inboxSnapshot = await inboxQuery.get();
 
       if (inboxSnapshot.empty) {
-        return res.status(200).send("OK: No active inbox found, email dropped.");
+        // It's important to return a 200 OK even if the inbox doesn't exist.
+        // This prevents the email provider from retrying and indicates we handled the request.
+        return res.status(200).send("OK: No active inbox found for this address, email dropped.");
       }
 
       const inboxDoc = inboxSnapshot.docs[0];
@@ -67,10 +73,12 @@ exports.inboundWebhook = functions.https.onRequest((req, res) => {
         textContent: textContent || "",
         rawContent: JSON.stringify(body),
         read: false,
-        attachments: [],
+        attachments: [], // Placeholder for attachments feature
       };
 
       await db.collection(`inboxes/${inboxDoc.id}/emails`).add(newEmail);
+      
+      // Optionally update a counter on the inbox
       await inboxDoc.ref.update({
         emailCount: admin.firestore.FieldValue.increment(1),
       });
