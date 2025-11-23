@@ -2,20 +2,41 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase/server-init";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import Cors from 'cors';
 
 export const revalidate = 0;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, x-inbound-secret",
-};
+// Initialize the cors middleware
+const cors = Cors({
+  methods: ['POST', 'OPTIONS'],
+  origin: '*',
+  allowedHeaders: ['Content-Type', 'x-inbound-secret'],
+});
+
+// Helper middleware to run cors
+function runMiddleware(
+  req: NextRequest,
+  res: NextResponse,
+  fn: Function
+) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result: any) => {
+      if (result instanceof Error) {
+        return reject(result);
+      }
+      return resolve(result);
+    });
+  });
+}
 
 /**
  * Handles OPTIONS preflight requests for CORS.
+ * This is now managed by the cors middleware.
  */
 export async function OPTIONS(req: NextRequest) {
-  return new Response(null, { headers: corsHeaders });
+  const res = new NextResponse(null);
+  await runMiddleware(req, res, cors);
+  return res;
 }
 
 
@@ -24,6 +45,10 @@ export async function OPTIONS(req: NextRequest) {
  * It is designed to be triggered by an email service like Mailgun or a generic provider.
  */
 export async function POST(req: NextRequest) {
+  const res = new NextResponse();
+  // Run CORS middleware on the request
+  await runMiddleware(req, res, cors);
+
   try {
     const body = await req.json();
 
@@ -42,7 +67,7 @@ export async function POST(req: NextRequest) {
     const settingsDoc = await firestore.doc("admin_settings/inbound-new").get();
     if (!settingsDoc.exists) {
       console.warn("Webhook security settings (admin_settings/inbound-new) are not configured.");
-      return NextResponse.json({ error: "Unauthorized: Webhook not configured" }, { status: 401, headers: corsHeaders });
+      return NextResponse.json({ error: "Unauthorized: Webhook not configured" }, { status: 401 });
     }
 
     const { apiKey, headerName } = settingsDoc.data() || {};
@@ -54,7 +79,7 @@ export async function POST(req: NextRequest) {
         from: from,
         ip: req.ip,
       });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // --- Step 2: Find the target inbox in Firestore ---
@@ -68,7 +93,7 @@ export async function POST(req: NextRequest) {
       console.log(`No active inbox found for recipient: ${to}. Email will be dropped.`);
       return NextResponse.json(
         { message: "OK: No active inbox found, email dropped." },
-        { status: 200, headers: corsHeaders }
+        { status: 200 }
       );
     }
 
@@ -98,12 +123,12 @@ export async function POST(req: NextRequest) {
     });
 
     console.log(`Successfully processed and stored email for ${to}`);
-    return NextResponse.json({ message: "Email processed successfully" }, { status: 200, headers: corsHeaders });
+    return NextResponse.json({ message: "Email processed successfully" }, { status: 200 });
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500, headers: corsHeaders }
+      { status: 500 }
     );
   }
 }
