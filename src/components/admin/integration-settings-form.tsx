@@ -51,7 +51,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
-             // Pre-populate with secure defaults if no settings exist
+            // Pre-populate with secure defaults if no settings exist
             handleGenerateSecret(false); // don't show toast on initial generation
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
