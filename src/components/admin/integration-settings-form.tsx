@@ -28,9 +28,7 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState<any>({
-        headerName: 'x-inbound-secret' // Default value
-    });
+    const [settings, setSettings] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
@@ -51,12 +49,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     useEffect(() => {
         if (existingSettings) {
-            setSettings({
-                headerName: 'x-inbound-secret', // Default value
-                ...existingSettings
-            });
+             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
-            handleGenerateSecret();
+            // If there are no existing settings for inbound.new, pre-populate the form.
+            setSettings({
+                headerName: 'x-inbound-secret',
+                apiKey: uuidv4(),
+                enabled: false,
+            });
+        } else if (!isLoadingSettings && integration.slug !== 'inbound-new') {
+            setSettings({headerName: 'x-inbound-secret'});
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
 
@@ -72,19 +74,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
     }
 
-    const handleCopy = (text: string, subject: string) => {
+    const handleCopy = (text: string | undefined, subject: string) => {
+        if (!text) {
+             toast({ title: 'Nothing to Copy', description: `Cannot copy an empty ${subject}.`, variant: "destructive" });
+             return;
+        }
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
-
-    const handleGenerateSecret = (regenerate = false) => {
-        const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
-        if (regenerate) {
-             toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
-        }
-    }
-
 
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
@@ -168,12 +165,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Important: Mailgun Setup</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>In your Mailgun dashboard, select the desired domain.</li>
-                                    <li>Go to the "Routes" tab and create a new route.</li>
-                                    <li>For the "Expression Type", select "Match Recipient".</li>
+                                    <li>In your Mailgun dashboard, go to **Receiving** &gt; **Routes** and create a new route.</li>
+                                    <li>For the "Expression Type", select **"Match Recipient"**.</li>
                                     <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
-                                    <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
-                                    <li>Also check "Store and Notify".</li>
+                                    <li>In the "Actions" section, check **"Forward"** and enter your full public webhook URL: `https://your-app-domain.com${webhookPath}`.</li>
+                                    <li>Set the priority to **0**. Click **"Create Route"**.</li>
+                                    <li>Under your domain's settings, go to **Webhook Signing** and copy your **"signing-key"**. You will need to add this to your environment variables.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -215,7 +212,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        <strong>Webhook URL:</strong> Your webhook is located at the path below. To make it work, you must combine it with your app's public domain (e.g., `https://www.your-app.com${webhookPath}`).
+                                        <strong>Webhook URL:</strong> Provide this full URL to `inbound.new`. Combine your public domain with the path below (e.g., `https://tempmailoz.com/api/inbound-webhook`).
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
@@ -227,13 +224,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         <strong>Custom Headers:</strong> In your `inbound.new` dashboard, go to the "Custom Headers" section for your webhook.
                                     </li>
                                     <li>Copy the **Header name** and **Header value** from the fields below and paste them into the corresponding inputs in the `inbound.new` dashboard.</li>
+                                    <li>Click **Save Changes** below to activate this configuration.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
                             <Label>Custom Header</Label>
                             <div className="flex items-center gap-2 p-4 border rounded-lg">
-                                <div className="grid grid-cols-2 gap-4 flex-grow">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
                                     <div className="space-y-1.5">
                                         <Label htmlFor="headerName" className="text-xs text-muted-foreground">Header name</Label>
                                         <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
@@ -241,8 +239,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <div className="space-y-1.5">
                                         <Label htmlFor="apiKey" className="text-xs text-muted-foreground">Header value</Label>
                                         <div className="flex items-center gap-2">
-                                            <Input id="apiKey" readOnly type="password" placeholder="Auto-generated on save" value={settings.apiKey || ''} className="bg-muted" />
-                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
+                                            <Input id="apiKey" readOnly type="text" placeholder="Auto-generated on save" value={settings.apiKey || ''} className="bg-muted" />
+                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Header value')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>

@@ -28,6 +28,8 @@ async function getInboundProviderSettings() {
  */
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
     if (parsedEmail.to && typeof parsedEmail.to !== 'string' && parsedEmail.to.text) {
+        const match = parsedEmail.to.text.match(/<([^>]+)>/);
+        if (match && match[1]) return match[1];
         return parsedEmail.to.text;
     }
     
@@ -49,6 +51,7 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
     
+    console.warn("Could not find recipient in 'to' field. Parsed 'to':", JSON.stringify(parsedEmail.to));
     return null;
 }
 
@@ -66,14 +69,14 @@ export async function POST(request: Request) {
     const { apiKey, headerName } = providerConfig.settings || {};
 
     if (!apiKey || !headerName) {
-        console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
+        console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing secret (apiKey) or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
     
-    const requestSecret = headersList.get(headerName.toLowerCase());
+    const requestSecret = headersList.get(headerName);
     
     if (requestSecret !== apiKey) {
-        console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret received.`);
+        console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret received for header '${headerName}'.`);
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -140,10 +143,10 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
     try {
-        const rawBodyForError = await new Response(request.body).text();
-        console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');
+        // We can't re-read the body of the request here as it has already been consumed.
+        // The rawBody variable is available in the outer scope if needed.
     } catch (e) {
-        console.error("Could not parse failing request body.");
+        console.error("Could not log failing request body.");
     }
     
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
