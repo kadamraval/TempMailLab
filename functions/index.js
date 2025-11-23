@@ -1,10 +1,9 @@
 
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import * as cors from "cors";
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const cors = require("cors");
 
 // Initialize the Firebase Admin SDK.
-// This is critical for the function to connect to Firebase services.
 admin.initializeApp();
 
 const db = admin.firestore();
@@ -14,7 +13,7 @@ const corsHandler = cors({ origin: true });
  * This HTTPS Cloud Function acts as a webhook to receive inbound emails.
  * It is designed to be triggered by an email service like Mailgun or a generic provider.
  */
-export const inboundWebhook = functions.https.onRequest(async (req, res) => {
+exports.inboundWebhook = functions.https.onRequest((req, res) => {
   // Use the cors middleware to handle CORS headers.
   corsHandler(req, res, async () => {
     // We only accept POST requests.
@@ -35,18 +34,14 @@ export const inboundWebhook = functions.https.onRequest(async (req, res) => {
       } = req.body;
 
       // --- Step 1: Authenticate the webhook request ---
-      // Fetch the secret API key and header name from Firestore.
-      // This allows you to configure the webhook security from your admin panel.
       const settingsDoc = await db.doc("admin_settings/inbound-new").get();
       if (!settingsDoc.exists) {
         throw new Error("Webhook security settings (admin_settings/inbound-new) are not configured.");
       }
-      const { apiKey, headerName } = settingsDoc.data()!;
+      const { apiKey, headerName } = settingsDoc.data();
       
-      // Get the secret from the request header.
       const requestSecret = req.get(headerName || 'x-inbound-secret');
 
-      // If the secrets don't match, deny access.
       if (!apiKey || !requestSecret || requestSecret !== apiKey) {
         functions.logger.warn("Unauthorized webhook access attempt.", {
             recipient: to,
@@ -58,13 +53,11 @@ export const inboundWebhook = functions.https.onRequest(async (req, res) => {
       }
 
       // --- Step 2: Find the target inbox in Firestore ---
-      // Query the 'inboxes' collection to find a document with a matching email address.
       const inboxQuery = db.collection("inboxes").where("emailAddress", "==", to).limit(1);
       const inboxSnapshot = await inboxQuery.get();
 
-      // If no inbox is found, we log it and stop. This is expected behavior for expired addresses.
       if (inboxSnapshot.empty) {
-        functions.logger.log(`No active inbox found for recipient: ${to}. Email will be dropped as intended.`);
+        functions.logger.log(`No active inbox found for recipient: ${to}. Email will be dropped.`);
         res.status(200).send("OK: No active inbox found, email dropped.");
         return;
       }
@@ -82,16 +75,14 @@ export const inboundWebhook = functions.https.onRequest(async (req, res) => {
         createdAt: admin.firestore.Timestamp.now(),
         htmlContent: htmlContent || "",
         textContent: textContent || "",
-        rawContent: JSON.stringify(req.body), // Store the full raw payload for debugging.
+        rawContent: JSON.stringify(req.body),
         read: false,
-        attachments: [], // Placeholder for future attachment handling.
+        attachments: [],
       };
 
-      // Add the new email to the 'emails' sub-collection of the found inbox.
       await db.collection(`inboxes/${inboxDoc.id}/emails`).add(newEmail);
       
       // --- Step 4: Optionally, update the inbox metadata ---
-      // Increment a counter on the inbox document.
       await inboxDoc.ref.update({
         emailCount: admin.firestore.FieldValue.increment(1)
       });
