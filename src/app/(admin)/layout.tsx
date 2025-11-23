@@ -41,7 +41,7 @@ export default function AdminLayout({
   // While we are waiting for a definitive answer on the user's auth/admin status,
   // show a loading screen. This is the key change to prevent the redirect loop.
   // It waits for a definitive "yes" or "no" on admin status before rendering the page or redirecting.
-  if (isUserLoading || !userProfile?.isAdmin) {
+  if (isUserLoading) {
       return (
            <div className="flex h-screen w-full items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">
@@ -53,6 +53,20 @@ export default function AdminLayout({
   }
   
   // If all checks pass, render the full admin layout.
+  // We add an extra check here to avoid a flash of content for non-admin users
+  // before the useEffect above has a chance to redirect.
+  if (!userProfile?.isAdmin) {
+      return (
+           <div className="flex h-screen w-full items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Verifying access...</p>
+                </div>
+           </div>
+      );
+  }
+
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AdminSidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
