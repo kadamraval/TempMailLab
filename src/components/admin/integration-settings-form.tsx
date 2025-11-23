@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, CheckCircle, Copy } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Copy, Info } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
@@ -182,10 +182,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                  return (
                     <div className="space-y-6">
                         <Alert>
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>Setup Instructions</AlertTitle>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Important: Going Live</AlertTitle>
                             <AlertDescription>
-                                Copy the webhook URL below and paste it into the "Webhook URL" field in your inbound.new account settings.
+                                This Webhook URL is specific to your current environment. When you deploy your site to production, this URL will change. You **must** copy the new URL from your live admin panel and update it in your inbound.new dashboard to receive emails in production.
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
@@ -196,12 +196,15 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <Copy className="h-4 w-4" />
                                 </Button>
                             </div>
+                            <p className="text-sm text-muted-foreground">
+                                Copy this URL and paste it into the "Webhook URL" field in your inbound.new account settings.
+                            </p>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="apiKey">API Key (for Webhook Verification)</Label>
                             <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your API key from the inbound.new dashboard. This is used to securely verify that incoming webhook requests are authentic.
+                                This key is used to securely verify that incoming webhook requests are authentic. Find it in your inbound.new dashboard.
                             </p>
                         </div>
                     </div>
