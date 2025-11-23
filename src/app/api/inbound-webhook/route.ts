@@ -31,15 +31,20 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
 
     const headersList = headers();
-    const { secret, headerName } = providerConfig.settings || {};
+    // Use the correct variable names from the settings document
+    const { secret, headerName, apiKey } = providerConfig.settings || {};
     
-    if (!secret || !headerName) {
+    // Determine the secret to use. Mailgun uses its apiKey as the secret.
+    const expectedSecret = providerConfig.provider === 'mailgun' ? apiKey : secret;
+    const expectedHeaderName = providerConfig.provider === 'mailgun' ? 'x-mailgun-signature' : headerName;
+
+    if (!expectedSecret || !expectedHeaderName) {
         console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
     
-    const requestSecret = headersList.get(headerName.toLowerCase());
-    if (requestSecret !== secret) {
+    const requestSecret = headersList.get(expectedHeaderName.toLowerCase());
+    if (requestSecret !== expectedSecret) {
         console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret.`);
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
