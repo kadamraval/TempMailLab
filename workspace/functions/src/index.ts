@@ -13,7 +13,7 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 // Define the HTTPS function for the webhook
-const inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
+exports.inboundWebhook = functions.region('us-central1').https.onRequest(async (req, res) => {
     // Enable CORS for all origins for the preflight OPTIONS request
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -113,8 +113,3 @@ const inboundWebhook = functions.region('us-central1').https.onRequest(async (re
         res.status(500).json({ error: 'Internal server error processing email.' });
     }
 });
-
-// Export the function using the module.exports syntax required by Firebase Functions
-module.exports = {
-  inboundWebhook
-};
