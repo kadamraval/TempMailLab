@@ -60,7 +60,7 @@ export const inboundWebhook = functions.region('us-central1').https.onRequest(as
         const inboxesSnapshot = await inboxesQuery.get();
 
         if (inboxesSnapshot.empty) {
-            console.log(`[inbound.new Webhook] No active inbox for ${toAddress}.`);
+            console.log(`[inbound.new Webhook] No active inbox for ${toAddress}. Ignoring.`);
             return res.status(200).json({ message: `No active inbox for ${toAddress}. Ignoring.` });
         }
 
