@@ -114,5 +114,3 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         return { success: false, error: error.message || 'An unknown error occurred while fetching emails.' };
     }
 }
-
-    
