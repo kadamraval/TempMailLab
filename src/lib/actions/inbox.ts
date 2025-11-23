@@ -31,13 +31,10 @@ async function getMailgunSettings() {
 async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
     const mailgunSettings = await getMailgunSettings();
     
-    // --- Start Multi-Domain Logic ---
-    // Extract the domain from the user's specific email address.
     const recipientDomain = emailAddress.split('@')[1];
     if (!recipientDomain) {
         return { success: false, error: "Could not determine the domain from the email address." };
     }
-    // --- End Multi-Domain Logic ---
 
     const clientOptions: ClientOptions = {
         username: 'api',
@@ -51,7 +48,6 @@ async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: s
     const firestore = getAdminFirestore();
     const inboxRef = firestore.doc(`inboxes/${inboxId}`);
     
-    // Use the extracted domain for the API call, making it multi-domain capable.
     const eventsResponse = await mg.events.get(recipientDomain, {
         recipient: emailAddress,
         event: 'stored',
@@ -115,9 +111,6 @@ async function fetchFromMailgun(emailAddress: string, inboxId: string, userId: s
     return { success: true, message: newEmailsFound > 0 ? `Fetched ${newEmailsFound} new email(s).` : "Inbox is up to date." };
 }
 
-// Polling for inbound.new is now obsolete as we are using a webhook.
-// We keep this function here to demonstrate the multi-provider architecture,
-// but it will simply report that it's not implemented for polling.
 async function fetchFromInboundNew(emailAddress: string, inboxId: string, userId: string): Promise<{ success: boolean; error?: string; message?: string; }> {
     return { success: true, message: "inbound.new is configured for real-time webhooks. Manual refresh is not needed." };
 }
@@ -129,12 +122,10 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
         const activeProvider = emailSettingsDoc.exists ? emailSettingsDoc.data()?.provider : 'mailgun';
 
-        // If inbound.new is active, we rely on webhooks, so manual refresh (polling) is not necessary.
-        if (activeProvider === 'inbound.new') {
+        if (activeProvider === 'inbound-new') {
             return await fetchFromInboundNew(emailAddress, inboxId, userId);
         }
         
-        // Default to Mailgun's polling method if it's the active provider.
         return await fetchFromMailgun(emailAddress, inboxId, userId);
 
     } catch (error: any) {
