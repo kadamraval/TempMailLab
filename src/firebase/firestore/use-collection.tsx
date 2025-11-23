@@ -7,7 +7,9 @@ import {
   DocumentData,
   FirestoreError,
   QuerySnapshot,
-  CollectionReference,
+  collection,
+  query,
+  where
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -20,19 +22,23 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null;
 }
 
-function getPathFromRefOrQuery(refOrQuery: CollectionReference | Query): string {
+// This is a robust way to get the path, handling both CollectionReference and Query.
+function getPathFromRefOrQuery(refOrQuery: any): string {
     if (refOrQuery.type === 'collection') {
         return refOrQuery.path;
-    } else {
-        // Accessing the path from a query has changed in recent SDK versions.
-        // We now need to access it through the CollectionReference it's based on.
-        return refOrQuery.converter ? (refOrQuery as Query<DocumentData>).path : (refOrQuery as CollectionReference<DocumentData>).path;
     }
+    // For queries, we access the private _query property to get to the path.
+    // This is a common workaround for this SDK limitation.
+    if (refOrQuery._query) {
+        return refOrQuery._query.path.segments.join('/');
+    }
+    // Fallback for other potential structures
+    return refOrQuery.path || '';
 }
 
 
 export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+    memoizedTargetRefOrQuery: (ReturnType<typeof collection> | ReturnType<typeof query>) & {__memo?: boolean}  | null | undefined,
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -53,7 +59,7 @@ export function useCollection<T = any>(
     setError(null);
 
     const unsubscribe = onSnapshot(
-      memoizedTargetRefOrQuery,
+      memoizedTargetRefOrQuery as Query<DocumentData>,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const results: ResultItemType[] = snapshot.docs.map(doc => ({
           ...(doc.data() as T),
