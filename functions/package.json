@@ -1,4 +1,3 @@
-
 {
   "name": "functions",
   "description": "Cloud Functions for Firebase",
@@ -8,7 +7,6 @@
     "shell": "firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "prebuild": "rm -rf dist",
     "build": "tsc"
   },
   "engines": {
