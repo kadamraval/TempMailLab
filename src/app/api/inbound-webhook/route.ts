@@ -9,13 +9,15 @@ import { simpleParser } from 'mailparser';
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
     const emailSettingsDoc = await firestore.doc("admin_settings/email").get();
-    const activeProvider = emailSettingsDoc.data()?.provider || 'mailgun'; // Default to mailgun
+    const activeProvider = emailSettingsDoc.data()?.provider || 'inbound-new'; // Default to inbound-new
     
     const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (providerSettingsDoc.exists && providerSettingsDoc.data()?.enabled) {
         return { provider: activeProvider, settings: providerSettingsDoc.data() };
     }
     
+    // Fallback or specific error
+    console.warn(`No enabled inbound email provider found for '${activeProvider}'. Checking other providers.`);
     return null;
 }
 
@@ -30,39 +32,42 @@ export async function POST(request: Request) {
     
     const firestore = getAdminFirestore();
 
-    // Security Check: Verify the secret from the header
+    // --- Security Check ---
     const { apiKey, headerName } = providerConfig.settings || {};
-    if (providerConfig.provider === 'inbound-new' && apiKey && headerName) {
-      const headersList = headers();
-      const requestSecret = headersList.get(headerName);
-      if (requestSecret !== apiKey) {
-        console.warn(`Unauthorized webhook access attempt. Invalid secret for inbound-new.`);
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-      }
-    } else if (providerConfig.provider === 'inbound-new') {
-        // Only enforce for inbound-new, as Mailgun has its own signature verification which is more complex
-        console.warn(`Webhook security settings (apiKey/headerName) not configured for inbound.new.`);
-        return NextResponse.json({ message: "Configuration error: Webhook security not configured." }, { status: 500 });
+    if (providerConfig.provider === 'inbound-new') {
+        if (!apiKey || !headerName) {
+            console.warn(`Webhook security not configured for inbound.new. Missing apiKey or headerName.`);
+            return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
+        }
+        const headersList = headers();
+        const requestSecret = headersList.get(headerName);
+        if (requestSecret !== apiKey) {
+            console.warn(`Unauthorized webhook access attempt for inbound-new. Invalid secret.`);
+            return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+        }
     }
+    // Note: Mailgun signature verification is more complex and handled via their library,
+    // which is not used in this simplified webhook handler. For production, this would be required.
 
-    // --- Start of Body Parsing ---
+
+    // --- Body Parsing ---
     const rawBody = await request.text();
-    let toAddress: string | undefined;
-    
     const parsedEmail = await simpleParser(rawBody);
-    toAddress = parsedEmail.to?.text;
+    
+    const toAddress = parsedEmail.to?.text;
     const fromAddress = parsedEmail.from?.text;
     const subject = parsedEmail.subject;
     const htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
     const textContent = parsedEmail.text;
+    const messageId = parsedEmail.messageId;
 
-    // --- End of Body Parsing ---
 
     if (!toAddress) {
-      console.warn("Webhook received without a recipient address.");
-      return NextResponse.json({ message: "Bad Request: Recipient not found." }, { status: 400 });
+      console.warn("Webhook received but no recipient (To:) address found in email.");
+      return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
     }
     
+    // --- Find Inbox ---
     const inboxQuery = firestore
       .collection("inboxes")
       .where("emailAddress", "==", toAddress)
@@ -70,17 +75,16 @@ export async function POST(request: Request) {
     const inboxSnapshot = await inboxQuery.get();
 
     if (inboxSnapshot.empty) {
-      console.log(`OK: No active inbox for ${toAddress}. Email dropped.`);
-      return NextResponse.json({ message: "OK: No active inbox found." }, { status: 200 });
+      console.log(`OK: No active inbox for ${toAddress}. Email dropped as per design.`);
+      return NextResponse.json({ message: "OK: No active inbox found for this address." }, { status: 200 });
     }
 
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxData = inboxDoc.data();
 
-    // Use Mailgun's message-id for a more reliable unique ID
-    const messageId = parsedEmail.messageId;
+    // --- Create Email Document ---
+    // Use the email's Message-ID for idempotency to prevent duplicate processing
     const emailDocId = messageId ? messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_") : firestore.collection('tmp').doc().id;
-
 
     const newEmail = {
       inboxId: inboxDoc.id,
@@ -88,33 +92,35 @@ export async function POST(request: Request) {
       senderName: fromAddress || "Unknown Sender",
       subject: subject || "No Subject",
       receivedAt: parsedEmail.date || Timestamp.now(),
-      createdAt: Timestamp.now(),
+      createdAt: Timestamp.now(), // Firestore server timestamp
       htmlContent,
       textContent,
-      rawContent: rawBody, // Store the full raw content
+      rawContent: rawBody, // Store the full raw content for debugging or source view
       read: false,
       attachments: parsedEmail.attachments.map(att => ({
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: '' // URL would need to be populated if you store and serve attachments
+        url: '' // Placeholder: URL would be populated if attachments were uploaded to a storage bucket
       })),
     };
 
     await firestore.collection(`inboxes/${inboxDoc.id}/emails`).doc(emailDocId).set(newEmail);
     
+    // --- Update Inbox Metadata ---
     await inboxDoc.ref.update({
       emailCount: FieldValue.increment(1),
     });
 
-    console.log(`Email processed successfully for ${toAddress}`);
+    console.log(`Email successfully processed and stored for ${toAddress}`);
     return NextResponse.json({ message: "Email processed successfully" }, { status: 200 });
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
+    // Attempt to log the body on failure for debugging
     try {
         const rawBodyForError = await new Response(request.body).text();
-        console.error("Failing request body:", rawBodyForError);
+        console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');
     } catch (e) {
         console.error("Could not parse failing request body.");
     }
