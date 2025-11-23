@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -210,14 +209,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>Setup Instructions</AlertTitle>
+                            <AlertTitle>How This Works</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        <strong>For Development/Testing:</strong> To test email receiving, get your API Key from your `inbound.new` dashboard and paste it below. Then use the **"Refresh" button** on the main inbox page to check for mail. **You do not need to configure a webhook for local testing.**
+                                        <strong>For Development/Testing:</strong> You will use a manual "pull" method. After entering your API Key below, go to the main inbox page and use the **"Refresh" button**. This will securely fetch new emails directly from `inbound.new`'s servers. **You do not need a webhook for testing.**
                                     </li>
                                     <li>
-                                        <strong>For Production (Live App):</strong> To receive emails automatically, configure a webhook in `inbound.new`. Use the URL path below combined with your public domain (e.g., `https://yourapp.com/api/inbound-webhook`). Secure it by adding a custom header with the **Header Name** and **Webhook Secret** from this page.
+                                        <strong>For Production (Live App):</strong> When your app is deployed, it gets a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in `inbound.new` to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
                                     </li>
                                 </ol>
                             </AlertDescription>
