@@ -185,11 +185,11 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Info className="h-4 w-4" />
                             <AlertTitle>Important: Going Live</AlertTitle>
                             <AlertDescription>
-                                This Webhook URL is specific to your current environment. When you deploy your site to production, this URL will change. You **must** copy the new URL from your live admin panel and update it in your inbound.new dashboard to receive emails in production.
+                                When you deploy your site to production, this Webhook URL will change. You must copy the new URL from your live admin panel and update it in your inbound.new dashboard.
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                            <Label htmlFor="webhookUrl">Webhook URL</Label>
+                            <Label htmlFor="webhookUrl">Step 1: Your Webhook URL</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="webhookUrl" readOnly value={webhookUrl} className="bg-muted" />
                                 <Button type="button" variant="outline" size="icon" onClick={handleCopyWebhookUrl}>
@@ -201,10 +201,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </p>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key (for Webhook Security)</Label>
-                            <Input id="apiKey" type="password" placeholder="inbound_xxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
+                            <Label htmlFor="apiKey">Step 2: Your Secret Key</Label>
+                            <Input id="apiKey" type="password" placeholder="Enter your secret key from inbound.new" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                This key is used to secure your webhook. Add a custom header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> with this key as the value in your inbound.new webhook configuration.
+                                In your inbound.new webhook settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this key as its value to secure your endpoint.
                             </p>
                         </div>
                     </div>
