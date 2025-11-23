@@ -2,7 +2,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -14,8 +14,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ModeToggle } from "./mode-toggle"
-import { useUser } from "@/firebase"
+import { useUser, useAuth } from "@/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
+import { signOut } from "firebase/auth"
+import { useToast } from "@/hooks/use-toast"
+import { LogOut, Settings, HelpCircle } from "lucide-react"
 
 // A helper function to get a title from the path
 const getTitleFromPath = (pathname: string): string => {
@@ -29,12 +32,33 @@ const getTitleFromPath = (pathname: string): string => {
 
 export function AdminHeader() {
     const { user } = useUser();
+    const auth = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
     const pathname = usePathname();
 
     const getInitials = (email: string | null | undefined) => {
         if (!email) return "U";
         return email.charAt(0).toUpperCase();
     }
+
+    const handleLogout = async () => {
+        if (!auth) return;
+        try {
+            await signOut(auth);
+            toast({
+                title: "Logged Out",
+                description: "You have been successfully logged out.",
+            });
+            router.push("/login/admin");
+        } catch (error) {
+            toast({
+                title: "Logout Failed",
+                description: "An error occurred while logging out.",
+                variant: "destructive",
+            });
+        }
+    };
 
     return (
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
@@ -60,10 +84,23 @@ export function AdminHeader() {
                     <DropdownMenuContent align="end">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
-                    <DropdownMenuItem>Support</DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/admin/settings">
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Settings</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                         <Link href="/admin/support">
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            <span>Support</span>
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>Logout</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Logout</span>
+                    </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

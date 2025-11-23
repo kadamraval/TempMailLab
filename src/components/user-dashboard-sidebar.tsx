@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -8,7 +9,6 @@ import {
   CreditCard,
   Inbox,
   ChevronsLeft,
-  LogOut,
 } from "lucide-react"
 import {
   Tooltip,
@@ -94,15 +94,7 @@ export function UserDashboardSidebar({ isCollapsed, setIsCollapsed }: UserDashbo
         </TooltipProvider>
        </ScrollArea>
        <div className="mt-auto p-4 border-t">
-        <div className="flex justify-between items-center">
-            {!isCollapsed && (
-                <Button size="sm" variant="outline" className="w-full justify-start" asChild>
-                    <Link href="/">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                    </Link>
-                </Button>
-            )}
+        <div className="flex justify-end items-center">
             <Button
                 variant="ghost"
                 size="icon"
