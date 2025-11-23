@@ -48,19 +48,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const { data: existingSettings, isLoading: isLoadingSettings, refetch } = useDoc(settingsRef);
 
     useEffect(() => {
-        // Construct the webhook URL based on the Firebase project ID and region.
-        // This is a more robust way to get the correct function URL.
-        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-        const region = 'us-central1'; // Default or from config
-        if (projectId) {
-            const functionUrl = `https://${region}-${projectId}.cloudfunctions.net/inboundWebhook`;
-            const proxyUrl = `/api/inbound-webhook`;
-            setWebhookUrl(proxyUrl);
-        } else {
-            // Fallback for local dev if NEXT_PUBLIC_FIREBASE_PROJECT_ID is not set
-            const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
-            setWebhookUrl(`${origin}/api/inbound-webhook`);
-        }
+        // This is the relative path for the API route.
+        const webhookPath = "/api/inbound-webhook";
+        setWebhookUrl(webhookPath);
         
         if (existingSettings) {
             setSettings({
@@ -87,7 +77,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     }
 
     const handleCopy = (text: string, subject: string) => {
-        navigator.clipboard.writeText(text);
+        // If we are copying the URL path, construct the full example URL
+        let textToCopy = text;
+        if (subject === 'Webhook URL Path') {
+            textToCopy = `https://your-public-domain.com${text}`;
+        }
+        navigator.clipboard.writeText(textToCopy);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
 
@@ -214,9 +209,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>The URL below is a proxy. Your email provider should send webhooks to this relative path on your application's public domain.</li>
-                                    <li>For example: If your site is `https://example.com`, use `https://example.com/api/inbound-webhook`</li>
-                                    <li>Copy the <strong>Header Name</strong> and <strong>Webhook Secret</strong>.</li>
+                                    <li>Once your application is deployed to a public domain, your full webhook URL will be `https://[your-public-domain.com]${webhookUrl}`.</li>
+                                    <li>Copy this full URL and paste it into your email provider's webhook settings.</li>
+                                    <li>Copy the **Header Name** and **Webhook Secret**.</li>
                                     <li>In your provider's dashboard, add a "Custom Header" and paste these values to secure your endpoint.</li>
                                 </ol>
                             </AlertDescription>
@@ -225,7 +220,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="webhookUrl">Webhook URL Path</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="webhookUrl" readOnly value={webhookUrl} className="bg-muted" />
-                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookUrl, 'Webhook URL')}>
+                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookUrl, 'Webhook URL Path')}>
                                     <Copy className="h-4 w-4" />
                                 </Button>
                             </div>
