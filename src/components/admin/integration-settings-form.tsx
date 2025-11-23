@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -11,10 +12,11 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, CheckCircle, Copy, Info } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface IntegrationSettingsFormProps {
@@ -43,17 +45,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         return doc(firestore, "admin_settings", integration.slug);
     }, [firestore, integration.slug]);
 
-    const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
+    const { data: existingSettings, isLoading: isLoadingSettings, refetch } = useDoc(settingsRef);
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
+            // If it's the inbound.new page and there's no key yet, generate one.
+            handleGenerateSecret();
         }
          if (typeof window !== 'undefined') {
             const url = `${window.location.origin}/api/inbound/webhook`;
             setWebhookUrl(url);
         }
-    }, [existingSettings]);
+    }, [existingSettings, isLoadingSettings, integration.slug]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,10 +72,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
     }
 
-    const handleCopyWebhookUrl = () => {
-        navigator.clipboard.writeText(webhookUrl);
-        toast({ title: 'Copied!', description: 'Webhook URL copied to clipboard.' });
+    const handleCopy = (text: string, subject: string) => {
+        navigator.clipboard.writeText(text);
+        toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
+
+    const handleGenerateSecret = async (regenerate = false) => {
+        const newSecret = uuidv4();
+        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
+        if (regenerate) {
+             toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
+        }
+    }
+
 
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
@@ -192,7 +206,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="webhookUrl">Step 1: Your Webhook URL</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="webhookUrl" readOnly value={webhookUrl} className="bg-muted" />
-                                <Button type="button" variant="outline" size="icon" onClick={handleCopyWebhookUrl}>
+                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookUrl, 'Webhook URL')}>
                                     <Copy className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -201,10 +215,18 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </p>
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="apiKey">Step 2: Your Secret Key</Label>
-                            <Input id="apiKey" type="password" placeholder="Enter your secret key from inbound.new" value={settings.apiKey || ''} onChange={handleInputChange} />
+                            <Label htmlFor="apiKey">Step 2: Your Webhook Secret</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
+                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Secret Key')}>
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                                 <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                                In your inbound.new webhook settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this key as its value to secure your endpoint.
+                                In your inbound.new settings, add a header named <code className="bg-muted px-1 py-0.5 rounded">x-inbound-secret</code> and use this generated key as its value.
                             </p>
                         </div>
                     </div>
@@ -250,10 +272,11 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaveDisabled()}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {integration.slug === 'mailgun' ? 'Verify & Save' : 'Save'}
+                        {integration.slug === 'mailgun' ? 'Verify & Save' : 'Save Changes'}
                     </Button>
                 </div>
             </CardFooter>
         </Card>
     )
 }
+
