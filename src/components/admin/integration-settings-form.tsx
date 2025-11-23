@@ -43,20 +43,21 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is a static path for the webhook. It becomes live when deployed.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // Pre-populate with defaults for a better UX
+            // Pre-populate with defaults for a better UX on first load
             setSettings(prev => ({ 
                 ...prev, 
                 secret: uuidv4(), 
                 headerName: 'x-inbound-secret' 
             }));
         }
-    }, [existingSettings, isLoadingSettings, integration.slug]);
+    }, [existingSettings, isLoadingSettings, integration.slug, settings.secret]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +133,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any) => {
+        } catch (error: any) {
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -170,8 +171,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <li>In the domain's settings, enable **Store and Notify** for message storage.</li>
                                     <li>Go to **Receiving &gt; Routes** and create a new route.</li>
                                     <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
-                                    <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`.</li>
-                                    <li>For local testing, you can use the "Refresh" button on the inbox page.</li>
+                                    <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You will get your public domain after deploying the app.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -209,14 +209,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>How This Works (Dev vs. Production)</AlertTitle>
+                            <AlertTitle>How This Works: Dev vs. Production</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        <strong>For Development/Testing:</strong> You will use a manual "pull" method. After entering your API Key below, go to the main inbox page and use the **"Refresh" button**. This will securely fetch new emails directly from `inbound.new`'s servers. **You do not need a webhook for testing.**
+                                        <strong>For Development/Testing:</strong> You will use a manual "pull" method. After entering your API Key below, go to the main inbox page and use the **"Refresh" button**. This securely fetches new emails directly from `inbound.new`'s servers. **You do not need a webhook for testing.**
                                     </li>
                                     <li>
-                                        <strong>For Production (Live App):</strong> When your app is deployed, it gets a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in your `inbound.new` dashboard to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
+                                        <strong>For Production (Live App):</strong> When you deploy your app, Firebase App Hosting gives it a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in your `inbound.new` dashboard to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
                                     </li>
                                 </ol>
                             </AlertDescription>
