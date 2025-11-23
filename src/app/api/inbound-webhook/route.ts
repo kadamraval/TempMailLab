@@ -5,6 +5,20 @@ import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 export const revalidate = 0;
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-inbound-secret",
+};
+
+/**
+ * Handles OPTIONS preflight requests for CORS.
+ */
+export async function OPTIONS(req: NextRequest) {
+  return new Response(null, { headers: corsHeaders });
+}
+
+
 /**
  * This API Route acts as a webhook to receive inbound emails.
  * It is designed to be triggered by an email service like Mailgun or a generic provider.
@@ -28,8 +42,7 @@ export async function POST(req: NextRequest) {
     const settingsDoc = await firestore.doc("admin_settings/inbound-new").get();
     if (!settingsDoc.exists) {
       console.warn("Webhook security settings (admin_settings/inbound-new) are not configured.");
-      // Return 200 to prevent retries for a configuration issue.
-      return NextResponse.json({ message: "OK: Settings not configured" }, { status: 200 });
+      return NextResponse.json({ error: "Unauthorized: Webhook not configured" }, { status: 401, headers: corsHeaders });
     }
 
     const { apiKey, headerName } = settingsDoc.data() || {};
@@ -41,7 +54,7 @@ export async function POST(req: NextRequest) {
         from: from,
         ip: req.ip,
       });
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     // --- Step 2: Find the target inbox in Firestore ---
@@ -53,10 +66,9 @@ export async function POST(req: NextRequest) {
 
     if (inboxSnapshot.empty) {
       console.log(`No active inbox found for recipient: ${to}. Email will be dropped.`);
-      // Return 200 OK to the webhook provider so they don't retry.
       return NextResponse.json(
         { message: "OK: No active inbox found, email dropped." },
-        { status: 200 }
+        { status: 200, headers: corsHeaders }
       );
     }
 
@@ -86,13 +98,12 @@ export async function POST(req: NextRequest) {
     });
 
     console.log(`Successfully processed and stored email for ${to}`);
-    return NextResponse.json({ message: "Email processed successfully" }, { status: 200 });
+    return NextResponse.json({ message: "Email processed successfully" }, { status: 200, headers: corsHeaders });
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
-    // Return a generic 500 error to the client
     return NextResponse.json(
       { error: "Internal Server Error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
