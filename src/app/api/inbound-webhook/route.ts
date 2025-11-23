@@ -35,14 +35,14 @@ export async function POST(request: Request) {
     const { secret, headerName } = providerConfig.settings || {};
     
     // For production, we must have a secret and headerName to secure the webhook.
-    if (process.env.NODE_ENV === 'production' && providerConfig.provider === 'inbound-new') {
+    if (process.env.NODE_ENV === 'production') {
         if (!secret || !headerName) {
-            console.error(`CRITICAL: Production webhook security not configured for inbound.new. Missing secret or headerName.`);
+            console.error(`CRITICAL: Production webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
             return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
         }
         const requestSecret = headersList.get(headerName.toLowerCase());
         if (requestSecret !== secret) {
-            console.warn(`Unauthorized webhook access attempt for inbound-new. Invalid secret.`);
+            console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret.`);
             return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
         }
     } else if (providerConfig.provider === 'mailgun') {

@@ -19,7 +19,7 @@ async function getProviderSettings() {
     }
     const settings = settingsDoc.data();
     if (!settings?.apiKey) {
-        throw new Error(`API key for '${activeProvider}' is missing from settings.`);
+        throw new Error(`API key for '${activeProvider}' is missing from settings. Please add it in the admin Integrations page.`);
     }
     return { provider: activeProvider, settings };
 }
