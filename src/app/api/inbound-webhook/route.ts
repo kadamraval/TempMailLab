@@ -31,7 +31,6 @@ function runMiddleware(
 
 /**
  * Handles OPTIONS preflight requests for CORS.
- * This is now managed by the cors middleware.
  */
 export async function OPTIONS(req: NextRequest) {
   const res = new NextResponse(null);
@@ -50,7 +49,20 @@ export async function POST(req: NextRequest) {
   await runMiddleware(req, res, cors);
 
   try {
-    const body = await req.json();
+    // It's crucial to get the admin instance *after* middleware
+    const firestore = getAdminFirestore();
+    
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error("Webhook Error: Could not parse JSON body.", e);
+      return NextResponse.json({ error: "Invalid request body. Expected JSON." }, { status: 400 });
+    }
+
+    if (!body) {
+         return NextResponse.json({ error: "Bad Request: Empty body." }, { status: 400 });
+    }
 
     // Extract email fields from the request body.
     const {
@@ -60,8 +72,6 @@ export async function POST(req: NextRequest) {
       "body-plain": textContent,
       "body-html": htmlContent,
     } = body;
-
-    const firestore = getAdminFirestore();
 
     // --- Step 1: Authenticate the webhook request ---
     const settingsDoc = await firestore.doc("admin_settings/inbound-new").get();
@@ -127,7 +137,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal Server Error", details: error.message },
       { status: 500 }
     );
   }
