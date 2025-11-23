@@ -1,10 +1,9 @@
 
-import { onRequest } from "firebase-functions/v2/https";
+import * as functions from "firebase-functions";
 import { getFirestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { simpleParser } from "mailparser";
 import type { Email } from "./types";
-import { Buffer }from 'buffer';
 
 // Initialize Firebase Admin SDK if not already done
 if (getApps().length === 0) {
@@ -13,7 +12,17 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-export const inboundWebhook = onRequest({ cors: true }, async (req, res) => {
+export const inboundWebhook = functions.https.onRequest(async (req, res) => {
+    // Enable CORS for all origins for the preflight OPTIONS request
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-inbound-secret');
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
     if (req.method !== 'POST') {
         res.setHeader('Allow', 'POST');
         return res.status(405).send('Method Not Allowed');
