@@ -16,7 +16,6 @@ export const inboundWebhook = functions.https.onRequest(async (req, res) => {
 
     try {
       const {
-        "X-Inbound-Service-Secret": secret,
         "recipient": to,
         "from": from,
         "subject": subject,
