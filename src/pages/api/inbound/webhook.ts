@@ -7,14 +7,14 @@ import type { Email } from '@/types';
 import { Buffer }from 'buffer';
 
 // Helper to get raw body from request
-async function getRawBody(req: NextApiRequest): Promise<string> {
+async function getRawBody(req: NextApiRequest): Promise<Buffer> {
+    const chunks: Buffer[] = [];
     return new Promise((resolve, reject) => {
-        let body = '';
         req.on('data', chunk => {
-            body += chunk.toString();
+            chunks.push(chunk);
         });
         req.on('end', () => {
-            resolve(body);
+            resolve(Buffer.concat(chunks));
         });
         req.on('error', reject);
     });
@@ -46,19 +46,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const storedSecret = settingsData.apiKey;
         const headerName = settingsData.headerName;
 
-        const secretHeader = req.headers[headerName.toLowerCase()];
+        const secretHeader = req.headers[headerName];
 
         if (secretHeader !== storedSecret) {
-            console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Rejecting unauthorized request.`);
+            console.warn(`[inbound.new Webhook] Invalid or missing '${headerName}' header. Request from IP: ${req.socket.remoteAddress}. Headers: ${JSON.stringify(req.headers)}`);
             return res.status(401).json({ error: 'Unauthorized.' });
         }
 
-        const rawEmail = await getRawBody(req);
+        const rawEmailBuffer = await getRawBody(req);
+        const rawEmail = rawEmailBuffer.toString('utf-8');
 
         const parsedEmail = await simpleParser(rawEmail);
         
         const toAddress = typeof parsedEmail.to === 'object' && parsedEmail.to?.value[0]?.address;
         if (!toAddress) {
+            console.log('[inbound.new Webhook] Could not determine recipient address from parsed email.');
             return res.status(400).json({ error: 'Could not determine recipient address.' });
         }
         
@@ -66,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const inboxesSnapshot = await inboxesQuery.get();
 
         if (inboxesSnapshot.empty) {
+            console.log(`[inbound.new Webhook] No active inbox found for ${toAddress}. Ignoring email.`);
             return res.status(200).json({ message: `No active inbox found for ${toAddress}. Ignoring.` });
         }
 
@@ -77,6 +80,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const messageId = parsedEmail.messageId || `no-id-${Date.now()}`;
         const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
         const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
+        
+        const emailDocSnap = await emailRef.get();
+        if (emailDocSnap.exists) {
+            console.log(`[inbound.new Webhook] Email with ID ${emailDocId} already exists. Ignoring duplicate.`);
+            return res.status(200).json({ message: 'Duplicate email ignored.' });
+        }
+
 
         const emailData: Omit<Email, 'id'> = {
             inboxId,
@@ -100,6 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await emailRef.set(emailData);
         await inboxDoc.ref.update({ emailCount: FieldValue.increment(1) });
 
+        console.log(`[inbound.new Webhook] Successfully processed and stored email for ${toAddress}`);
         return res.status(200).json({ message: 'Email processed successfully.' });
 
     } catch (error: any) {
@@ -107,3 +118,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(500).json({ error: 'Internal server error processing email.' });
     }
 }
+

@@ -207,9 +207,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>Copy your unique <strong>Webhook URL</strong> below.</li>
                                     <li>In your inbound.new dashboard, paste it into the "Webhook URL" field.</li>
-                                    <li>Copy the <strong>Header Name</strong> and <strong>Webhook Secret</strong> from below.</li>
+                                    <li>Copy the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> from below.</li>
                                     <li>In inbound.new, add a "Custom Header" and paste these values. This secures your endpoint.</li>
-                                    <li>When you go live on a new domain, this URL will change. Remember to update it in your inbound.new dashboard.</li>
+                                    <li><span className="font-bold">Important:</span> When you go live on a new domain, this URL may change. Remember to update it in your inbound.new dashboard.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
