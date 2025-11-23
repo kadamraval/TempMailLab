@@ -70,7 +70,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const handleCopy = (text: string, subject: string) => {
         if (!text) {
-             toast({ title: 'Nothing to copy', description: `Generate a ${subject.toLowerCase()} first.`, variant: 'destructive'});
+             toast({ title: 'Nothing to copy', description: `Generate and save a ${subject.toLowerCase()} first.`, variant: 'destructive'});
              return;
         }
         navigator.clipboard.writeText(text);
@@ -247,12 +247,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <div className="space-y-2">
                                     <Label htmlFor="apiKey">Webhook Secret</Label>
                                     <div className="flex items-center gap-2">
-                                        <Input id="apiKey" readOnly type="password" placeholder="Generate a secret..." value={settings.apiKey || ''} className="bg-muted" />
+                                        <Input id="apiKey" readOnly type="password" placeholder="Will be auto-generated" value={settings.apiKey || ''} className="bg-muted" />
                                         <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
                                             <Copy className="h-4 w-4" />
-                                        </Button>
-                                        <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
-                                            <RefreshCw className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </div>
