@@ -11,13 +11,15 @@ async function getProviderSettings() {
     const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
     const activeProvider = emailSettingsDoc.exists && emailSettingsDoc.data()?.provider 
         ? emailSettingsDoc.data()?.provider 
-        : 'inbound-new'; // Default to inbound.new
+        : 'inbound-new';
     
     const settingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
         throw new Error(`The '${activeProvider}' email provider is not configured or enabled in your admin settings.`);
     }
     const settings = settingsDoc.data();
+    
+    // The API key is essential for manual fetching.
     if (!settings?.apiKey) {
         throw new Error(`API key for '${activeProvider}' is missing. Please add it in Admin > Settings > Integrations > ${activeProvider}.`);
     }
@@ -25,12 +27,11 @@ async function getProviderSettings() {
 }
 
 async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promise<any[]> {
-    // This API endpoint returns all stored emails for a given address.
     const url = `https://api.inbound.new/v1/emails?to=${encodeURIComponent(emailAddress)}`;
     const response = await fetch(url, {
         method: 'GET',
         headers: { 'X-Api-Key': apiKey },
-        cache: 'no-store' // Ensure we always get the latest data
+        cache: 'no-store'
     });
 
     if (!response.ok) {
@@ -39,22 +40,19 @@ async function fetchFromInboundNew(apiKey: string, emailAddress: string): Promis
         throw new Error(`Failed to fetch emails from inbound.new. Status: ${response.status}. Check your API key.`);
     }
     const data = await response.json();
-    return data.data || []; // The API response nests emails in a "data" array
+    return data.data || [];
 }
 
 async function saveEmailToFirestore(emailData: any, inboxId: string, userId: string) {
     const firestore = getAdminFirestore();
-    // Parse the raw MIME email content
     const parsedEmail = await simpleParser(emailData.raw);
     
-    // Create a unique, URL-safe document ID from the email's Message-ID to prevent duplicates
     const messageId = parsedEmail.messageId || firestore.collection('tmp').doc().id;
     const emailDocId = messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_");
     
     const emailRef = firestore.doc(`inboxes/${inboxId}/emails/${emailDocId}`);
     const emailDoc = await emailRef.get();
 
-    // If this email has already been processed, skip it.
     if (emailDoc.exists) {
         return false; 
     }
@@ -74,12 +72,11 @@ async function saveEmailToFirestore(emailData: any, inboxId: string, userId: str
             filename: att.filename || 'attachment',
             contentType: att.contentType,
             size: att.size,
-            url: '' // Placeholder - a real app would upload this to cloud storage and save the URL
+            url: ''
         })),
     };
 
     await emailRef.set(newEmail);
-    // Atomically increment the email count on the parent inbox
     await firestore.doc(`inboxes/${inboxId}`).update({
         emailCount: FieldValue.increment(1),
     });
@@ -95,7 +92,6 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
         if (provider === 'inbound-new') {
             fetchedEmails = await fetchFromInboundNew(settings.apiKey, emailAddress);
         } else if (provider === 'mailgun') {
-            // Note: Mailgun fetching would be implemented here using its Events API
             return { success: true, message: "Mailgun manual fetch is not enabled. Emails arrive via webhook in production." };
         } else {
             throw new Error(`Unsupported email provider configured for manual fetch: ${provider}`);
@@ -110,7 +106,6 @@ export async function fetchAndStoreEmailsAction(emailAddress: string, inboxId: s
             }
         }
         
-        // Revalidate the path to ensure the client-side sees the new data
         revalidatePath('/', 'layout');
 
         return { success: true, message: `Found and processed ${newEmailsCount} new email(s).` };

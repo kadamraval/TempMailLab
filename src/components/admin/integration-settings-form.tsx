@@ -44,14 +44,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-    // This is a static path for the webhook. It becomes live when deployed.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // Pre-populate with defaults for a better UX on first load
             setSettings(prev => ({ 
                 ...prev, 
                 secret: uuidv4(), 
@@ -123,7 +121,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.apiKey);
             const settingsToSave = { ...settings, enabled };
-
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
@@ -276,8 +273,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        // For inbound.new, the API key is essential for the app to function in dev mode.
-        // The webhook secret/header can be added later for production.
         if (integration.slug === 'inbound-new' && !settings.apiKey) return true; 
         return false;
     };

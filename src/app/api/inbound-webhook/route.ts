@@ -30,9 +30,8 @@ export async function POST(request: Request) {
     
     const firestore = getAdminFirestore();
 
-    // --- Security Check ---
     const headersList = headers();
-    // Use the 'secret' and 'headerName' fields from the settings
+    // Correctly use 'secret' and 'headerName' from the settings for webhook validation.
     const { secret, headerName } = providerConfig.settings || {};
     
     if (!secret || !headerName) {
@@ -45,8 +44,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-
-    // --- Body Parsing ---
     const rawBody = await request.text();
     const parsedEmail = await simpleParser(rawBody);
     
@@ -62,7 +59,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
     }
     
-    // --- Find Inbox ---
     const inboxQuery = firestore
       .collection("inboxes")
       .where("emailAddress", "==", toAddress)
@@ -77,9 +73,6 @@ export async function POST(request: Request) {
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxData = inboxDoc.data();
 
-    // --- Create Email Document ---
-    // Use the unique message-id from the email header to prevent duplicates.
-    // Fallback to a new Firestore ID if message-id is somehow missing.
     const emailDocId = messageId ? messageId.trim().replace(/[<>]/g, "").replace(/[\.\#\$\[\]\/\s@]/g, "_") : firestore.collection('tmp').doc().id;
 
     const newEmail = {
@@ -97,13 +90,12 @@ export async function POST(request: Request) {
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: '' // URLs would be handled by uploading attachments to a storage bucket in a real app
+        url: ''
       })),
     };
 
     await firestore.collection(`inboxes/${inboxDoc.id}/emails`).doc(emailDocId).set(newEmail);
     
-    // Update the email count on the parent inbox
     await inboxDoc.ref.update({
       emailCount: FieldValue.increment(1),
     });
@@ -113,7 +105,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
-    // Attempt to log the request body for debugging, but be careful with large payloads.
     try {
         const rawBodyForError = await new Response(request.body).text();
         console.error("Failing request body:", rawBodyForError.substring(0, 500) + '...');
