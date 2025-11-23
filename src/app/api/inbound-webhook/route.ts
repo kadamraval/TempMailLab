@@ -31,7 +31,6 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
 
     const headersList = headers();
-    // Correctly use `secret` and `headerName` from settings
     const { secret, headerName } = providerConfig.settings || {};
     
     if (!secret || !headerName) {
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: ''
+        url: '' // This would be populated if attachments were stored in Cloud Storage
       })),
     };
 
@@ -116,5 +115,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
-
-    

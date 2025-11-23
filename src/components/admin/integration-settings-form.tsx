@@ -44,14 +44,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
         if (existingSettings) {
             setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // Pre-populate with defaults if no settings exist for inbound.new
+            // Pre-populate with secure defaults if no settings exist
             setSettings(prev => ({ 
                 ...prev, 
                 secret: uuidv4(), 
@@ -111,9 +110,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     setIsSaving(false);
                     return; 
                 }
-
                 setVerificationStatus('success');
-
             } catch (error: any) {
                 setVerificationStatus('error');
                 setVerificationMessage(error.message || "An unexpected client-side error occurred.");
@@ -123,8 +120,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
         
         try {
+            // Determine if the integration is enabled based on its required fields
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey); // Enabled if API key exists for manual refresh
+                            (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
+            
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -175,11 +174,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <li>Go to **Receiving &gt; Routes** and create a new route.</li>
                                     <li>For "Expression Type", select **Match Recipient**. In "Recipient", enter `*@your-mailgun-domain.com`.</li>
                                     <li>For "Actions", check **Forward** and enter `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You will get your public domain after deploying the app.</li>
+                                    <li>Use the settings below to secure the connection. Your **Private API Key** from Mailgun will act as the webhook secret.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                            <Label htmlFor="apiKey">Private API Key</Label>
+                            <Label htmlFor="apiKey">Private API Key (Webhook Secret)</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
                                 Your secret API key. Found under Settings &gt; API Keys in Mailgun.
@@ -212,27 +212,24 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                         <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>How This Works: Dev vs. Production</AlertTitle>
+                            <AlertTitle>How This Works: Live Deployment</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>
-                                        <strong>For Development/Testing:</strong> You will use a manual "pull" method. After entering your API Key below, go to the main inbox page and use the **"Refresh" button**. This securely fetches new emails directly from `inbound.new`'s servers. **You do not need a webhook for testing.**
+                                     <li>
+                                        <strong>Deploy Your App:</strong> First, deploy your application using Firebase App Hosting to get a public URL (e.g., `https://your-app.web.app`).
                                     </li>
                                     <li>
-                                        <strong>For Production (Live App):</strong> When you deploy your app, Firebase App Hosting gives it a public URL (e.g., `https://your-app.web.app`). You will then configure a webhook in your `inbound.new` dashboard to **push** emails automatically to `https://your-app.web.app${webhookPath}`. Use the Header Name and Secret below to secure it.
+                                        <strong>Configure Webhook:</strong> In your `inbound.new` dashboard, go to the webhooks section and create a new webhook.
+                                    </li>
+                                    <li>
+                                        <strong>Webhook URL:</strong> Combine your public URL with the webhook path below. For example: `https://your-app.web.app/api/inbound-webhook`.
+                                    </li>
+                                    <li>
+                                        <strong>Secure It:</strong> Copy the **Header Name** and **Webhook Secret** from this page into the corresponding fields in your `inbound.new` webhook configuration. This keeps your endpoint secure.
                                     </li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
-
-                         <div className="space-y-2 border-b pb-6">
-                            <Label htmlFor="apiKey">inbound.new API Key (for testing)</Label>
-                            <Input id="apiKey" type="password" placeholder="Paste your API key here" value={settings.apiKey || ''} onChange={handleInputChange} />
-                            <p className="text-sm text-muted-foreground">
-                                Required for the manual "Refresh" button. Found in your `inbound.new` dashboard under **Settings &gt; API Keys**.
-                            </p>
-                        </div>
-
                         <div className="space-y-4 pt-4">
                             <h3 className="text-md font-semibold">Production Webhook Settings</h3>
                             <div className="space-y-2">
@@ -244,14 +241,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     </Button>
                                 </div>
                             </div>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="headerName">Production Webhook Header</Label>
+                                    <Label htmlFor="headerName">Webhook Header Name</Label>
                                     <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || 'x-inbound-secret'} onChange={handleInputChange} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="secret">Production Webhook Secret</Label>
+                                    <Label htmlFor="secret">Webhook Secret</Label>
                                     <div className="flex items-center gap-2">
                                         <Input id="secret" readOnly type="password" placeholder="Generate a secret..." value={settings.secret || ''} className="bg-muted" />
                                         <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
@@ -278,7 +274,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && !settings.apiKey) return true; 
+        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
         return false;
     };
 
@@ -314,5 +310,3 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
-
-    

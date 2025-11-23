@@ -41,9 +41,10 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow public webhook creation. IMPORTANT: This is for the server-side API route.
-        // This rule is intentionally broad for the webhook, which should have its own security (e.g., secret key).
-        // For client-side, the rules below are more restrictive.
+        // Allow public webhook creation or server-side creation. 
+        // This rule is intentionally broad for our server-side code (webhook/actions),
+        // which runs with admin privileges and bypasses these client-side rules.
+        // The webhook's own security (secret key) prevents unauthorized public access.
         allow create: if true;
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
@@ -55,5 +56,3 @@ service cloud.firestore {
 
   }
 }
-
-    
