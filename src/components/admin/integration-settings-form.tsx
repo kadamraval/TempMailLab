@@ -61,7 +61,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             handleGenerateSecret();
         }
-    }, [existingSettings, isLoadingSettings, integration.slug]);
+    }, [existingSettings, isLoadingSettings, integration.slug, settings.secret]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
