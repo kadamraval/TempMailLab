@@ -152,7 +152,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         </li>
                                     )}
                                     <li>
-                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain (e.g., `https://tempmailoz.com{webhookPath}`).
+                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain (e.g., `https://tempmailoz.com${webhookPath}`).
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
