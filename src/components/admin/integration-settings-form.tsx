@@ -93,7 +93,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             const enabled = (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
             // Clean up old fields by setting them to undefined
-            const settingsToSave = { ...settings, enabled, apiKey: undefined, webhookSecret: undefined };
+            const settingsToSave = { ...settings, enabled, apiKey: undefined };
 
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
