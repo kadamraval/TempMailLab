@@ -34,7 +34,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
     const [devWebhookUrl, setDevWebhookUrl] = useState('');
-
+    
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -46,6 +46,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
@@ -57,14 +58,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
     }, [webhookPath]);
 
-
     useEffect(() => {
         if (existingSettings) {
             setSettings({
                 headerName: 'x-inbound-secret', // Default value
                 ...existingSettings
             });
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -82,14 +82,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     }
 
     const handleCopy = (text: string, subject: string) => {
-        if (!text) return;
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
 
     const handleGenerateSecret = (regenerate = false) => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, secret: newSecret, enabled: true }));
+        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
         if (regenerate) {
              toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
         }
@@ -131,29 +130,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
         
         try {
-            // Determine 'enabled' status based on the specific integration's required fields
-            let enabled = false;
-            if (integration.slug === 'mailgun') {
-                enabled = !!settings.apiKey && !!settings.domain;
-            } else if (integration.slug === 'inbound-new') {
-                enabled = !!settings.secret && !!settings.headerName;
-            }
+            const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
+                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
+            const settingsToSave = { ...settings, enabled };
 
-            const settingsToSave = { 
-                ...settings, 
-                enabled,
-                // Ensure old, incorrect fields are removed by setting them to null/undefined
-                apiKey: integration.slug === 'mailgun' ? settings.apiKey : undefined,
-                webhookSecret: undefined
-            };
-
-            // Remove undefined keys so Firestore deletes them
-            Object.keys(settingsToSave).forEach(key => {
-                if (settingsToSave[key] === undefined) {
-                    delete settingsToSave[key];
-                }
-            });
-            
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
@@ -210,7 +190,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="apiKey">Private API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your secret API key. Found under Settings > API Keys in Mailgun.
+                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -265,7 +245,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs mt-1">Example: `https://tempmailoz.com/api/inbound-webhook`</p>
+                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
                                     <li>In your provider's dashboard, paste the appropriate URL (Development or Production) into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
@@ -278,10 +258,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="secret">Your Webhook Secret</Label>
+                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="secret" readOnly type="password" placeholder="Generating secret key..." value={settings.secret || ''} className="bg-muted" />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
+                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                      <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -304,7 +284,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
         return false;
     };
 
