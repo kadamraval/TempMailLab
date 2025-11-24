@@ -9,8 +9,8 @@ import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
-    const emailSettingsDoc = await firestore.doc("admin_settings/email").get();
-    const activeProvider = emailSettingsDoc.data()?.provider || 'inbound-new';
+    // The provider is hardcoded for now as we only support inbound.new for this flow.
+    const activeProvider = 'inbound-new';
     
     const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (providerSettingsDoc.exists && providerSettingsDoc.data()?.enabled) {
@@ -21,29 +21,44 @@ async function getInboundProviderSettings() {
     return null;
 }
 
+/**
+ * Robustly extracts the final recipient email address from a parsed email object.
+ * It checks multiple headers in a specific order of precedence.
+ * @param parsedEmail The ParsedMail object from mailparser.
+ * @returns The recipient's email address as a string, or null if not found.
+ */
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    if (parsedEmail.to) {
-        const toAddresses = Array.isArray(parsedEmail.to) ? parsedEmail.to : [parsedEmail.to];
-        if (toAddresses.length > 0 && toAddresses[0].address) {
-            return toAddresses[0].address;
+    // For debugging: log the entire parsed email object to inspect its structure.
+    console.log("INBOUND_WEBHOOK_PARSED_EMAIL", JSON.stringify(parsedEmail, null, 2));
+
+    // 1. Check 'delivered-to' header first, as it's often the most reliable.
+    const deliveredToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'delivered-to');
+    if (deliveredToHeader && typeof deliveredToHeader.line === 'string') {
+        const emailMatch = deliveredToHeader.line.match(/<(.+?)>/);
+        if (emailMatch && emailMatch[1]) {
+            return emailMatch[1];
         }
     }
 
-    const headerLines = parsedEmail.headerLines;
-    if (headerLines) {
-        const headersToTry = ['delivered-to', 'x-original-to', 'to'];
-        for (const headerName of headersToTry) {
-            const header = headerLines.find(h => h.key.toLowerCase() === headerName);
-            if (header && typeof header.line === 'string') {
-                const emailMatch = header.line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
-                if (emailMatch && emailMatch[0]) {
-                    return emailMatch[0];
-                }
-            }
+    // 2. Fallback to the 'to' field from the parsed object.
+    if (parsedEmail.to) {
+        const toValue = Array.isArray(parsedEmail.to) ? parsedEmail.to[0] : parsedEmail.to;
+        if (toValue && toValue.address) {
+            return toValue.address;
         }
     }
     
-    console.warn("Could not find a valid recipient address in any of the standard headers.");
+    // 3. Fallback to other headers like 'x-original-to'.
+    const xOriginalToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'x-original-to');
+    if (xOriginalToHeader && typeof xOriginalToHeader.line === 'string') {
+         // This header often just contains the email directly.
+         const emailMatch = xOriginalToHeader.line.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/);
+         if (emailMatch && emailMatch[0]) {
+            return emailMatch[0];
+         }
+    }
+
+    console.warn("Could not find a valid recipient address in any of the standard headers ('delivered-to', 'to', 'x-original-to').");
     return null;
 }
 
@@ -58,7 +73,6 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    // Correctly use 'secret' which is what our form saves
     const secret = providerConfig.settings?.secret; 
     const headerName = providerConfig.settings?.headerName;
 
@@ -80,8 +94,10 @@ export async function POST(request: Request) {
     const toAddress = getRecipientAddress(parsedEmail);
     
     if (!toAddress) {
-      console.warn("Webhook received but no recipient address could be extracted. Parsed 'to' field:", JSON.stringify(parsedEmail.to, null, 2), "Headers:", JSON.stringify(parsedEmail.headerLines, null, 2));
-      return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
+      console.warn("Webhook received but no recipient address could be extracted.");
+      // As requested for debugging, we can choose to drop it or handle it.
+      // For now, we will return a 400 to indicate the sender that something is wrong.
+      return NextResponse.json({ message: "Bad Request: Recipient address could not be determined." }, { status: 400 });
     }
     
     const fromAddress = parsedEmail.from?.text;
