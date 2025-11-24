@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, deleteField } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -57,8 +57,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 apiKey: uuidv4(),
                 enabled: false,
             });
-        } else if (!isLoadingSettings && integration.slug !== 'inbound-new') {
-            setSettings({headerName: 'x-inbound-secret'});
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
 
@@ -120,7 +118,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
+            
             const settingsToSave = { ...settings, enabled };
+
+            // Explicitly remove the old 'secret' field if it exists
+            if (settingsToSave.secret) {
+                delete settingsToSave.secret;
+                await updateDoc(settingsRef, {
+                    secret: deleteField()
+                });
+            }
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
@@ -299,3 +306,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    
