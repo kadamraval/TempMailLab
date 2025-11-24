@@ -1,10 +1,11 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { simpleParser, ParsedMail } from 'mailparser';
+import { simpleParser, ParsedMail, AddressObject } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
@@ -21,36 +22,39 @@ async function getInboundProviderSettings() {
 }
 
 /**
- * Extracts the recipient email address from various possible headers.
+ * Extracts the recipient email address from various possible headers and formats.
  * @param parsedEmail The parsed email object from mailparser.
  * @returns The recipient email address string or null if not found.
  */
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    if (parsedEmail.to && typeof parsedEmail.to !== 'string' && parsedEmail.to.text) {
-        const match = parsedEmail.to.text.match(/<([^>]+)>/);
-        if (match && match[1]) return match[1];
-        return parsedEmail.to.text;
+    // 1. Prioritize the `to` field from the parsed object, which is the most reliable.
+    // `mailparser` returns an array of address objects.
+    if (parsedEmail.to) {
+        const toAddresses = Array.isArray(parsedEmail.to) ? parsedEmail.to : [parsedEmail.to];
+        if (toAddresses.length > 0 && toAddresses[0].address) {
+            return toAddresses[0].address;
+        }
     }
-    
+
+    // 2. If `to` field is not structured, fallback to manually parsing header lines.
+    // This is crucial for handling test payloads or non-standard emails.
     const headerLines = parsedEmail.headerLines;
     if (headerLines) {
         const headersToTry = ['delivered-to', 'x-original-to', 'to'];
         for (const headerName of headersToTry) {
             const header = headerLines.find(h => h.key.toLowerCase() === headerName);
             if (header && typeof header.line === 'string') {
-                 // Extract email from "User <email@example.com>" format
-                const match = header.line.match(/<([^>]+)>/);
-                if (match && match[1]) {
-                    return match[1];
+                // Regex to find an email address within the header line.
+                // It handles formats like "Display Name <email@example.com>" or just "email@example.com".
+                const emailMatch = header.line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                if (emailMatch && emailMatch[0]) {
+                    return emailMatch[0];
                 }
-                // Fallback for just email@example.com
-                const plainEmail = header.line.split(' ').pop();
-                if (plainEmail) return plainEmail;
             }
         }
     }
     
-    console.warn("Could not find recipient in 'to' field. Parsed 'to':", JSON.stringify(parsedEmail.to));
+    console.warn("Could not find a valid recipient address in any of the standard headers.");
     return null;
 }
 
@@ -65,7 +69,6 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    // Use the correct field for the webhook secret
     const { secret, headerName } = providerConfig.settings || {};
 
     if (!secret || !headerName) {
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
     const toAddress = getRecipientAddress(parsedEmail);
     
     if (!toAddress) {
-      console.warn("Webhook received but no recipient address could be extracted. Headers inspected:", JSON.stringify(parsedEmail.headerLines?.map(h => h.line), null, 2));
+      console.warn("Webhook received but no recipient address could be extracted. Parsed 'to' field:", JSON.stringify(parsedEmail.to, null, 2));
       return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
     }
     
@@ -142,12 +145,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
-    try {
-        // We can't re-read the body of the request here as it has already been consumed.
-        // The rawBody variable is available in the outer scope if needed.
-    } catch (e) {
-        console.error("Could not log failing request body.");
-    }
     
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
