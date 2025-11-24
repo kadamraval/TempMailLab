@@ -59,7 +59,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 ...existingSettings
             });
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // apiKey is deprecated, prefer 'secret'
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -92,9 +91,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
-            // Clean up old fields by setting them to undefined
-            const settingsToSave = { ...settings, enabled, apiKey: undefined };
-
+            const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
