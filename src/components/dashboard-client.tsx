@@ -182,7 +182,6 @@ export function DashboardClient() {
             const userInboxesQuery = query(
                 collection(firestore, 'inboxes'), 
                 where('userId', '==', activeUser.uid),
-                orderBy('createdAt', 'desc'),
                 limit(1)
             );
             const userInboxesSnap = await getDocs(userInboxesQuery);
