@@ -9,7 +9,6 @@ import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
-    // The provider is hardcoded for now as we only support inbound.new for this flow.
     const activeProvider = 'inbound-new';
     
     const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
@@ -21,17 +20,9 @@ async function getInboundProviderSettings() {
     return null;
 }
 
-/**
- * Robustly extracts the final recipient email address from a parsed email object.
- * It checks multiple headers in a specific order of precedence.
- * @param parsedEmail The ParsedMail object from mailparser.
- * @returns The recipient's email address as a string, or null if not found.
- */
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    // For debugging: log the entire parsed email object to inspect its structure.
     console.log("INBOUND_WEBHOOK_PARSED_EMAIL", JSON.stringify(parsedEmail, null, 2));
 
-    // 1. Check 'delivered-to' header first, as it's often the most reliable.
     const deliveredToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'delivered-to');
     if (deliveredToHeader && typeof deliveredToHeader.line === 'string') {
         const emailMatch = deliveredToHeader.line.match(/<(.+?)>/);
@@ -40,7 +31,6 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
 
-    // 2. Fallback to the 'to' field from the parsed object.
     if (parsedEmail.to) {
         const toValue = Array.isArray(parsedEmail.to) ? parsedEmail.to[0] : parsedEmail.to;
         if (toValue && toValue.address) {
@@ -48,10 +38,8 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
     
-    // 3. Fallback to other headers like 'x-original-to'.
     const xOriginalToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'x-original-to');
     if (xOriginalToHeader && typeof xOriginalToHeader.line === 'string') {
-         // This header often just contains the email directly.
          const emailMatch = xOriginalToHeader.line.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/);
          if (emailMatch && emailMatch[0]) {
             return emailMatch[0];
@@ -88,23 +76,50 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const rawBody = await request.text();
-    const parsedEmail = await simpleParser(rawBody);
-    
-    const toAddress = getRecipientAddress(parsedEmail);
-    
-    if (!toAddress) {
-      console.warn("Webhook received but no recipient address could be extracted.");
-      // As requested for debugging, we can choose to drop it or handle it.
-      // For now, we will return a 400 to indicate the sender that something is wrong.
-      return NextResponse.json({ message: "Bad Request: Recipient address could not be determined." }, { status: 400 });
+    let toAddress: string | null = null;
+    let fromAddress: string | undefined = "Unknown Sender";
+    let subject: string | undefined = "No Subject";
+    let htmlContent: string | false | undefined = '';
+    let textContent: string | undefined = '';
+    let rawContent: string = '';
+    let messageId: string | undefined;
+    let attachments: any[] = [];
+    let receivedAt: Date | undefined;
+
+
+    const contentType = headersList.get('Content-Type');
+
+    if (contentType && contentType.includes('application/json')) {
+        const body = await request.json();
+        console.log("INBOUND_WEBHOOK_JSON_PAYLOAD", JSON.stringify(body, null, 2));
+
+        // Handling Postmark-style JSON
+        toAddress = body.To;
+        fromAddress = body.From;
+        subject = body.Subject;
+        htmlContent = body.HtmlBody;
+        textContent = body.TextBody;
+        messageId = body.MessageID;
+        rawContent = JSON.stringify(body); // Store the whole JSON as raw content for now
+        receivedAt = body.Date ? new Date(body.Date) : new Date();
+
+    } else {
+        rawContent = await request.text();
+        const parsedEmail = await simpleParser(rawContent);
+        
+        toAddress = getRecipientAddress(parsedEmail);
+        fromAddress = parsedEmail.from?.text;
+        subject = parsedEmail.subject;
+        htmlContent = parsedEmail.html;
+        textContent = parsedEmail.text;
+        messageId = parsedEmail.messageId;
+        attachments = parsedEmail.attachments;
+        receivedAt = parsedEmail.date;
     }
     
-    const fromAddress = parsedEmail.from?.text;
-    const subject = parsedEmail.subject;
-    const htmlContent = typeof parsedEmail.html === 'string' ? parsedEmail.html : '';
-    const textContent = parsedEmail.text;
-    const messageId = parsedEmail.messageId;
+    if (!toAddress) {
+      return NextResponse.json({ message: "Bad Request: Recipient address could not be determined." }, { status: 400 });
+    }
     
     const inboxQuery = firestore
       .collection("inboxes")
@@ -127,17 +142,17 @@ export async function POST(request: Request) {
       userId: inboxData.userId,
       senderName: fromAddress || "Unknown Sender",
       subject: subject || "No Subject",
-      receivedAt: parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : Timestamp.now(),
+      receivedAt: receivedAt ? Timestamp.fromDate(new Date(receivedAt)) : Timestamp.now(),
       createdAt: Timestamp.now(),
-      htmlContent,
-      textContent,
-      rawContent: rawBody,
+      htmlContent: htmlContent || '',
+      textContent: textContent || '',
+      rawContent: rawContent,
       read: false,
-      attachments: parsedEmail.attachments.map(att => ({
+      attachments: attachments.map(att => ({
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: '' // This would be populated if attachments were stored in Cloud Storage
+        url: '' // Placeholder for now
       })),
     };
 
