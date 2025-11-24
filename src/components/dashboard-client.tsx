@@ -70,9 +70,10 @@ export function DashboardClient() {
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id) return null;
+    // CRITICAL: Do not run this query if the user is not authenticated yet.
+    if (!firestore || !currentInbox?.id || !user) return null;
     return query(collection(firestore, `inboxes/${currentInbox.id}/emails`), orderBy("receivedAt", "desc"));
-  }, [firestore, currentInbox?.id]);
+  }, [firestore, currentInbox?.id, user]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
@@ -182,6 +183,7 @@ export function DashboardClient() {
             const userInboxesQuery = query(
                 collection(firestore, 'inboxes'), 
                 where('userId', '==', activeUser.uid),
+                orderBy('createdAt', 'desc'),
                 limit(1)
             );
             const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -457,5 +459,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
