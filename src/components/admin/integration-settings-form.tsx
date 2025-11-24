@@ -49,7 +49,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
-        // This effect runs on the client, so `process.env` is available here.
+        // This effect runs on the client, so process.env is available here.
+        // It checks for the special URL provided by Firebase App Hosting's dev environment.
         const hostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
         if (hostingUrl) {
             setDevWebhookUrl(`${hostingUrl}${webhookPath}`);
@@ -244,14 +245,16 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                      {devWebhookUrl && (
                                         <li className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
-                                            <strong>Development Testing URL:</strong> Use the full URL below for testing in your local environment.
+                                            <strong>Development Testing URL:</strong> Use the full URL below for testing in your local environment. This URL is temporary and public.
                                             <div className="flex items-center gap-2 mt-2">
                                                 <Input readOnly value={devWebhookUrl} className="bg-background font-mono" />
                                                 <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(devWebhookUrl, 'Development Webhook URL')}>
                                                     <Copy className="h-4 w-4" />
                                                 </Button>
                                             </div>
-                                             <p className="text-xs mt-1">This temporary URL is only for your current development session.</p>
+                                             <Button variant="link" size="sm" className="h-auto p-0 mt-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
+                                                Learn More <ExternalLink className="ml-1 h-3 w-3" />
+                                            </Button>
                                         </li>
                                     )}
                                     <li>
@@ -262,7 +265,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
+                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
                                     <li>In your provider's dashboard, paste the appropriate URL (Development or Production) into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
