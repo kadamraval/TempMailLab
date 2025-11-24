@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { doc, setDoc, updateDoc, deleteField } from "firebase/firestore";
+import { doc, setDoc, deleteField } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -118,21 +118,17 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
                             (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
             
-            const settingsToSave = { ...settings, enabled };
+            const settingsToSave: Record<string, any> = { ...settings, enabled };
 
             // Cleanup old incorrect fields if they exist
             if (integration.slug === 'inbound-new') {
-                const updates: Record<string, any> = {
-                    ...settingsToSave,
-                    // Explicitly delete old wrong fields
-                    apiKey: deleteField(),
-                    webhookSecret: deleteField()
-                };
-                await setDoc(settingsRef, updates, { merge: true });
-
-            } else {
-                 await setDoc(settingsRef, settingsToSave, { merge: true });
+                // Ensure the correct field is being saved and old ones are deleted.
+                settingsToSave.secret = settings.secret;
+                settingsToSave.apiKey = deleteField();
+                settingsToSave.webhookSecret = deleteField();
             }
+
+            await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
                 title: "Settings Saved",
@@ -309,3 +305,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    

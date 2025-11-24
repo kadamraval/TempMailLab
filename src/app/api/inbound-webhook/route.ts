@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -69,7 +68,6 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    // Correctly use the 'secret' field for inbound.new
     const secret = providerConfig.settings?.secret; 
     const headerName = providerConfig.settings?.headerName;
 
@@ -151,3 +149,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
+
+    
