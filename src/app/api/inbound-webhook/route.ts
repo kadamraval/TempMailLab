@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -66,16 +65,17 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    const { apiKey, headerName } = providerConfig.settings || {};
+    // Use the correct field for the webhook secret
+    const { webhookSecret, headerName } = providerConfig.settings || {};
 
-    if (!apiKey || !headerName) {
-        console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing secret (apiKey) or headerName.`);
+    if (!webhookSecret || !headerName) {
+        console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing webhookSecret or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
     
     const requestSecret = headersList.get(headerName);
     
-    if (requestSecret !== apiKey) {
+    if (requestSecret !== webhookSecret) {
         console.warn(`Unauthorized webhook access attempt for ${providerConfig.provider}. Invalid secret received for header '${headerName}'.`);
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
