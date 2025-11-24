@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  env: {
+    NEXT_PUBLIC_WEB_HOSTING_URL: process.env.WEB_HOSTING_URL,
+  },
   images: {
     remotePatterns: [
       {

@@ -31,6 +31,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
+    const [devWebhookUrl, setDevWebhookUrl] = useState<string | null>(null);
     
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -43,21 +44,25 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
+        // This will only run on the client, where process.env is available
+        const webHostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
+        if (webHostingUrl) {
+            setDevWebhookUrl(`${webHostingUrl}${webhookPath}`);
+        }
+
         if (existingSettings) {
              setSettings(existingSettings);
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
-            // If there are no existing settings for inbound.new, pre-populate the form.
             setSettings({
                 headerName: 'x-inbound-secret',
                 secret: uuidv4(),
                 enabled: false,
             });
         }
-    }, [existingSettings, isLoadingSettings, integration.slug]);
+    }, [existingSettings, isLoadingSettings, integration.slug, webhookPath]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,10 +125,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             const settingsToSave: Record<string, any> = { ...settings, enabled };
 
-            // Cleanup old incorrect fields if they exist
             if (integration.slug === 'inbound-new') {
-                // Ensure the correct field is being saved and old ones are deleted.
-                settingsToSave.secret = settings.secret;
                 settingsToSave.apiKey = deleteField();
                 settingsToSave.webhookSecret = deleteField();
             }
@@ -137,7 +139,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any) {
+        } catch (error: any) => {
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -217,15 +219,27 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>
-                                        <strong>Webhook URL:</strong> Provide this full URL to `inbound.new`. Combine your public domain with the path below (e.g., `https://tempmailoz.com/api/inbound-webhook`).
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <Input readOnly value={webhookPath} className="bg-muted font-mono" />
-                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
-                                                <Copy className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </li>
+                                     {devWebhookUrl ? (
+                                        <li>
+                                            <strong>Development URL:</strong> Use this temporary public URL for testing in your local environment.
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Input readOnly value={devWebhookUrl} className="bg-muted font-mono" />
+                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(devWebhookUrl, 'Development URL')}>
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    ) : (
+                                        <li>
+                                            <strong>Production URL:</strong> Combine your public domain with the path below (e.g., `https://tempmailoz.com/api/inbound-webhook`).
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Input readOnly value={webhookPath} className="bg-muted font-mono" />
+                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </li>
+                                    )}
                                     <li>
                                         <strong>Custom Headers:</strong> In your `inbound.new` dashboard, go to the "Custom Headers" section for your webhook.
                                     </li>
@@ -305,5 +319,3 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
-
-    
