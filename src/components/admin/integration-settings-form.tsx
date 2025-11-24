@@ -59,17 +59,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     useEffect(() => {
         if (existingSettings) {
-            // Prioritize 'secret', fallback to 'apiKey' for backward compatibility, then default.
-            const secretValue = existingSettings.secret || existingSettings.apiKey;
             setSettings({
-                ...existingSettings,
-                secret: secretValue,
-                headerName: existingSettings.headerName || 'x-inbound-secret', 
+                headerName: 'x-inbound-secret', // Default value
+                ...existingSettings
             });
-             // Clean up old fields if they exist
-            if (existingSettings.apiKey) {
-                delete existingSettings.apiKey;
-            }
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             handleGenerateSecret();
         }
@@ -216,7 +209,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Label htmlFor="apiKey">Private API Key</Label>
                             <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
                             <p className="text-sm text-muted-foreground">
-                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
+                                Your secret API key. Found under Settings > API Keys in Mailgun.
                             </p>
                         </div>
                         <div className="space-y-2">
@@ -344,5 +337,3 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
-
-    
