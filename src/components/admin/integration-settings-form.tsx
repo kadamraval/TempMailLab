@@ -45,6 +45,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
+        // This effect runs on the client and checks for the hosting URL env var.
         const hostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
         if (hostingUrl) {
             setDevWebhookUrl(`${hostingUrl}${webhookPath}`);
@@ -58,6 +59,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 ...existingSettings
             });
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
+            // apiKey is deprecated, prefer 'secret'
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -69,6 +71,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     };
 
     const handleCopy = (text: string, subject: string) => {
+        if (!text) return;
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
@@ -135,7 +138,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Info className="h-4 w-4" />
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
-                                <ol className="list-decimal list-inside space-y-2 mt-2">
+                                <ol className="list-decimal list-inside space-y-3 mt-2">
                                      {devWebhookUrl && (
                                         <li className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
                                             <strong>Development Testing URL:</strong> Use the full URL below for testing in your local environment. This URL is temporary and public.
