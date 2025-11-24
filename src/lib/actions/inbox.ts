@@ -8,7 +8,6 @@ import { revalidatePath } from 'next/cache';
 
 async function getProviderSettings() {
     const firestore = getAdminFirestore();
-    // Since mailgun is removed, we can simplify this to only use inbound-new
     const activeProvider = 'inbound-new';
     
     const settingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();

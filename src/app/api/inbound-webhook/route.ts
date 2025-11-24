@@ -1,3 +1,4 @@
+
 'use server';
 
 import { getAdminFirestore } from '@/lib/firebase/server-init';
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
+    // Correctly use 'secret' which is what our form saves
     const secret = providerConfig.settings?.secret; 
     const headerName = providerConfig.settings?.headerName;
 

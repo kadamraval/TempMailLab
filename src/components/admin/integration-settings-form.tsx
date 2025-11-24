@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -61,7 +62,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             handleGenerateSecret();
         }
-    }, [existingSettings, isLoadingSettings, integration.slug, settings.secret]);
+    }, [existingSettings, isLoadingSettings, integration.slug]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,14 +152,13 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         </li>
                                     )}
                                     <li>
-                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain (e.g., `https://tempmailoz.com`).
+                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain (e.g., `https://tempmailoz.com{webhookPath}`).
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
                                     <li>In your provider's dashboard, paste the appropriate URL (Development or Production) into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
