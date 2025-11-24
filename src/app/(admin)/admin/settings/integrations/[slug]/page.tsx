@@ -14,7 +14,6 @@ import { notFound, useParams } from 'next/navigation';
 
 const integrationsData: { [key: string]: any } = {
   firebase: { title: "Firebase", description: "Manage your core Firebase backend services configuration." },
-  mailgun: { title: "Mailgun", description: "Configure Mailgun for inbound email processing.", fields: ['apiKey', 'domain'] },
   "inbound-new": { title: "inbound.new", description: "Configure the inbound.new temporary email provider API." },
   "mail-tm": { title: "Mail.tm", description: "Configure the temporary email provider API." },
   mailchimp: { title: "MailChimp", description: "Connect your MailChimp account for email marketing." },

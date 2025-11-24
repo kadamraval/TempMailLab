@@ -49,7 +49,6 @@
     "framer-motion": "^11.3.18",
     "isomorphic-dompurify": "^1.9.0",
     "lucide-react": "^0.475.0",
-    "mailgun.js": "^10.2.1",
     "mailparser": "^3.7.1",
     "mini-svg-data-uri": "^1.4.4",
     "next": "15.3.3",

@@ -12,7 +12,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 export default function EmailSettingsPage() {
-    const [activeProvider, setActiveProvider] = useState<'mailgun' | 'inbound.new' | ''>('');
+    const [activeProvider, setActiveProvider] = useState<'inbound-new' | ''>('');
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
     const firestore = useFirestore();
@@ -26,9 +26,9 @@ export default function EmailSettingsPage() {
 
     useEffect(() => {
         if (emailSettings) {
-            setActiveProvider(emailSettings.provider || 'mailgun');
+            setActiveProvider(emailSettings.provider || 'inbound-new');
         } else if (!isLoading) {
-            setActiveProvider('mailgun');
+            setActiveProvider('inbound-new');
         }
     }, [emailSettings, isLoading]);
 
@@ -74,8 +74,7 @@ export default function EmailSettingsPage() {
                             <SelectValue placeholder="Select a provider" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="mailgun">Mailgun</SelectItem>
-                            <SelectItem value="inbound.new">inbound.new</SelectItem>
+                            <SelectItem value="inbound-new">inbound.new</SelectItem>
                         </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground">

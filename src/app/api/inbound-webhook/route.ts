@@ -20,14 +20,7 @@ async function getInboundProviderSettings() {
     return null;
 }
 
-/**
- * Extracts the recipient email address from various possible headers and formats.
- * @param parsedEmail The parsed email object from mailparser.
- * @returns The recipient email address string or null if not found.
- */
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    // 1. Prioritize the `to` field from the parsed object, which is the most reliable.
-    // `mailparser` returns an array of address objects.
     if (parsedEmail.to) {
         const toAddresses = Array.isArray(parsedEmail.to) ? parsedEmail.to : [parsedEmail.to];
         if (toAddresses.length > 0 && toAddresses[0].address) {
@@ -35,16 +28,12 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
 
-    // 2. If `to` field is not structured, fallback to manually parsing header lines.
-    // This is crucial for handling test payloads or non-standard emails.
     const headerLines = parsedEmail.headerLines;
     if (headerLines) {
         const headersToTry = ['delivered-to', 'x-original-to', 'to'];
         for (const headerName of headersToTry) {
             const header = headerLines.find(h => h.key.toLowerCase() === headerName);
             if (header && typeof header.line === 'string') {
-                // Regex to find an email address within the header line.
-                // It handles formats like "Display Name <email@example.com>" or just "email@example.com".
                 const emailMatch = header.line.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
                 if (emailMatch && emailMatch[0]) {
                     return emailMatch[0];
