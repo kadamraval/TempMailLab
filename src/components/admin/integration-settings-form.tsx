@@ -49,11 +49,11 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     useEffect(() => {
         if (existingSettings) {
              setSettings(existingSettings);
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.webhookSecret) {
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             // If there are no existing settings for inbound.new, pre-populate the form.
             setSettings({
                 headerName: 'x-inbound-secret',
-                webhookSecret: uuidv4(),
+                secret: uuidv4(),
                 enabled: false,
             });
         }
@@ -116,24 +116,23 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.webhookSecret && !!settings.headerName);
+                            (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
             
             const settingsToSave = { ...settings, enabled };
 
             // Cleanup old incorrect fields if they exist
-            const updates: Record<string, any> = { ...settingsToSave };
             if (integration.slug === 'inbound-new') {
-                if ('apiKey' in settings) delete updates.apiKey;
-                if ('secret' in settings) delete updates.secret;
-                
-                // Firestore update to delete fields
-                await updateDoc(settingsRef, {
+                const updates: Record<string, any> = {
+                    ...settingsToSave,
+                    // Explicitly delete old wrong fields
                     apiKey: deleteField(),
-                    secret: deleteField()
-                }).catch(() => {}); // Ignore errors if fields don't exist
-            }
+                    webhookSecret: deleteField()
+                };
+                await setDoc(settingsRef, updates, { merge: true });
 
-            await setDoc(settingsRef, updates, { merge: true });
+            } else {
+                 await setDoc(settingsRef, settingsToSave, { merge: true });
+            }
 
             toast({
                 title: "Settings Saved",
@@ -248,10 +247,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label htmlFor="webhookSecret" className="text-xs text-muted-foreground">Header value</Label>
+                                        <Label htmlFor="secret" className="text-xs text-muted-foreground">Header value</Label>
                                         <div className="flex items-center gap-2">
-                                            <Input id="webhookSecret" readOnly type="text" placeholder="Auto-generated on save" value={settings.webhookSecret || ''} className="bg-muted" />
-                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.webhookSecret, 'Header value')}>
+                                            <Input id="secret" readOnly type="text" placeholder="Auto-generated on save" value={settings.secret || ''} className="bg-muted" />
+                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Header value')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -274,7 +273,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && (!settings.webhookSecret || !settings.headerName)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
         return false;
     };
 
