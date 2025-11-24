@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { doc, setDoc, deleteField } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -27,11 +27,12 @@ interface IntegrationSettingsFormProps {
 }
 
 export function IntegrationSettingsForm({ integration }: IntegrationSettingsFormProps) {
-    const [settings, setSettings] = useState<any>({});
+    const [settings, setSettings] = useState<any>({
+        headerName: 'x-inbound-secret' // Default value
+    });
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
-    const [devWebhookUrl, setDevWebhookUrl] = useState<string | null>(null);
     
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -44,25 +45,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
-        // This will only run on the client, where process.env is available
-        const webHostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
-        if (webHostingUrl) {
-            setDevWebhookUrl(`${webHostingUrl}${webhookPath}`);
-        }
-
         if (existingSettings) {
-             setSettings(existingSettings);
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             setSettings({
-                headerName: 'x-inbound-secret',
-                secret: uuidv4(),
-                enabled: false,
+                headerName: 'x-inbound-secret', // Default value
+                ...existingSettings
             });
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
+            handleGenerateSecret();
         }
-    }, [existingSettings, isLoadingSettings, integration.slug, webhookPath]);
+    }, [existingSettings, isLoadingSettings, integration.slug]);
 
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,14 +71,19 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
     }
 
-    const handleCopy = (text: string | undefined, subject: string) => {
-        if (!text) {
-             toast({ title: 'Nothing to Copy', description: `Cannot copy an empty ${subject}.`, variant: "destructive" });
-             return;
-        }
+    const handleCopy = (text: string, subject: string) => {
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
+
+    const handleGenerateSecret = (regenerate = false) => {
+        const newSecret = uuidv4();
+        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
+        if (regenerate) {
+             toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
+        }
+    }
+
 
     const handleSaveChanges = async () => {
         if (!settingsRef) return;
@@ -121,14 +121,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
-            
-            const settingsToSave: Record<string, any> = { ...settings, enabled };
-
-            if (integration.slug === 'inbound-new') {
-                settingsToSave.apiKey = deleteField();
-                settingsToSave.webhookSecret = deleteField();
-            }
+                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
+            const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
@@ -139,7 +133,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             
             setTimeout(() => router.push('/admin/settings/integrations'), 1500);
 
-        } catch (error: any) => {
+        } catch (error: any) {
             console.error("Error saving settings:", error);
              toast({
                 title: "Save Failed",
@@ -173,12 +167,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Important: Mailgun Setup</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                    <li>In your Mailgun dashboard, go to **Receiving** &gt; **Routes** and create a new route.</li>
-                                    <li>For the "Expression Type", select **"Match Recipient"**.</li>
+                                    <li>In your Mailgun dashboard, select the desired domain.</li>
+                                    <li>Go to the "Routes" tab and create a new route.</li>
+                                    <li>For the "Expression Type", select "Match Recipient".</li>
                                     <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
-                                    <li>In the "Actions" section, check **"Forward"** and enter your full public webhook URL: `https://your-app-domain.com${webhookPath}`.</li>
-                                    <li>Set the priority to **0**. Click **"Create Route"**.</li>
-                                    <li>Under your domain's settings, go to **Webhook Signing** and copy your **"signing-key"**. You will need to add this to your environment variables.</li>
+                                    <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
+                                    <li>Also check "Store and Notify".</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -219,55 +213,44 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
-                                     {devWebhookUrl ? (
-                                        <li>
-                                            <strong>Development URL:</strong> Use this temporary public URL for testing in your local environment.
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Input readOnly value={devWebhookUrl} className="bg-muted font-mono" />
-                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(devWebhookUrl, 'Development URL')}>
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    ) : (
-                                        <li>
-                                            <strong>Production URL:</strong> Combine your public domain with the path below (e.g., `https://tempmailoz.com/api/inbound-webhook`).
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Input readOnly value={webhookPath} className="bg-muted font-mono" />
-                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    )}
                                     <li>
-                                        <strong>Custom Headers:</strong> In your `inbound.new` dashboard, go to the "Custom Headers" section for your webhook.
-                                    </li>
-                                    <li>Copy the **Header name** and **Header value** from the fields below and paste them into the corresponding inputs in the `inbound.new` dashboard.</li>
-                                    <li>Click **Save Changes** below to activate this configuration.</li>
-                                </ol>
-                            </AlertDescription>
-                        </Alert>
-                        <div className="space-y-2">
-                            <Label>Custom Header</Label>
-                            <div className="flex items-center gap-2 p-4 border rounded-lg">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="headerName" className="text-xs text-muted-foreground">Header name</Label>
-                                        <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="secret" className="text-xs text-muted-foreground">Header value</Label>
-                                        <div className="flex items-center gap-2">
-                                            <Input id="secret" readOnly type="text" placeholder="Auto-generated on save" value={settings.secret || ''} className="bg-muted" />
-                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Header value')}>
+                                        <strong>Webhook URL Path:</strong> Your webhook is located at the path below. To make it work, you must combine it with your app's public domain.
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Input readOnly value={webhookPath} className="bg-muted font-mono" />
+                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                    </div>
+                                        <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
+                                    </li>
+                                     <li>
+                                        <strong>Testing:</strong> To test this in the development environment, a special temporary public URL will be provided. Use this full URL in your webhook provider's dashboard.
+                                        <Button variant="link" size="sm" className="h-auto p-0 ml-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
+                                            Learn More <ExternalLink className="ml-1 h-3 w-3" />
+                                        </Button>
+                                    </li>
+                                    <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
+                                    <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
+                                </ol>
+                            </AlertDescription>
+                        </Alert>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="headerName">Header Name</Label>
+                                <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                     <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">This name/value pair is used to secure your webhook endpoint.</p>
                         </div>
                     </div>
                 );
@@ -283,7 +266,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
         return false;
     };
 
