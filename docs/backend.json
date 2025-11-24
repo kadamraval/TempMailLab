@@ -1,0 +1,94 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the TempInbox application.",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique ID from Firebase Auth." },
+        "email": { "type": "string", "description": "User's email address.", "format": "email" },
+        "planId": { "type": "string", "description": "The ID of the user's current subscription plan." },
+        "isAdmin": { "type": "boolean", "description": "Indicates if the user has administrative privileges." },
+        "createdAt": { "type": "string", "description": "Timestamp of when the user account was created.", "format": "date-time" }
+      },
+      "required": ["uid", "email", "planId", "isAdmin", "createdAt"]
+    },
+    "Inbox": {
+      "title": "Inbox",
+      "type": "object",
+      "description": "Represents a single temporary email inbox.",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the user who owns this inbox." },
+        "emailAddress": { "type": "string", "description": "The temporary email address of the inbox." },
+        "expiresAt": { "type": "string", "description": "Timestamp indicating when the inbox and its contents will be deleted.", "format": "date-time" },
+        "createdAt": { "type": "string", "description": "Timestamp of when the inbox was created.", "format": "date-time" }
+      },
+      "required": ["userId", "emailAddress", "expiresAt", "createdAt"]
+    },
+    "Email": {
+      "title": "Email",
+      "type": "object",
+      "description": "Represents a single email message within an inbox.",
+      "properties": {
+        "inboxId": { "type": "string", "description": "The ID of the parent inbox." },
+        "userId": { "type": "string", "description": "Denormalized UID of the user for security rules." },
+        "senderName": { "type": "string", "description": "Name of the sender." },
+        "subject": { "type": "string", "description": "Subject line of the email." },
+        "receivedAt": { "type": "string", "description": "Timestamp of when the email was received.", "format": "date-time" },
+        "htmlContent": { "type": "string", "description": "HTML content of the email." },
+        "textContent": { "type": "string", "description": "Plain text content of the email." },
+        "rawContent": { "type": "string", "description": "The full, raw MIME content of the email." },
+        "read": { "type": "boolean", "description": "Indicates if the email has been read by the user." }
+      },
+      "required": ["inboxId", "userId", "senderName", "subject", "receivedAt"]
+    },
+    "Plan": {
+        "title": "Plan",
+        "type": "object",
+        "description": "Defines a subscription plan and its features.",
+        "properties": {
+            "name": { "type": "string" },
+            "price": { "type": "number" },
+            "cycle": { "type": "string", "enum": ["monthly", "yearly"] },
+            "status": { "type": "string", "enum": ["active", "archived"] },
+            "features": {
+                "type": "object",
+                "properties": { "maxInboxes": { "type": "number" }, "inboxLifetime": { "type": "number" } }
+            }
+        },
+        "required": ["name", "price", "cycle", "status"]
+    }
+  },
+  "auth": {
+    "providers": [ "password", "anonymous", "google.com" ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": { "schema": { "$ref": "#/entities/User" }, "description": "Stores user profiles." }
+      },
+      {
+        "path": "/inboxes/{inboxId}",
+        "definition": { "schema": { "$ref": "#/entities/Inbox" }, "description": "Global collection of all inboxes." }
+      },
+      {
+        "path": "/inboxes/{inboxId}/emails/{emailId}",
+        "definition": { "schema": { "$ref": "#/entities/Email" }, "description": "Sub-collection of emails for a given inbox." }
+      },
+      {
+        "path": "/plans/{planId}",
+        "definition": { "schema": { "$ref": "#/entities/Plan" }, "description": "Publicly readable subscription plans." }
+      },
+      {
+        "path": "/allowed_domains/{domainId}",
+        "definition": { "schema": { "type": "object" }, "description": "Domains available for generating inboxes." }
+      },
+      {
+        "path": "/admin_settings/{settingId}",
+        "definition": { "schema": { "type": "object" }, "description": "Settings configurable by admins." }
+      }
+    ]
+  }
+}
