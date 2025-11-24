@@ -5,7 +5,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { simpleParser, ParsedMail, AddressObject } from 'mailparser';
+import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
@@ -69,7 +69,9 @@ export async function POST(request: Request) {
     const firestore = getAdminFirestore();
     const headersList = headers();
     
-    const { secret, headerName } = providerConfig.settings || {};
+    // Correctly use the 'secret' field for inbound.new
+    const secret = providerConfig.settings?.secret; 
+    const headerName = providerConfig.settings?.headerName;
 
     if (!secret || !headerName) {
         console.error(`CRITICAL: Webhook security not configured for ${providerConfig.provider}. Missing secret or headerName.`);
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
     const toAddress = getRecipientAddress(parsedEmail);
     
     if (!toAddress) {
-      console.warn("Webhook received but no recipient address could be extracted. Parsed 'to' field:", JSON.stringify(parsedEmail.to, null, 2));
+      console.warn("Webhook received but no recipient address could be extracted. Parsed 'to' field:", JSON.stringify(parsedEmail.to, null, 2), "Headers:", JSON.stringify(parsedEmail.headerLines, null, 2));
       return NextResponse.json({ message: "Bad Request: Recipient address not found." }, { status: 400 });
     }
     
