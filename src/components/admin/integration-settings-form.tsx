@@ -33,7 +33,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const [isSaving, setIsSaving] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [verificationMessage, setVerificationMessage] = useState('');
-    
+    const [devWebhookUrl, setDevWebhookUrl] = useState('');
+
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -45,16 +46,31 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
-    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
 
     useEffect(() => {
+        // This effect runs on the client, so `process.env` is available here.
+        const hostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
+        if (hostingUrl) {
+            setDevWebhookUrl(`${hostingUrl}${webhookPath}`);
+        }
+    }, [webhookPath]);
+
+
+    useEffect(() => {
         if (existingSettings) {
+            // Prioritize 'secret', fallback to 'apiKey' for backward compatibility, then default.
+            const secretValue = existingSettings.secret || existingSettings.apiKey;
             setSettings({
-                headerName: 'x-inbound-secret', // Default value
-                ...existingSettings
+                ...existingSettings,
+                secret: secretValue,
+                headerName: existingSettings.headerName || 'x-inbound-secret', 
             });
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
+             // Clean up old fields if they exist
+            if (existingSettings.apiKey) {
+                delete existingSettings.apiKey;
+            }
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -72,13 +88,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     }
 
     const handleCopy = (text: string, subject: string) => {
+        if (!text) return;
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
 
     const handleGenerateSecret = (regenerate = false) => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
+        setSettings(prev => ({ ...prev, secret: newSecret, enabled: true }));
         if (regenerate) {
              toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
         }
@@ -120,10 +137,29 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
         
         try {
-            const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
-            const settingsToSave = { ...settings, enabled };
+            // Determine 'enabled' status based on the specific integration's required fields
+            let enabled = false;
+            if (integration.slug === 'mailgun') {
+                enabled = !!settings.apiKey && !!settings.domain;
+            } else if (integration.slug === 'inbound-new') {
+                enabled = !!settings.secret && !!settings.headerName;
+            }
 
+            const settingsToSave = { 
+                ...settings, 
+                enabled,
+                // Ensure old, incorrect fields are removed by setting them to null/undefined
+                apiKey: integration.slug === 'mailgun' ? settings.apiKey : undefined,
+                webhookSecret: undefined
+            };
+
+            // Remove undefined keys so Firestore deletes them
+            Object.keys(settingsToSave).forEach(key => {
+                if (settingsToSave[key] === undefined) {
+                    delete settingsToSave[key];
+                }
+            });
+            
             await setDoc(settingsRef, settingsToSave, { merge: true });
 
             toast({
@@ -213,8 +249,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
+                                     {devWebhookUrl && (
+                                        <li className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+                                            <strong>Development Testing URL:</strong> Use the full URL below for testing in your local environment.
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Input readOnly value={devWebhookUrl} className="bg-background font-mono" />
+                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(devWebhookUrl, 'Development Webhook URL')}>
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                             <p className="text-xs mt-1">This temporary URL is only for your current development session.</p>
+                                        </li>
+                                    )}
                                     <li>
-                                        <strong>Webhook URL Path:</strong> Your webhook is located at the path below. To make it work, you must combine it with your app's public domain.
+                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
@@ -223,13 +271,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         </div>
                                         <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
-                                     <li>
-                                        <strong>Testing:</strong> To test this in the development environment, a special temporary public URL will be provided. Use this full URL in your webhook provider's dashboard.
-                                        <Button variant="link" size="sm" className="h-auto p-0 ml-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
-                                            Learn More <ExternalLink className="ml-1 h-3 w-3" />
-                                        </Button>
-                                    </li>
-                                    <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
+                                    <li>In your provider's dashboard, paste the appropriate URL (Development or Production) into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
                                 </ol>
                             </AlertDescription>
@@ -240,10 +282,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
+                                <Label htmlFor="secret">Your Webhook Secret</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
+                                    <Input id="secret" readOnly type="password" placeholder="Generating secret key..." value={settings.secret || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                      <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -266,7 +308,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
         if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
-        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
         return false;
     };
 
@@ -302,3 +344,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    
