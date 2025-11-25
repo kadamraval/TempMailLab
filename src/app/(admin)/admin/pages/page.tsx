@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -8,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { FilePenLine, Trash2, EyeOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { useRouter } from 'next/navigation';
 
 const pages = [
     { id: "home", name: "Home Page", status: "Published" },
@@ -20,6 +20,7 @@ const pages = [
 
 export default function AdminPagesPage() {
     const [pageList, setPageList] = useState(pages);
+    const router = useRouter();
 
     // This is a placeholder function for the hide toggle
     const handleHideToggle = (id: string) => {
@@ -27,10 +28,8 @@ export default function AdminPagesPage() {
         console.log(`Toggling visibility for page ${id}`);
     };
     
-    // This is a placeholder function for editing
     const handleEdit = (id: string) => {
-        console.log(`Editing page ${id}`);
-        // router.push(`/admin/pages/edit/${id}`);
+        router.push(`/admin/pages/edit/${id}`);
     };
 
     // This is a placeholder function for deleting
