@@ -37,8 +37,11 @@ function initializeAdminApp() {
         const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
         
         let credential;
-        if (serviceAccountEnv) {
-            // In a managed environment (like this IDE) where the service account is a JSON string in an env var.
+        if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+            // For local dev where GOOGLE_APPLICATION_CREDENTIALS points to a file, prioritize this.
+            credential = applicationDefault();
+        } else if (serviceAccountEnv) {
+            // In a managed environment where the service account is a JSON string in an env var.
              try {
                 const serviceAccount = JSON.parse(serviceAccountEnv);
                 credential = cert(serviceAccount);
@@ -47,7 +50,7 @@ function initializeAdminApp() {
                 credential = applicationDefault();
             }
         } else {
-             // For local dev where GOOGLE_APPLICATION_CREDENTIALS points to a file, or for deployed environments.
+             // Fallback for deployed environments without specific local credentials.
             credential = applicationDefault();
         }
 
