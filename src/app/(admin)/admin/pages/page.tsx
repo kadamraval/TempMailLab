@@ -1,94 +1,82 @@
+
 "use client";
 
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FilePenLine, Trash2, EyeOff } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 
-const sections = [
-    { id: "use-cases", name: "Use Cases", description: "Displays different use cases for the service." },
-    { id: "features", name: "Features", description: "Highlights the key features of the application." },
-    { id: "exclusive-features", name: "Exclusive Features", description: "Showcases premium or unique features." },
-    { id: "comparison", name: "Comparison", description: "Compares Tempmailoz with other services." },
-    { id: "pricing", name: "Pricing", description: "Displays the available subscription plans." },
-    { id: "blog", name: "Blog", description: "Shows the latest blog posts." },
-    { id: "testimonials", name: "Testimonials", description: "User feedback and quotes." },
-    { id: "faq", name: "FAQ", description: "Frequently Asked Questions section." },
-    { id: "stay-connected", name: "Stay Connected", description: "Newsletter signup form." },
+const pages = [
+    { id: "home", name: "Home Page", status: "Published" },
+    { id: "about", name: "About Us", status: "Published" },
+    { id: "contact", name: "Contact Us", status: "Published" },
+    { id: "terms", name: "Terms of Service", status: "Published" },
+    { id: "privacy", name: "Privacy Policy", status: "Draft" },
+    { id: "faq-page", name: "FAQ", status: "Published" },
 ];
 
 export default function AdminPagesPage() {
-    const [selectedSection, setSelectedSection] = useState(sections[0]);
+    const [pageList, setPageList] = useState(pages);
+
+    // This is a placeholder function for the hide toggle
+    const handleHideToggle = (id: string) => {
+        // In a real app, this would update the page status in a database
+        console.log(`Toggling visibility for page ${id}`);
+    };
+    
+    // This is a placeholder function for editing
+    const handleEdit = (id: string) => {
+        console.log(`Editing page ${id}`);
+        // router.push(`/admin/pages/edit/${id}`);
+    };
+
+    // This is a placeholder function for deleting
+    const handleDelete = (id: string) => {
+        console.log(`Deleting page ${id}`);
+        // Show confirmation dialog and then delete from database
+    };
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Manage Page Content</CardTitle>
-                <CardDescription>Select a section to view and edit its content. This is where you control what text and images appear on your pages.</CardDescription>
+                <CardTitle>Manage Pages</CardTitle>
+                <CardDescription>Edit content, manage visibility, and organize your website's pages.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Left Column: Section List */}
-                    <div className="md:col-span-1">
-                        <Card>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Homepage Sections</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {sections.map((section) => (
-                                        <TableRow 
-                                            key={section.id} 
-                                            onClick={() => setSelectedSection(section)}
-                                            className={cn(
-                                                "cursor-pointer",
-                                                selectedSection.id === section.id && "bg-muted/50"
-                                            )}
-                                        >
-                                            <TableCell className="font-medium">{section.name}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </Card>
-                    </div>
-
-                    {/* Right Column: Content Editor */}
-                    <div className="md:col-span-2">
-                        {selectedSection && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Content for: {selectedSection.name}</CardTitle>
-                                    <CardDescription>{selectedSection.description}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                     <div className="flex items-center space-x-2">
-                                        <Switch id={`visible-${selectedSection.id}`} defaultChecked />
-                                        <Label htmlFor={`visible-${selectedSection.id}`}>Visible on Homepage</Label>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="section-title">Section Title</Label>
-                                        <Input id="section-title" defaultValue={selectedSection.name} />
-                                    </div>
-                                     <div className="space-y-2">
-                                        <Label htmlFor="section-description">Section Description</Label>
-                                        <Textarea id="section-description" placeholder="Enter a brief description for this section." />
-                                    </div>
-                                    <div className="pt-4">
-                                        <Button>Save Content</Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[100px]">Status</TableHead>
+                            <TableHead>Page Name</TableHead>
+                            <TableHead className="text-right w-[200px]">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {pageList.map((page) => (
+                            <TableRow key={page.id}>
+                                <TableCell>
+                                    <Badge variant={page.status === 'Published' ? 'default' : 'secondary'}>{page.status}</Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">{page.name}</TableCell>
+                                <TableCell className="text-right space-x-2">
+                                    <Button variant="outline" size="sm" onClick={() => handleEdit(page.id)}>
+                                        <FilePenLine className="h-4 w-4 mr-2" />
+                                        Edit
+                                    </Button>
+                                    <Button variant="outline" size="icon" onClick={() => handleHideToggle(page.id)}>
+                                        <EyeOff className="h-4 w-4" />
+                                    </Button>
+                                     <Button variant="destructive-outline" size="icon" onClick={() => handleDelete(page.id)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             </CardContent>
         </Card>
     );
