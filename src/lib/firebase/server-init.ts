@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App, applicationDefault, cert } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
@@ -21,18 +21,17 @@ function initializeAdminApp() {
         return firebaseGlobal.firebaseAdminApp;
     }
 
+    // If there are already apps, it might be due to hot-reloading.
+    // Use the first initialized app.
     if (getApps().length > 0) {
         firebaseGlobal.firebaseAdminApp = getApps()[0];
         return firebaseGlobal.firebaseAdminApp;
     }
     
-    // This is the most direct approach. If the environment is configured correctly,
-    // applicationDefault() should work. If not, the previous attempts have shown
-    // that manually parsing env vars is also failing. This simplifies the logic
-    // to the standard expected behavior.
-    firebaseGlobal.firebaseAdminApp = initializeApp({
-        credential: applicationDefault(),
-    });
+    // In a configured Google Cloud environment (like App Hosting or Cloud Functions),
+    // initializeApp() without arguments will use the project's default credentials.
+    // This is the simplest and most robust method for deployed environments.
+    firebaseGlobal.firebaseAdminApp = initializeApp();
 
     return firebaseGlobal.firebaseAdminApp;
 }

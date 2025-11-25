@@ -9,7 +9,6 @@ import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
-    // Logic to determine the active provider
     const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
     const activeProvider = emailSettingsDoc.exists ? emailSettingsDoc.data()?.provider : 'inbound-new';
     
@@ -58,12 +57,12 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
 
 export async function POST(request: Request) {
   try {
+    const firestore = getAdminFirestore();
     const providerConfig = await getInboundProviderSettings();
     if (!providerConfig) {
       return NextResponse.json({ message: "Configuration error: No email provider enabled." }, { status: 500 });
     }
     
-    const firestore = getAdminFirestore();
     const headersList = headers();
     
     const secret = providerConfig.settings?.secret; 
