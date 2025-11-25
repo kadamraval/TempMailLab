@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -13,6 +14,7 @@ import { useDoc } from "@/firebase/firestore/use-doc";
 import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -30,6 +32,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         headerName: 'x-inbound-secret' // Default value
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [verificationMessage, setVerificationMessage] = useState('');
     
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -51,7 +55,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 headerName: 'x-inbound-secret', // Default value
                 ...existingSettings
             });
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.secret) {
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -60,10 +64,12 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
+        setVerificationStatus('idle');
     };
 
     const handleSelectChange = (id: string, value: string) => {
         setSettings(prev => ({...prev, [id]: value}));
+        setVerificationStatus('idle');
     }
 
     const handleCopy = (text: string, subject: string) => {
@@ -73,7 +79,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const handleGenerateSecret = (regenerate = false) => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, secret: newSecret, enabled: true }));
+        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
         if (regenerate) {
              toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
         }
@@ -84,9 +90,39 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (!settingsRef) return;
         
         setIsSaving(true);
+        setVerificationStatus('idle');
+        
+        if (integration.slug === 'mailgun') {
+            setVerificationMessage('Verifying credentials...');
+            try {
+                const verificationResult = await verifyMailgunSettingsAction({
+                    apiKey: settings.apiKey,
+                    domain: settings.domain,
+                    region: settings.region || 'US',
+                });
+
+                setVerificationMessage(verificationResult.message);
+
+                if (!verificationResult.success) {
+                    setVerificationStatus('error');
+                    toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
+                    setIsSaving(false);
+                    return; 
+                }
+
+                setVerificationStatus('success');
+
+            } catch (error: any) {
+                setVerificationStatus('error');
+                setVerificationMessage(error.message || "An unexpected client-side error occurred.");
+                setIsSaving(false);
+                return;
+            }
+        }
         
         try {
-            const enabled = (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
+            const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
+                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -129,9 +165,9 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                          <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>Important: Mailgun Setup</AlertTitle>
+                            <AlertTitle>Integration Not Available</AlertTitle>
                             <AlertDescription>
-                                This integration is currently not available. Please use inbound.new.
+                                The Mailgun integration is currently not available. Please use `inbound.new` for inbound email processing.
                             </AlertDescription>
                         </Alert>
                     </div>
@@ -171,10 +207,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="secret">Your Webhook Secret</Label>
+                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="secret" readOnly type="password" placeholder="Generating secret key..." value={settings.secret || ''} className="bg-muted" />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.secret, 'Webhook Secret')}>
+                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                      <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -196,7 +232,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
-        if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
+        if (integration.slug === 'mailgun') return true; // Always disable for mailgun now
+        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
         return false;
     };
 
@@ -210,13 +247,22 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
+                {verificationStatus !== 'idle' && verificationMessage && integration.slug === 'mailgun' && (
+                    <Alert variant={verificationStatus === 'error' ? 'destructive' : 'default'} className={verificationStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}>
+                         {verificationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                        <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Status'}</AlertTitle>
+                        <AlertDescription>
+                            {verificationMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaveDisabled()}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {integration.slug === 'mailgun' ? 'Verify & Save' : 'Save Changes'}
                     </Button>
                 </div>
             </CardFooter>

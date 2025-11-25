@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
     try {
         // 1. Authenticate the request
         const inboundSettings = await getSetting(db, 'inbound-new');
-        if (!inboundSettings?.enabled || !inboundSettings.secret || !inboundSettings.headerName) {
+        if (!inboundSettings?.enabled || !inboundSettings.apiKey || !inboundSettings.headerName) {
             return NextResponse.json({ message: 'Inbound webhook is not configured or enabled.' }, { status: 403 });
         }
 
         const receivedSecret = req.headers.get(inboundSettings.headerName.toLowerCase());
-        if (receivedSecret !== inboundSettings.secret) {
+        if (receivedSecret !== inboundSettings.apiKey) {
             return NextResponse.json({ message: 'Unauthorized: Invalid secret.' }, { status: 401 });
         }
 
