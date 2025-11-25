@@ -1,7 +1,6 @@
 
 'use server';
 
-import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -41,7 +40,7 @@ function extractRecipient(body: any): string | null {
     return recipient;
   }
   
-  if (Array.isArray(recipient) && recipient.length > 0) {
+  if (Array.isArray(recipient) && recipient.length > 0 && typeof recipient[0] === 'string') {
     return recipient[0];
   }
 
@@ -59,7 +58,6 @@ export async function POST(request: Request) {
     }
 
     const providerConfig = settingsDoc.data();
-    const headersList = headers();
     const secret = providerConfig.secret;
     const headerName = providerConfig.headerName;
 
@@ -68,7 +66,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
 
-    const requestSecret = headersList.get(headerName);
+    const requestSecret = request.headers.get(headerName);
     
     if (requestSecret !== secret) {
         console.warn(`Unauthorized webhook access attempt. Invalid secret received for header '${headerName}'.`);
@@ -96,6 +94,7 @@ export async function POST(request: Request) {
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxData = inboxDoc.data();
 
+    // Use the nested parsedData from inbound.new if it exists, otherwise use top-level fields
     const emailData = body.email?.parsedData || body;
 
     const newEmail = {
@@ -124,6 +123,10 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
+    // Check if error is from JSON parsing
+    if (error instanceof SyntaxError) {
+        return NextResponse.json({ message: "Bad Request: Invalid JSON body." }, { status: 400 });
+    }
     return NextResponse.json({ message: `Internal Server Error: ${error.message}` }, { status: 500 });
   }
 }
