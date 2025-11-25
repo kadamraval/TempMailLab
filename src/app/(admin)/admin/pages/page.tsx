@@ -39,7 +39,7 @@ export default function AdminPagesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Page Sections</TableHead>
+                                        <TableHead>Homepage Sections</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
