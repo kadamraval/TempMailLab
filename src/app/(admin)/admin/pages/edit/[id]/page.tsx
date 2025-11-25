@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const pageData: { [key: string]: any } = {
   home: {
@@ -217,8 +218,8 @@ export default function EditPageLayout() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>SEO Settings (2025)</CardTitle>
-                     <CardDescription>Optimize this page for search engines.</CardDescription>
+                    <CardTitle>SEO Settings</CardTitle>
+                     <CardDescription>Optimize this page for search engines and social media.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
@@ -230,6 +231,47 @@ export default function EditPageLayout() {
                         <Label htmlFor="meta-description">Meta Description</Label>
                         <Textarea id="meta-description" placeholder="Enter meta description" rows={4}/>
                          <CardDescription className="text-xs">Recommended: 150-160 characters.</CardDescription>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="meta-keywords">Keywords</Label>
+                        <Input id="meta-keywords" placeholder="e.g., temp mail, disposable email" />
+                         <CardDescription className="text-xs">Comma-separated keywords.</CardDescription>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="canonical-url">Canonical URL</Label>
+                        <Input id="canonical-url" placeholder="https://example.com/page" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="robots-meta">Robots Meta Tag</Label>
+                        <Select defaultValue="index-follow">
+                            <SelectTrigger id="robots-meta">
+                                <SelectValue placeholder="Select a robots tag" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="index-follow">Index, Follow</SelectItem>
+                                <SelectItem value="noindex-nofollow">No Index, No Follow</SelectItem>
+                                <SelectItem value="noindex-follow">No Index, Follow</SelectItem>
+                                <SelectItem value="index-nofollow">Index, No Follow</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <h4 className="font-medium text-sm mb-4">Open Graph (Social Sharing)</h4>
+                        <div className="space-y-4 rounded-md border p-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="og-title">OG Title</Label>
+                                <Input id="og-title" placeholder="Title for social media" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="og-description">OG Description</Label>
+                                <Textarea id="og-description" placeholder="Description for social media" rows={3}/>
+                            </div>
+                             <div className="space-y-2">
+                                <Label>OG Image</Label>
+                                <Input type="file" />
+                                <CardDescription className="text-xs">Recommended size: 1200x630 pixels.</CardDescription>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
                 <CardFooter>
