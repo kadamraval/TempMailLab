@@ -1,5 +1,5 @@
 
-import { initializeApp, getApps, App, applicationDefault } from 'firebase-admin/app';
+import { initializeApp, getApps, App, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 
@@ -34,12 +34,24 @@ function initializeAdminApp() {
         firebaseGlobal.firebaseAdminApp = apps[0];
     } else {
         // No apps initialized, so create a new one.
-        // When running on Google Cloud (like Firebase App Hosting), GOOGLE_APPLICATION_CREDENTIALS
-        // is automatically set. credential.applicationDefault() uses this.
-        // For local development, you must set this environment variable to point to your service account key file.
-        firebaseGlobal.firebaseAdminApp = initializeApp({
-            credential: applicationDefault(),
-        });
+        const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+        
+        let credential;
+        if (serviceAccountEnv) {
+            // In a managed environment (like this IDE) where the service account is a JSON string in an env var.
+             try {
+                const serviceAccount = JSON.parse(serviceAccountEnv);
+                credential = cert(serviceAccount);
+            } catch (e) {
+                console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Using applicationDefault().", e);
+                credential = applicationDefault();
+            }
+        } else {
+             // For local dev where GOOGLE_APPLICATION_CREDENTIALS points to a file, or for deployed environments.
+            credential = applicationDefault();
+        }
+
+        firebaseGlobal.firebaseAdminApp = initializeApp({ credential });
     }
 
     firebaseGlobal.firestore = getFirestore(firebaseGlobal.firebaseAdminApp);
