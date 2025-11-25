@@ -61,7 +61,7 @@ export function DashboardClient() {
   const { toast } = useToast();
 
   const planRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null; // Use user instead of userProfile here
+    if (!firestore || !user) return null; 
     const planId = userProfile?.planId || 'free-default';
     return doc(firestore, 'plans', planId);
   }, [firestore, user, userProfile]);
@@ -69,7 +69,6 @@ export function DashboardClient() {
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const emailsQuery = useMemoFirebase(() => {
-    // CRITICAL: Do not run this query if the user is not authenticated yet.
     if (!firestore || !currentInbox?.id || !user) return null;
     return query(collection(firestore, `inboxes/${currentInbox.id}/emails`), orderBy("receivedAt", "desc"));
   }, [firestore, currentInbox?.id, user]);
@@ -78,7 +77,6 @@ export function DashboardClient() {
 
   const sortedEmails = useMemo(() => {
       if (!inboxEmails) return [];
-      // Data is already sorted by the query
       return inboxEmails;
   }, [inboxEmails]);
 
@@ -143,10 +141,7 @@ export function DashboardClient() {
 
   useEffect(() => {
     const initializeSession = async () => {
-        if (isUserLoading || isLoadingPlan || !auth || !firestore) return;
-
-        // If activePlan is not loaded yet, wait.
-        if (!activePlan) return;
+        if (isUserLoading || !auth || !firestore) return;
 
         let activeUser = user;
         let foundInbox: InboxType | null = null;
@@ -162,9 +157,27 @@ export function DashboardClient() {
                 return;
             }
         }
-        if (!activeUser) return; // Should not happen, but as a safeguard.
+        if (!activeUser) return;
 
-        // Step 2: Try to find an existing inbox
+        // Step 2: Determine the plan
+        let planToUse: Plan | null = activePlan;
+        if (!planToUse && !isLoadingPlan) {
+            const defaultPlanRef = doc(firestore, 'plans', 'free-default');
+            const defaultPlanSnap = await getDoc(defaultPlanRef);
+            if (defaultPlanSnap.exists()) {
+                planToUse = { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan;
+            }
+        }
+
+        if (!planToUse) {
+            if (!isLoadingPlan) {
+                setServerError("Default plan 'free-default' not found. Please contact support.");
+            }
+            // If plan is still loading, just wait for the next render.
+            return;
+        }
+
+        // Step 3: Try to find an existing inbox
         if (activeUser.isAnonymous) {
             const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
             if (localDataStr) {
@@ -188,17 +201,16 @@ export function DashboardClient() {
             const userInboxesSnap = await getDocs(userInboxesQuery);
             if (!userInboxesSnap.empty) {
                 const latestInbox = { id: userInboxesSnap.docs[0].id, ...userInboxesSnap.docs[0].data() } as InboxType;
-                 // Ensure expiresAt is a string for consistent comparison
-                const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
+                 const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
                 if (new Date(expiry) > new Date()) {
                     foundInbox = { ...latestInbox, expiresAt: expiry };
                 }
             }
         }
         
-        // Step 3: If no valid inbox found, generate a new one
+        // Step 4: If no valid inbox found, generate a new one
         if (!foundInbox) {
-            foundInbox = await generateNewInbox(activeUser, activePlan);
+            foundInbox = await generateNewInbox(activeUser, planToUse);
         }
 
         setCurrentInbox(foundInbox);
@@ -206,7 +218,7 @@ export function DashboardClient() {
     };
     
     initializeSession();
-  }, [user, isUserLoading, isLoadingPlan, activePlan, auth, firestore, generateNewInbox]);
+  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, firestore, generateNewInbox]);
 
 
    
@@ -225,7 +237,7 @@ export function DashboardClient() {
             if (user?.isAnonymous) {
                 localStorage.removeItem(LOCAL_INBOX_KEY);
             }
-            if (auth.currentUser) {
+            if (auth.currentUser && activePlan) {
                 const newInbox = await generateNewInbox(auth.currentUser, activePlan);
                 setCurrentInbox(newInbox);
             }
@@ -278,7 +290,7 @@ export function DashboardClient() {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  if (isLoading || isUserLoading || isLoadingPlan || !activePlan) {
+  if (isLoading) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
