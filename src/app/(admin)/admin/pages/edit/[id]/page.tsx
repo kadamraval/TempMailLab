@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Breadcrumb,
@@ -11,10 +12,11 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brush, FileText, EyeOff, Trash2, GripVertical, PlusCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SectionStyleDialog } from './section-style-dialog'; // New import
 
 const pageData: { [key: string]: any } = {
   home: {
@@ -95,11 +97,23 @@ export default function EditPageLayout() {
   const pageId = params.id as string;
   const currentPage = pageData[pageId];
 
+  const [editingSection, setEditingSection] = useState<any | null>(null);
+
   if (!currentPage) {
     return <div>Page not found.</div>;
   }
+  
+  const handleEditStyle = (section: any) => {
+    setEditingSection(section);
+  };
+  
+  const handleCloseDialog = () => {
+    setEditingSection(null);
+  };
+
 
   return (
+    <>
     <div className="space-y-6">
       <Breadcrumb>
         <BreadcrumbList>
@@ -135,11 +149,11 @@ export default function EditPageLayout() {
                 <div className="flex items-center gap-2">
                    <Tooltip>
                     <TooltipTrigger asChild>
-                       <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/sections/edit/${section.id}`)}>
+                       <Button variant="ghost" size="icon" onClick={() => handleEditStyle(section)}>
                         <Brush className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Edit Global Section Styles</p></TooltipContent>
+                    <TooltipContent><p>Edit Individual Section Styles</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -172,5 +186,13 @@ export default function EditPageLayout() {
         </div>
       </TooltipProvider>
     </div>
+
+    <SectionStyleDialog
+      isOpen={!!editingSection}
+      onClose={handleCloseDialog}
+      section={editingSection}
+      pageName={currentPage.name}
+    />
+    </>
   );
 }
