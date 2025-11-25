@@ -8,7 +8,6 @@ const topNavLinks = [
     { name: "Blog", href: "/blog" },
     { name: "API", href: "/api" },
     { name: "Extension", href: "/extension" },
-    { name: "About", href: "/about" },
     { name: "Help Center", href: "/contact" },
 ];
 

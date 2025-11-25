@@ -30,7 +30,7 @@ const exclusiveFeatures = [
 
 export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) => {
   return (
-    <section id="exclusive-features" className="py-16 sm:py-20">
+    <section id="exclusive-features">
          <div className="container mx-auto px-4">
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">

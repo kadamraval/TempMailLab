@@ -89,7 +89,7 @@ export default function HomePage() {
         }
 
         return (
-            <div key={index} className={cn(backgroundClass, "z-10 relative")}>
+            <div key={index} className={cn(backgroundClass, "z-10 relative py-16 sm:py-20")}>
                 <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
             </div>
         )

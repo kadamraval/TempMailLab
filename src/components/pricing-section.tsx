@@ -68,7 +68,7 @@ export function PricingSection({ plans = [] }: PricingSectionProps) {
     }
     
     return (
-        <section id="pricing" className="py-16 sm:py-20">
+        <section id="pricing">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-center space-x-4 mb-12">
                     <Label htmlFor="billing-cycle" className={cn("font-medium", billingCycle === "monthly" ? "text-primary" : "text-muted-foreground")}>Monthly</Label>

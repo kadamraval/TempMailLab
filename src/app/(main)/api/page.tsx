@@ -1,25 +1,12 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Code } from "lucide-react";
+import { Check } from "lucide-react";
 
 export default function ApiPage() {
     return (
         <div className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                <div className="relative w-full max-w-4xl mx-auto text-center mb-16">
-                    <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
-                    <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
-                        Developer API
-                    </h1>
-                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto mt-4">
-                        Integrate Tempmailoz's powerful temporary email functionality directly into your applications with our simple and robust REST API.
-                    </p>
-                    <div className="pt-4">
-                        <Button size="lg">Get API Key</Button>
-                    </div>
-                </div>
-
                 <Card>
                     <CardHeader>
                         <CardTitle>API Features</CardTitle>

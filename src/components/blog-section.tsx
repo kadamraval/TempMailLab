@@ -34,16 +34,8 @@ const blogPosts = [
 
 export function BlogSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
-    <section id="blog" className="py-16 sm:py-20">
+    <section id="blog">
       <div className="container mx-auto px-4">
-        <div className="text-center space-y-4 mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            From the Blog
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Stay up to date with the latest news, updates, and privacy tips from the Tempmailoz team.
-          </p>
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {blogPosts.map((post) => (
             <Card key={post.title} className={cn("overflow-hidden flex flex-col", removeBorder ? "border-0" : "border")}>

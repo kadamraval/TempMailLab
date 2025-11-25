@@ -52,7 +52,7 @@ export function Testimonials() {
   )
 
   return (
-    <section id="testimonials" className="py-16 sm:py-20">
+    <section id="testimonials">
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-12">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">What Our Users Say</h2>
