@@ -35,7 +35,7 @@ const pageData: { [key: string]: any } = {
       { id: "comparison", name: "Comparison", isDynamic: false },
       { id: "pricing", name: "Pricing", isDynamic: true },
       { id: "blog", name: "Blog", isDynamic: true },
-      { id: "testimonials", name: "Testimonials", isDynamic: true },
+      { id: "testimonials", name: "Testimonials", isDynamic: false },
       { id: "faq", name: "FAQ", isDynamic: false },
       { id: "newsletter", name: "Newsletter", isDynamic: true },
     ]
@@ -174,11 +174,11 @@ export default function EditPageLayout() {
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" onClick={() => handleEditContent(section)} disabled={section.isDynamic}>
+                           <Button variant="ghost" size="icon" onClick={() => handleEditContent(section)}>
                             <FileText className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p>{section.isDynamic ? 'Content is managed automatically' : 'Edit Content'}</p></TooltipContent>
+                        <TooltipContent><p>Edit Content</p></TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -307,4 +307,3 @@ export default function EditPageLayout() {
   );
 }
 
-    

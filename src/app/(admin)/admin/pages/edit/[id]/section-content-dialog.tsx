@@ -13,25 +13,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Trash2, Check, X } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from "@/lib/content-data";
 
 interface SectionContentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  section: { id: string; name: string } | null;
+  section: { id: string; name: string, isDynamic?: boolean } | null;
 }
 
-const TopContentFields = () => (
+const TopContentFields = ({ title, description }: { title: string, description: string }) => (
     <div className="space-y-4">
         <div>
-            <Label>Top Title</Label>
-            <Input placeholder="Section Title (e.g., Why Temp Mail?)" />
+            <Label>Section Title</Label>
+            <Input defaultValue={title} />
         </div>
         <div>
-            <Label>Top Description</Label>
-            <Textarea placeholder="A short description for the section header." />
+            <Label>Section Description</Label>
+            <Textarea defaultValue={description} />
         </div>
         <Separator />
     </div>
@@ -40,19 +41,21 @@ const TopContentFields = () => (
 const WhyForm = () => {
     return (
         <div className="space-y-4">
-            <TopContentFields />
-            <div className="space-y-2 p-4 border rounded-md">
-                <div className="flex justify-between items-center">
-                    <Label>Item 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <TopContentFields title="Why Temp Mail?" description="" />
+            {useCases.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Item {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <Label>Icon Name (from lucide-react)</Label>
+                    <Input defaultValue={item.iconName} />
+                    <Label>Title</Label>
+                    <Input defaultValue={item.title} />
+                    <Label>Description</Label>
+                    <Textarea defaultValue={item.description} />
                 </div>
-                <Label>Icon (e.g., ShieldCheck)</Label>
-                <Input defaultValue="ShieldCheck" />
-                <Label>Title</Label>
-                <Input defaultValue="Sign-Up Anonymously" />
-                <Label>Description</Label>
-                <Textarea defaultValue="Register for sites and apps without exposing your real email." />
-            </div>
+            ))}
              <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
         </div>
     )
@@ -61,19 +64,21 @@ const WhyForm = () => {
 const FeaturesForm = () => {
      return (
         <div className="space-y-4">
-            <TopContentFields />
-            <div className="space-y-2 p-4 border rounded-md">
-                <div className="flex justify-between items-center">
-                    <Label>Item 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <TopContentFields title="Features" description="" />
+             {features.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Item {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <Label>Icon Name (from lucide-react)</Label>
+                    <Input defaultValue={item.iconName} />
+                    <Label>Title</Label>
+                    <Input defaultValue={item.title} />
+                    <Label>Description</Label>
+                    <Textarea defaultValue={item.description} />
                 </div>
-                <Label>Icon (e.g., Zap)</Label>
-                <Input defaultValue="Zap" />
-                <Label>Title</Label>
-                <Input defaultValue="Instant Setup" />
-                <Label>Description</Label>
-                <Textarea defaultValue="Generate a new email address with a single click. No registration required." />
-            </div>
+            ))}
              <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
         </div>
     )
@@ -82,19 +87,23 @@ const FeaturesForm = () => {
 const ExclusiveFeaturesForm = () => {
      return (
         <div className="space-y-4">
-            <TopContentFields />
-            <div className="space-y-2 p-4 border rounded-md">
-                 <div className="flex justify-between items-center">
-                    <Label>Item 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <TopContentFields title="Exclusive Features" description="" />
+             {exclusiveFeatures.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Item {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <Label>Icon Name (from lucide-react)</Label>
+                    <Input defaultValue={item.iconName} />
+                    <Label>Title</Label>
+                    <Input defaultValue={item.title} />
+                    <Label>Description</Label>
+                    <Textarea defaultValue={item.description} />
+                    <Label>Image URL</Label>
+                    <Input defaultValue={item.image.src} />
                 </div>
-                <Label>Image URL</Label>
-                <Input defaultValue="https://images.unsplash.com/..." />
-                <Label>Title</Label>
-                <Input defaultValue="Password Protection" />
-                <Label>Description</Label>
-                <Textarea defaultValue="Secure your temporary inboxes with a unique password." />
-            </div>
+            ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
         </div>
     )
@@ -103,25 +112,27 @@ const ExclusiveFeaturesForm = () => {
 const ComparisonForm = () => {
     return (
         <div className="space-y-4">
-             <TopContentFields />
-             <div className="space-y-2 p-4 border rounded-md">
-                <div className="flex justify-between items-center">
-                    <Label>Feature 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-                <Label>Feature Name</Label>
-                <Input defaultValue="Instant Address Generation" />
-                <div className="grid grid-cols-2 gap-4 items-center">
-                    <div className="flex items-center gap-2">
-                        <Label>Our App:</Label>
-                        <Switch defaultChecked={true} />
+             <TopContentFields title="Tempmailoz Vs Others" description="" />
+             {comparisonFeatures.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Feature {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
-                     <div className="flex items-center gap-2">
-                        <Label>Others:</Label>
-                        <Switch defaultChecked={true} />
+                    <Label>Feature Name</Label>
+                    <Input defaultValue={item.feature} />
+                    <div className="grid grid-cols-2 gap-4 items-center">
+                        <div className="flex items-center gap-2">
+                            <Label>Our App:</Label>
+                            <Switch defaultChecked={item.tempmailoz} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Label>Others:</Label>
+                            <Switch defaultChecked={item.others} />
+                        </div>
                     </div>
                 </div>
-            </div>
+             ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Row</Button>
         </div>
     )
@@ -131,17 +142,19 @@ const ComparisonForm = () => {
 const FaqForm = () => {
     return (
         <div className="space-y-4">
-             <TopContentFields />
-             <div className="space-y-2 p-4 border rounded-md">
-                 <div className="flex justify-between items-center">
-                    <Label>Question 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+             <TopContentFields title="Questions?" description="" />
+             {faqs.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Question {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <Label>Question</Label>
+                    <Input defaultValue={item.question} />
+                    <Label>Answer</Label>
+                    <Textarea defaultValue={item.answer} rows={4} />
                 </div>
-                <Label>Question</Label>
-                <Input defaultValue="Why use a temporary email?" />
-                <Label>Answer</Label>
-                <Textarea defaultValue="It's perfect for any situation where you don't want to give out your real email." />
-            </div>
+             ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add FAQ</Button>
         </div>
     )
@@ -150,41 +163,57 @@ const FaqForm = () => {
 const TestimonialsForm = () => {
     return (
         <div className="space-y-4">
-            <TopContentFields />
-            <div className="space-y-2 p-4 border rounded-md">
-                <div className="flex justify-between items-center">
-                    <Label>Testimonial 1</Label>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <TopContentFields title="What Our Users Say" description="" />
+            {testimonials.map((item, index) => (
+                <div key={index} className="space-y-2 p-4 border rounded-md">
+                    <div className="flex justify-between items-center">
+                        <Label>Testimonial {index + 1}</Label>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </div>
+                    <Label>Avatar URL</Label>
+                    <Input defaultValue={item.avatar} />
+                    <Label>Name</Label>
+                    <Input defaultValue={item.name} />
+                    <Label>Title</Label>
+                    <Input defaultValue={item.title} />
+                    <Label>Quote</Label>
+                    <Textarea defaultValue={item.quote} />
                 </div>
-                <Label>Avatar URL</Label>
-                <Input defaultValue="https://i.pravatar.cc/150?img=1" />
-                <Label>Name</Label>
-                <Input defaultValue="Alex Johnson" />
-                <Label>Title</Label>
-                <Input defaultValue="Developer" />
-                <Label>Quote</Label>
-                <Textarea defaultValue="This is a game-changer for signing up for new services without worrying about spam." />
-            </div>
+            ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Testimonial</Button>
         </div>
     )
 }
 
-const NewsletterForm = () => {
+const DynamicSectionForm = ({ section }: { section: { id: string; name: string, isDynamic?: boolean } }) => {
+    const titles: Record<string, string> = {
+        'pricing': 'Pricing',
+        'blog': 'From the Blog',
+        'newsletter': 'Stay Connected',
+        'contact-form': 'Send us a Message',
+    }
+     const descriptions: Record<string, string> = {
+        'pricing': '',
+        'blog': '',
+        'newsletter': 'Subscribe to our newsletter for product updates and privacy news.',
+        'contact-form': 'Fill out the form below and we\'ll get back to you as soon as possible.',
+    }
     return (
-        <div className="space-y-4 p-4 border rounded-md">
-            <Label>Title</Label>
-            <Input defaultValue="Stay Connected" />
-            <Label>Description</Label>
-            <Textarea defaultValue="Subscribe to our newsletter for product updates and privacy news." />
+        <div className="space-y-4">
+             <TopContentFields title={titles[section.id] || section.name} description={descriptions[section.id] || ''} />
+             <p className="text-muted-foreground text-center py-8">The core content of this section is managed automatically and cannot be edited here.</p>
         </div>
     )
 }
 
 
 
-const renderFormForSection = (sectionId: string) => {
-    switch (sectionId) {
+const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
+    if (section.isDynamic) {
+        return <DynamicSectionForm section={section} />;
+    }
+
+    switch (section.id) {
         case 'why':
             return <WhyForm />;
         case 'features':
@@ -197,16 +226,6 @@ const renderFormForSection = (sectionId: string) => {
             return <TestimonialsForm />;
         case 'faq':
             return <FaqForm />;
-        case 'newsletter':
-            return <NewsletterForm />;
-        // Dynamic sections have no editable content here
-        case 'inbox':
-        case 'pricing':
-        case 'pricing-comparison':
-        case 'blog':
-        case 'contact-form':
-        case 'knowledgebase':
-            return <p className="text-muted-foreground text-center py-8">This section's content is managed automatically and cannot be edited here.</p>;
         default:
             return <p className="text-muted-foreground text-center py-8">This section is not configured for content editing.</p>;
     }
@@ -227,7 +246,7 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
         </DialogHeader>
         
         <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-6">
-            {renderFormForSection(section.id)}
+            {renderFormForSection(section)}
         </div>
 
         <DialogFooter>
@@ -238,3 +257,4 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
     </Dialog>
   );
 }
+
