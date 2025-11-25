@@ -35,12 +35,12 @@ const pageData: { [key: string]: any } = {
       { id: "comparison", name: "Comparison", isDynamic: false },
       { id: "pricing", name: "Pricing", isDynamic: true },
       { id: "blog", name: "Blog", isDynamic: true },
-      { id: "testimonials", name: "Testimonials", isDynamic: false },
+      { id: "testimonials", name: "Testimonials", isDynamic: true },
       { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: false },
+      { id: "newsletter", name: "Newsletter", isDynamic: true },
     ]
   },
-  "features": {
+  "features-page": {
     name: "Features",
     sections: [
       { id: "top-title", name: "Top Title", isDynamic: false },
@@ -48,17 +48,17 @@ const pageData: { [key: string]: any } = {
       { id: "exclusive-features", name: "Exclusive Features", isDynamic: false },
       { id: "comparison", name: "Comparison", isDynamic: false },
       { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: false },
+      { id: "newsletter", name: "Newsletter", isDynamic: true },
     ],
   },
-  "pricing": {
+  "pricing-page": {
     name: "Pricing",
     sections: [
       { id: "top-title", name: "Top Title", isDynamic: false },
       { id: "pricing", name: "Pricing", isDynamic: true },
       { id: "pricing-comparison", name: "Price Comparison", isDynamic: true },
       { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: false },
+      { id: "newsletter", name: "Newsletter", isDynamic: true },
     ],
   },
   "blog-page": {
@@ -67,15 +67,15 @@ const pageData: { [key: string]: any } = {
         { id: "top-title", name: "Top Title", isDynamic: false },
         { id: "blog", name: "Blog", isDynamic: true },
         { id: "faq", name: "FAQ", isDynamic: false },
-        { id: "newsletter", name: "Newsletter", isDynamic: false },
+        { id: "newsletter", name: "Newsletter", isDynamic: true },
       ]
   },
-  "api": {
+  "api-page": {
       name: "API",
       sections: [
         { id: "top-title", name: "Top Title", isDynamic: false },
         { id: "faq", name: "FAQ", isDynamic: false },
-        { id: "newsletter", name: "Newsletter", isDynamic: false },
+        { id: "newsletter", name: "Newsletter", isDynamic: true },
       ]
   },
   "about": { name: "About Us", sections: [] },
@@ -111,7 +111,7 @@ export default function EditPageLayout() {
   }
   
   const handleEditStyle = (section: any) => {
-    setEditingStyleSection(section);
+    router.push(`/admin/sections/edit/${section.id}`);
   };
   
   const handleCloseStyleDialog = () => {
@@ -170,7 +170,7 @@ export default function EditPageLayout() {
                             <Brush className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent><p>Edit Section Styles (Page Specific)</p></TooltipContent>
+                        <TooltipContent><p>Edit Section Styles</p></TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -306,3 +306,5 @@ export default function EditPageLayout() {
     </>
   );
 }
+
+    

@@ -12,10 +12,10 @@ import { useRouter } from 'next/navigation';
 
 const pages = [
     { id: "home", name: "Home Page", status: "Published" },
-    { id: "features", name: "Features", status: "Published" },
-    { id: "pricing", name: "Pricing", status: "Published" },
+    { id: "features-page", name: "Features", status: "Published" },
+    { id: "pricing-page", name: "Pricing", status: "Published" },
     { id: "blog-page", name: "Blog", status: "Published" },
-    { id: "api", name: "API", status: "Published" },
+    { id: "api-page", name: "API", status: "Published" },
     { id: "about", name: "About Us", status: "Published" },
     { id: "contact", name: "Contact Us", status: "Published" },
     { id: "faq-page", name: "FAQ", status: "Published" },
@@ -73,7 +73,7 @@ export default function AdminPagesPage() {
                                     <Button variant="outline" size="icon" onClick={() => handleHideToggle(page.id)}>
                                         <EyeOff className="h-4 w-4" />
                                     </Button>
-                                     <Button variant="destructive-outline" size="icon" onClick={() => handleDelete(page.id)}>
+                                     <Button variant="destructive" size="icon" onClick={() => handleDelete(page.id)}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </TableCell>
@@ -85,3 +85,5 @@ export default function AdminPagesPage() {
         </Card>
     );
 }
+
+    
