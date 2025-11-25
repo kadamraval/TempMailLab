@@ -1,6 +1,6 @@
-
 "use client";
 
+import * as React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from "@/lib/content-data";
+import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures } from "@/lib/content-data";
+import { IconPicker } from '@/components/icon-picker';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SectionContentDialogProps {
   isOpen: boolean;
@@ -39,21 +41,29 @@ const TopContentFields = ({ title, description }: { title: string, description: 
 );
 
 const WhyForm = () => {
+    const [items, setItems] = React.useState(useCases);
+
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        (newItems[index] as any)[field] = value;
+        setItems(newItems);
+    };
+
     return (
         <div className="space-y-4">
             <TopContentFields title="Why Temp Mail?" description="" />
-            {useCases.map((item, index) => (
+            {items.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Icon Name (from lucide-react)</Label>
-                    <Input defaultValue={item.iconName} />
+                    <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
                     <Label>Title</Label>
-                    <Input defaultValue={item.title} />
+                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
                     <Label>Description</Label>
-                    <Textarea defaultValue={item.description} />
+                    <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
                 </div>
             ))}
              <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
@@ -62,21 +72,28 @@ const WhyForm = () => {
 }
 
 const FeaturesForm = () => {
+     const [items, setItems] = React.useState(features);
+
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...items];
+        (newItems[index] as any)[field] = value;
+        setItems(newItems);
+    };
      return (
         <div className="space-y-4">
             <TopContentFields title="Features" description="" />
-             {features.map((item, index) => (
+             {items.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Icon Name (from lucide-react)</Label>
-                    <Input defaultValue={item.iconName} />
+                    <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
                     <Label>Title</Label>
-                    <Input defaultValue={item.title} />
+                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
                     <Label>Description</Label>
-                    <Textarea defaultValue={item.description} />
+                    <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
                 </div>
             ))}
              <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
@@ -245,9 +262,11 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
           </DialogDescription>
         </DialogHeader>
         
-        <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-6">
-            {renderFormForSection(section)}
-        </div>
+        <ScrollArea className="max-h-[60vh]">
+            <div className="py-4 pr-6 space-y-6">
+                {renderFormForSection(section)}
+            </div>
+        </ScrollArea>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -257,4 +276,3 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
     </Dialog>
   );
 }
-
