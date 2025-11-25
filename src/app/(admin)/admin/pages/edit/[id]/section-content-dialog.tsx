@@ -40,11 +40,15 @@ const getDefaultContent = (sectionId: string) => {
         case 'comparison': return { title: "Tempmailoz Vs Others", description: "", items: comparisonFeatures };
         case 'testimonials': return { title: "What Our Users Say", description: "", items: testimonials };
         case 'blog': return { title: "From the Blog", description: "", items: blogPosts };
+        case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
+        case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
+        case 'top-title': return { title: "Page Title", description: "Page subtitle" };
+        case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return { title: sectionId, description: "", items: [] };
     }
 }
 
-const TopContentFields = ({ title, description, onTitleChange, onDescriptionChange }: { title: string, description: string, onTitleChange: (val: string) => void, onDescriptionChange: (val: string) => void }) => (
+const TopContentFields = ({ title, description, onTitleChange, onDescriptionChange, isDynamic }: { title: string, description: string, onTitleChange: (val: string) => void, onDescriptionChange: (val: string) => void, isDynamic?: boolean }) => (
     <div className="space-y-4">
         <div>
             <Label>Section Title</Label>
@@ -54,7 +58,7 @@ const TopContentFields = ({ title, description, onTitleChange, onDescriptionChan
             <Label>Section Description</Label>
             <Textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} />
         </div>
-        <Separator />
+        {!isDynamic && <Separator />}
     </div>
 );
 
@@ -146,7 +150,27 @@ const FaqForm = ({ content, onContentChange }: { content: any, onContentChange: 
     )
 }
 
-// Placeholder for other forms
+const isSectionDynamic = (sectionId: string) => {
+    const dynamicSections = ['inbox', 'pricing', 'pricing-comparison', 'blog', 'contact-form'];
+    return dynamicSections.includes(sectionId);
+}
+
+// Form for sections that are "dynamic" (e.g. pricing, blog) where only title/description is editable
+const DynamicSectionForm = ({ content, onContentChange, section }: { content: any, onContentChange: (data: any) => void, section: { id: string; name: string } }) => {
+    return (
+        <div className="space-y-4">
+            <TopContentFields 
+                title={content.title} 
+                description={content.description}
+                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
+                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+                isDynamic={true}
+            />
+             <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>
+        </div>
+    )
+}
+
 const GenericForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => (
      <div className="space-y-4">
         <TopContentFields 
@@ -160,26 +184,17 @@ const GenericForm = ({ content, onContentChange }: { content: any, onContentChan
 );
 
 
-const DynamicSectionForm = ({ section }: { section: { id: string; name: string, isDynamic?: boolean } }) => {
-    return (
-        <div className="space-y-4">
-             <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>
-        </div>
-    )
-}
-
 export function SectionContentDialog({ isOpen, onClose, section, pageId }: SectionContentDialogProps) {
   const [contentData, setContentData] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const contentId = section ? `${pageId}_${section.id}` : null;
-
   const contentRef = useMemoFirebase(() => {
-      if (!firestore || !contentId) return null;
-      return doc(firestore, 'page_content', contentId);
-  }, [firestore, contentId]);
+    if (!firestore || !section) return null;
+    // New Structure: /pages/{pageId}/sections/{sectionId}
+    return doc(firestore, 'pages', pageId, 'sections', section.id);
+  }, [firestore, pageId, section]);
 
   const { data: savedContent, isLoading: isLoadingContent } = useDoc(contentRef);
   
@@ -196,9 +211,9 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
 
 
   const handleSave = async () => {
-      if (!contentId || !contentData) return;
+      if (!contentRef || !contentData) return;
       setIsSaving(true);
-      const result = await saveContentAction(contentId, contentData);
+      const result = await saveContentAction(contentRef.path, contentData);
 
       if (result.success) {
           toast({
@@ -218,13 +233,13 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
   
   if (!section) return null;
 
-  const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
+  const renderFormForSection = (section: { id: string; name: string }) => {
     if (isLoadingContent || !contentData) {
         return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
     }
 
-    if (section.isDynamic) {
-        return <DynamicSectionForm section={section} />;
+    if (isSectionDynamic(section.id)) {
+        return <DynamicSectionForm section={section} content={contentData} onContentChange={setContentData} />;
     }
 
     switch (section.id) {
@@ -233,10 +248,8 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
         case 'exclusive-features':
             return <WhyForm content={contentData} onContentChange={setContentData} />;
         case 'comparison':
-             // Add a dedicated form if needed, for now uses generic
             return <GenericForm content={contentData} onContentChange={setContentData} />;
         case 'testimonials':
-             // Add a dedicated form if needed, for now uses generic
             return <GenericForm content={contentData} onContentChange={setContentData} />;
         case 'faq':
             return <FaqForm content={contentData} onContentChange={setContentData} />;
@@ -263,7 +276,7 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoadingContent || section.isDynamic}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingContent}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Content
           </Button>

@@ -1,30 +1,32 @@
 
 'use client';
+
 import { usePathname } from "next/navigation";
-import { FaqSection } from "@/components/faq-section";
-import { StayConnected } from "@/components/stay-connected";
+import { PageSection } from "@/components/page-section";
+
+const sectionsToShow: { [key: string]: string[] } = {
+    '/features': ['faq', 'newsletter'],
+    '/pricing': ['faq', 'newsletter'],
+    '/blog': ['faq', 'newsletter'],
+    '/api': ['faq', 'newsletter'],
+    '/contact': ['faq'],
+};
+
+const pageInfoMap: { [key: string]: { title: string, description: string } } = {
+    '/features': { title: 'Features', description: 'Everything you need for secure and private communication, from basic privacy to advanced developer tools.' },
+    '/pricing': { title: 'Pricing', description: 'Choose the plan that\'s right for you, with options for everyone from casual users to professional developers.' },
+    '/blog': { title: 'Blog', description: 'News, updates, and privacy tips from the Tempmailoz team.' },
+    '/api': { title: 'Developer API', description: 'Integrate Tempmailoz\'s powerful temporary email functionality directly into your applications with our simple and robust REST API.' },
+    '/contact': { title: 'Contact Us', description: 'Have questions or need support? We\'re here to help.' },
+};
 
 export function MainLayoutClient({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const isHomePage = pathname === '/';
-    const pageId = pathname.slice(1) || 'home';
+    const pageId = pathname.substring(1) || 'home';
 
-    const getPageTitleAndDescription = () => {
-        switch (pathname) {
-            case '/features':
-                return { title: 'Features', description: 'Everything you need for secure and private communication, from basic privacy to advanced developer tools.' };
-            case '/pricing':
-                return { title: 'Pricing', description: 'Choose the plan that\'s right for you, with options for everyone from casual users to professional developers.' };
-            case '/blog':
-                return { title: 'Blog', description: 'News, updates, and privacy tips from the Tempmailoz team.' };
-            case '/api':
-                return { title: 'Developer API', description: 'Integrate Tempmailoz\'s powerful temporary email functionality directly into your applications with our simple and robust REST API.' };
-            default:
-                return null;
-        }
-    }
-
-    const pageInfo = getPageTitleAndDescription();
+    const pageInfo = pageInfoMap[pathname];
+    const sections = sectionsToShow[pathname] || [];
 
     return (
         <>
@@ -40,10 +42,13 @@ export function MainLayoutClient({ children }: { children: React.ReactNode }) {
             {children}
             {!isHomePage && (
                 <>
-                    <FaqSection pageId={pageId} sectionId="faq" showTitle={true} />
-                    <StayConnected />
+                    {sections.map((sectionId, index) => (
+                         <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
+                    ))}
                 </>
             )}
         </>
     )
 }
+
+    

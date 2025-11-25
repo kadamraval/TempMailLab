@@ -5,61 +5,39 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, Loader2 } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
-import { useEffect } from "react";
-import { blogPosts as defaultItems } from "@/lib/content-data";
 
 interface BlogSectionProps {
   removeBorder?: boolean;
-  showTitle?: boolean;
-  pageId: string;
-  sectionId: string;
+  content: {
+    title: string;
+    items: {
+      title: string;
+      description: string;
+      image: string;
+      link: string;
+      date: string;
+    }[];
+  }
 }
 
-export function BlogSection({ removeBorder, showTitle = true, pageId, sectionId }: BlogSectionProps) {
-  const firestore = useFirestore();
-  const contentId = `${pageId}_${sectionId}`;
-  const contentRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'page_content', contentId);
-  }, [firestore, contentId]);
-
-  const { data: content, isLoading, error } = useDoc(contentRef);
+export function BlogSection({ removeBorder, content }: BlogSectionProps) {
   
-  useEffect(() => {
-    if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "From the Blog", description: "", items: defaultItems };
-      setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
-    }
-  }, [isLoading, content, error, firestore, contentId]);
-  
-  if (isLoading) {
-    return (
-        <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    )
-  }
-
-  const currentContent = content || { title: "From the Blog", items: defaultItems };
-
-  if (!currentContent || !currentContent.items) {
+  if (!content || !content.items) {
     return null;
   }
   
   return (
     <section id="blog">
       <div className="container mx-auto px-4">
-        {showTitle && (
+        {content.title && (
             <div className="text-center space-y-4 mb-12">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{currentContent.title || "From the Blog"}</h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {currentContent.items.map((post: any) => (
+          {content.items.map((post: any) => (
             <Card key={post.title} className={cn("overflow-hidden flex flex-col", removeBorder ? "border-0" : "border")}>
               <Link href={post.link}>
                   <Image

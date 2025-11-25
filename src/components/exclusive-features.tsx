@@ -6,65 +6,39 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import imageData from '@/app/lib/placeholder-images.json';
 import { cn } from "@/lib/utils";
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import { exclusiveFeatures as defaultItems } from "@/lib/content-data";
 
 interface ExclusiveFeaturesProps {
   removeBorder?: boolean;
-  showTitle?: boolean;
-  pageId: string;
-  sectionId: string;
+  content: {
+    title: string;
+    items: {
+      iconName: string;
+      title: string;
+      description: string;
+    }[];
+  }
 }
 
-export const ExclusiveFeatures = ({ removeBorder, showTitle = true, pageId, sectionId }: ExclusiveFeaturesProps) => {
-  const firestore = useFirestore();
-  const contentId = `${pageId}_${sectionId}`;
-  const contentRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'page_content', contentId);
-  }, [firestore, contentId]);
+export const ExclusiveFeatures = ({ removeBorder, content }: ExclusiveFeaturesProps) => {
 
-  const { data: content, isLoading, error } = useDoc(contentRef);
-  
-  useEffect(() => {
-    if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: defaultItems };
-      setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
-    }
-  }, [isLoading, content, error, firestore, contentId]);
-
-  if (isLoading) {
-    return (
-        <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    )
-  }
-
-  const currentContent = content || { title: "Exclusive Features", items: defaultItems };
-
-  if (!currentContent || !currentContent.items) {
-    return null; // Or some placeholder
+  if (!content || !content.items) {
+    return null;
   }
 
   return (
     <section id="exclusive-features">
          <div className="container mx-auto px-4">
-            {showTitle && (
+            {content.title && (
               <div className="text-center space-y-4 mb-12">
                   <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                      {currentContent.title || "Exclusive Features"}
+                      {content.title}
                   </h2>
               </div>
             )}
             
             <div className="space-y-8">
-              {currentContent.items.map((feature: any, index: number) => {
+              {content.items.map((feature: any, index: number) => {
                 const Icon = (LucideIcons as any)[feature.iconName] || LucideIcons.HelpCircle;
-                // Match image data from placeholder JSON
                 const image = imageData.exclusiveFeatures[index] || imageData.exclusiveFeatures[0];
                 return (
                     <motion.div

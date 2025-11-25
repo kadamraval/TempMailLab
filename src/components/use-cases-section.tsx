@@ -4,66 +4,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import * as LucideIcons from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
-import { useEffect }from "react";
-import { useCases as defaultItems } from "@/lib/content-data";
 
 interface UseCasesSectionProps {
   removeBorder?: boolean;
-  showTitle?: boolean;
-  pageId: string;
-  sectionId: string;
+  content: {
+    title: string;
+    items: {
+      iconName: string;
+      title: string;
+      description: string;
+    }[];
+  }
 }
 
-export function UseCasesSection({ removeBorder, showTitle = true, pageId, sectionId }: UseCasesSectionProps) {
-  const firestore = useFirestore();
-  const contentId = `${pageId}_${sectionId}`;
-  const contentRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'page_content', contentId);
-  }, [firestore, contentId]);
-
-  const { data: content, isLoading, error } = useDoc(contentRef);
+export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps) {
   
-  useEffect(() => {
-      if (!isLoading && !content && !error && firestore) {
-          const defaultData = { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: defaultItems };
-          setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
-      }
-  }, [isLoading, content, error, firestore, contentId]);
-  
-  if (isLoading) {
-    return (
-        <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    )
-  }
-  
-  const currentContent = content || { title: "Why Temp Mail?", items: defaultItems };
-
-  if (!currentContent || !currentContent.items) {
-    return (
-        <div className="text-center py-16">
-            <h2 className="text-2xl font-bold text-muted-foreground">Loading Content...</h2>
-        </div>
-    );
+  if (!content || !content.items) {
+    return null;
   }
 
   return (
     <section id="use-cases">
       <div className="container mx-auto px-4">
-        {showTitle && (
+        {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                    {currentContent.title || "Why Temp Mail?"}
+                    {content.title}
                 </h2>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {currentContent.items.map((useCase: any) => {
+          {content.items.map((useCase: any) => {
             const Icon = (LucideIcons as any)[useCase.iconName] || LucideIcons.HelpCircle;
             return (
               <Card key={useCase.title} className={cn("bg-background text-center", removeBorder && "border-0")}>

@@ -3,20 +3,28 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
+import { FieldValue } from 'firebase-admin/firestore';
 
 /**
  * Saves or updates content for a specific section in Firestore.
- * @param sectionId The unique identifier for the content section (e.g., 'faq', 'features').
+ * @param fullPath The full path to the document (e.g., 'pages/home/sections/faq').
  * @param data The content data object to save.
  */
-export async function saveContentAction(sectionId: string, data: any) {
-    if (!sectionId || !data) {
-        return { success: false, error: 'Section ID and data are required.' };
+export async function saveContentAction(fullPath: string, data: any) {
+    if (!fullPath || !data) {
+        return { success: false, error: 'Document path and data are required.' };
     }
 
     try {
         const firestore = getAdminFirestore();
-        const contentRef = firestore.collection('page_content').doc(sectionId);
+        const contentRef = firestore.doc(fullPath);
+        
+        // Ensure 'createdAt' is set only on document creation
+        const docSnap = await contentRef.get();
+        if (!docSnap.exists) {
+            data.createdAt = FieldValue.serverTimestamp();
+        }
+        data.updatedAt = FieldValue.serverTimestamp();
         
         // Use set with merge to create or update the document.
         await contentRef.set(data, { merge: true });
@@ -34,22 +42,24 @@ export async function saveContentAction(sectionId: string, data: any) {
 
 /**
  * Saves or updates a style override for a specific page-section combination.
- * @param overrideId The unique ID for the override (e.g., 'home_faq').
+ * @param fullPath The full path to the style document (e.g., 'pages/home/sections/faq_styles').
  * @param styles The CSS style object to save.
  */
-export async function saveStyleOverrideAction(overrideId: string, styles: any) {
-    if (!overrideId || !styles) {
-        return { success: false, error: 'Override ID and styles are required.' };
+export async function saveStyleOverrideAction(fullPath: string, styles: any) {
+    if (!fullPath || !styles) {
+        return { success: false, error: 'Document path and styles are required.' };
     }
 
     try {
         const firestore = getAdminFirestore();
-        const styleRef = firestore.collection('page_style_overrides').doc(overrideId);
+        const styleRef = firestore.doc(fullPath);
         
         await styleRef.set(styles, { merge: true });
 
         // Revalidate the specific page layout where the change was made
-        const pageId = overrideId.split('_')[0];
+        const pathSegments = fullPath.split('/');
+        const pageId = pathSegments[1]; // Assumes path is 'pages/{pageId}/...'
+
         if (pageId === 'home') {
             revalidatePath('/');
         } else {

@@ -21,6 +21,7 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { saveStyleOverrideAction } from '@/lib/actions/content';
 
+// These are now just for providing defaults if NO override exists
 const sectionDefaultStyles: { [key: string]: any } = {
     "inbox": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
     "top-title": { bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 },
@@ -115,11 +116,11 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   const [isSaving, setIsSaving] = useState(false);
   const firestore = useFirestore();
 
-  const overrideId = section ? `${pageId}_${section.id}` : null;
   const styleOverrideRef = useMemoFirebase(() => {
-      if (!firestore || !overrideId) return null;
-      return doc(firestore, 'page_style_overrides', overrideId);
-  }, [firestore, overrideId]);
+    if (!firestore || !section) return null;
+    // New structure: /pages/{pageId}/sections/{sectionId}_styles
+    return doc(firestore, 'pages', pageId, 'sections', `${section.id}_styles`);
+  }, [firestore, pageId, section]);
 
   const { data: savedStyles, isLoading: isLoadingStyles } = useDoc(styleOverrideRef);
 
@@ -147,9 +148,9 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   };
 
   const handleSaveOverride = async () => {
-    if (!overrideId) return;
+    if (!styleOverrideRef) return;
     setIsSaving(true);
-    const result = await saveStyleOverrideAction(overrideId, styles);
+    const result = await saveStyleOverrideAction(styleOverrideRef.path, styles);
 
     if (result.success) {
         toast({
@@ -260,3 +261,5 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
     </Dialog>
   );
 }
+
+    

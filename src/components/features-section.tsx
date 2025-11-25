@@ -3,63 +3,34 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import * as LucideIcons from "lucide-react"
-import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc, setDoc } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import { features as defaultItems } from "@/lib/content-data";
 
 interface FeaturesSectionProps {
-  showTitle?: boolean;
-  pageId: string;
-  sectionId: string;
+  content: {
+    title: string;
+    items: {
+      iconName: string;
+      title: string;
+      description: string;
+    }[];
+  }
 }
 
-export function FeaturesSection({ showTitle = true, pageId, sectionId }: FeaturesSectionProps) {
-  const firestore = useFirestore();
-  const contentId = `${pageId}_${sectionId}`;
-  const contentRef = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return doc(firestore, 'page_content', contentId);
-  }, [firestore, contentId]);
+export function FeaturesSection({ content }: FeaturesSectionProps) {
 
-  const { data: content, isLoading, error } = useDoc(contentRef);
-  
-  useEffect(() => {
-    if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "Features", description: "Discover the powerful features that make our service unique.", items: defaultItems };
-      setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
-    }
-  }, [isLoading, content, error, firestore, contentId]);
-
-  if (isLoading) {
-    return (
-        <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    )
-  }
-
-  const currentContent = content || { title: "Features", items: defaultItems };
-
-  if (!currentContent || !currentContent.items) {
-     return (
-        <div className="text-center py-16">
-            <h2 className="text-2xl font-bold text-muted-foreground">Loading Content...</h2>
-        </div>
-    );
+  if (!content || !content.items) {
+     return null;
   }
   
   return (
     <section id="features">
       <div className="container mx-auto px-4">
-        {showTitle && (
+        {content.title && (
             <div className="text-center space-y-4 mb-12">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{currentContent.title || "Features"}</h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {currentContent.items.map((feature: any) => {
+          {content.items.map((feature: any) => {
             const Icon = (LucideIcons as any)[feature.iconName] || LucideIcons.HelpCircle;
             return (
               <Card key={feature.title} className="border bg-background">
