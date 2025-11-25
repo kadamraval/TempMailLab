@@ -62,33 +62,45 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
     }
 }
 
+// Sensible, complete default styles for any section
+const fallbackSectionStyles = {
+    marginTop: 0, 
+    marginBottom: 0, 
+    paddingTop: 64, 
+    paddingBottom: 64, 
+    paddingLeft: 16, 
+    paddingRight: 16,
+    borderTopWidth: 0, 
+    borderBottomWidth: 0, 
+    borderTopColor: 'hsl(var(--border))', 
+    borderBottomColor: 'hsl(var(--border))',
+    bgColor: 'hsl(var(--background))', 
+    useGradient: false, 
+    gradientStart: 'hsl(var(--background))', 
+    gradientEnd: 'hsl(var(--accent))'
+};
+
 export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
   const firestore = useFirestore();
 
   // --- DATA FETCHING ---
-  // Path: /pages/{pageId}/sections/{sectionId}
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'pages', pageId, 'sections', sectionId);
   }, [firestore, pageId, sectionId]);
 
-  // --- STYLE FETCHING (3-Tier Logic) ---
-  // Tier 2: Get the GLOBAL DEFAULT style for this section TYPE
-  // Path: /sections/{sectionId}
   const defaultStyleRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'sections', sectionId);
   }, [firestore, sectionId]);
 
-  // Tier 3: Get the PAGE-SPECIFIC style override
-  // Path: /pages/{pageId}/sections/{sectionId}_styles
   const styleOverrideRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`);
   }, [firestore, pageId, sectionId]);
 
   const { data: content, isLoading: isLoadingContent, error: contentError } = useDoc(contentRef);
-  const { data: defaultStyle, isLoading: isLoadingDefaultStyle } = useDoc(defaultStyleRef);
+  const { data: defaultStyle, isLoading: isLoadingDefaultStyle, error: defaultStyleError } = useDoc(defaultStyleRef);
   const { data: styleOverride, isLoading: isLoadingStyleOverride } = useDoc(styleOverrideRef);
   
   const plansQuery = useMemoFirebase(() => {
@@ -98,7 +110,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   
   const { data: plans } = useCollection<Plan>(plansQuery);
 
-  // Self-seeding logic for content
+  // Self-seeding for content
   React.useEffect(() => {
     if (!isLoadingContent && !content && !contentError && contentRef) {
       const defaultContent = getDefaultContent(pageId, sectionId);
@@ -107,12 +119,22 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
       }
     }
   }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
+  
+  // SELF-SEEDING FOR STYLES
+  React.useEffect(() => {
+      if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
+          // If the global default style doc doesn't exist, create it with the fallback styles.
+          setDoc(defaultStyleRef, fallbackSectionStyles).catch(console.error);
+      }
+  }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef]);
+
 
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
 
-  if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
-    // Only show loader if it's the inbox section, otherwise render nothing to avoid layout shifts
+  const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
+  
+  if (isLoading) {
     if (sectionId === 'inbox') {
         return (
           <div className="flex items-center justify-center min-h-[400px]">
@@ -124,7 +146,8 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   }
 
   // --- APPLY STYLING CASCADE ---
-  const finalStyles = { ...(defaultStyle || {}), ...(styleOverride || {}) };
+  // Start with hardcoded fallbacks, merge in global defaults, then merge in specific overrides
+  const finalStyles = { ...fallbackSectionStyles, ...(defaultStyle || {}), ...(styleOverride || {}) };
 
   const styleProps: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
@@ -144,7 +167,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     removeBorder: !finalStyles.borderTopWidth && !finalStyles.borderBottomWidth,
   };
   
-  // Add plans only to the components that need it
   if (['pricing', 'pricing-comparison'].includes(sectionId)) {
     componentProps.plans = plans;
   }
