@@ -18,7 +18,8 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
     
-    const headers = ['delivered-to', 'x-original-to'];
+    // Check common headers for the original recipient
+    const headers = ['delivered-to', 'x-original-to', 'envelope-to'];
     for (const header of headers) {
         if (parsedEmail.headers.has(header)) {
              const headerValue = parsedEmail.headers.get(header);
@@ -35,13 +36,15 @@ export async function POST(req: NextRequest) {
         const inboundSettings = await getSetting(db, 'inbound-new');
         
         if (!inboundSettings?.enabled) {
+            console.log("Webhook skipped: inbound.new integration is disabled.");
             return NextResponse.json({ message: 'Inbound webhook is not enabled.' }, { status: 403 });
         }
 
-        // Security Check: Only validate if header name and value are configured.
+        // Security Check: Only validate if both header name and value are configured.
         if (inboundSettings.headerName && inboundSettings.headerValue) {
             const receivedSecret = req.headers.get(inboundSettings.headerName.toLowerCase());
             if (receivedSecret !== inboundSettings.headerValue) {
+                 console.warn("Webhook unauthorized: Invalid secret.");
                 return NextResponse.json({ message: 'Unauthorized: Invalid secret.' }, { status: 401 });
             }
         }
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
         const recipientEmail = getRecipientAddress(parsedEmail);
 
         if (!recipientEmail) {
-            console.error("Failed to determine recipient from parsed email:", parsedEmail);
+            console.error("Failed to determine recipient from parsed email. Headers:", parsedEmail.headers);
             return NextResponse.json({ message: 'Bad Request: Recipient address could not be determined.' }, { status: 400 });
         }
 
@@ -60,6 +63,7 @@ export async function POST(req: NextRequest) {
         const inboxSnapshot = await inboxQuery.get();
 
         if (inboxSnapshot.empty) {
+            console.log(`Webhook OK: Inbox for ${recipientEmail} does not exist, message discarded.`);
             return NextResponse.json({ message: `OK: Inbox for ${recipientEmail} does not exist, message discarded.` }, { status: 200 });
         }
         
@@ -84,7 +88,7 @@ export async function POST(req: NextRequest) {
                 filename: att.filename,
                 contentType: att.contentType,
                 size: att.size,
-                url: '', 
+                url: '', // Placeholder for future implementation
             }));
         }
 
@@ -94,6 +98,7 @@ export async function POST(req: NextRequest) {
             transaction.update(inboxDoc.ref, { emailCount: FieldValue.increment(1) });
         });
 
+        console.log(`Email successfully processed for inbox ${inboxDoc.id}`);
         return NextResponse.json({ message: 'Email processed successfully' }, { status: 200 });
 
     } catch (error: any) {

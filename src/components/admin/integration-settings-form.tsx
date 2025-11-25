@@ -88,7 +88,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         setVerificationStatus('idle');
         
         try {
-            // Ensure enabled is explicitly true when saving.
             const settingsToSave = { ...settings, enabled: true };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -98,7 +97,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 description: `${integration.title} configuration has been successfully saved.`,
             });
             
-            // Re-fetch data on the integrations page after saving.
             router.refresh(); 
             router.push('/admin/settings/integrations');
 
@@ -151,14 +149,17 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         <p className="text-xs mt-1">Example: `https://your-app.com{settings.webhookPath}`</p>
                                     </li>
                                     <li>
-                                        Optionally, for added security, you can configure custom headers in `inbound.new` and save the matching `Header Name` and `Header Value` below.
+                                        Enter your `inbound.new` API Key below if required by the service for certain operations.
+                                    </li>
+                                    <li>
+                                        Optionally, for added webhook security, configure custom headers in `inbound.new` and save the matching `Header Name` and `Header Value` below.
                                     </li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="webhookPath">Your Webhook URL Path</Label>
+                         <div className="space-y-2">
+                            <Label htmlFor="webhookPath">Your Webhook URL Path (Read-only)</Label>
                             <div className="flex items-center gap-2">
                                 <Input id="webhookPath" readOnly value={settings.webhookPath || ''} className="bg-muted font-mono" />
                                 <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.webhookPath, 'Webhook Path')}>
@@ -167,19 +168,21 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </div>
                         </div>
 
+                        <div className="space-y-2">
+                            <Label htmlFor="apiKey">API Key (Optional)</Label>
+                            <Input id="apiKey" type="password" placeholder="Enter your inbound.new API Key" value={settings.apiKey || ''} onChange={handleInputChange} />
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="headerName">Header Name (Optional)</Label>
+                                <Label htmlFor="headerName">Webhook Header Name (Optional)</Label>
                                 <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="headerValue">Header Value / Secret (Optional)</Label>
+                                <Label htmlFor="headerValue">Webhook Header Value (Optional)</Label>
                                 <div className="flex items-center gap-2">
                                     <Input id="headerValue" type="password" placeholder="Enter your secret" value={settings.headerValue || ''} onChange={handleInputChange} />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.headerValue, 'Webhook Secret')}>
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                     <TooltipProvider>
+                                    <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -220,7 +223,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
-                    <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+                    <Button variant="outline" onClick={handleCancel} disabled={isSaving}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaveDisabled}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
