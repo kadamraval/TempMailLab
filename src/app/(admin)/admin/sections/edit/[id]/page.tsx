@@ -67,32 +67,87 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
 };
 
 const sectionDetails: { [key: string]: { name: string, defaultStyles: any } } = {
-    "inbox": { name: "Inbox", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "top-title": { name: "Top Title", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 0, paddingBottom: 0, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "why": { name: "Why", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "inbox": { name: "Inbox", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "top-title": { name: "Top Title", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 0, paddingBottom: 0, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "why": { name: "Why", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
     "features": { name: "Features", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-end) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "exclusive-features": { name: "Exclusive Features", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "exclusive-features": { name: "Exclusive Features", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
     "comparison": { name: "Comparison", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-end) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "pricing": { name: "Pricing", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "pricing": { name: "Pricing", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
     "pricing-comparison": { name: "Price Comparison", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-end) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "blog": { name: "Blog", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "blog": { name: "Blog", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
     "testimonials": { name: "Testimonials", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-end) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "faq": { name: "FAQ", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "faq": { name: "FAQ", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
     "newsletter": { name: "Newsletter", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-end) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "contact-form": { name: "Contact", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
-    "knowledgebase": { name: "Knowledgebase", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "contact-form": { name: "Contact", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "knowledgebase": { name: "Knowledgebase", defaultStyles: { bgColor: 'hsla(var(--background))', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start) / 0.3)', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
 };
 
-const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => (
-    <div className="space-y-2">
-        <Label>{label}</Label>
-        <div className="flex items-center gap-2">
-            <Input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-12 p-1" />
-            <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="font-mono" />
-        </div>
-    </div>
-);
+const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // This function will convert hex with alpha to rgba for the state
+        const hex = e.target.value; // Format is #RRGGBBAA
+        if (/^#([0-9A-Fa-f]{8})$/.test(hex)) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            const a = parseInt(hex.slice(7, 9), 16) / 255;
+            onChange(`rgba(${r},${g},${b},${a.toFixed(2)})`);
+        }
+    };
 
+    const colorPickerValue = useMemo(() => {
+        // This function converts rgba back to hex for the color picker
+        const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (match) {
+            const [, r, g, b, a = '1'] = match;
+            const toHex = (c: string) => parseInt(c).toString(16).padStart(2, '0');
+            const alphaHex = Math.round(parseFloat(a) * 255).toString(16).padStart(2, '0');
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
+        }
+        return '#000000ff'; // Fallback
+    }, [value]);
+
+
+    return (
+        <div className="space-y-2">
+            <Label>{label}</Label>
+            <div className="flex items-center gap-2">
+                <Input
+                    type="color"
+                    value={colorPickerValue.slice(0, 7)} // Picker doesn't use alpha
+                    onChange={(e) => {
+                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${parseFloat(value.split(',')[3] || '1')})`;
+                        onChange(newRgba);
+                    }}
+                    className="h-10 w-12 p-1"
+                />
+                 <Input
+                    type="text"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="font-mono"
+                />
+            </div>
+             <div className="flex items-center gap-2">
+                <Label className="text-xs">Opacity</Label>
+                <Input 
+                    type="range" 
+                    min="0" 
+                    max="1" 
+                    step="0.05"
+                    value={value.match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
+                    onChange={(e) => {
+                        const newAlpha = e.target.value;
+                        const oldColor = value.replace(/rgba?/, '').replace(')', '');
+                        const [r,g,b] = oldColor.split(',');
+                         onChange(`rgba(${r},${g},${b}, ${newAlpha})`);
+                    }}
+                />
+            </div>
+        </div>
+    );
+};
 const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom' | 'Left' | 'Right', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
     const lowerSide = side.toLowerCase();
     return (
@@ -200,15 +255,15 @@ export default function EditSectionPage() {
                                 </div>
                                 {useBackground && (
                                     <div className="space-y-4">
-                                        <ColorInput label="Background Color" value={styles.bgColor || '#FFFFFF'} onChange={(value) => handleStyleChange('bgColor', value)} />
+                                        <ColorInput label="Background Color" value={styles.bgColor || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('bgColor', value)} />
                                         <div className="flex items-center justify-between">
                                             <Label htmlFor="use-gradient">Use Gradient</Label>
                                             <Switch id="use-gradient" checked={styles.useGradient} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
                                         </div>
                                         {styles.useGradient && (
                                             <>
-                                                <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart || '#FFFFFF'} onChange={(value) => handleStyleChange('gradientStart', value)} />
-                                                <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd || '#F0F8FF'} onChange={(value) => handleStyleChange('gradientEnd', value)} />
+                                                <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('gradientStart', value)} />
+                                                <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd || 'rgba(240,248,255,1)'} onChange={(value) => handleStyleChange('gradientEnd', value)} />
                                             </>
                                         )}
                                     </div>
@@ -262,7 +317,5 @@ export default function EditSectionPage() {
         </div>
     );
 }
-
-    
 
     
