@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import {
   Breadcrumb,
@@ -14,7 +14,7 @@ import {
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Brush, FileText, EyeOff, Trash2, GripVertical, PlusCircle } from 'lucide-react';
+import { Brush, FileText, EyeOff, Trash2, GripVertical, PlusCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SectionStyleDialog } from './section-style-dialog';
 import { Label } from '@/components/ui/label';
@@ -23,73 +23,87 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SectionContentDialog } from './section-content-dialog';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import type { Plan } from '@/app/(admin)/admin/packages/data';
+
+// Import all section components for preview
+import { UseCasesSection } from '@/components/use-cases-section';
+import { FeaturesSection } from '@/components/features-section';
+import { ExclusiveFeatures } from '@/components/exclusive-features';
+import { ComparisonSection } from '@/components/comparison-section';
+import { PricingSection } from '@/components/pricing-section';
+import { PricingComparisonTable } from '@/components/pricing-comparison-table';
+import { BlogSection } from '@/components/blog-section';
+import { Testimonials } from '@/components/testimonials';
+import { FaqSection } from '@/components/faq-section';
+import { StayConnected } from '@/components/stay-connected';
+import ContactPage from '@/app/(main)/contact/page';
+import { DashboardClient } from '@/components/dashboard-client';
+
 
 const pageData: { [key: string]: any } = {
   home: {
     name: "Home Page",
     sections: [
-      { id: "inbox", name: "Inbox", isDynamic: true },
-      { id: "why", name: "Why", isDynamic: false },
-      { id: "features", name: "Features", isDynamic: false },
-      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false },
-      { id: "comparison", name: "Comparison", isDynamic: false },
-      { id: "pricing", name: "Pricing", isDynamic: true },
-      { id: "blog", name: "Blog", isDynamic: true },
-      { id: "testimonials", name: "Testimonials", isDynamic: false },
-      { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: true },
+      { id: "inbox", name: "Inbox", isDynamic: true, component: DashboardClient },
+      { id: "why", name: "Why", isDynamic: false, component: UseCasesSection },
+      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection },
+      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures },
+      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection },
+      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection },
+      { id: "blog", name: "Blog", isDynamic: true, component: BlogSection },
+      { id: "testimonials", name: "Testimonials", isDynamic: false, component: Testimonials },
+      { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+      { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
     ]
   },
   "features-page": {
     name: "Features",
     sections: [
-      { id: "top-title", name: "Top Title", isDynamic: false },
-      { id: "features", name: "Features", isDynamic: false },
-      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false },
-      { id: "comparison", name: "Comparison", isDynamic: false },
-      { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: true },
+      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection },
+      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures },
+      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection },
+      { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+      { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
     ],
   },
   "pricing-page": {
     name: "Pricing",
     sections: [
-      { id: "top-title", name: "Top Title", isDynamic: false },
-      { id: "pricing", name: "Pricing", isDynamic: true },
-      { id: "pricing-comparison", name: "Price Comparison", isDynamic: true },
-      { id: "faq", name: "FAQ", isDynamic: false },
-      { id: "newsletter", name: "Newsletter", isDynamic: true },
+      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection },
+      { id: "pricing-comparison", name: "Price Comparison", isDynamic: true, component: PricingComparisonTable },
+      { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+      { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
     ],
   },
   "blog-page": {
       name: "Blog",
       sections: [
-        { id: "top-title", name: "Top Title", isDynamic: false },
-        { id: "blog", name: "Blog", isDynamic: true },
-        { id: "faq", name: "FAQ", isDynamic: false },
-        { id: "newsletter", name: "Newsletter", isDynamic: true },
+        { id: "blog", name: "Blog", isDynamic: true, component: BlogSection },
+        { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+        { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
       ]
   },
   "api-page": {
       name: "API",
       sections: [
-        { id: "top-title", name: "Top Title", isDynamic: false },
-        { id: "faq", name: "FAQ", isDynamic: false },
-        { id: "newsletter", name: "Newsletter", isDynamic: true },
+        { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+        { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
       ]
   },
   "about": { name: "About Us", sections: [] },
   "contact": { 
     name: "Contact Us", 
     sections: [
-        { id: "contact-form", name: "Contact", isDynamic: true },
-        { id: "faq", name: "FAQ", isDynamic: false },
+        { id: "contact-form", name: "Contact", isDynamic: true, component: ContactPage },
+        { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
     ]
   },
   "faq-page": { 
       name: "FAQ", 
       sections: [
-        { id: "faq", name: "FAQ", isDynamic: false },
+        { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
       ]
   },
   "terms": { name: "Terms of Service", sections: [] },
@@ -104,7 +118,16 @@ export default function EditPageLayout() {
 
   const [editingStyleSection, setEditingStyleSection] = useState<any | null>(null);
   const [editingContentSection, setEditingContentSection] = useState<any | null>(null);
+  
+  const firestore = useFirestore();
 
+  const plansQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "plans"), where("status", "==", "active"));
+  }, [firestore]);
+
+  const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
+  
   if (!currentPage) {
     return notFound();
   }
@@ -125,6 +148,15 @@ export default function EditPageLayout() {
     setEditingContentSection(null);
   };
 
+  const getSectionProps = (sectionId: string) => {
+      switch (sectionId) {
+          case 'pricing':
+          case 'pricing-comparison':
+              return { plans: plans || [], showTitle: false };
+          default:
+              return { showTitle: false };
+      }
+  }
 
   return (
     <>
@@ -152,55 +184,60 @@ export default function EditPageLayout() {
               Add Section
             </Button>
           </div>
-
-          <TooltipProvider>
-            <div className="space-y-4">
-              {currentPage.sections.map((section: any) => (
-                <Card key={section.id}>
-                  <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
-                       <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                       <CardTitle className="text-base font-medium">{section.name}</CardTitle>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" onClick={() => handleEditStyle(section)}>
-                            <Brush className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Edit Section Styles</p></TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" onClick={() => handleEditContent(section)}>
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Edit Content</p></TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <EyeOff className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Hide Section</p></TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent><p>Remove Section</p></TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
+          {isLoadingPlans ? (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+                <div className="space-y-4">
+                {currentPage.sections.map((section: any) => (
+                    <Card key={section.id}>
+                    <CardHeader className="flex flex-row items-center justify-between p-4">
+                        <div className="flex items-center gap-4">
+                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                        <CardTitle className="text-base font-medium">{section.name}</CardTitle>
+                        </div>
+                        <div className="flex items-center gap-1">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditStyle(section)}>
+                                <Brush className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Edit Section Styles</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditContent(section)}>
+                                <FileText className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Edit Content</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <EyeOff className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Hide Section</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Remove Section</p></TooltipContent>
+                        </Tooltip>
+                        </div>
+                    </CardHeader>
+                    </Card>
+                ))}
+                </div>
+            </TooltipProvider>
+          )}
         </div>
 
         <div className="lg:col-span-1 space-y-6">
@@ -306,3 +343,5 @@ export default function EditPageLayout() {
     </>
   );
 }
+
+    
