@@ -33,8 +33,15 @@ service cloud.firestore {
       // Allow any authenticated user (including anonymous) to create an inbox for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Allow a user to read, update, or delete an inbox if they are the owner.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow a user to read, or delete an inbox if they are the owner.
+      // Updates are now handled by the secure webhook.
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Allow updates only from our secure backend (which bypasses these rules),
+      // or allow the user to update specific, safe fields if needed in the future.
+      // For now, we block client-side updates to things like emailCount.
+      allow update: if false;
+
 
       // Secure list operation: only allow querying for one's own inboxes.
       allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
