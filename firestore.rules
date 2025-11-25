@@ -30,7 +30,7 @@ service cloud.firestore {
     
     // --- Inboxes & Emails ---
     match /inboxes/{inboxId} {
-      // Allow any authenticated user (including anonymous) to create an inbox.
+      // Allow any authenticated user (including anonymous) to create an inbox for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the owner.
@@ -41,9 +41,10 @@ service cloud.firestore {
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow public webhook creation or server-side creation. 
+        // Allow public webhook creation.
         // This rule is intentionally broad for our server-side code (webhook/actions).
-        // The server-side logic provides the necessary security (e.g., secret key validation).
+        // The server-side logic provides the necessary security (e.g., secret key validation),
+        // and admin credentials bypass these rules anyway.
         allow create: if true;
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
