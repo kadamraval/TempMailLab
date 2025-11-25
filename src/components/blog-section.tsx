@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,13 +12,20 @@ import { doc, setDoc } from "firebase/firestore";
 import { useEffect } from "react";
 import { blogPosts as defaultContent } from "@/lib/content-data";
 
-export function BlogSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
+interface BlogSectionProps {
+  removeBorder?: boolean;
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
+
+export function BlogSection({ removeBorder, showTitle = true, pageId, sectionId }: BlogSectionProps) {
   const firestore = useFirestore();
-  const contentId = 'blog';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -26,7 +34,7 @@ export function BlogSection({ removeBorder, showTitle = true }: { removeBorder?:
       const defaultData = { title: "From the Blog", description: "", items: defaultContent };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
   
   if (isLoading) {
     return (

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,13 +9,19 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { features as defaultContent } from "@/lib/content-data";
 
-export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
+interface FeaturesSectionProps {
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
+
+export function FeaturesSection({ showTitle = true, pageId, sectionId }: FeaturesSectionProps) {
   const firestore = useFirestore();
-  const contentId = 'features';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
       if (!firestore) return null;
       return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -23,7 +30,7 @@ export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
       const defaultData = { title: "Features", description: "Discover the powerful features that make our service unique.", items: defaultContent };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
 
   if (isLoading) {
     return (

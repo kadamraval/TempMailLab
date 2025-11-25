@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -14,17 +15,22 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { testimonials as defaultContent } from "@/lib/content-data";
 
-export function Testimonials() {
+interface TestimonialsProps {
+  pageId: string;
+  sectionId: string;
+}
+
+export function Testimonials({ pageId, sectionId }: TestimonialsProps) {
   const plugin = React.useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true })
   )
 
   const firestore = useFirestore();
-  const contentId = 'testimonials';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -33,7 +39,7 @@ export function Testimonials() {
       const defaultData = { title: "What Our Users Say", description: "", items: defaultContent };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
   
   if (isLoading) {
     return (

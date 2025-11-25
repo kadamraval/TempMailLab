@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,13 +11,20 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { comparisonFeatures as defaultContent } from "@/lib/content-data";
 
-export function ComparisonSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
+interface ComparisonSectionProps {
+  removeBorder?: boolean;
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
+
+export function ComparisonSection({ removeBorder, showTitle = true, pageId, sectionId }: ComparisonSectionProps) {
   const firestore = useFirestore();
-  const contentId = 'comparison';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -25,7 +33,7 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
       const defaultData = { title: "Tempmailoz Vs Others", description: "", items: defaultContent };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
   
   if (isLoading) {
     return (

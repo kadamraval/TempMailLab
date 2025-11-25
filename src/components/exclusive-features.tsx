@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as LucideIcons from "lucide-react";
@@ -11,14 +12,20 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { exclusiveFeatures as defaultContent } from "@/lib/content-data";
 
+interface ExclusiveFeaturesProps {
+  removeBorder?: boolean;
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
 
-export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) => {
+export const ExclusiveFeatures = ({ removeBorder, showTitle = true, pageId, sectionId }: ExclusiveFeaturesProps) => {
   const firestore = useFirestore();
-  const contentId = 'exclusive-features';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -27,7 +34,7 @@ export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) 
       const defaultData = { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: defaultContent };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
 
   if (isLoading) {
     return (
@@ -46,11 +53,13 @@ export const ExclusiveFeatures = ({ removeBorder }: { removeBorder?: boolean }) 
   return (
     <section id="exclusive-features">
          <div className="container mx-auto px-4">
-            <div className="text-center space-y-4 mb-12">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                    {currentContent.title || "Exclusive Features"}
-                </h2>
-            </div>
+            {showTitle && (
+              <div className="text-center space-y-4 mb-12">
+                  <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                      {currentContent.title || "Exclusive Features"}
+                  </h2>
+              </div>
+            )}
             
             <div className="space-y-8">
               {currentContent.items.map((feature: any, index: number) => {

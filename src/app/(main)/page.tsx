@@ -41,13 +41,11 @@ const defaultStylesBase = {
 
 const sectionDefaultStyles: { [key: string]: any } = {
     "inbox": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
-    "top-title": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 },
     "why": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
     "features": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
     "exclusive-features": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
     "comparison": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
     "pricing": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
-    "pricing-comparison": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
     "blog": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
     "testimonials": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
     "faq": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)', paddingTop: 64, paddingBottom: 64 },
@@ -55,11 +53,11 @@ const sectionDefaultStyles: { [key: string]: any } = {
 };
 
 
-const SectionWrapper = ({ section, pageId, plans, children }: { section: {id: string, component?: React.ComponentType<any>, props?: any }, pageId: string, plans: Plan[], children?: React.ReactNode }) => {
+const SectionWrapper = ({ sectionId, pageId, plans, children, component: Component, props: componentProps }: { sectionId: string, pageId: string, plans: Plan[], children?: React.ReactNode, component?: React.ComponentType<any>, props?: any }) => {
     const firestore = useFirestore();
-    const defaultStyles = sectionDefaultStyles[section.id] || defaultStylesBase;
+    const defaultStyles = sectionDefaultStyles[sectionId] || defaultStylesBase;
     
-    const overrideId = `${pageId}_${section.id}`;
+    const overrideId = `${pageId}_${sectionId}`;
     const styleOverrideRef = useMemoFirebase(() => {
         if (!firestore) return null;
         return doc(firestore, 'page_style_overrides', overrideId);
@@ -88,14 +86,12 @@ const SectionWrapper = ({ section, pageId, plans, children }: { section: {id: st
         borderBottom: `${finalStyles.borderBottomWidth}px solid ${finalStyles.borderBottomColor}`,
     };
 
-    const props = section.id === 'pricing' ? { ...section.props, plans } : section.props;
-    
-    const Component = section.component;
+    const propsWithPlans = sectionId === 'pricing' ? { ...componentProps, plans } : componentProps;
 
     return (
-        <div id={section.id} className="z-10 relative" style={backgroundStyle}>
+        <div id={sectionId} className="z-10 relative" style={backgroundStyle}>
              <div style={{ paddingLeft: `${finalStyles.paddingLeft}px`, paddingRight: `${finalStyles.paddingRight}px`}}>
-                {children || (Component ? <Component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} /> : null)}
+                {children || (Component ? <Component {...propsWithPlans} pageId={pageId} sectionId={sectionId} removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} /> : null)}
              </div>
         </div>
     )
@@ -104,6 +100,7 @@ const SectionWrapper = ({ section, pageId, plans, children }: { section: {id: st
 export default function HomePage() {
   const { isUserLoading } = useUser();
   const firestore = useFirestore();
+  const pageId = "home";
 
   const plansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -126,8 +123,8 @@ export default function HomePage() {
   return (
     <>
       <SectionWrapper
-          section={{ id: "inbox" }}
-          pageId="home"
+          sectionId="inbox"
+          pageId={pageId}
           plans={plans || []}
       >
         <div className="container mx-auto px-4">
@@ -149,9 +146,11 @@ export default function HomePage() {
       {sectionsConfig.map((section) => (
         <SectionWrapper 
             key={section.id}
-            section={section}
-            pageId="home"
+            sectionId={section.id}
+            pageId={pageId}
             plans={plans || []}
+            component={section.component}
+            props={section.props}
         />
       ))}
     </>

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,13 +10,20 @@ import { Loader2 } from "lucide-react";
 import { useEffect }from "react";
 import { useCases as defaultContent } from "@/lib/content-data";
 
-export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
+interface UseCasesSectionProps {
+  removeBorder?: boolean;
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
+
+export function UseCasesSection({ removeBorder, showTitle = true, pageId, sectionId }: UseCasesSectionProps) {
   const firestore = useFirestore();
-  const contentId = 'why';
+  const contentId = `${pageId}_${sectionId}`;
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'page_content', contentId);
-  }, [firestore]);
+  }, [firestore, contentId]);
 
   const { data: content, isLoading, error } = useDoc(contentRef);
   
@@ -24,7 +32,7 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
           const defaultData = { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: defaultContent };
           setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
       }
-  }, [isLoading, content, error, firestore]);
+  }, [isLoading, content, error, firestore, contentId]);
   
   if (isLoading) {
     return (
@@ -47,11 +55,13 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
     <section id="use-cases">
       <div className="container mx-auto px-4">
-        <div className="text-center space-y-4 mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            {currentContent.title || "Why Temp Mail?"}
-          </h2>
-        </div>
+        {showTitle && (
+            <div className="text-center space-y-4 mb-12">
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                    {currentContent.title || "Why Temp Mail?"}
+                </h2>
+            </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {currentContent.items.map((useCase: any) => {
             const Icon = (LucideIcons as any)[useCase.iconName] || LucideIcons.HelpCircle;

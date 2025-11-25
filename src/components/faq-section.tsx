@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -13,13 +14,20 @@ import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { faqs as defaultContent } from "@/lib/content-data";
 
-export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
+interface FaqSectionProps {
+  removeBorder?: boolean;
+  showTitle?: boolean;
+  pageId: string;
+  sectionId: string;
+}
+
+export function FaqSection({ removeBorder, showTitle = true, pageId, sectionId }: FaqSectionProps) {
     const firestore = useFirestore();
-    const contentId = 'faq';
+    const contentId = `${pageId}_${sectionId}`;
     const contentRef = useMemoFirebase(() => {
         if (!firestore) return null;
         return doc(firestore, 'page_content', contentId);
-    }, [firestore]);
+    }, [firestore, contentId]);
 
     const { data: content, isLoading, error } = useDoc(contentRef);
     
@@ -28,7 +36,7 @@ export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
         const defaultData = { title: "Questions?", description: "Find answers to frequently asked questions.", items: defaultContent };
         setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
       }
-    }, [isLoading, content, error, firestore]);
+    }, [isLoading, content, error, firestore, contentId]);
     
     if (isLoading) {
         return (
@@ -47,9 +55,11 @@ export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
     return (
         <section id="faq" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                 <div className="text-center space-y-4 mb-12">
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{currentContent.title || "Questions?"}</h2>
-                </div>
+                 {showTitle && (
+                    <div className="text-center space-y-4 mb-12">
+                        <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{currentContent.title || "Questions?"}</h2>
+                    </div>
+                 )}
                 <div>
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {currentContent.items.map((faq: any, index: number) => (
