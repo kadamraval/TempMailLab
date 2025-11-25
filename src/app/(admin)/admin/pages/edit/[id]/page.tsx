@@ -111,7 +111,7 @@ export default function EditPageLayout() {
   }
   
   const handleEditStyle = (section: any) => {
-    router.push(`/admin/sections/edit/${section.id}`);
+    setEditingStyleSection(section);
   };
   
   const handleCloseStyleDialog = () => {
@@ -296,6 +296,7 @@ export default function EditPageLayout() {
       isOpen={!!editingStyleSection}
       onClose={handleCloseStyleDialog}
       section={editingStyleSection}
+      pageId={pageId}
       pageName={currentPage.name}
     />
     <SectionContentDialog
@@ -306,4 +307,3 @@ export default function EditPageLayout() {
     </>
   );
 }
-

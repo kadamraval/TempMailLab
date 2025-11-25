@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+
+const sectionDefaultStyles: { [key: string]: any } = {
+    "inbox": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
+    "top-title": { bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 },
+    "why": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
+    "features": { bgColor: 'hsl(var(--background))', useGradient: false },
+    "exclusive-features": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
+    "comparison": { bgColor: 'hsl(var(--background))', useGradient: false },
+    "pricing": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
+    "pricing-comparison": { bgColor: 'hsl(var(--background))', useGradient: false },
+    "blog": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
+    "testimonials": { bgColor: 'hsl(var(--background))', useGradient: false },
+    "faq": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)', paddingTop: 64, paddingBottom: 64 },
+    "newsletter": { bgColor: 'hsl(var(--background))', useGradient: false, borderTopWidth: 1, paddingTop: 64, paddingBottom: 64 },
+    "contact-form": { bgColor: 'hsl(var(--background))', useGradient: false, paddingTop: 80, paddingBottom: 80 },
+    "knowledgebase": { bgColor: 'hsl(var(--background))', useGradient: false, paddingTop: 64, paddingBottom: 64 },
+};
+
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
     return (
@@ -58,17 +80,18 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
 };
 
 const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom' | 'Left' | 'Right', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
+    const lowerSide = side.toLowerCase();
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
             <div className="grid grid-cols-2 gap-2">
                 <div className='space-y-2'>
                     <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
-                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`]} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
+                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
                 </div>
                 <div className='space-y-2'>
                     <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
-                    <Input id={`border${side}Color`} type="color" value={styles[`border${side}Color`]} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} className="h-10 w-full p-1" />
+                    <Input id={`border${side}Color`} type="color" value={styles[`border${side}Color`] || '#000000'} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} className="h-10 w-full p-1" />
                 </div>
             </div>
         </div>
@@ -80,17 +103,48 @@ interface SectionStyleDialogProps {
   isOpen: boolean;
   onClose: () => void;
   section: { id: string; name: string } | null;
+  pageId: string;
   pageName: string;
 }
 
-export function SectionStyleDialog({ isOpen, onClose, section, pageName }: SectionStyleDialogProps) {
-  
-  // In a future step, this state will be initialized with saved override styles.
+export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName }: SectionStyleDialogProps) {
+  const { toast } = useToast();
   const [styles, setStyles] = useState<any>({}); 
   const [useBackground, setUseBackground] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Here we would fetch saved override styles for this specific page/section combo.
+  // For now, we initialize with the section's default styles.
+  useEffect(() => {
+    if (section) {
+        const defaultStyles = sectionDefaultStyles[section.id] || {};
+        const globalDefaults = {
+            marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, 
+            paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, 
+            borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, 
+            borderTopColor: '#e5e7eb', borderBottomColor: '#e5e7eb', borderLeftColor: '#e5e7eb', borderRightColor: '#e5e7eb'
+        };
+        const initialStyles = { ...globalDefaults, ...defaultStyles };
+        setStyles(initialStyles);
+        setUseBackground(!!initialStyles.bgColor && initialStyles.bgColor !== 'rgba(0,0,0,0)');
+    }
+  }, [section]);
   
   const handleStyleChange = (property: string, value: string | number | boolean) => {
     setStyles((prev: any) => ({ ...prev, [property]: value }));
+  };
+
+  const handleSaveOverride = async () => {
+    if (!section || !pageId) return;
+    setIsSaving(true);
+    console.log("Simulating save for override:", { pageId, sectionId: section.id, styles });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    toast({
+        title: "Style Override Saved",
+        description: `Custom styles for '${section.name}' on the '${pageName}' page have been saved.`
+    });
+    setIsSaving(false);
+    onClose();
   };
   
   if (!section) return null;
@@ -117,7 +171,7 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageName }: Secti
                       <ColorInput label="Background Color" value={styles.bgColor || 'rgba(0,0,0,0)'} onChange={(value) => handleStyleChange('bgColor', value)} />
                       <div className="flex items-center justify-between">
                           <Label htmlFor="use-gradient">Use Gradient</Label>
-                          <Switch id="use-gradient" checked={styles.useGradient} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
+                          <Switch id="use-gradient" checked={styles.useGradient || false} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
                       </div>
                       {styles.useGradient && (
                           <>
@@ -168,8 +222,11 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageName }: Secti
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Save Override</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSaveOverride} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Override
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
