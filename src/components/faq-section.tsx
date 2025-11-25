@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -9,17 +8,27 @@ import {
 } from "@/components/ui/accordion"
 import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
+import { faqs as defaultContent } from "@/lib/content-data";
 
 export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
     const firestore = useFirestore();
+    const contentId = 'faq';
     const contentRef = useMemoFirebase(() => {
         if (!firestore) return null;
-        return doc(firestore, 'page_content', 'faq');
+        return doc(firestore, 'page_content', contentId);
     }, [firestore]);
 
-    const { data: content, isLoading } = useDoc(contentRef);
+    const { data: content, isLoading, error } = useDoc(contentRef);
+    
+    useEffect(() => {
+      if (!isLoading && !content && !error && firestore) {
+        const defaultData = { title: "Questions?", description: "Find answers to frequently asked questions.", items: defaultContent };
+        setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
+      }
+    }, [isLoading, content, error, firestore]);
     
     if (isLoading) {
         return (
@@ -29,19 +38,21 @@ export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
         )
     }
 
-    if (!content || !content.items) {
-        return <div className="text-center py-16">No FAQ content found.</div>;
+    const currentContent = content || { title: "Questions?", items: defaultContent };
+
+    if (!currentContent || !currentContent.items) {
+        return <div className="text-center py-16">Loading FAQs...</div>;
     }
 
     return (
         <section id="faq" className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
                  <div className="text-center space-y-4 mb-12">
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title || "Questions?"}</h2>
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{currentContent.title || "Questions?"}</h2>
                 </div>
                 <div>
                     <Accordion type="single" collapsible className="w-full space-y-4">
-                        {content.items.map((faq: any, index: number) => (
+                        {currentContent.items.map((faq: any, index: number) => (
                              <AccordionItem key={index} value={`item-${index}`} className={cn("rounded-lg bg-card", removeBorder ? "border-0" : "border")}>
                                 <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
                                     {faq.question}
@@ -57,5 +68,3 @@ export function FaqSection({ removeBorder }: { removeBorder?: boolean }) {
         </section>
     );
 }
-
-    

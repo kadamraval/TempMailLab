@@ -1,21 +1,30 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import * as LucideIcons from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
+import { useEffect }from "react";
+import { useCases as defaultContent } from "@/lib/content-data";
 
 export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
   const firestore = useFirestore();
+  const contentId = 'why';
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'page_content', 'why');
+    return doc(firestore, 'page_content', contentId);
   }, [firestore]);
 
-  const { data: content, isLoading } = useDoc(contentRef);
+  const { data: content, isLoading, error } = useDoc(contentRef);
+  
+  useEffect(() => {
+      if (!isLoading && !content && !error && firestore) {
+          const defaultData = { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: defaultContent };
+          setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
+      }
+  }, [isLoading, content, error, firestore]);
   
   if (isLoading) {
     return (
@@ -24,11 +33,13 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
         </div>
     )
   }
+  
+  const currentContent = content || { title: "Why Temp Mail?", items: defaultContent };
 
-  if (!content || !content.items) {
+  if (!currentContent || !currentContent.items) {
     return (
         <div className="text-center py-16">
-            <h2 className="text-2xl font-bold text-muted-foreground">No use cases content found.</h2>
+            <h2 className="text-2xl font-bold text-muted-foreground">Loading Content...</h2>
         </div>
     );
   }
@@ -38,11 +49,11 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-12">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            {content.title || "Why Temp Mail?"}
+            {currentContent.title || "Why Temp Mail?"}
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {content.items.map((useCase: any) => {
+          {currentContent.items.map((useCase: any) => {
             const Icon = (LucideIcons as any)[useCase.iconName] || LucideIcons.HelpCircle;
             return (
               <Card key={useCase.title} className={cn("bg-background text-center", removeBorder && "border-0")}>

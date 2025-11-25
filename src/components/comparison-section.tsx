@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,17 +5,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
+import { comparisonFeatures as defaultContent } from "@/lib/content-data";
 
 export function ComparisonSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
   const firestore = useFirestore();
+  const contentId = 'comparison';
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
-    return doc(firestore, 'page_content', 'comparison');
+    return doc(firestore, 'page_content', contentId);
   }, [firestore]);
 
-  const { data: content, isLoading } = useDoc(contentRef);
+  const { data: content, isLoading, error } = useDoc(contentRef);
+  
+  useEffect(() => {
+    if (!isLoading && !content && !error && firestore) {
+      const defaultData = { title: "Tempmailoz Vs Others", description: "", items: defaultContent };
+      setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
+    }
+  }, [isLoading, content, error, firestore]);
   
   if (isLoading) {
     return (
@@ -26,7 +35,9 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
     )
   }
 
-  if (!content || !content.items) {
+  const currentContent = content || { title: "Tempmailoz Vs Others", items: defaultContent };
+  
+  if (!currentContent || !currentContent.items) {
     return null;
   }
 
@@ -36,7 +47,7 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
         {showTitle && (
             <div className="text-center space-y-4 mb-12">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                {content.title || "Tempmailoz Vs Others"}
+                {currentContent.title || "Tempmailoz Vs Others"}
             </h2>
             </div>
         )}
@@ -51,7 +62,7 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {content.items.map((item: any) => (
+                        {currentContent.items.map((item: any) => (
                             <TableRow key={item.feature}>
                                 <TableCell className="font-medium">{item.feature}</TableCell>
                                 <TableCell className="text-center">
