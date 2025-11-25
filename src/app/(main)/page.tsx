@@ -55,7 +55,7 @@ const sectionDefaultStyles: { [key: string]: any } = {
 };
 
 
-const SectionWrapper = ({ section, pageId, plans, children }: { section: any, pageId: string, plans: Plan[], children?: React.ReactNode }) => {
+const SectionWrapper = ({ section, pageId, plans, children }: { section: {id: string, component?: React.ComponentType<any>, props?: any }, pageId: string, plans: Plan[], children?: React.ReactNode }) => {
     const firestore = useFirestore();
     const defaultStyles = sectionDefaultStyles[section.id] || defaultStylesBase;
     
@@ -157,4 +157,3 @@ export default function HomePage() {
     </>
   );
 }
-
