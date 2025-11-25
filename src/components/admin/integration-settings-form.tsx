@@ -10,10 +10,8 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Loader2, AlertTriangle, Copy, Info, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
 import { v4 as uuidv4 } from 'uuid';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
@@ -33,8 +31,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         webhookPath: '/api/inbound-webhook'
     });
     const [isSaving, setIsSaving] = useState(false);
-    const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    const [verificationMessage, setVerificationMessage] = useState('');
     
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -59,13 +55,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
-        setVerificationStatus('idle');
     };
-
-    const handleSelectChange = (id: string, value: string) => {
-        setSettings(prev => ({...prev, [id]: value}));
-        setVerificationStatus('idle');
-    }
 
     const handleCopy = (text: string, subject: string) => {
         navigator.clipboard.writeText(text);
@@ -85,7 +75,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (!settingsRef) return;
         
         setIsSaving(true);
-        setVerificationStatus('idle');
         
         try {
             const settingsToSave = { ...settings, enabled: true };
@@ -132,7 +121,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>Configuration Disabled</AlertTitle>
                         <AlertDescription>
-                            The Mailgun integration is currently disabled in favor of `inbound.new`. Please configure `inbound.new` for email processing.
+                            The Mailgun integration is deprecated. Please configure `inbound.new` for email processing.
                         </AlertDescription>
                     </Alert>
                 );
@@ -145,14 +134,11 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        In your `inbound.new` dashboard, paste your app's full public URL into the "Webhook URL" or "Endpoint" field. For development, use your ngrok or port-forwarded public URL.
+                                        In your `inbound.new` dashboard, paste your app's full public URL into the "Webhook URL" field. For development, use your ngrok or port-forwarded public URL.
                                         <p className="text-xs mt-1">Example: `https://your-app.com{settings.webhookPath}`</p>
                                     </li>
                                     <li>
-                                        Enter your `inbound.new` API Key below if required by the service for certain operations.
-                                    </li>
-                                    <li>
-                                        Optionally, for added webhook security, configure custom headers in `inbound.new` and save the matching `Header Name` and `Header Value` below.
+                                        For added webhook security (recommended), configure custom headers in `inbound.new` and save the matching `Header Name` and `Header Value` below.
                                     </li>
                                 </ol>
                             </AlertDescription>
@@ -166,11 +152,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     <Copy className="h-4 w-4" />
                                 </Button>
                             </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="apiKey">API Key (Optional)</Label>
-                            <Input id="apiKey" type="password" placeholder="Enter your inbound.new API Key" value={settings.apiKey || ''} onChange={handleInputChange} />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
