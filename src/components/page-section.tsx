@@ -124,9 +124,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   }
 
   // --- APPLY STYLING CASCADE ---
-  // Tier 1 (Base) is implied by Tailwind theme.
-  // Tier 2 (Section Default) is the base for styles.
-  // Tier 3 (Page Override) merges on top of the default.
   const finalStyles = { ...(defaultStyle || {}), ...(styleOverride || {}) };
 
   const styleProps: React.CSSProperties = {
@@ -153,8 +150,8 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   }
 
   return (
-    <div id={sectionId} className="z-10 relative" style={styleProps}>
-        <Component {...componentProps} />
+    <div id={sectionId} style={styleProps}>
+      <Component {...componentProps} />
     </div>
   );
 };
