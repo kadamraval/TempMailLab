@@ -20,6 +20,7 @@ async function getInboundProviderSettings() {
 }
 
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
+    // 1. Try 'delivered-to' header first - most reliable
     const deliveredToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'delivered-to');
     if (deliveredToHeader && typeof deliveredToHeader.line === 'string') {
         const emailMatch = deliveredToHeader.line.match(/<(.+?)>/);
@@ -28,6 +29,7 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
 
+    // 2. Fallback to the 'to' object address
     if (parsedEmail.to) {
         const toValue = Array.isArray(parsedEmail.to) ? parsedEmail.to[0] : parsedEmail.to;
         if (toValue && toValue.address) {
@@ -35,6 +37,15 @@ function getRecipientAddress(parsedEmail: ParsedMail): string | null {
         }
     }
     
+    // 3. Fallback for when 'to' is an array of objects
+    if (Array.isArray(parsedEmail.to?.value)) {
+        const recipient = parsedEmail.to.value.find(v => v.address);
+        if (recipient && recipient.address) {
+            return recipient.address;
+        }
+    }
+
+    // 4. Check 'x-original-to' as another common header
     const xOriginalToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'x-original-to');
     if (xOriginalToHeader && typeof xOriginalToHeader.line === 'string') {
          const emailMatch = xOriginalToHeader.line.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/);
