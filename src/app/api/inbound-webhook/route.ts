@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         fromAddress = parsedEmail.from?.text;
         subject = parsedEmail.subject;
         htmlContent = parsedEmail.html;
-        textContent = parsed.text;
+        textContent = parsedEmail.text;
         messageId = parsedEmail.messageId;
         attachments = parsedEmail.attachments;
         receivedAt = parsedEmail.date;
