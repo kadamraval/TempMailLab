@@ -1,3 +1,4 @@
+
 "use client"
 
 import React, { useState } from "react";
@@ -44,10 +45,11 @@ interface PricingSectionProps {
     showTitle?: boolean;
 }
 
-export function PricingSection({ plans = [], showTitle = true }: PricingSectionProps) {
+export function PricingSection({ plans, showTitle = true }: PricingSectionProps) {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
     const currentPlans = React.useMemo(() => {
+        if (!plans) return [];
         return plans
             .map(p => planToDisplayPlan(p, billingCycle))
             .sort((a,b) => a.price - b.price);
@@ -145,3 +147,5 @@ export function PricingSection({ plans = [], showTitle = true }: PricingSectionP
         </section>
     );
 }
+
+    
