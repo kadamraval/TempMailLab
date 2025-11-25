@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,6 +11,14 @@ service cloud.firestore {
     match /allowed_domains/{domainId} {
       allow read: if true;
       // Allow admin to write/delete
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // --- New Rule for Default Section Styles ---
+    match /sections/{sectionId} {
+      // Allow any user (anonymous or signed-in) to read the default styles.
+      allow get, list: if true;
+      // Only allow admins to change the global default styles for a section.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -67,5 +74,3 @@ service cloud.firestore {
 
   }
 }
-
-    
