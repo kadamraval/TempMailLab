@@ -12,11 +12,15 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Brush, FileText, EyeOff, Trash2, GripVertical, PlusCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { SectionStyleDialog } from './section-style-dialog'; // New import
+import { SectionStyleDialog } from './section-style-dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 
 const pageData: { [key: string]: any } = {
   home: {
@@ -129,62 +133,111 @@ export default function EditPageLayout() {
         </BreadcrumbList>
       </Breadcrumb>
       
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Page Sections</h1>
-         <Button>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Section
-        </Button>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+           <div className="flex justify-between items-center">
+             <h1 className="text-2xl font-bold tracking-tight">Page Sections</h1>
+             <Button>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Section
+            </Button>
+          </div>
 
-      <TooltipProvider>
-        <div className="space-y-4">
-          {currentPage.sections.map((section: any) => (
-            <Card key={section.id}>
-              <CardHeader className="flex flex-row items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                   <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                   <CardTitle className="text-lg font-medium">{section.name}</CardTitle>
-                </div>
-                <div className="flex items-center gap-2">
-                   <Tooltip>
-                    <TooltipTrigger asChild>
-                       <Button variant="ghost" size="icon" onClick={() => handleEditStyle(section)}>
-                        <Brush className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Edit Individual Section Styles</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                       <Button variant="ghost" size="icon" disabled={section.isDynamic}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>{section.isDynamic ? 'Content is managed automatically' : 'Edit Content'}</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <EyeOff className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Hide Section</p></TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent><p>Remove Section</p></TooltipContent>
-                  </Tooltip>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+          <TooltipProvider>
+            <div className="space-y-4">
+              {currentPage.sections.map((section: any) => (
+                <Card key={section.id}>
+                  <CardHeader className="flex flex-row items-center justify-between p-4">
+                    <div className="flex items-center gap-4">
+                       <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
+                       <CardTitle className="text-base font-medium">{section.name}</CardTitle>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => handleEditStyle(section)}>
+                            <Brush className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Edit Section Styles (Page Specific)</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                           <Button variant="ghost" size="icon" disabled={section.isDynamic}>
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>{section.isDynamic ? 'Content is managed automatically' : 'Edit Content'}</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <EyeOff className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Hide Section</p></TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Remove Section</p></TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </TooltipProvider>
         </div>
-      </TooltipProvider>
+
+        <div className="lg:col-span-1 space-y-6">
+           <Card>
+                <CardHeader>
+                    <CardTitle>Page Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="page-name">Page Name</Label>
+                        <Input id="page-name" defaultValue={currentPage.name} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                            <Label>Status</Label>
+                            <CardDescription>
+                                Draft pages are not visible to the public.
+                            </CardDescription>
+                        </div>
+                        <Switch defaultChecked={true} />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>SEO Settings (2025)</CardTitle>
+                     <CardDescription>Optimize this page for search engines.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="meta-title">Meta Title</Label>
+                        <Input id="meta-title" placeholder="Enter meta title" />
+                         <CardDescription className="text-xs">Recommended: 50-60 characters.</CardDescription>
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="meta-description">Meta Description</Label>
+                        <Textarea id="meta-description" placeholder="Enter meta description" rows={4}/>
+                         <CardDescription className="text-xs">Recommended: 150-160 characters.</CardDescription>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button className="w-full">Save All Changes</Button>
+                </CardFooter>
+            </Card>
+        </div>
+      </div>
     </div>
 
     <SectionStyleDialog
