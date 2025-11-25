@@ -35,15 +35,15 @@ export default function HomePage() {
   const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
   
   const sections = [
-    { component: UseCasesSection, hasCard: true },
-    { component: FeaturesSection, hasCard: false },
-    { component: ExclusiveFeatures, hasCard: false },
-    { component: ComparisonSection, hasCard: true, props: { showTitle: true } },
-    { component: PricingSection, hasCard: false, props: { plans: plans || [], showTitle: true } },
-    { component: BlogSection, hasCard: true, props: { showTitle: true } },
-    { component: Testimonials, hasCard: false },
-    { component: FaqSection, hasCard: true },
-    { component: StayConnected, hasCard: false },
+    { id: "why", component: UseCasesSection, hasCard: true },
+    { id: "features", component: FeaturesSection, hasCard: false },
+    { id: "exclusive-features", component: ExclusiveFeatures, hasCard: false },
+    { id: "comparison", component: ComparisonSection, hasCard: true, props: { showTitle: true } },
+    { id: "pricing", component: PricingSection, hasCard: false, props: { plans: plans || [], showTitle: true } },
+    { id: "blog", component: BlogSection, hasCard: true, props: { showTitle: true } },
+    { id: "testimonials", component: Testimonials, hasCard: false },
+    { id: "faq", component: FaqSection, hasCard: true },
+    { id: "newsletter", component: StayConnected, hasCard: false },
   ];
 
 
@@ -68,7 +68,9 @@ export default function HomePage() {
               Temporary Email Address
             </h1>
           </div>
-          <div className="mt-8"><DashboardClient /></div>
+          <div className="mt-8">
+            <DashboardClient />
+          </div>
         </div>
       </div>
       {sections.map((Section, index) => {
@@ -89,7 +91,7 @@ export default function HomePage() {
         }
 
         return (
-            <div key={index} className={cn(backgroundClass, "z-10 relative py-16 sm:py-20")}>
+            <div key={index} id={Section.id} className={cn(backgroundClass, "z-10 relative py-16 sm:py-20")}>
                 <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
             </div>
         )
