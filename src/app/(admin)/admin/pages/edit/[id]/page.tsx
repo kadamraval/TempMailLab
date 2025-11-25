@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, notFound } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -99,7 +99,6 @@ const pageData: { [key: string]: any } = {
 
 export default function EditPageLayout() {
   const params = useParams();
-  const router = useRouter();
   const pageId = params.id as string;
   const currentPage = pageData[pageId];
 
@@ -107,7 +106,7 @@ export default function EditPageLayout() {
   const [editingContentSection, setEditingContentSection] = useState<any | null>(null);
 
   if (!currentPage) {
-    return <div>Page not found.</div>;
+    return notFound();
   }
   
   const handleEditStyle = (section: any) => {
