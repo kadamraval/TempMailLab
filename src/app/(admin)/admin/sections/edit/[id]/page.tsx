@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,8 @@ import ContactPage from '@/app/(main)/contact/page';
 import { DashboardClient } from '@/components/dashboard-client';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const KnowledgebasePlaceholder = () => (
     <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
@@ -177,13 +179,15 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
 
 export default function EditSectionPage() {
     const params = useParams();
+    const router = useRouter();
+    const { toast } = useToast();
     const sectionId = params.id as string;
     
     const [styles, setStyles] = useState(sectionDetails[sectionId]?.defaultStyles || {});
     const [useBackground, setUseBackground] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        // When the sectionId changes, reset the styles to the default for that section
         const newDefaultStyles = sectionDetails[sectionId]?.defaultStyles || {};
         setStyles(newDefaultStyles);
         setUseBackground(newDefaultStyles.bgColor !== 'rgba(0,0,0,0)');
@@ -194,6 +198,20 @@ export default function EditSectionPage() {
             ...prevStyles,
             [property]: value,
         }));
+    };
+
+    const handleSaveStyles = async () => {
+        setIsSaving(true);
+        // Simulate saving to a backend
+        console.log("Saving styles for", sectionId, styles);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+        
+        toast({
+            title: "Styles Saved!",
+            description: `The default styles for the '${sectionName}' section have been updated.`,
+        });
+        setIsSaving(false);
+        router.refresh(); // Refresh to reflect changes if they were real
     };
 
     const SelectedComponent = sectionId ? sectionComponents[sectionId] : null;
@@ -324,7 +342,10 @@ export default function EditSectionPage() {
                             </div>
                             
                             <div className="pt-4">
-                                <Button className="w-full">Save Styles</Button>
+                                <Button className="w-full" onClick={handleSaveStyles} disabled={isSaving}>
+                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    Save Styles
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
