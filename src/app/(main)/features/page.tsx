@@ -8,7 +8,7 @@ import { ComparisonSection } from "@/components/comparison-section";
 export default function FeaturesPage() {
     return (
         <div className="py-16 sm:py-20">
-            <FeaturesSection />
+            <FeaturesSection showTitle={false} />
             <div className="bg-muted/30">
                 <ExclusiveFeatures />
             </div>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,10 +36,16 @@ const features = [
   },
 ];
 
-export function FeaturesSection() {
+export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
   return (
     <section id="features">
       <div className="container mx-auto px-4">
+        {showTitle && (
+            <div className="text-center space-y-4 mb-12">
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Features</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Everything you need for secure and private communication, from basic privacy to advanced developer tools.</p>
+            </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature) => (
             <Card key={feature.title} className="border bg-background">

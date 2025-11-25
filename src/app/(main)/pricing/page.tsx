@@ -32,7 +32,7 @@ export default function PricingPage() {
     return (
         <div className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                <PricingSection plans={plans || []} />
+                <PricingSection plans={plans || []} showTitle={false} />
                 <div className="border-t mt-16 pt-16">
                     <PricingComparisonTable plans={plans || []} />
                 </div>

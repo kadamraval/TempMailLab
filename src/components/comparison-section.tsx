@@ -18,18 +18,20 @@ const comparisonFeatures = [
 ];
 
 
-export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) {
+export function ComparisonSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
   return (
     <section id="comparison">
       <div className="container mx-auto px-4">
-        <div className="text-center space-y-4 mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            Tempmailoz Vs Others
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            See how Tempmailoz stacks up against other temporary email providers. We focus on privacy, features, and a clean user experience.
-          </p>
-        </div>
+        {showTitle && (
+            <div className="text-center space-y-4 mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                Tempmailoz Vs Others
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                See how Tempmailoz stacks up against other temporary email providers. We focus on privacy, features, and a clean user experience.
+            </p>
+            </div>
+        )}
         <Card className={cn(removeBorder && "border-0 shadow-none")}>
             <CardContent className="p-0">
                 <Table>

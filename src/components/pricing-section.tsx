@@ -42,9 +42,10 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
 
 interface PricingSectionProps {
     plans?: Plan[];
+    showTitle?: boolean;
 }
 
-export function PricingSection({ plans = [] }: PricingSectionProps) {
+export function PricingSection({ plans = [], showTitle = true }: PricingSectionProps) {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
     const currentPlans = React.useMemo(() => {
@@ -70,6 +71,12 @@ export function PricingSection({ plans = [] }: PricingSectionProps) {
     return (
         <section id="pricing">
             <div className="container mx-auto px-4">
+                {showTitle && (
+                    <div className="text-center space-y-4 mb-12">
+                        <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Pricing</h2>
+                        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Choose the plan that's right for you, with options for everyone from casual users to professional developers.</p>
+                    </div>
+                )}
                 <div className="flex items-center justify-center space-x-4 mb-12">
                     <Label htmlFor="billing-cycle" className={cn("font-medium", billingCycle === "monthly" ? "text-primary" : "text-muted-foreground")}>Monthly</Label>
                     <Switch
