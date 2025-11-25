@@ -194,14 +194,21 @@ export function DashboardClient() {
         } else { // Registered User
             const userInboxesQuery = query(
                 collection(firestore, 'inboxes'), 
-                where('userId', '==', activeUser.uid),
-                orderBy('createdAt', 'desc'),
-                limit(1)
+                where('userId', '==', activeUser.uid)
             );
             const userInboxesSnap = await getDocs(userInboxesQuery);
             if (!userInboxesSnap.empty) {
-                const latestInbox = { id: userInboxesSnap.docs[0].id, ...userInboxesSnap.docs[0].data() } as InboxType;
-                 const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
+                // Sort on the client to find the most recent one
+                const sortedInboxes = userInboxesSnap.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() } as InboxType))
+                    .sort((a, b) => {
+                        const timeA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+                        const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+                        return timeB - timeA;
+                    });
+                
+                const latestInbox = sortedInboxes[0];
+                const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
                 if (new Date(expiry) > new Date()) {
                     foundInbox = { ...latestInbox, expiresAt: expiry };
                 }
@@ -439,5 +446,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
