@@ -6,42 +6,35 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { Timestamp } from 'firebase-admin/firestore';
 
 /**
- * Extracts the recipient email address from a webhook payload by checking various common fields.
- * Handles nested structures from services like inbound.new.
+ * Extracts the recipient email address from an inbound.new webhook payload by checking various common fields.
+ * Handles the specific nested structures from inbound.new.
  * @param body The parsed JSON body of the webhook request.
  * @returns The recipient email address or null if not found.
  */
 function extractRecipient(body: any): string | null {
-  // Inbound.new style
+  // inbound.new specific structure
   const email = body.email || {};
   const parsed = email.parsedData || {};
 
   const emailTo = Array.isArray(email.to) ? email.to : null;
   const parsedTo = Array.isArray(parsed.to) ? parsed.to : null;
 
-  // Handle various potential structures for the recipient
-  const recipient = (
-    // 1) Top-level possibilities from various providers
-    body.to ||
-    body.To ||
-    body.recipient ||
-    body.Recipient ||
-
-    // 2) Inbound.new: simple "to" array
-    (emailTo && emailTo[0]) ||
-
-    // 3) Inbound.new: nested parsedData object
-    (parsedTo && (parsedTo[0]?.address || parsedTo[0])) ||
-    
-    null
-  );
-
-  if (typeof recipient === 'string') {
-    return recipient;
+  // 1. Prioritize the parsedData field, which is most reliable.
+  const recipientFromParsed = parsedTo && (parsedTo[0]?.address || parsedTo[0]);
+  if (typeof recipientFromParsed === 'string') {
+    return recipientFromParsed;
   }
   
-  if (Array.isArray(recipient) && recipient.length > 0 && typeof recipient[0] === 'string') {
-    return recipient[0];
+  // 2. Fallback to the top-level 'to' array in the email object.
+  const recipientFromEmail = emailTo && emailTo[0];
+  if (typeof recipientFromEmail === 'string') {
+      return recipientFromEmail;
+  }
+
+  // 3. Check for other common top-level fields as a last resort.
+  const recipientFromRoot = body.to || body.To || body.recipient || body.Recipient;
+   if (typeof recipientFromRoot === 'string') {
+      return recipientFromRoot;
   }
 
   return null;
@@ -50,6 +43,7 @@ function extractRecipient(body: any): string | null {
 export async function POST(request: Request) {
   try {
     const adminFirestore = getAdminFirestore();
+    // Fetch settings for the generic inbound webhook provider
     const settingsDoc = await adminFirestore.doc('admin_settings/inbound-new').get();
     
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
@@ -58,11 +52,12 @@ export async function POST(request: Request) {
     }
 
     const providerConfig = settingsDoc.data();
-    const secret = providerConfig.secret;
+    // The secret is stored under the 'secret' field for inbound.new
+    const secret = providerConfig.secret; 
     const headerName = providerConfig.headerName;
 
     if (!secret || !headerName) {
-        console.error("CRITICAL: Webhook security not configured. Missing secret or headerName.");
+        console.error("CRITICAL: Webhook security not configured. Missing secret or headerName in admin_settings/inbound-new.");
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
 
@@ -112,7 +107,9 @@ export async function POST(request: Request) {
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size || 0,
-        url: '' // URL would be populated if attachments were uploaded to storage
+        // The URL is typically not provided directly; content is usually Base64.
+        // For this app, we'll store a placeholder and not handle attachment downloads.
+        url: '' 
       })),
     };
 
@@ -123,7 +120,6 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("Critical error in inboundWebhook API route:", error);
-    // Check if error is from JSON parsing
     if (error instanceof SyntaxError) {
         return NextResponse.json({ message: "Bad Request: Invalid JSON body." }, { status: 400 });
     }
