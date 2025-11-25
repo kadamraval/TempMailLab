@@ -3,30 +3,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getSetting(db: FirebaseFirestore.Firestore, settingId: string): Promise<any> {
     const doc = await db.collection('admin_settings').doc(settingId).get();
     return doc.exists ? doc.data() : null;
-}
-
-function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    if (parsedEmail.to) {
-        const toField = Array.isArray(parsedEmail.to) ? parsedEmail.to[0] : parsedEmail.to;
-        if (toField?.value?.[0]?.address) {
-            return toField.value[0].address;
-        }
-    }
-    
-    // Check common headers for the original recipient
-    const headers = ['delivered-to', 'x-original-to', 'envelope-to'];
-    for (const header of headers) {
-        if (parsedEmail.headers.has(header)) {
-             const headerValue = parsedEmail.headers.get(header);
-             if (typeof headerValue === 'string') return headerValue;
-        }
-    }
-    return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -40,25 +20,26 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Inbound webhook is not enabled.' }, { status: 403 });
         }
 
-        // Security Check: Only validate if both header name and value are configured.
         if (inboundSettings.headerName && inboundSettings.headerValue) {
             const receivedSecret = req.headers.get(inboundSettings.headerName.toLowerCase());
             if (receivedSecret !== inboundSettings.headerValue) {
-                 console.warn("Webhook unauthorized: Invalid secret.");
+                console.warn("Webhook unauthorized: Invalid secret.");
                 return NextResponse.json({ message: 'Unauthorized: Invalid secret.' }, { status: 401 });
             }
         }
 
-        const rawEmail = await req.text();
-        const parsedEmail = await simpleParser(rawEmail);
+        // The body is JSON from inbound.new, not raw email text.
+        const payload = await req.json();
+        
+        // Extract the parsed data directly from the JSON payload.
+        const parsedEmail = payload.email?.parsedData;
+        const recipientEmail = payload.email?.recipient;
 
-        const recipientEmail = getRecipientAddress(parsedEmail);
-
-        if (!recipientEmail) {
-            console.error("Failed to determine recipient from parsed email. Headers:", parsedEmail.headers);
-            return NextResponse.json({ message: 'Bad Request: Recipient address could not be determined.' }, { status: 400 });
+        if (!parsedEmail || !recipientEmail) {
+            console.error("Failed to find parsedData or recipient in inbound.new payload.", payload);
+            return NextResponse.json({ message: 'Bad Request: Incomplete JSON payload from webhook.' }, { status: 400 });
         }
-
+        
         const inboxQuery = db.collection('inboxes').where('emailAddress', '==', recipientEmail).limit(1);
         const inboxSnapshot = await inboxQuery.get();
 
@@ -70,32 +51,38 @@ export async function POST(req: NextRequest) {
         const inboxDoc = inboxSnapshot.docs[0];
         const inboxData = inboxDoc.data();
 
+        const fromAddress = parsedEmail.from?.addresses?.[0];
+
         const newEmail: any = {
             inboxId: inboxDoc.id,
             userId: inboxData.userId,
-            senderName: parsedEmail.from?.value[0]?.name || parsedEmail.from?.value[0]?.address || 'Unknown Sender',
+            senderName: fromAddress?.name || fromAddress?.address || 'Unknown Sender',
             subject: parsedEmail.subject || 'No Subject',
-            receivedAt: parsedEmail.date ? Timestamp.fromDate(parsedEmail.date) : FieldValue.serverTimestamp(),
+            receivedAt: parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : FieldValue.serverTimestamp(),
             createdAt: FieldValue.serverTimestamp(),
-            htmlContent: parsedEmail.html || null,
-            textContent: parsedEmail.text || null,
-            rawContent: rawEmail,
+            htmlContent: parsedEmail.htmlBody || null,
+            textContent: parsedEmail.textBody || null,
+            rawContent: parsedEmail.raw, // The raw content is inside the parsedData
             read: false,
         };
 
         if (parsedEmail.attachments && parsedEmail.attachments.length > 0) {
-            newEmail.attachments = parsedEmail.attachments.map(att => ({
+            newEmail.attachments = parsedEmail.attachments.map((att: any) => ({
                 filename: att.filename,
                 contentType: att.contentType,
                 size: att.size,
-                url: '', // Placeholder for future implementation
+                // The URL for the attachment would need to be handled separately,
+                // e.g., by uploading to a storage bucket. For now, we leave it empty.
+                url: '', 
             }));
         }
 
         await db.runTransaction(async (transaction) => {
             const emailRef = inboxDoc.ref.collection('emails').doc();
             transaction.set(emailRef, newEmail);
-            transaction.update(inboxDoc.ref, { emailCount: FieldValue.increment(1) });
+            // Ensure emailCount exists before incrementing
+            const currentCount = inboxData.emailCount || 0;
+            transaction.update(inboxDoc.ref, { emailCount: currentCount + 1 });
         });
 
         console.log(`Email successfully processed for inbox ${inboxDoc.id}`);
