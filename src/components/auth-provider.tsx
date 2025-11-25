@@ -16,7 +16,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const isAdminRoute = pathname.startsWith('/admin');
-  const isLoginPage = pathname === '/login' || pathname === '/login/admin';
+  const isLoginPage = pathname === '/login';
+  const isAdminLoginPage = pathname === '/login/admin';
 
   // The main effect that handles redirection logic.
   useEffect(() => {
@@ -31,10 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Rule 2: If on a regular login page but already logged in as a non-anonymous user,
-    // redirect to the main dashboard. This prevents logged-in users from seeing the login page again.
-    if (isLoginPage && user && !user.isAnonymous) {
-      if (userProfile?.isAdmin && pathname === '/login/admin') {
+    // Rule 2: If on a login page but already logged in as a non-anonymous user, redirect.
+    if ((isLoginPage || isAdminLoginPage) && user && !user.isAnonymous) {
+      if (userProfile?.isAdmin && isAdminLoginPage) {
          router.replace('/admin');
       } else if (!isAdminRoute) {
          router.replace('/');
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-  }, [isUserLoading, user, userProfile, pathname, router, isAdminRoute, isLoginPage]);
+  }, [isUserLoading, user, userProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
 
 
   // While the initial user authentication and profile fetching is in progress,
