@@ -10,6 +10,7 @@ const pageId = "home";
 // Defines the static order and IDs of sections to be rendered on the homepage.
 // Each PageSection component will be responsible for fetching its own data.
 const sectionsConfig = [
+    { id: "top-title" },
     { id: "inbox" },
     { id: "why" },
     { id: "features" },

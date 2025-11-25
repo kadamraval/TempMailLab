@@ -9,9 +9,11 @@ const sections = ["top-title", "pricing", "pricing-comparison", "faq", "newslett
 export default function PricingPage() {
     return (
         <div className="py-16 sm:py-20">
-            {sections.map((sectionId, index) => (
-                <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
-            ))}
+            <div className="container mx-auto px-4">
+                {sections.map((sectionId, index) => (
+                    <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
+                ))}
+            </div>
         </div>
     );
 }

@@ -55,8 +55,10 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
         case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
         case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
         case 'top-title': 
-             const pageName = pageId.replace('-page', '').replace('-', ' ');
-             return { title: pageName.charAt(0).toUpperCase() + pageName.slice(1), description: `Everything you need to know about our ${pageName}.` };
+             const pageName = pageId === 'home' ? 'Tempmailoz' : pageId.replace('-page', '').replace('-', ' ');
+             const pageTitle = pageId === 'home' ? 'Secure Your Digital Identity' : pageName.charAt(0).toUpperCase() + pageName.slice(1);
+             const pageDescription = pageId === 'home' ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' : `Everything you need to know about our ${pageName}.`
+             return { title: pageTitle, description: pageDescription };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return null;
     }
@@ -171,9 +173,18 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     componentProps.plans = plans;
   }
 
+  // The 'inbox' section needs a container, but other sections already have one internally.
+  const needsContainer = sectionId === 'inbox';
+
   return (
     <div id={sectionId} style={styleProps}>
-      <Component {...componentProps} />
+       {needsContainer ? (
+         <div className="container mx-auto px-4">
+           <Component {...componentProps} />
+         </div>
+        ) : (
+          <Component {...componentProps} />
+        )}
     </div>
   );
 };
