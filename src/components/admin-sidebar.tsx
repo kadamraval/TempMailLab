@@ -56,18 +56,18 @@ const navItems = [
         { href: "/admin/billing", icon: ShoppingCart, label: "Billing" },
       ]
     },
-    { href: "/admin/marketing", icon: Megaphone, label: "Marketing" },
-    { href: "/admin/support", icon: Headset, label: "Support" },
     {
-      label: "Pages",
+      label: "Content",
       icon: FileText,
       subItems: [
-        { href: "/admin/pages", icon: FileText, label: "All Pages" },
+        { href: "/admin/pages", icon: FileText, label: "Pages" },
         { href: "/admin/sections", icon: LayoutGrid, label: "Sections" },
-        { href: "/admin/blog", icon: BookOpen, label: "All Blog" },
-        { href: "/admin/categories", icon: Library, label: "Category" },
+        { href: "/admin/blog", icon: BookOpen, label: "Blog" },
+        { href: "/admin/categories", icon: Library, label: "Categories" },
       ]
     },
+    { href: "/admin/marketing", icon: Megaphone, label: "Marketing" },
+    { href: "/admin/support", icon: Headset, label: "Support" },
     { href: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
