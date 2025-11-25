@@ -1,7 +1,22 @@
 
 "use client"
 
-import { PricingComparisonTable } from "./pricing-comparison-table";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Check, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const comparisonFeatures = [
+    { feature: "Instant Address Generation", tempmailoz: true, others: true },
+    { feature: "No Registration Required", tempmailoz: true, others: true },
+    { feature: "Automatic Email Deletion", tempmailoz: true, others: false },
+    { feature: "Ad-Free Experience", tempmailoz: true, others: false },
+    { feature: "Custom Domain Names", tempmailoz: true, others: false },
+    { feature: "Developer API Access", tempmailoz: true, others: false },
+    { feature: "Email Forwarding", tempmailoz: true, others: false },
+    { feature: "Secure Password Protection", tempmailoz: true, others: false },
+];
+
 
 export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) {
   return (
@@ -12,7 +27,32 @@ export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) 
             Tempmailoz Vs Others
           </h2>
         </div>
-        <PricingComparisonTable removeBorder={removeBorder} />
+        <Card className={cn(removeBorder && "border-0 shadow-none")}>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-1/2">Feature</TableHead>
+                            <TableHead className="text-center font-bold text-lg text-primary">Tempmailoz</TableHead>
+                            <TableHead className="text-center">Other Services</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {comparisonFeatures.map((item) => (
+                            <TableRow key={item.feature}>
+                                <TableCell className="font-medium">{item.feature}</TableCell>
+                                <TableCell className="text-center">
+                                    {item.tempmailoz ? <Check className="h-6 w-6 text-green-500 mx-auto" /> : <X className="h-6 w-6 text-red-500 mx-auto" />}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    {item.others ? <Check className="h-6 w-6 text-green-500 mx-auto" /> : <X className="h-6 w-6 text-red-500 mx-auto" />}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
       </div>
     </section>
   );

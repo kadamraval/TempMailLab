@@ -31,12 +31,20 @@ export default function PricingPage() {
 
     return (
         <>
+            <div className="py-16 sm:py-20 text-center">
+                 <div className="container mx-auto px-4">
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                        Pricing
+                    </h1>
+                    <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">Choose the plan that's right for you, with options for everyone from casual users to professional developers.</p>
+                </div>
+            </div>
             <PricingSection plans={plans || []} />
             <div className="border-t">
-                <PricingComparisonTable plans={plans || []} />
+                 <div className="container mx-auto px-4">
+                    <PricingComparisonTable plans={plans || []} />
+                 </div>
             </div>
         </>
     );
 }
-
-    
