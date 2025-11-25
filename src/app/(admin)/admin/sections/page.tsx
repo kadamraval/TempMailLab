@@ -2,23 +2,24 @@
 "use client";
 
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { FilePenLine } from 'lucide-react';
 
 const sections = [
-    { id: "use-cases", name: "Use Cases" },
+    { id: "use-cases", name: "Why" },
     { id: "features", name: "Features" },
     { id: "exclusive-features", name: "Exclusive Features" },
-    { id: "comparison", name: "Comparison Table" },
+    { id: "comparison", name: "Comparison" },
     { id: "pricing", name: "Pricing" },
-    { id: "pricing-comparison", name: "Pricing Feature Comparison Table" },
+    { id: "pricing-comparison", name: "Price Comparison" },
     { id: "blog", name: "Blog" },
     { id: "testimonials", name: "Testimonials" },
     { id: "faq", name: "FAQ" },
-    { id: "stay-connected", name: "Stay Connected (Newsletter)" },
-    { id: "contact-form", name: "Contact Us Form" },
+    { id: "stay-connected", name: "Newsletter" },
+    { id: "contact-form", name: "Contact" },
+    { id: "knowledgebase", name: "Knowledgebase" },
 ];
 
 export default function AdminSectionsPage() {

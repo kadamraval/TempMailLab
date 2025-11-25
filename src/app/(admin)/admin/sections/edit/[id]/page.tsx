@@ -27,6 +27,13 @@ import { BlogSection } from '@/components/blog-section';
 import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
 
+const KnowledgebasePlaceholder = () => (
+    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+        <p className="text-lg font-semibold">Knowledgebase Section</p>
+        <p>Content for this section will be managed here in the future.</p>
+    </div>
+);
+
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
     "use-cases": UseCasesSection,
     "features": FeaturesSection,
@@ -39,20 +46,22 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
     "faq": FaqSection,
     "stay-connected": StayConnected,
     "contact-form": ContactPage,
+    "knowledgebase": KnowledgebasePlaceholder,
 };
 
 const sectionDetails: { [key: string]: { name: string } } = {
-    "use-cases": { name: "Use Cases" },
+    "use-cases": { name: "Why" },
     "features": { name: "Features" },
     "exclusive-features": { name: "Exclusive Features" },
-    "comparison": { name: "Comparison Table" },
+    "comparison": { name: "Comparison" },
     "pricing": { name: "Pricing" },
-    "pricing-comparison": { name: "Pricing Feature Comparison Table" },
+    "pricing-comparison": { name: "Price Comparison" },
     "blog": { name: "Blog" },
     "testimonials": { name: "Testimonials" },
     "faq": { name: "FAQ" },
-    "stay-connected": { name: "Stay Connected (Newsletter)" },
-    "contact-form": { name: "Contact Us Form" },
+    "stay-connected": { name: "Newsletter" },
+    "contact-form": { name: "Contact" },
+    "knowledgebase": { name: "Knowledgebase" },
 };
 
 export default function EditSectionPage() {
