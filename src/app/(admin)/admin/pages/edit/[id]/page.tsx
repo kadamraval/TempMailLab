@@ -91,6 +91,7 @@ const pageData: { [key: string]: any } = {
 
 export default function EditPageLayout() {
   const params = useParams();
+  const router = useRouter();
   const pageId = params.id as string;
   const currentPage = pageData[pageId];
 
@@ -134,11 +135,11 @@ export default function EditPageLayout() {
                 <div className="flex items-center gap-2">
                    <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                       <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/sections/edit/${section.id}`)}>
                         <Brush className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Edit Page-Specific Styles</p></TooltipContent>
+                    <TooltipContent><p>Edit Global Section Styles</p></TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
