@@ -194,20 +194,23 @@ export function DashboardClient() {
                 } catch { localStorage.removeItem(LOCAL_INBOX_KEY); }
             }
         } else { // Registered User
+            // Fetch all inboxes for the user (avoids composite index)
             const userInboxesQuery = query(
                 collection(firestore, 'inboxes'), 
-                where('userId', '==', activeUser.uid),
-                orderBy('createdAt', 'desc'),
-                limit(1)
+                where('userId', '==', activeUser.uid)
             );
             const userInboxesSnap = await getDocs(userInboxesQuery);
+            
             if (!userInboxesSnap.empty) {
-                const latestInboxDoc = userInboxesSnap.docs[0];
-                const latestInboxData = latestInboxDoc.data();
+                // Sort on the client to find the most recent one
+                const allInboxes = userInboxesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                allInboxes.sort((a, b) => (b.createdAt as Timestamp).toMillis() - (a.createdAt as Timestamp).toMillis());
+                
+                const latestInboxData = allInboxes[0];
                 const expiry = latestInboxData.expiresAt instanceof Timestamp ? latestInboxData.expiresAt.toDate().toISOString() : latestInboxData.expiresAt;
                 
                 if (new Date(expiry) > new Date()) {
-                    foundInbox = { id: latestInboxDoc.id, ...latestInboxData, expiresAt: expiry } as InboxType;
+                    foundInbox = { ...latestInboxData, expiresAt: expiry } as InboxType;
                 }
             }
         }
