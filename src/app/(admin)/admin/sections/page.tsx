@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -10,9 +11,14 @@ const sections = [
     { id: "use-cases", name: "Use Cases" },
     { id: "features", name: "Features" },
     { id: "exclusive-features", name: "Exclusive Features" },
-    { id: "comparison", name: "Comparison" },
+    { id: "comparison", name: "Comparison Table" },
+    { id: "pricing", name: "Pricing" },
+    { id: "pricing-comparison", name: "Pricing Feature Comparison Table" },
+    { id: "blog", name: "Blog" },
     { id: "testimonials", name: "Testimonials" },
     { id: "faq", name: "FAQ" },
+    { id: "stay-connected", name: "Stay Connected (Newsletter)" },
+    { id: "contact-form", name: "Contact Us Form" },
 ];
 
 export default function AdminSectionsPage() {

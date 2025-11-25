@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams } from 'next/navigation';
@@ -20,23 +21,38 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import Link from 'next/link';
+import { PricingSection } from '@/components/pricing-section';
+import { PricingComparisonTable } from '@/components/pricing-comparison-table';
+import { BlogSection } from '@/components/blog-section';
+import { StayConnected } from '@/components/stay-connected';
+import ContactPage from '@/app/(main)/contact/page';
 
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
     "use-cases": UseCasesSection,
     "features": FeaturesSection,
     "exclusive-features": ExclusiveFeatures,
     "comparison": ComparisonSection,
+    "pricing": PricingSection,
+    "pricing-comparison": PricingComparisonTable,
+    "blog": BlogSection,
     "testimonials": Testimonials,
     "faq": FaqSection,
+    "stay-connected": StayConnected,
+    "contact-form": ContactPage,
 };
 
 const sectionDetails: { [key: string]: { name: string } } = {
     "use-cases": { name: "Use Cases" },
     "features": { name: "Features" },
     "exclusive-features": { name: "Exclusive Features" },
-    "comparison": { name: "Comparison" },
+    "comparison": { name: "Comparison Table" },
+    "pricing": { name: "Pricing" },
+    "pricing-comparison": { name: "Pricing Feature Comparison Table" },
+    "blog": { name: "Blog" },
     "testimonials": { name: "Testimonials" },
     "faq": { name: "FAQ" },
+    "stay-connected": { name: "Stay Connected (Newsletter)" },
+    "contact-form": { name: "Contact Us Form" },
 };
 
 export default function EditSectionPage() {
