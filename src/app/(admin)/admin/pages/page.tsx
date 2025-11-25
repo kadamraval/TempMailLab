@@ -29,7 +29,7 @@ export default function AdminPagesPage() {
         <Card>
             <CardHeader>
                 <CardTitle>Manage Page Sections</CardTitle>
-                <CardDescription>Select a section to view and edit its properties.</CardDescription>
+                <CardDescription>Select a section to view and edit its properties. This is where you control the content of each section on your pages.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -65,7 +65,7 @@ export default function AdminPagesPage() {
                         {selectedSection && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Properties for: {selectedSection.name}</CardTitle>
+                                    <CardTitle>Content for: {selectedSection.name}</CardTitle>
                                     <CardDescription>{selectedSection.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
@@ -82,7 +82,7 @@ export default function AdminPagesPage() {
                                         <Textarea id="section-description" placeholder="Enter a brief description for this section." />
                                     </div>
                                     <div className="pt-4">
-                                        <Button>Save Changes</Button>
+                                        <Button>Save Content</Button>
                                     </div>
                                 </CardContent>
                             </Card>
