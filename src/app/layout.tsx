@@ -7,7 +7,7 @@ import { FirebaseClientProvider } from '@/firebase';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Temp Mailer',
+  title: 'Tempmailoz',
   description: 'Generate temporary email addresses for private, secure browsing.',
 };
 

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { SlidersHorizontal, Palette, FileText, Mail, Share2, DollarSign, Code, Clock, Database, Wrench, HardDrive, Cloud, Server } from "lucide-react"
 
 const navItems = [
-  { href: "/admin/settings", label: "General", icon: SlidersHorizontal },
+  { href: "/admin/settings/general", label: "General", icon: SlidersHorizontal },
   { href: "/admin/settings/appearance", label: "Appearance", icon: Palette },
-  { href: "/admin/settings/pages", label: "Pages", icon: FileText },
+  { href: "/admin/settings/pages", label: "Pages & Blog", icon: FileText },
   { href: "/admin/settings/email", label: "Email", icon: Mail },
   { href: "/admin/settings/integrations", label: "Integrations", icon: Share2 },
   { href: "/admin/settings/sales", label: "Sales", icon: DollarSign },
@@ -26,7 +26,8 @@ export function SettingsSidebar() {
   const pathname = usePathname();
 
   const isLinkActive = (href: string) => {
-    if (href === "/admin/settings" && pathname === "/admin/settings") return true;
+    // Exact match for the base settings page
+    if (href === "/admin/settings" && pathname === "/admin/settings/general") return true;
     if (href !== "/admin/settings" && pathname.startsWith(href)) return true;
     return false;
   }

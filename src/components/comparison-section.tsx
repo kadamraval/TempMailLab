@@ -9,7 +9,7 @@ export function ComparisonSection({ removeBorder }: { removeBorder?: boolean }) 
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-12">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-            Feature Comparison
+            Tempmailoz Vs Others
           </h2>
         </div>
         <PricingComparisonTable removeBorder={removeBorder} />

@@ -115,16 +115,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
 
         switch (integration.slug) {
-            case "mailgun":
-                 return (
-                     <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Configuration Disabled</AlertTitle>
-                        <AlertDescription>
-                            The Mailgun integration is deprecated. Please configure `inbound.new` for email processing.
-                        </AlertDescription>
-                    </Alert>
-                );
             case "inbound-new":
                  return (
                     <div className="space-y-6">
@@ -134,14 +124,14 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        <strong>Webhook URL Path:</strong> To get your full webhook URL, combine your app's public domain with the path below.
+                                        <strong>Webhook URL:</strong> Combine your app's public domain with the path below to get your full webhook URL.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={settings.webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.webhookPath, 'Webhook Path')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
+                                        <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
                                     <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>For added security (recommended), copy and paste the **Header Name** and **Header Value** below into your provider's "Custom Headers" section.</li>
@@ -180,6 +170,44 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                     </TooltipProvider>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                );
+            case "google-analytics":
+                return (
+                    <div className="space-y-4">
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Connect Google Analytics</AlertTitle>
+                            <AlertDescription>
+                                Add tracking to your application to gain insights into your audience.
+                            </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                            <Label htmlFor="measurementId">Measurement ID</Label>
+                            <Input id="measurementId" placeholder="G-XXXXXXXXXX" value={settings.measurementId || ''} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Found in your Google Analytics dashboard under Admin &gt; Data Streams.
+                            </p>
+                        </div>
+                    </div>
+                );
+            case "google-adsense":
+                 return (
+                    <div className="space-y-4">
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Connect Google AdSense</AlertTitle>
+                            <AlertDescription>
+                                Monetize your website by placing ads. Your AdSense code will be automatically added to all pages.
+                            </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                            <Label htmlFor="client-id">Publisher ID</Label>
+                            <Input id="clientId" placeholder="pub-xxxxxxxxxxxxxxxx" value={settings.clientId || ''} onChange={handleInputChange} />
+                             <p className="text-sm text-muted-foreground">
+                                Your Google AdSense publisher ID.
+                            </p>
                         </div>
                     </div>
                 );

@@ -3,10 +3,11 @@ import Link from "next/link";
 import { Separator } from "./ui/separator";
 
 const topNavLinks = [
-    { name: "Use Cases", href: "/#use-cases" },
-    { name: "Extension", href: "/extension" },
-    { name: "Pricing", href: "/#pricing" },
+    { name: "Features", href: "/features" },
+    { name: "Pricing", href: "/pricing" },
     { name: "Blog", href: "/blog" },
+    { name: "API", href: "/api" },
+    { name: "Extension", href: "/extension" },
     { name: "About", href: "/about" },
     { name: "Help Center", href: "/contact" },
 ];
@@ -35,7 +36,7 @@ export function Footer() {
             
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-sm text-muted-foreground">
-                     &copy; {new Date().getFullYear()} Temp Mailer. All rights reserved.
+                     &copy; {new Date().getFullYear()} Tempmailoz. All rights reserved.
                 </p>
                 <div className="flex items-center gap-6">
                      {legalLinks.map((link) => (
