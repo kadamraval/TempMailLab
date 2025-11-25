@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, Copy, Info, RefreshCw } from "lucide-react";
+import { Loader2, AlertTriangle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { v4 as uuidv4 } from 'uuid';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -134,16 +134,20 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <AlertDescription>
                                 <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        In your `inbound.new` dashboard, paste your app's full public URL into the "Webhook URL" field. For development, use your ngrok or port-forwarded public URL.
-                                        <p className="text-xs mt-1">Example: `https://your-app.com{settings.webhookPath}`</p>
+                                        <strong>Webhook URL Path:</strong> To get your full webhook URL, combine your app's public domain with the path below.
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Input readOnly value={settings.webhookPath} className="bg-muted font-mono" />
+                                            <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.webhookPath, 'Webhook Path')}>
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        <p className="text-xs mt-1">Example: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
-                                    <li>
-                                        For added webhook security (recommended), configure custom headers in `inbound.new` and save the matching `Header Name` and `Header Value` below.
-                                    </li>
+                                    <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
+                                    <li>For added security (recommended), copy and paste the **Header Name** and **Header Value** below into your provider's "Custom Headers" section.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
-
                          <div className="space-y-2">
                             <Label htmlFor="webhookPath">Your Webhook URL Path (Read-only)</Label>
                             <div className="flex items-center gap-2">
@@ -153,7 +157,6 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 </Button>
                             </div>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="headerName">Webhook Header Name (Optional)</Label>
