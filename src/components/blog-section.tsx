@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { useEffect } from "react";
-import { blogPosts as defaultContent } from "@/lib/content-data";
+import { blogPosts as defaultItems } from "@/lib/content-data";
 
 interface BlogSectionProps {
   removeBorder?: boolean;
@@ -31,7 +31,7 @@ export function BlogSection({ removeBorder, showTitle = true, pageId, sectionId 
   
   useEffect(() => {
     if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "From the Blog", description: "", items: defaultContent };
+      const defaultData = { title: "From the Blog", description: "", items: defaultItems };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
   }, [isLoading, content, error, firestore, contentId]);
@@ -44,7 +44,7 @@ export function BlogSection({ removeBorder, showTitle = true, pageId, sectionId 
     )
   }
 
-  const currentContent = content || { title: "From the Blog", items: defaultContent };
+  const currentContent = content || { title: "From the Blog", items: defaultItems };
 
   if (!currentContent || !currentContent.items) {
     return null;
@@ -91,3 +91,5 @@ export function BlogSection({ removeBorder, showTitle = true, pageId, sectionId 
     </section>
   )
 }
+
+    

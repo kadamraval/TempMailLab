@@ -12,7 +12,7 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { faqs as defaultContent } from "@/lib/content-data";
+import { faqs as defaultItems } from "@/lib/content-data";
 
 interface FaqSectionProps {
   removeBorder?: boolean;
@@ -33,7 +33,7 @@ export function FaqSection({ removeBorder, showTitle = true, pageId, sectionId }
     
     useEffect(() => {
       if (!isLoading && !content && !error && firestore) {
-        const defaultData = { title: "Questions?", description: "Find answers to frequently asked questions.", items: defaultContent };
+        const defaultData = { title: "Questions?", description: "Find answers to frequently asked questions.", items: defaultItems };
         setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
       }
     }, [isLoading, content, error, firestore, contentId]);
@@ -46,7 +46,7 @@ export function FaqSection({ removeBorder, showTitle = true, pageId, sectionId }
         )
     }
 
-    const currentContent = content || { title: "Questions?", items: defaultContent };
+    const currentContent = content || { title: "Questions?", items: defaultItems };
 
     if (!currentContent || !currentContent.items) {
         return <div className="text-center py-16">Loading FAQs...</div>;
@@ -78,3 +78,5 @@ export function FaqSection({ removeBorder, showTitle = true, pageId, sectionId }
         </section>
     );
 }
+
+    

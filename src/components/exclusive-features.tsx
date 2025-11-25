@@ -10,7 +10,7 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { exclusiveFeatures as defaultContent } from "@/lib/content-data";
+import { exclusiveFeatures as defaultItems } from "@/lib/content-data";
 
 interface ExclusiveFeaturesProps {
   removeBorder?: boolean;
@@ -31,7 +31,7 @@ export const ExclusiveFeatures = ({ removeBorder, showTitle = true, pageId, sect
   
   useEffect(() => {
     if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: defaultContent };
+      const defaultData = { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: defaultItems };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
   }, [isLoading, content, error, firestore, contentId]);
@@ -44,7 +44,7 @@ export const ExclusiveFeatures = ({ removeBorder, showTitle = true, pageId, sect
     )
   }
 
-  const currentContent = content || { title: "Exclusive Features", items: defaultContent };
+  const currentContent = content || { title: "Exclusive Features", items: defaultItems };
 
   if (!currentContent || !currentContent.items) {
     return null; // Or some placeholder
@@ -108,3 +108,5 @@ export const ExclusiveFeatures = ({ removeBorder, showTitle = true, pageId, sect
     </section>
   );
 };
+
+    

@@ -8,7 +8,7 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { useEffect }from "react";
-import { useCases as defaultContent } from "@/lib/content-data";
+import { useCases as defaultItems } from "@/lib/content-data";
 
 interface UseCasesSectionProps {
   removeBorder?: boolean;
@@ -29,7 +29,7 @@ export function UseCasesSection({ removeBorder, showTitle = true, pageId, sectio
   
   useEffect(() => {
       if (!isLoading && !content && !error && firestore) {
-          const defaultData = { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: defaultContent };
+          const defaultData = { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: defaultItems };
           setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
       }
   }, [isLoading, content, error, firestore, contentId]);
@@ -42,7 +42,7 @@ export function UseCasesSection({ removeBorder, showTitle = true, pageId, sectio
     )
   }
   
-  const currentContent = content || { title: "Why Temp Mail?", items: defaultContent };
+  const currentContent = content || { title: "Why Temp Mail?", items: defaultItems };
 
   if (!currentContent || !currentContent.items) {
     return (
@@ -82,3 +82,5 @@ export function UseCasesSection({ removeBorder, showTitle = true, pageId, sectio
     </section>
   )
 }
+
+    

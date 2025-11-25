@@ -28,6 +28,7 @@ interface SectionContentDialogProps {
   isOpen: boolean;
   onClose: () => void;
   section: { id: string; name: string, isDynamic?: boolean } | null;
+  pageId: string;
 }
 
 const getDefaultContent = (sectionId: string) => {
@@ -167,16 +168,18 @@ const DynamicSectionForm = ({ section }: { section: { id: string; name: string, 
     )
 }
 
-export function SectionContentDialog({ isOpen, onClose, section }: SectionContentDialogProps) {
+export function SectionContentDialog({ isOpen, onClose, section, pageId }: SectionContentDialogProps) {
   const [contentData, setContentData] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
   const firestore = useFirestore();
 
+  const contentId = section ? `${pageId}_${section.id}` : null;
+
   const contentRef = useMemoFirebase(() => {
-      if (!firestore || !section) return null;
-      return doc(firestore, 'page_content', section.id);
-  }, [firestore, section]);
+      if (!firestore || !contentId) return null;
+      return doc(firestore, 'page_content', contentId);
+  }, [firestore, contentId]);
 
   const { data: savedContent, isLoading: isLoadingContent } = useDoc(contentRef);
   
@@ -193,14 +196,14 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
 
 
   const handleSave = async () => {
-      if (!section || !contentData) return;
+      if (!contentId || !contentData) return;
       setIsSaving(true);
-      const result = await saveContentAction(section.id, contentData);
+      const result = await saveContentAction(contentId, contentData);
 
       if (result.success) {
           toast({
               title: "Content Saved",
-              description: `Content for '${section.name}' has been updated.`
+              description: `Content for '${section?.name}' has been updated.`
           });
           onClose();
       } else {
@@ -269,3 +272,5 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
     </Dialog>
   );
 }
+
+    

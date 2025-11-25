@@ -13,7 +13,7 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { testimonials as defaultContent } from "@/lib/content-data";
+import { testimonials as defaultItems } from "@/lib/content-data";
 
 interface TestimonialsProps {
   pageId: string;
@@ -36,7 +36,7 @@ export function Testimonials({ pageId, sectionId }: TestimonialsProps) {
   
   useEffect(() => {
     if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "What Our Users Say", description: "", items: defaultContent };
+      const defaultData = { title: "What Our Users Say", description: "", items: defaultItems };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
   }, [isLoading, content, error, firestore, contentId]);
@@ -49,7 +49,7 @@ export function Testimonials({ pageId, sectionId }: TestimonialsProps) {
     )
   }
 
-  const currentContent = content || { title: "What Our Users Say", items: defaultContent };
+  const currentContent = content || { title: "What Our Users Say", items: defaultItems };
 
   if (!currentContent || !currentContent.items) {
     return null;
@@ -97,3 +97,5 @@ export function Testimonials({ pageId, sectionId }: TestimonialsProps) {
     </section>
   )
 }
+
+    

@@ -7,7 +7,7 @@ import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
-import { features as defaultContent } from "@/lib/content-data";
+import { features as defaultItems } from "@/lib/content-data";
 
 interface FeaturesSectionProps {
   showTitle?: boolean;
@@ -27,7 +27,7 @@ export function FeaturesSection({ showTitle = true, pageId, sectionId }: Feature
   
   useEffect(() => {
     if (!isLoading && !content && !error && firestore) {
-      const defaultData = { title: "Features", description: "Discover the powerful features that make our service unique.", items: defaultContent };
+      const defaultData = { title: "Features", description: "Discover the powerful features that make our service unique.", items: defaultItems };
       setDoc(doc(firestore, 'page_content', contentId), defaultData).catch(console.error);
     }
   }, [isLoading, content, error, firestore, contentId]);
@@ -40,7 +40,7 @@ export function FeaturesSection({ showTitle = true, pageId, sectionId }: Feature
     )
   }
 
-  const currentContent = content || { title: "Features", items: defaultContent };
+  const currentContent = content || { title: "Features", items: defaultItems };
 
   if (!currentContent || !currentContent.items) {
      return (
@@ -78,3 +78,5 @@ export function FeaturesSection({ showTitle = true, pageId, sectionId }: Feature
     </section>
   )
 }
+
+    

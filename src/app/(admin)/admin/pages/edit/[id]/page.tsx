@@ -72,16 +72,15 @@ const pageData: { [key: string]: any } = {
   home: {
     name: "Home Page",
     sections: [
-      { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
       { id: "inbox", name: "Inbox", isDynamic: true, component: DashboardClient },
-      { id: "why", name: "Why", isDynamic: false, component: UseCasesSection },
-      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection },
-      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures },
+      { id: "why", name: "Why", isDynamic: false, component: UseCasesSection, props: { showTitle: true } },
+      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection, props: { showTitle: true } },
+      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures, props: { showTitle: true } },
       { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection, props: { showTitle: true } },
       { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection, props: { showTitle: true } },
       { id: "blog", name: "Blog", isDynamic: true, component: BlogSection, props: { showTitle: true } },
       { id: "testimonials", name: "Testimonials", isDynamic: false, component: Testimonials },
-      { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
+      { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection, props: { showTitle: true } },
       { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
     ]
   },
@@ -186,9 +185,10 @@ export default function EditPageLayout() {
           case 'pricing-comparison':
               return { ...baseProps, plans: plans || [] };
           case 'top-title':
+          case 'inbox':
                 return { ...baseProps, pageId: pageId };
           default:
-              return baseProps;
+              return { ...baseProps, pageId, sectionId };
       }
   }
 
@@ -373,10 +373,10 @@ export default function EditPageLayout() {
         isOpen={!!editingContentSection}
         onClose={handleCloseContentDialog}
         section={editingContentSection}
+        pageId={pageId}
     />
     </>
   );
 }
-
 
     

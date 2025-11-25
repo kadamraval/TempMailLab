@@ -19,6 +19,8 @@ import { collection, query, where, doc } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { useDoc } from "@/firebase";
 
+const pageId = "home";
+
 const sectionsConfig = [
     { id: "why", component: UseCasesSection, props: { showTitle: true } },
     { id: "features", component: FeaturesSection, props: { showTitle: true } },
@@ -100,7 +102,6 @@ const SectionWrapper = ({ sectionId, pageId, plans, children, component: Compone
 export default function HomePage() {
   const { isUserLoading } = useUser();
   const firestore = useFirestore();
-  const pageId = "home";
 
   const plansQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -122,11 +123,7 @@ export default function HomePage() {
   
   return (
     <>
-      <SectionWrapper
-          sectionId="inbox"
-          pageId={pageId}
-          plans={plans || []}
-      >
+      <SectionWrapper sectionId="inbox" pageId={pageId} plans={plans || []}>
         <div className="container mx-auto px-4">
             <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
                 <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
@@ -156,3 +153,5 @@ export default function HomePage() {
     </>
   );
 }
+
+    
