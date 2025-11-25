@@ -63,10 +63,10 @@ export default function AdminSectionsPage() {
                         </Card>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Live Preview</CardTitle>
+                                <CardTitle>Live Preview: {selectedSection.name}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                               <div className="border rounded-lg p-4">
+                               <div className="border rounded-lg p-4 bg-background">
                                   {selectedSection.component}
                                </div>
                             </CardContent>
@@ -78,16 +78,17 @@ export default function AdminSectionsPage() {
                         {selectedSection && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>CSS Properties for: {selectedSection.name}</CardTitle>
+                                    <CardTitle>CSS Properties</CardTitle>
+                                    <CardDescription>Controls for the '{selectedSection.name}' section.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="space-y-2">
                                         <Label>Background Color</Label>
-                                        <Input type="color" defaultValue="#FFFFFF" className="h-12" />
+                                        <Input type="color" defaultValue="#FFFFFF" className="h-12 w-full p-1" />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Gradient Color</Label>
-                                        <Input type="color" defaultValue="#F0F8FF" className="h-12" />
+                                        <Input type="color" defaultValue="#F0F8FF" className="h-12 w-full p-1" />
                                     </div>
                                     
                                     <div className="space-y-4 rounded-md border p-4">

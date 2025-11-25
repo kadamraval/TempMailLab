@@ -28,8 +28,8 @@ export default function AdminPagesPage() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Manage Page Sections</CardTitle>
-                <CardDescription>Select a section to view and edit its properties. This is where you control the content of each section on your pages.</CardDescription>
+                <CardTitle>Manage Page Content</CardTitle>
+                <CardDescription>Select a section to view and edit its content. This is where you control what text and images appear on your pages.</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -39,7 +39,7 @@ export default function AdminPagesPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Section Name</TableHead>
+                                        <TableHead>Page Sections</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -60,7 +60,7 @@ export default function AdminPagesPage() {
                         </Card>
                     </div>
 
-                    {/* Right Column: Properties Editor */}
+                    {/* Right Column: Content Editor */}
                     <div className="md:col-span-2">
                         {selectedSection && (
                             <Card>
