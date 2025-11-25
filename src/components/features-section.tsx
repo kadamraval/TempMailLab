@@ -25,7 +25,11 @@ export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
   }
 
   if (!content || !content.items) {
-    return <div className="text-center py-16">No features content found.</div>;
+     return (
+        <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-muted-foreground">No features content found.</h2>
+        </div>
+    );
   }
   
   return (
@@ -56,5 +60,3 @@ export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
     </section>
   )
 }
-
-    

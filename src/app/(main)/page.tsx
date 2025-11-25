@@ -21,19 +21,45 @@ import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { useDoc } from "@/firebase";
 
 const sectionsConfig = [
-    { id: "why", component: UseCasesSection, hasCard: true },
-    { id: "features", component: FeaturesSection, hasCard: false },
-    { id: "exclusive-features", component: ExclusiveFeatures, hasCard: false },
-    { id: "comparison", component: ComparisonSection, hasCard: true, props: { showTitle: true } },
-    { id: "pricing", component: PricingSection, hasCard: false, props: { showTitle: true } },
-    { id: "blog", component: BlogSection, hasCard: true, props: { showTitle: true } },
-    { id: "testimonials", component: Testimonials, hasCard: false },
-    { id: "faq", component: FaqSection, hasCard: true },
-    { id: "newsletter", component: StayConnected, hasCard: false },
+    { id: "why", component: UseCasesSection, props: { showTitle: true } },
+    { id: "features", component: FeaturesSection, props: { showTitle: true } },
+    { id: "exclusive-features", component: ExclusiveFeatures, props: { showTitle: true } },
+    { id: "comparison", component: ComparisonSection, props: { showTitle: true } },
+    { id: "pricing", component: PricingSection, props: { showTitle: true } },
+    { id: "blog", component: BlogSection, props: { showTitle: true } },
+    { id: "testimonials", component: Testimonials, props: { showTitle: true } },
+    { id: "faq", component: FaqSection, props: { showTitle: true } },
+    { id: "newsletter", component: StayConnected, props: { showTitle: true } },
 ];
 
-const SectionWrapper = ({ section, defaultStyles, pageId, plans }: { section: any, defaultStyles: any, pageId: string, plans: Plan[] }) => {
+const defaultStylesBase = {
+    marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0,
+    paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
+    borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0,
+    borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
+    borderLeftColor: 'hsl(var(--border))', borderRightColor: 'hsl(var(--border))'
+};
+
+const sectionDefaultStyles: { [key: string]: any } = {
+    "inbox": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
+    "top-title": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 },
+    "why": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
+    "features": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
+    "exclusive-features": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
+    "comparison": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
+    "pricing": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
+    "pricing-comparison": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
+    "blog": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
+    "testimonials": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false },
+    "faq": { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)', paddingTop: 64, paddingBottom: 64 },
+    "newsletter": { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false, borderTopWidth: 1, paddingTop: 64, paddingBottom: 64 },
+};
+
+
+const SectionWrapper = ({ section, pageId, plans }: { section: any, pageId: string, plans: Plan[] }) => {
     const firestore = useFirestore();
+    const defaultStyles = sectionDefaultStyles[section.id] || defaultStylesBase;
+    
     const overrideId = `${pageId}_${section.id}`;
     const styleOverrideRef = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -98,63 +124,35 @@ export default function HomePage() {
   
   return (
     <>
-      <div id="inbox" className="z-10 relative py-16 sm:py-20" style={{ background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.3))' }}>
-        <div className="container mx-auto px-4">
-          <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
-            <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
-            <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
-                100% Free & Secure
-            </span>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
-              Temporary Email Address
-            </h1>
-          </div>
-          <div className="mt-8">
-            <DashboardClient />
-          </div>
+      <SectionWrapper
+          section={{ id: "inbox" }}
+          pageId="home"
+          plans={plans || []}
+      >
+        <div id="inbox" className="container mx-auto px-4">
+            <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
+                <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+                <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
+                    100% Free & Secure
+                </span>
+                <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
+                Temporary Email Address
+                </h1>
+            </div>
+            <div className="mt-8">
+                <DashboardClient />
+            </div>
         </div>
-      </div>
-      {sectionsConfig.map((section, index) => {
-        const patternIndex = index % 4;
-        let defaultStyles: any = {};
-        let removeBorder = false;
+      </SectionWrapper>
 
-        if (patternIndex === 0) { // Gradient 1
-            defaultStyles = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.1))' };
-            removeBorder = true;
-        } else if (patternIndex === 1) { // Solid
-            defaultStyles = { backgroundColor: 'hsl(var(--background))' };
-        } else if (patternIndex === 2) { // Gradient 2
-            defaultStyles = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-end), 0.1))' };
-            removeBorder = true;
-        } else { // Solid
-            defaultStyles = { backgroundColor: 'hsl(var(--background))' };
-        }
-
-        if (section.id === "newsletter") {
-            defaultStyles = { backgroundColor: 'hsl(var(--background))', borderTop: '1px solid hsl(var(--border))'};
-        }
-        
-        const finalDefaultStyles = {
-            paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
-            marginTop: 0, marginBottom: 0,
-            borderTopWidth: section.id === "newsletter" ? 1 : 0, borderBottomWidth: 0,
-            borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
-            ...defaultStyles
-        };
-
-        return (
-            <SectionWrapper 
-                key={section.id}
-                section={section}
-                defaultStyles={finalDefaultStyles}
-                pageId="home"
-                plans={plans || []}
-            />
-        )
-      })}
+      {sectionsConfig.map((section) => (
+        <SectionWrapper 
+            key={section.id}
+            section={section}
+            pageId="home"
+            plans={plans || []}
+        />
+      ))}
     </>
   );
 }
-
-    

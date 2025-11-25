@@ -26,7 +26,11 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
   }
 
   if (!content || !content.items) {
-    return <div className="text-center py-16">No use cases content found.</div>;
+    return (
+        <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-muted-foreground">No use cases content found.</h2>
+        </div>
+    );
   }
 
   return (
@@ -57,5 +61,3 @@ export function UseCasesSection({ removeBorder }: { removeBorder?: boolean }) {
     </section>
   )
 }
-
-    

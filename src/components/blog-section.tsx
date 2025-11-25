@@ -1,47 +1,46 @@
+
 "use client"
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const blogPosts = [
-  {
-    title: "Why You Should Use a Temporary Email Address",
-    description: "Learn how a temporary email can protect your privacy and keep your main inbox clean from spam and unwanted newsletters.",
-    image: "https://picsum.photos/seed/blog1/600/400",
-    link: "/blog/why-use-temp-mail",
-    date: "May 20, 2024",
-  },
-  {
-    title: "Top 5 Use Cases for Developers & QA Testers",
-    description: "Discover how disposable emails can streamline your development workflow, from user registration testing to API integration.",
-    image: "https://picsum.photos/seed/blog2/600/400",
-    link: "/blog/use-cases-for-devs",
-    date: "May 15, 2024",
-  },
-  {
-    title: "Our New Feature: Custom Domains for Premium Users",
-    description: "We're excited to announce that you can now bring your own domain to generate branded temporary email addresses.",
-    image: "https://picsum.photos/seed/blog3/600/400",
-    link: "/blog/custom-domains-feature",
-    date: "May 10, 2024",
-  },
-]
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 export function BlogSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
+  const firestore = useFirestore();
+  const contentRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'page_content', 'blog');
+  }, [firestore]);
+
+  const { data: content, isLoading } = useDoc(contentRef);
+  
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
+
+  if (!content || !content.items) {
+    return null;
+  }
+  
   return (
     <section id="blog">
       <div className="container mx-auto px-4">
         {showTitle && (
             <div className="text-center space-y-4 mb-12">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">From the Blog</h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title || "From the Blog"}</h2>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {blogPosts.map((post) => (
+          {content.items.map((post: any) => (
             <Card key={post.title} className={cn("overflow-hidden flex flex-col", removeBorder ? "border-0" : "border")}>
               <Link href={post.link}>
                   <Image

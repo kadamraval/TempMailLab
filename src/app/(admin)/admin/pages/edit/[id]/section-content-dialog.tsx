@@ -260,7 +260,7 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoadingContent}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingContent || section.isDynamic}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Content
           </Button>

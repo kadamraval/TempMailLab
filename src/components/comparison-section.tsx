@@ -1,30 +1,42 @@
+
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const comparisonFeatures = [
-    { feature: "Instant Address Generation", tempmailoz: true, others: true },
-    { feature: "No Registration Required", tempmailoz: true, others: true },
-    { feature: "Automatic Email Deletion", tempmailoz: true, others: false },
-    { feature: "Ad-Free Experience", tempmailoz: true, others: false },
-    { feature: "Custom Domain Names", tempmailoz: true, others: false },
-    { feature: "Developer API Access", tempmailoz: true, others: false },
-    { feature: "Email Forwarding", tempmailoz: true, others: false },
-    { feature: "Secure Password Protection", tempmailoz: true, others: false },
-];
-
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 export function ComparisonSection({ removeBorder, showTitle = true }: { removeBorder?: boolean, showTitle?: boolean }) {
+  const firestore = useFirestore();
+  const contentRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'page_content', 'comparison');
+  }, [firestore]);
+
+  const { data: content, isLoading } = useDoc(contentRef);
+  
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
+
+  if (!content || !content.items) {
+    return null;
+  }
+
   return (
     <section id="comparison">
       <div className="container mx-auto px-4">
         {showTitle && (
             <div className="text-center space-y-4 mb-12">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                Tempmailoz Vs Others
+                {content.title || "Tempmailoz Vs Others"}
             </h2>
             </div>
         )}
@@ -39,7 +51,7 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {comparisonFeatures.map((item) => (
+                        {content.items.map((item: any) => (
                             <TableRow key={item.feature}>
                                 <TableCell className="font-medium">{item.feature}</TableCell>
                                 <TableCell className="text-center">

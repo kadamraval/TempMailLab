@@ -145,19 +145,16 @@ export const exclusiveFeatures = [
       iconName: "KeyRound",
       title: "Password Protection",
       description: "Secure your temporary inboxes with a unique password, ensuring only you can access the contents.",
-      image: imageData.exclusiveFeatures[0]
     },
     {
       iconName: "Users",
       title: "Team Member Access",
       description: "Invite your team to share plan features. Perfect for development teams and QA testing environments.",
-      image: imageData.exclusiveFeatures[1]
     },
     {
       iconName: "BarChart",
       title: "Advanced Analytics",
       description: "Access a detailed dashboard to monitor your temporary email usage, track statistics, and gain insights.",
-      image: imageData.exclusiveFeatures[2]
     },
 ];
 
