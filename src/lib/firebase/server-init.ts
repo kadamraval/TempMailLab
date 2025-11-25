@@ -28,28 +28,30 @@ function initializeAdminApp() {
         };
     }
     
-    if (getApps().length === 0) {
+    // If there are already apps initialized by another means, use the first one.
+    // This can happen in some environments.
+    if (getApps().length > 0) {
+        firebaseGlobal.firebaseAdminApp = getApps()[0];
+    } else {
         const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
         
+        // This logic handles both local and deployed environments.
         if (serviceAccountEnv) {
+             // LOCAL: Use the service account JSON from the environment variable.
              try {
-                // The service account is a JSON string in the env var. Parse it.
                 const serviceAccount = JSON.parse(serviceAccountEnv);
                 firebaseGlobal.firebaseAdminApp = initializeApp({
                     credential: cert(serviceAccount)
                 });
             } catch (e) {
                 console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Falling back to applicationDefault().", e);
-                // Fallback for deployed environments if parsing fails.
+                // Fallback for safety, though it might fail locally if ADC isn't set up.
                 firebaseGlobal.firebaseAdminApp = initializeApp({ credential: applicationDefault() });
             }
         } else {
-             // Fallback for deployed environments where the service account is discovered automatically.
+             // LIVE (DEPLOYED): Use Application Default Credentials.
             firebaseGlobal.firebaseAdminApp = initializeApp({ credential: applicationDefault() });
         }
-    } else {
-         // If there are existing apps, use the first one. This can happen in some environments.
-        firebaseGlobal.firebaseAdminApp = getApps()[0];
     }
 
     firebaseGlobal.firestore = getFirestore(firebaseGlobal.firebaseAdminApp);
