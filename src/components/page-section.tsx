@@ -112,11 +112,15 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   if (!Component) return null;
 
   if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    // Only show loader if it's the inbox section, otherwise render nothing to avoid layout shifts
+    if (sectionId === 'inbox') {
+        return (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        );
+    }
+    return null;
   }
 
   // --- APPLY STYLING CASCADE ---
@@ -125,13 +129,15 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   // Tier 3 (Page Override) merges on top of the default.
   const finalStyles = { ...(defaultStyle || {}), ...(styleOverride || {}) };
 
-  const styleProps = {
-    backgroundColor: finalStyles.bgColor,
+  const styleProps: React.CSSProperties = {
+    backgroundColor: finalStyles.bgColor || 'transparent',
     backgroundImage: finalStyles.useGradient ? `linear-gradient(to bottom, ${finalStyles.gradientStart}, ${finalStyles.gradientEnd})` : 'none',
-    marginTop: `${finalStyles.marginTop}px`,
-    marginBottom: `${finalStyles.marginBottom}px`,
-    paddingTop: `${finalStyles.paddingTop}px`,
-    paddingBottom: `${finalStyles.paddingBottom}px`,
+    marginTop: `${finalStyles.marginTop || 0}px`,
+    marginBottom: `${finalStyles.marginBottom || 0}px`,
+    paddingTop: `${finalStyles.paddingTop || 0}px`,
+    paddingBottom: `${finalStyles.paddingBottom || 0}px`,
+    paddingLeft: `${finalStyles.paddingLeft || 0}px`,
+    paddingRight: `${finalStyles.paddingRight || 0}px`,
     borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
     borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
   };
@@ -148,9 +154,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
 
   return (
     <div id={sectionId} className="z-10 relative" style={styleProps}>
-      <div style={{ paddingLeft: `${finalStyles.paddingLeft}px`, paddingRight: `${finalStyles.paddingRight}px`}}>
         <Component {...componentProps} />
-      </div>
     </div>
   );
 };

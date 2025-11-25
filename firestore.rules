@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -23,7 +24,7 @@ service cloud.firestore {
     }
 
     // Make page content and styles publicly readable
-    match /pages/{pageId}/{sectionCollection}/{sectionId} {
+    match /pages/{pageId}/{sectionCollection}/{sectionDocId} {
         allow get, list: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }

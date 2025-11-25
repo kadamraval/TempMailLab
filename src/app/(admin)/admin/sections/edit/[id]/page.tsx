@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,41 +65,36 @@ const sectionDetails: { [key: string]: { name: string, defaultContent: any } } =
 };
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    // Helper to check if a string is a valid HSL(A) color string
+    const isHsl = (color: string) => typeof color === 'string' && color.startsWith('hsl');
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                <Input
-                    type="color"
-                    value={(value || '#000000').slice(0, 7)}
-                    onChange={(e) => {
-                        const currentVal = value || 'rgba(0,0,0,1)';
-                        const alpha = parseFloat(currentVal.split(',')[3] || '1');
-                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${alpha})`;
-                        onChange(newRgba);
-                    }}
-                    className="h-10 w-12 p-1"
-                />
                  <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
+                    placeholder="e.g., hsl(var(--primary)) or rgba(0,0,0,0.5)"
                 />
             </div>
-             <div className="flex items-center gap-2">
-                <Label className="text-xs">Opacity</Label>
-                <Input 
-                    type="range" min="0" max="1" step="0.05"
-                    value={(value || 'rgba(0,0,0,1)').match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
-                    onChange={(e) => {
-                        const newAlpha = e.target.value;
-                        const oldColor = (value || 'rgba(0,0,0,1)').replace(/rgba?/, '').replace(')', '');
-                        const [r,g,b] = oldColor.split(',');
-                         onChange(`rgba(${r || 0},${g || 0},${b || 0}, ${newAlpha})`);
-                    }}
-                />
-            </div>
+             {value && !isHsl(value) && (
+                <div className="flex items-center gap-2">
+                    <Label className="text-xs">Opacity</Label>
+                    <Input 
+                        type="range" min="0" max="1" step="0.05"
+                        value={(value || 'rgba(0,0,0,1)').match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
+                        onChange={(e) => {
+                            const newAlpha = e.target.value;
+                            const oldColor = (value || 'rgba(0,0,0,1)').replace(/rgba?/, '').replace(')', '');
+                            const [r,g,b] = oldColor.split(',');
+                             onChange(`rgba(${r || 0},${g || 0},${b || 0}, ${newAlpha})`);
+                        }}
+                    />
+                </div>
+            )}
         </div>
     );
 };
@@ -288,14 +283,13 @@ export default function EditSectionPage() {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div className="pt-4">
-                                <Button className="w-full" onClick={handleSaveStyles} disabled={isSaving}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Default Styles
-                                </Button>
-                            </div>
                         </CardContent>
+                         <CardFooter className="border-t px-6 py-4">
+                            <Button className="w-full" onClick={handleSaveStyles} disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Default Styles
+                            </Button>
+                        </CardFooter>
                     </Card>
                 </div>
             </div>
