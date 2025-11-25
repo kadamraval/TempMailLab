@@ -28,33 +28,29 @@ function initializeAdminApp() {
         };
     }
     
-    // If there are existing apps, use the first one. This can happen in some environments.
-    const apps = getApps();
-    if (apps.length > 0) {
-        firebaseGlobal.firebaseAdminApp = apps[0];
-    } else {
-        // No apps initialized, so create a new one.
-        const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-        
+    const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+    if (getApps().length === 0) {
         let credential;
-        if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-            // For local dev where GOOGLE_APPLICATION_CREDENTIALS points to a file, prioritize this.
-            credential = applicationDefault();
-        } else if (serviceAccountEnv) {
-            // In a managed environment where the service account is a JSON string in an env var.
+        if (serviceAccountEnv) {
              try {
+                // In a managed environment where the service account is a JSON string in an env var.
                 const serviceAccount = JSON.parse(serviceAccountEnv);
                 credential = cert(serviceAccount);
             } catch (e) {
                 console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Using applicationDefault().", e);
+                // Fallback for deployed environments without specific local credentials.
                 credential = applicationDefault();
             }
         } else {
-             // Fallback for deployed environments without specific local credentials.
+             // Fallback for local dev where GOOGLE_APPLICATION_CREDENTIALS might be set, or for other environments.
             credential = applicationDefault();
         }
 
         firebaseGlobal.firebaseAdminApp = initializeApp({ credential });
+    } else {
+         // If there are existing apps, use the first one. This can happen in some environments.
+        firebaseGlobal.firebaseAdminApp = getApps()[0];
     }
 
     firebaseGlobal.firestore = getFirestore(firebaseGlobal.firebaseAdminApp);
