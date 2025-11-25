@@ -16,9 +16,63 @@ import { ComparisonSection } from "@/components/comparison-section";
 import { ExclusiveFeatures } from "@/components/exclusive-features";
 import { BlogSection } from "@/components/blog-section";
 import { cn } from "@/lib/utils";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, doc } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
+import { useDoc } from "@/firebase";
 
+const sectionsConfig = [
+    { id: "why", component: UseCasesSection, hasCard: true },
+    { id: "features", component: FeaturesSection, hasCard: false },
+    { id: "exclusive-features", component: ExclusiveFeatures, hasCard: false },
+    { id: "comparison", component: ComparisonSection, hasCard: true, props: { showTitle: true } },
+    { id: "pricing", component: PricingSection, hasCard: false, props: { showTitle: true } },
+    { id: "blog", component: BlogSection, hasCard: true, props: { showTitle: true } },
+    { id: "testimonials", component: Testimonials, hasCard: false },
+    { id: "faq", component: FaqSection, hasCard: true },
+    { id: "newsletter", component: StayConnected, hasCard: false },
+];
+
+const SectionWrapper = ({ section, defaultStyles, pageId, plans }: { section: any, defaultStyles: any, pageId: string, plans: Plan[] }) => {
+    const firestore = useFirestore();
+    const overrideId = `${pageId}_${section.id}`;
+    const styleOverrideRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return doc(firestore, 'page_style_overrides', overrideId);
+    }, [firestore, overrideId]);
+
+    const { data: styleOverride, isLoading: isLoadingStyle } = useDoc(styleOverrideRef);
+    
+    if (isLoadingStyle) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        )
+    }
+    
+    const finalStyles = { ...defaultStyles, ...styleOverride };
+
+    const backgroundStyle = {
+        backgroundColor: finalStyles.bgColor,
+        backgroundImage: finalStyles.useGradient ? `linear-gradient(to bottom, ${finalStyles.gradientStart}, ${finalStyles.gradientEnd})` : 'none',
+        marginTop: `${finalStyles.marginTop}px`,
+        marginBottom: `${finalStyles.marginBottom}px`,
+        paddingTop: `${finalStyles.paddingTop}px`,
+        paddingBottom: `${finalStyles.paddingBottom}px`,
+        borderTop: `${finalStyles.borderTopWidth}px solid ${finalStyles.borderTopColor}`,
+        borderBottom: `${finalStyles.borderBottomWidth}px solid ${finalStyles.borderBottomColor}`,
+    };
+
+    const props = section.id === 'pricing' ? { ...section.props, plans } : section.props;
+
+    return (
+        <div id={section.id} className="z-10 relative" style={backgroundStyle}>
+             <div style={{ paddingLeft: `${finalStyles.paddingLeft}px`, paddingRight: `${finalStyles.paddingRight}px`}}>
+                <section.component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} />
+             </div>
+        </div>
+    )
+}
 
 export default function HomePage() {
   const { isUserLoading } = useUser();
@@ -34,19 +88,6 @@ export default function HomePage() {
 
   const { data: plans, isLoading: isLoadingPlans } = useCollection<Plan>(plansQuery);
   
-  const sections = [
-    { id: "why", component: UseCasesSection, hasCard: true },
-    { id: "features", component: FeaturesSection, hasCard: false },
-    { id: "exclusive-features", component: ExclusiveFeatures, hasCard: false },
-    { id: "comparison", component: ComparisonSection, hasCard: true, props: { showTitle: true } },
-    { id: "pricing", component: PricingSection, hasCard: false, props: { plans: plans || [], showTitle: true } },
-    { id: "blog", component: BlogSection, hasCard: true, props: { showTitle: true } },
-    { id: "testimonials", component: Testimonials, hasCard: false },
-    { id: "faq", component: FaqSection, hasCard: true },
-    { id: "newsletter", component: StayConnected, hasCard: false },
-  ];
-
-
   if (isUserLoading || isLoadingPlans) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
@@ -73,31 +114,43 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-      {sections.map((Section, index) => {
+      {sectionsConfig.map((section, index) => {
         const patternIndex = index % 4;
-        let backgroundStyle = {};
+        let defaultStyles: any = {};
         let removeBorder = false;
 
         if (patternIndex === 0) { // Gradient 1
-            backgroundStyle = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.1))' };
+            defaultStyles = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.1))' };
             removeBorder = true;
         } else if (patternIndex === 1) { // Solid
-            backgroundStyle = { backgroundColor: 'hsl(var(--background))' };
+            defaultStyles = { backgroundColor: 'hsl(var(--background))' };
         } else if (patternIndex === 2) { // Gradient 2
-            backgroundStyle = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-end), 0.1))' };
+            defaultStyles = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-end), 0.1))' };
             removeBorder = true;
         } else { // Solid
-            backgroundStyle = { backgroundColor: 'hsl(var(--background))' };
+            defaultStyles = { backgroundColor: 'hsl(var(--background))' };
         }
 
-        if (Section.id === "newsletter") {
-            backgroundStyle = { backgroundColor: 'hsl(var(--background))', borderTop: '1px solid hsl(var(--border))'};
+        if (section.id === "newsletter") {
+            defaultStyles = { backgroundColor: 'hsl(var(--background))', borderTop: '1px solid hsl(var(--border))'};
         }
+        
+        const finalDefaultStyles = {
+            paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
+            marginTop: 0, marginBottom: 0,
+            borderTopWidth: section.id === "newsletter" ? 1 : 0, borderBottomWidth: 0,
+            borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
+            ...defaultStyles
+        };
 
         return (
-            <div key={index} id={Section.id} className="z-10 relative py-16 sm:py-20" style={backgroundStyle}>
-                <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
-            </div>
+            <SectionWrapper 
+                key={section.id}
+                section={section}
+                defaultStyles={finalDefaultStyles}
+                pageId="home"
+                plans={plans || []}
+            />
         )
       })}
     </>

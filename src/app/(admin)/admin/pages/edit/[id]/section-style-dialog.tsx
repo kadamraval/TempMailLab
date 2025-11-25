@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { saveStyleOverrideAction } from '@/lib/actions/content';
 
 const sectionDefaultStyles: { [key: string]: any } = {
     "inbox": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
@@ -45,16 +46,18 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
             <div className="flex items-center gap-2">
                 <Input
                     type="color"
-                    value={value.slice(0, 7)}
+                    value={(value || '#000000').slice(0, 7)}
                     onChange={(e) => {
-                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${parseFloat(value.split(',')[3] || '1')})`;
+                        const currentVal = value || 'rgba(0,0,0,1)';
+                        const alpha = parseFloat(currentVal.split(',')[3] || '1');
+                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${alpha})`;
                         onChange(newRgba);
                     }}
                     className="h-10 w-12 p-1"
                 />
                  <Input
                     type="text"
-                    value={value}
+                    value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
                 />
@@ -66,10 +69,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                     min="0" 
                     max="1" 
                     step="0.05"
-                    value={value.match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
+                    value={(value || 'rgba(0,0,0,1)').match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
                     onChange={(e) => {
                         const newAlpha = e.target.value;
-                        const oldColor = value.replace(/rgba?/, '').replace(')', '');
+                        const oldColor = (value || 'rgba(0,0,0,1)').replace(/rgba?/, '').replace(')', '');
                         const [r,g,b] = oldColor.split(',');
                          onChange(`rgba(${r},${g},${b}, ${newAlpha})`);
                     }}
@@ -80,7 +83,6 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
 };
 
 const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom' | 'Left' | 'Right', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
-    const lowerSide = side.toLowerCase();
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
@@ -110,11 +112,17 @@ interface SectionStyleDialogProps {
 export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName }: SectionStyleDialogProps) {
   const { toast } = useToast();
   const [styles, setStyles] = useState<any>({}); 
-  const [useBackground, setUseBackground] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const firestore = useFirestore();
 
-  // Here we would fetch saved override styles for this specific page/section combo.
-  // For now, we initialize with the section's default styles.
+  const overrideId = section ? `${pageId}_${section.id}` : null;
+  const styleOverrideRef = useMemoFirebase(() => {
+      if (!firestore || !overrideId) return null;
+      return doc(firestore, 'page_style_overrides', overrideId);
+  }, [firestore, overrideId]);
+
+  const { data: savedStyles, isLoading: isLoadingStyles } = useDoc(styleOverrideRef);
+
   useEffect(() => {
     if (section) {
         const defaultStyles = sectionDefaultStyles[section.id] || {};
@@ -125,26 +133,38 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
             borderTopColor: '#e5e7eb', borderBottomColor: '#e5e7eb', borderLeftColor: '#e5e7eb', borderRightColor: '#e5e7eb'
         };
         const initialStyles = { ...globalDefaults, ...defaultStyles };
-        setStyles(initialStyles);
-        setUseBackground(!!initialStyles.bgColor && initialStyles.bgColor !== 'rgba(0,0,0,0)');
+        
+        if (savedStyles) {
+            setStyles({ ...initialStyles, ...savedStyles });
+        } else {
+            setStyles(initialStyles);
+        }
     }
-  }, [section]);
+  }, [section, savedStyles]);
   
   const handleStyleChange = (property: string, value: string | number | boolean) => {
     setStyles((prev: any) => ({ ...prev, [property]: value }));
   };
 
   const handleSaveOverride = async () => {
-    if (!section || !pageId) return;
+    if (!overrideId) return;
     setIsSaving(true);
-    console.log("Simulating save for override:", { pageId, sectionId: section.id, styles });
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast({
-        title: "Style Override Saved",
-        description: `Custom styles for '${section.name}' on the '${pageName}' page have been saved.`
-    });
+    const result = await saveStyleOverrideAction(overrideId, styles);
+
+    if (result.success) {
+        toast({
+            title: "Style Override Saved",
+            description: `Custom styles for '${section?.name}' on the '${pageName}' page have been saved.`
+        });
+        onClose();
+    } else {
+        toast({
+            title: "Error Saving Style",
+            description: result.error || "An unknown error occurred.",
+            variant: "destructive"
+        });
+    }
     setIsSaving(false);
-    onClose();
   };
   
   if (!section) return null;
@@ -160,70 +180,78 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
         </DialogHeader>
         
         <div className="py-4 max-h-[60vh] overflow-y-auto pr-4 space-y-6">
-          {/* Background Controls */}
-          <div className="space-y-4 rounded-md border p-4">
-              <div className="flex items-center justify-between">
-                  <Label className="font-semibold">Background</Label>
-                  <Switch checked={useBackground} onCheckedChange={setUseBackground} />
+          {isLoadingStyles ? (
+              <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-              {useBackground && (
-                  <div className="space-y-4">
-                      <ColorInput label="Background Color" value={styles.bgColor || 'rgba(0,0,0,0)'} onChange={(value) => handleStyleChange('bgColor', value)} />
-                      <div className="flex items-center justify-between">
-                          <Label htmlFor="use-gradient">Use Gradient</Label>
-                          <Switch id="use-gradient" checked={styles.useGradient || false} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
+          ) : (
+            <>
+              {/* Background Controls */}
+              <div className="space-y-4 rounded-md border p-4">
+                  <div className="flex items-center justify-between">
+                      <Label className="font-semibold">Background</Label>
+                      <Switch checked={styles.bgColor && styles.bgColor !== 'rgba(0,0,0,0)'} onCheckedChange={(checked) => handleStyleChange('bgColor', checked ? 'hsl(var(--background))' : 'rgba(0,0,0,0)')} />
+                  </div>
+                  {styles.bgColor && styles.bgColor !== 'rgba(0,0,0,0)' && (
+                      <div className="space-y-4">
+                          <ColorInput label="Background Color" value={styles.bgColor || 'rgba(0,0,0,0)'} onChange={(value) => handleStyleChange('bgColor', value)} />
+                          <div className="flex items-center justify-between">
+                              <Label htmlFor="use-gradient">Use Gradient</Label>
+                              <Switch id="use-gradient" checked={styles.useGradient || false} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
+                          </div>
+                          {styles.useGradient && (
+                              <>
+                                  <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('gradientStart', value)} />
+                                  <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd || 'rgba(240,248,255,1)'} onChange={(value) => handleStyleChange('gradientEnd', value)} />
+                              </>
+                          )}
                       </div>
-                      {styles.useGradient && (
-                          <>
-                              <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('gradientStart', value)} />
-                              <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd || 'rgba(240,248,255,1)'} onChange={(value) => handleStyleChange('gradientEnd', value)} />
-                          </>
-                      )}
-                  </div>
-              )}
-          </div>
+                  )}
+              </div>
 
-          {/* Border Controls */}
-          <div className="space-y-4 rounded-md border p-4">
-              <Label className="font-semibold">Borders</Label>
-              <div className="space-y-4">
-                  <BorderInputGroup side="Top" styles={styles} handleStyleChange={handleStyleChange} />
-                  <Separator />
-                  <BorderInputGroup side="Bottom" styles={styles} handleStyleChange={handleStyleChange} />
-                  <Separator />
-                  <BorderInputGroup side="Left" styles={styles} handleStyleChange={handleStyleChange} />
-                  <Separator />
-                  <BorderInputGroup side="Right" styles={styles} handleStyleChange={handleStyleChange} />
-              </div>
-          </div>
-          
-          {/* Margin and Padding */}
-          <div className="space-y-4 rounded-md border p-4">
-              <Label className="font-semibold">Spacing (in pixels)</Label>
-              <div className="space-y-2">
-                   <Label className="text-xs">Margin (Outer Space)</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                      <Input type="number" placeholder="Top" value={styles.marginTop || 0} onChange={(e) => handleStyleChange('marginTop', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Bottom" value={styles.marginBottom || 0} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Left" value={styles.marginLeft || 0} onChange={(e) => handleStyleChange('marginLeft', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Right" value={styles.marginRight || 0} onChange={(e) => handleStyleChange('marginRight', e.target.valueAsNumber)} />
+              {/* Border Controls */}
+              <div className="space-y-4 rounded-md border p-4">
+                  <Label className="font-semibold">Borders</Label>
+                  <div className="space-y-4">
+                      <BorderInputGroup side="Top" styles={styles} handleStyleChange={handleStyleChange} />
+                      <Separator />
+                      <BorderInputGroup side="Bottom" styles={styles} handleStyleChange={handleStyleChange} />
+                      <Separator />
+                      <BorderInputGroup side="Left" styles={styles} handleStyleChange={handleStyleChange} />
+                      <Separator />
+                      <BorderInputGroup side="Right" styles={styles} handleStyleChange={handleStyleChange} />
                   </div>
               </div>
-              <div className="space-y-2">
-                   <Label className="text-xs">Padding (Inner Space)</Label>
-                   <div className="grid grid-cols-2 gap-2">
-                      <Input type="number" placeholder="Top" value={styles.paddingTop || 0} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Left" value={styles.paddingLeft || 0} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
-                      <Input type="number" placeholder="Right" value={styles.paddingRight || 0} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
+              
+              {/* Margin and Padding */}
+              <div className="space-y-4 rounded-md border p-4">
+                  <Label className="font-semibold">Spacing (in pixels)</Label>
+                  <div className="space-y-2">
+                      <Label className="text-xs">Margin (Outer Space)</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                          <Input type="number" placeholder="Top" value={styles.marginTop || 0} onChange={(e) => handleStyleChange('marginTop', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Bottom" value={styles.marginBottom || 0} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Left" value={styles.marginLeft || 0} onChange={(e) => handleStyleChange('marginLeft', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Right" value={styles.marginRight || 0} onChange={(e) => handleStyleChange('marginRight', e.target.valueAsNumber)} />
+                      </div>
+                  </div>
+                  <div className="space-y-2">
+                      <Label className="text-xs">Padding (Inner Space)</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                          <Input type="number" placeholder="Top" value={styles.paddingTop || 0} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Left" value={styles.paddingLeft || 0} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Right" value={styles.paddingRight || 0} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
+                      </div>
                   </div>
               </div>
-          </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSaveOverride} disabled={isSaving}>
+          <Button onClick={handleSaveOverride} disabled={isSaving || isLoadingStyles}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Override
           </Button>
@@ -232,3 +260,5 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
     </Dialog>
   );
 }
+
+    

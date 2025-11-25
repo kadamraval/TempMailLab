@@ -1,64 +1,60 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ShieldCheck, Zap, Trash2, Globe, Forward, Code } from "lucide-react"
-
-const features = [
-  {
-    icon: <Zap className="h-8 w-8 text-primary" />,
-    title: "Instant Setup",
-    description: "Generate a new email address with a single click. No registration required.",
-  },
-  {
-    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
-    title: "Total Privacy",
-    description: "Keep your primary inbox clean from spam and marketing lists.",
-  },
-  {
-    icon: <Trash2 className="h-8 w-8 text-primary" />,
-    title: "Auto-Deletion",
-    description: "All emails are automatically and permanently deleted after a set time.",
-  },
-  {
-    icon: <Globe className="h-8 w-8 text-primary" />,
-    title: "Custom Domains",
-    description: "Connect your own domain to generate branded temporary email addresses.",
-  },
-  {
-    icon: <Forward className="h-8 w-8 text-primary" />,
-    title: "Email Forwarding",
-    description: "Automatically forward incoming temporary emails to a real, verified email address.",
-  },
-  {
-    icon: <Code className="h-8 w-8 text-primary" />,
-    title: "Developer API",
-    description: "Integrate our temporary email service directly into your applications.",
-  },
-];
+import * as LucideIcons from "lucide-react"
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import { Loader2 } from "lucide-react";
 
 export function FeaturesSection({ showTitle = true }: { showTitle?: boolean }) {
+  const firestore = useFirestore();
+  const contentRef = useMemoFirebase(() => {
+      if (!firestore) return null;
+      return doc(firestore, 'page_content', 'features');
+  }, [firestore]);
+
+  const { data: content, isLoading } = useDoc(contentRef);
+
+  if (isLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
+
+  if (!content || !content.items) {
+    return <div className="text-center py-16">No features content found.</div>;
+  }
+  
   return (
     <section id="features">
       <div className="container mx-auto px-4">
         {showTitle && (
             <div className="text-center space-y-4 mb-12">
-                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Features</h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title || "Features"}</h2>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature) => (
-            <Card key={feature.title} className="border bg-background">
-              <CardHeader>
-                {feature.icon}
-              </CardHeader>
-              <CardContent>
-                <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {content.items.map((feature: any) => {
+            const Icon = (LucideIcons as any)[feature.iconName] || LucideIcons.HelpCircle;
+            return (
+              <Card key={feature.title} className="border bg-background">
+                <CardHeader>
+                  <Icon className="h-8 w-8 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
+                  <p className="text-muted-foreground">{feature.description}</p>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
     </section>
   )
 }
+
+    

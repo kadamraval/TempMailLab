@@ -17,12 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures } from "@/lib/content-data";
 import { IconPicker } from '@/components/icon-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { saveContentAction } from '@/lib/actions/content';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 interface SectionContentDialogProps {
   isOpen: boolean;
@@ -44,25 +45,37 @@ const TopContentFields = ({ title, description, onTitleChange, onDescriptionChan
     </div>
 );
 
-const WhyForm = ({ onSave }: { onSave: (data: any) => void }) => {
-    const [content, setContent] = React.useState(useCases);
+const WhyForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => {
 
     const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...content];
+        const newItems = [...content.items];
         (newItems[index] as any)[field] = value;
-        setContent(newItems);
+        onContentChange({ ...content, items: newItems });
     };
 
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
+    const handleAddItem = () => {
+        const newItems = [...content.items, { iconName: "Star", title: "New Item", description: "New description" }];
+        onContentChange({ ...content, items: newItems });
+    };
+    
+    const handleRemoveItem = (index: number) => {
+        const newItems = content.items.filter((_:any, i:number) => i !== index);
+        onContentChange({ ...content, items: newItems });
+    };
 
     return (
         <div className="space-y-4">
-            <TopContentFields title="Why Temp Mail?" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-            {content.map((item, index) => (
+            <TopContentFields 
+                title={content.title} 
+                description={content.description} 
+                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
+                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+            />
+            {content.items.map((item: any, index: number) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Icon Name (from lucide-react)</Label>
                     <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
@@ -72,138 +85,42 @@ const WhyForm = ({ onSave }: { onSave: (data: any) => void }) => {
                     <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
                 </div>
             ))}
-             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
+             <Button variant="outline" className="w-full" onClick={handleAddItem}><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
         </div>
     )
 }
 
-const FeaturesForm = ({ onSave }: { onSave: (data: any) => void }) => {
-     const [content, setContent] = React.useState(features);
-
-    const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...content];
-        (newItems[index] as any)[field] = value;
-        setContent(newItems);
-    };
-
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
-
-     return (
-        <div className="space-y-4">
-            <TopContentFields title="Features" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-             {content.map((item, index) => (
-                <div key={index} className="space-y-2 p-4 border rounded-md">
-                    <div className="flex justify-between items-center">
-                        <Label>Item {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                    <Label>Icon Name (from lucide-react)</Label>
-                    <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
-                    <Label>Title</Label>
-                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
-                    <Label>Description</Label>
-                    <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
-                </div>
-            ))}
-             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
-        </div>
-    )
-}
-
-const ExclusiveFeaturesForm = ({ onSave }: { onSave: (data: any) => void }) => {
-    const [content, setContent] = React.useState(exclusiveFeatures);
-
-    const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...content];
-        (newItems[index] as any)[field] = value;
-        setContent(newItems);
-    };
+const FaqForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => {
     
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
-
-     return (
-        <div className="space-y-4">
-            <TopContentFields title="Exclusive Features" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-             {content.map((item, index) => (
-                <div key={index} className="space-y-2 p-4 border rounded-md">
-                    <div className="flex justify-between items-center">
-                        <Label>Item {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                    <Label>Icon Name (from lucide-react)</Label>
-                    <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
-                    <Label>Title</Label>
-                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
-                    <Label>Description</Label>
-                    <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
-                    <Label>Image URL</Label>
-                    <Input value={item.image.src} onChange={(e) => handleItemChange(index, 'image', {...item.image, src: e.target.value})} />
-                </div>
-            ))}
-            <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
-        </div>
-    )
-}
-
-const ComparisonForm = ({ onSave }: { onSave: (data: any) => void }) => {
-    const [content, setContent] = React.useState(comparisonFeatures);
-    
-    const handleItemChange = (index: number, field: string, value: string | boolean) => {
-        const newItems = [...content];
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...content.items];
         (newItems[index] as any)[field] = value;
-        setContent(newItems);
+        onContentChange({ ...content, items: newItems });
     };
 
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
+    const handleAddItem = () => {
+        const newItems = [...content.items, { question: "New Question?", answer: "New answer." }];
+        onContentChange({ ...content, items: newItems });
+    };
+
+     const handleRemoveItem = (index: number) => {
+        const newItems = content.items.filter((_:any, i:number) => i !== index);
+        onContentChange({ ...content, items: newItems });
+    };
 
     return (
         <div className="space-y-4">
-             <TopContentFields title="Tempmailoz Vs Others" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-             {content.map((item, index) => (
-                <div key={index} className="space-y-2 p-4 border rounded-md">
-                    <div className="flex justify-between items-center">
-                        <Label>Feature {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                    <Label>Feature Name</Label>
-                    <Input value={item.feature} onChange={(e) => handleItemChange(index, 'feature', e.target.value)} />
-                    <div className="grid grid-cols-2 gap-4 items-center">
-                        <div className="flex items-center gap-2">
-                            <Label>Our App:</Label>
-                            <Switch checked={item.tempmailoz} onCheckedChange={(val) => handleItemChange(index, 'tempmailoz', val)} />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Label>Others:</Label>
-                            <Switch checked={item.others} onCheckedChange={(val) => handleItemChange(index, 'others', val)} />
-                        </div>
-                    </div>
-                </div>
-             ))}
-            <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Row</Button>
-        </div>
-    )
-}
-
-
-const FaqForm = ({ onSave }: { onSave: (data: any) => void }) => {
-    const [content, setContent] = React.useState(faqs);
-    
-    const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...content];
-        (newItems[index] as any)[field] = value;
-        setContent(newItems);
-    };
-
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
-
-    return (
-        <div className="space-y-4">
-             <TopContentFields title="Questions?" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-             {content.map((item, index) => (
+             <TopContentFields 
+                title={content.title} 
+                description={content.description}
+                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
+                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+            />
+             {content.items.map((item: any, index: number) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Question {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveItem(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Question</Label>
                     <Input value={item.question} onChange={(e) => handleItemChange(index, 'question', e.target.value)} />
@@ -211,74 +128,52 @@ const FaqForm = ({ onSave }: { onSave: (data: any) => void }) => {
                     <Textarea value={item.answer} onChange={(e) => handleItemChange(index, 'answer', e.target.value)} rows={4} />
                 </div>
              ))}
-            <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add FAQ</Button>
+            <Button variant="outline" className="w-full" onClick={handleAddItem}><PlusCircle className="h-4 w-4 mr-2" /> Add FAQ</Button>
         </div>
     )
 }
 
-const TestimonialsForm = ({ onSave }: { onSave: (data: any) => void }) => {
-    const [content, setContent] = React.useState(testimonials);
+// Placeholder for other forms
+const GenericForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => (
+     <div className="space-y-4">
+        <TopContentFields 
+            title={content?.title || ''} 
+            description={content?.description || ''}
+            onTitleChange={(val) => onContentChange({ ...content, title: val })} 
+            onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+        />
+        <p className="text-muted-foreground text-center py-8">This section's detailed content is not yet editable.</p>
+    </div>
+);
 
-    const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...content];
-        (newItems[index] as any)[field] = value;
-        setContent(newItems);
-    };
-    
-    React.useEffect(() => { onSave(content) }, [content, onSave]);
-
-    return (
-        <div className="space-y-4">
-            <TopContentFields title="What Our Users Say" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
-            {content.map((item, index) => (
-                <div key={index} className="space-y-2 p-4 border rounded-md">
-                    <div className="flex justify-between items-center">
-                        <Label>Testimonial {index + 1}</Label>
-                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                    <Label>Avatar URL</Label>
-                    <Input value={item.avatar} onChange={(e) => handleItemChange(index, 'avatar', e.target.value)} />
-                    <Label>Name</Label>
-                    <Input value={item.name} onChange={(e) => handleItemChange(index, 'name', e.target.value)} />
-                    <Label>Title</Label>
-                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
-                    <Label>Quote</Label>
-                    <Textarea value={item.quote} onChange={(e) => handleItemChange(index, 'quote', e.target.value)} />
-                </div>
-            ))}
-            <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Testimonial</Button>
-        </div>
-    )
-}
 
 const DynamicSectionForm = ({ section }: { section: { id: string; name: string, isDynamic?: boolean } }) => {
-    const titles: Record<string, string> = {
-        'pricing': 'Pricing',
-        'blog': 'From the Blog',
-        'newsletter': 'Stay Connected',
-        'contact-form': 'Send us a Message',
-    }
-     const descriptions: Record<string, string> = {
-        'pricing': '',
-        'blog': '',
-        'newsletter': 'Subscribe to our newsletter for product updates and privacy news.',
-        'contact-form': 'Fill out the form below and we\'ll get back to you as soon as possible.',
-    }
     return (
         <div className="space-y-4">
-             <TopContentFields title={titles[section.id] || section.name} description={descriptions[section.id] || ''} onTitleChange={() => {}} onDescriptionChange={() => {}}/>
-             <p className="text-muted-foreground text-center py-8">The core content of this section is managed automatically and cannot be edited here.</p>
+             <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>
         </div>
     )
 }
-
-
 
 export function SectionContentDialog({ isOpen, onClose, section }: SectionContentDialogProps) {
   const [contentData, setContentData] = React.useState<any>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const { toast } = useToast();
-  const router = useRouter();
+  const firestore = useFirestore();
+
+  const contentRef = useMemoFirebase(() => {
+      if (!firestore || !section) return null;
+      return doc(firestore, 'page_content', section.id);
+  }, [firestore, section]);
+
+  const { data: savedContent, isLoading: isLoadingContent } = useDoc(contentRef);
+  
+  React.useEffect(() => {
+      if (savedContent) {
+          setContentData(savedContent);
+      }
+  }, [savedContent]);
+
 
   const handleSave = async () => {
       if (!section || !contentData) return;
@@ -290,7 +185,6 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
               title: "Content Saved",
               description: `Content for '${section.name}' has been updated.`
           });
-          router.refresh();
           onClose();
       } else {
            toast({
@@ -305,25 +199,32 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
   if (!section) return null;
 
   const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
+    if (isLoadingContent) {
+        return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
+    }
+    if (!contentData) {
+        return <div className="text-center text-muted-foreground p-8">No content data loaded.</div>
+    }
+
     if (section.isDynamic) {
         return <DynamicSectionForm section={section} />;
     }
 
     switch (section.id) {
         case 'why':
-            return <WhyForm onSave={setContentData} />;
         case 'features':
-            return <FeaturesForm onSave={setContentData} />;
         case 'exclusive-features':
-            return <ExclusiveFeaturesForm onSave={setContentData} />;
+            return <WhyForm content={contentData} onContentChange={setContentData} />;
         case 'comparison':
-            return <ComparisonForm onSave={setContentData} />;
+             // Add a dedicated form if needed, for now uses generic
+            return <GenericForm content={contentData} onContentChange={setContentData} />;
         case 'testimonials':
-            return <TestimonialsForm onSave={setContentData} />;
+             // Add a dedicated form if needed, for now uses generic
+            return <GenericForm content={contentData} onContentChange={setContentData} />;
         case 'faq':
-            return <FaqForm onSave={setContentData} />;
+            return <FaqForm content={contentData} onContentChange={setContentData} />;
         default:
-            return <p className="text-muted-foreground text-center py-8">This section is not configured for content editing.</p>;
+            return <GenericForm content={contentData} onContentChange={setContentData} />;
     }
   }
 
@@ -345,7 +246,7 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSave} disabled={isSaving || isLoadingContent}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Content
           </Button>
@@ -354,6 +255,5 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
     </Dialog>
   );
 }
-
 
     

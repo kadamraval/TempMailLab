@@ -1,91 +1,66 @@
 
 'use server';
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import { revalidatePath } from 'next/cache';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
 
-const contentFilePath = path.join(process.cwd(), 'src', 'lib', 'content-data.ts');
-
-const contentFileTemplate = (key: string, data: any) => {
-    const stringifiedData = JSON.stringify(data, null, 2);
-    // This is a simplified template. A real implementation would need to read the existing file,
-    // parse it, update the specific key, and then write it back.
-    // For now, we are creating a very basic structure.
-    return `
-"use client";
-import imageData from '@/app/lib/placeholder-images.json';
-
-const contentStore: Record<string, any> = {
-    "useCases": [],
-    "features": [],
-    "faqs": [],
-    "comparisonFeatures": [],
-    "testimonials": [],
-    "exclusiveFeatures": [],
-    "blogPosts": []
-};
-
-// This is a placeholder for where we would load existing data from the file
-// For this simulation, we'll just overwrite it.
-contentStore['${key}'] = ${stringifiedData};
-
-export const useCases = contentStore['useCases'];
-export const features = contentStore['features'];
-export const faqs = contentStore['faqs'];
-export const comparisonFeatures = contentStore['comparisonFeatures'];
-export const testimonials = contentStore['testimonials'];
-export const exclusiveFeatures = contentStore['exclusiveFeatures'];
-export const blogPosts = contentStore['blogPosts'];
-`;
-};
-
-
-// A map to convert section IDs to the variable names used in content-data.ts
-const sectionIdToDataKey: Record<string, string> = {
-    'why': 'useCases',
-    'features': 'features',
-    'faq': 'faqs',
-    'comparison': 'comparisonFeatures',
-    'testimonials': 'testimonials',
-    'exclusive-features': 'exclusiveFeatures'
-};
-
-
+/**
+ * Saves or updates content for a specific section in Firestore.
+ * @param sectionId The unique identifier for the content section (e.g., 'faq', 'features').
+ * @param data The content data object to save.
+ */
 export async function saveContentAction(sectionId: string, data: any) {
-    const dataKey = sectionIdToDataKey[sectionId];
-    if (!dataKey) {
-        return { success: false, error: 'Invalid section ID provided.' };
+    if (!sectionId || !data) {
+        return { success: false, error: 'Section ID and data are required.' };
     }
 
     try {
-        // In a real app, you'd read the file, update the specific export, and write it back.
-        // This is a simplified version for demonstration.
+        const firestore = getAdminFirestore();
+        const contentRef = firestore.collection('page_content').doc(sectionId);
         
-        // Let's create a more robust update
-        const currentFileContent = await fs.readFile(contentFilePath, 'utf-8');
-        
-        // This is a regex-based approach, which is fragile. A better way would be to use an AST parser
-        // like Babel or TypeScript's own parser, but for this context, regex is a simpler dependency-free way.
-        const dataString = JSON.stringify(data, null, 2);
-        
-        const regex = new RegExp(`export const ${dataKey} = ([\\s\\S]*?];)`);
-        
-        if (!regex.test(currentFileContent)) {
-            throw new Error(`Could not find 'export const ${dataKey}' in the content file.`);
-        }
-        
-        const newFileContent = currentFileContent.replace(regex, `export const ${dataKey} = ${dataString};`);
-        
-        await fs.writeFile(contentFilePath, newFileContent, 'utf-8');
+        // Use set with merge to create or update the document.
+        await contentRef.set(data, { merge: true });
 
         // Revalidate all paths to reflect content changes everywhere
         revalidatePath('/', 'layout');
 
         return { success: true };
     } catch (error: any) {
-        console.error('Error saving content:', error);
-        return { success: false, error: error.message || 'Failed to write to content file.' };
+        console.error('Error saving content to Firestore:', error);
+        return { success: false, error: error.message || 'Failed to save content to the database.' };
+    }
+}
+
+
+/**
+ * Saves or updates a style override for a specific page-section combination.
+ * @param overrideId The unique ID for the override (e.g., 'home_faq').
+ * @param styles The CSS style object to save.
+ */
+export async function saveStyleOverrideAction(overrideId: string, styles: any) {
+    if (!overrideId || !styles) {
+        return { success: false, error: 'Override ID and styles are required.' };
+    }
+
+    try {
+        const firestore = getAdminFirestore();
+        const styleRef = firestore.collection('page_style_overrides').doc(overrideId);
+        
+        await styleRef.set(styles, { merge: true });
+
+        // Revalidate the specific page layout where the change was made
+        const pageId = overrideId.split('_')[0];
+        if (pageId === 'home') {
+            revalidatePath('/');
+        } else {
+            revalidatePath(`/${pageId}`);
+        }
+        revalidatePath('/', 'layout'); // Revalidate the whole layout too
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error saving style override to Firestore:', error);
+        return { success: false, error: error.message || 'Failed to save style override.' };
     }
 }
 

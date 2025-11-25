@@ -29,35 +29,35 @@ export const useCases = [
 // Data for FeaturesSection
 export const features = [
   {
-    iconName: "Zap",
-    title: "Instant Setup",
-    description: "Generate a new email address with a single click. No registration required.",
+    "iconName": "Zap",
+    "title": "Instant Setups",
+    "description": "Generate a new email address with a single click. No registration required."
   },
   {
-    iconName: "ShieldCheck",
-    title: "Total Privacy",
-    description: "Keep your primary inbox clean from spam and marketing lists.",
+    "iconName": "ShieldCheck",
+    "title": "Total Privacy",
+    "description": "Keep your primary inbox clean from spam and marketing lists."
   },
   {
-    iconName: "Trash2",
-    title: "Auto-Deletion",
-    description: "All emails are automatically and permanently deleted after a set time.",
+    "iconName": "Trash2",
+    "title": "Auto-Deletion",
+    "description": "All emails are automatically and permanently deleted after a set time."
   },
   {
-    iconName: "Globe",
-    title: "Custom Domains",
-    description: "Connect your own domain to generate branded temporary email addresses.",
+    "iconName": "Globe",
+    "title": "Custom Domains",
+    "description": "Connect your own domain to generate branded temporary email addresses."
   },
   {
-    iconName: "Forward",
-    title: "Email Forwarding",
-    description: "Automatically forward incoming temporary emails to a real, verified email address.",
+    "iconName": "Forward",
+    "title": "Email Forwarding",
+    "description": "Automatically forward incoming temporary emails to a real, verified email address."
   },
   {
-    iconName: "Code",
-    title: "Developer API",
-    description: "Integrate our temporary email service directly into your applications.",
-  },
+    "iconName": "Code",
+    "title": "Developer API",
+    "description": "Integrate our temporary email service directly into your applications."
+  }
 ];
 
 // Data for FaqSection
