@@ -7,14 +7,12 @@ export default function ApiPage() {
     return (
         <div className="py-16 sm:py-20">
             <div className="container mx-auto px-4">
-                <div className="text-center space-y-4 mb-16">
-                     <div className="inline-block bg-primary/10 p-4 rounded-full">
-                        <Code className="h-10 w-10 text-primary" />
-                    </div>
-                    <h1 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                <div className="relative w-full max-w-4xl mx-auto text-center mb-16">
+                    <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+                    <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
                         Developer API
                     </h1>
-                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                     <p className="text-lg text-muted-foreground max-w-2xl mx-auto mt-4">
                         Integrate Tempmailoz's powerful temporary email functionality directly into your applications with our simple and robust REST API.
                     </p>
                     <div className="pt-4">
