@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -13,12 +14,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures } from "@/lib/content-data";
 import { IconPicker } from '@/components/icon-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { saveContentAction } from '@/lib/actions/content';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 interface SectionContentDialogProps {
   isOpen: boolean;
@@ -26,33 +30,35 @@ interface SectionContentDialogProps {
   section: { id: string; name: string, isDynamic?: boolean } | null;
 }
 
-const TopContentFields = ({ title, description }: { title: string, description: string }) => (
+const TopContentFields = ({ title, description, onTitleChange, onDescriptionChange }: { title: string, description: string, onTitleChange: (val: string) => void, onDescriptionChange: (val: string) => void }) => (
     <div className="space-y-4">
         <div>
             <Label>Section Title</Label>
-            <Input defaultValue={title} />
+            <Input value={title} onChange={(e) => onTitleChange(e.target.value)} />
         </div>
         <div>
             <Label>Section Description</Label>
-            <Textarea defaultValue={description} />
+            <Textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} />
         </div>
         <Separator />
     </div>
 );
 
-const WhyForm = () => {
-    const [items, setItems] = React.useState(useCases);
+const WhyForm = ({ onSave }: { onSave: (data: any) => void }) => {
+    const [content, setContent] = React.useState(useCases);
 
     const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...items];
+        const newItems = [...content];
         (newItems[index] as any)[field] = value;
-        setItems(newItems);
+        setContent(newItems);
     };
+
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
 
     return (
         <div className="space-y-4">
-            <TopContentFields title="Why Temp Mail?" description="" />
-            {items.map((item, index) => (
+            <TopContentFields title="Why Temp Mail?" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+            {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
@@ -71,18 +77,21 @@ const WhyForm = () => {
     )
 }
 
-const FeaturesForm = () => {
-     const [items, setItems] = React.useState(features);
+const FeaturesForm = ({ onSave }: { onSave: (data: any) => void }) => {
+     const [content, setContent] = React.useState(features);
 
     const handleItemChange = (index: number, field: string, value: string) => {
-        const newItems = [...items];
+        const newItems = [...content];
         (newItems[index] as any)[field] = value;
-        setItems(newItems);
+        setContent(newItems);
     };
+
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
+
      return (
         <div className="space-y-4">
-            <TopContentFields title="Features" description="" />
-             {items.map((item, index) => (
+            <TopContentFields title="Features" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+             {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
@@ -101,24 +110,34 @@ const FeaturesForm = () => {
     )
 }
 
-const ExclusiveFeaturesForm = () => {
+const ExclusiveFeaturesForm = ({ onSave }: { onSave: (data: any) => void }) => {
+    const [content, setContent] = React.useState(exclusiveFeatures);
+
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...content];
+        (newItems[index] as any)[field] = value;
+        setContent(newItems);
+    };
+    
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
+
      return (
         <div className="space-y-4">
-            <TopContentFields title="Exclusive Features" description="" />
-             {exclusiveFeatures.map((item, index) => (
+            <TopContentFields title="Exclusive Features" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+             {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Item {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Icon Name (from lucide-react)</Label>
-                    <Input defaultValue={item.iconName} />
+                    <IconPicker value={item.iconName} onChange={(val) => handleItemChange(index, 'iconName', val)} />
                     <Label>Title</Label>
-                    <Input defaultValue={item.title} />
+                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
                     <Label>Description</Label>
-                    <Textarea defaultValue={item.description} />
+                    <Textarea value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} />
                     <Label>Image URL</Label>
-                    <Input defaultValue={item.image.src} />
+                    <Input value={item.image.src} onChange={(e) => handleItemChange(index, 'image', {...item.image, src: e.target.value})} />
                 </div>
             ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Card</Button>
@@ -126,26 +145,36 @@ const ExclusiveFeaturesForm = () => {
     )
 }
 
-const ComparisonForm = () => {
+const ComparisonForm = ({ onSave }: { onSave: (data: any) => void }) => {
+    const [content, setContent] = React.useState(comparisonFeatures);
+    
+    const handleItemChange = (index: number, field: string, value: string | boolean) => {
+        const newItems = [...content];
+        (newItems[index] as any)[field] = value;
+        setContent(newItems);
+    };
+
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
+
     return (
         <div className="space-y-4">
-             <TopContentFields title="Tempmailoz Vs Others" description="" />
-             {comparisonFeatures.map((item, index) => (
+             <TopContentFields title="Tempmailoz Vs Others" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+             {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Feature {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Feature Name</Label>
-                    <Input defaultValue={item.feature} />
+                    <Input value={item.feature} onChange={(e) => handleItemChange(index, 'feature', e.target.value)} />
                     <div className="grid grid-cols-2 gap-4 items-center">
                         <div className="flex items-center gap-2">
                             <Label>Our App:</Label>
-                            <Switch defaultChecked={item.tempmailoz} />
+                            <Switch checked={item.tempmailoz} onCheckedChange={(val) => handleItemChange(index, 'tempmailoz', val)} />
                         </div>
                         <div className="flex items-center gap-2">
                             <Label>Others:</Label>
-                            <Switch defaultChecked={item.others} />
+                            <Switch checked={item.others} onCheckedChange={(val) => handleItemChange(index, 'others', val)} />
                         </div>
                     </div>
                 </div>
@@ -156,20 +185,30 @@ const ComparisonForm = () => {
 }
 
 
-const FaqForm = () => {
+const FaqForm = ({ onSave }: { onSave: (data: any) => void }) => {
+    const [content, setContent] = React.useState(faqs);
+    
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...content];
+        (newItems[index] as any)[field] = value;
+        setContent(newItems);
+    };
+
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
+
     return (
         <div className="space-y-4">
-             <TopContentFields title="Questions?" description="" />
-             {faqs.map((item, index) => (
+             <TopContentFields title="Questions?" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+             {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Question {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Question</Label>
-                    <Input defaultValue={item.question} />
+                    <Input value={item.question} onChange={(e) => handleItemChange(index, 'question', e.target.value)} />
                     <Label>Answer</Label>
-                    <Textarea defaultValue={item.answer} rows={4} />
+                    <Textarea value={item.answer} onChange={(e) => handleItemChange(index, 'answer', e.target.value)} rows={4} />
                 </div>
              ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add FAQ</Button>
@@ -177,24 +216,34 @@ const FaqForm = () => {
     )
 }
 
-const TestimonialsForm = () => {
+const TestimonialsForm = ({ onSave }: { onSave: (data: any) => void }) => {
+    const [content, setContent] = React.useState(testimonials);
+
+    const handleItemChange = (index: number, field: string, value: string) => {
+        const newItems = [...content];
+        (newItems[index] as any)[field] = value;
+        setContent(newItems);
+    };
+    
+    React.useEffect(() => { onSave(content) }, [content, onSave]);
+
     return (
         <div className="space-y-4">
-            <TopContentFields title="What Our Users Say" description="" />
-            {testimonials.map((item, index) => (
+            <TopContentFields title="What Our Users Say" description="" onTitleChange={() => {}} onDescriptionChange={() => {}} />
+            {content.map((item, index) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
                     <div className="flex justify-between items-center">
                         <Label>Testimonial {index + 1}</Label>
                         <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                     <Label>Avatar URL</Label>
-                    <Input defaultValue={item.avatar} />
+                    <Input value={item.avatar} onChange={(e) => handleItemChange(index, 'avatar', e.target.value)} />
                     <Label>Name</Label>
-                    <Input defaultValue={item.name} />
+                    <Input value={item.name} onChange={(e) => handleItemChange(index, 'name', e.target.value)} />
                     <Label>Title</Label>
-                    <Input defaultValue={item.title} />
+                    <Input value={item.title} onChange={(e) => handleItemChange(index, 'title', e.target.value)} />
                     <Label>Quote</Label>
-                    <Textarea defaultValue={item.quote} />
+                    <Textarea value={item.quote} onChange={(e) => handleItemChange(index, 'quote', e.target.value)} />
                 </div>
             ))}
             <Button variant="outline" className="w-full"><PlusCircle className="h-4 w-4 mr-2" /> Add Testimonial</Button>
@@ -217,7 +266,7 @@ const DynamicSectionForm = ({ section }: { section: { id: string; name: string, 
     }
     return (
         <div className="space-y-4">
-             <TopContentFields title={titles[section.id] || section.name} description={descriptions[section.id] || ''} />
+             <TopContentFields title={titles[section.id] || section.name} description={descriptions[section.id] || ''} onTitleChange={() => {}} onDescriptionChange={() => {}}/>
              <p className="text-muted-foreground text-center py-8">The core content of this section is managed automatically and cannot be edited here.</p>
         </div>
     )
@@ -225,32 +274,58 @@ const DynamicSectionForm = ({ section }: { section: { id: string; name: string, 
 
 
 
-const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
+export function SectionContentDialog({ isOpen, onClose, section }: SectionContentDialogProps) {
+  const [contentData, setContentData] = React.useState<any>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const handleSave = async () => {
+      if (!section || !contentData) return;
+      setIsSaving(true);
+      const result = await saveContentAction(section.id, contentData);
+
+      if (result.success) {
+          toast({
+              title: "Content Saved",
+              description: `Content for '${section.name}' has been updated.`
+          });
+          router.refresh();
+          onClose();
+      } else {
+           toast({
+              title: "Error Saving",
+              description: result.error || "An unknown error occurred.",
+              variant: "destructive"
+          });
+      }
+      setIsSaving(false);
+  }
+  
+  if (!section) return null;
+
+  const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
     if (section.isDynamic) {
         return <DynamicSectionForm section={section} />;
     }
 
     switch (section.id) {
         case 'why':
-            return <WhyForm />;
+            return <WhyForm onSave={setContentData} />;
         case 'features':
-            return <FeaturesForm />;
+            return <FeaturesForm onSave={setContentData} />;
         case 'exclusive-features':
-            return <ExclusiveFeaturesForm />;
+            return <ExclusiveFeaturesForm onSave={setContentData} />;
         case 'comparison':
-            return <ComparisonForm />;
+            return <ComparisonForm onSave={setContentData} />;
         case 'testimonials':
-            return <TestimonialsForm />;
+            return <TestimonialsForm onSave={setContentData} />;
         case 'faq':
-            return <FaqForm />;
+            return <FaqForm onSave={setContentData} />;
         default:
             return <p className="text-muted-foreground text-center py-8">This section is not configured for content editing.</p>;
     }
-}
-
-export function SectionContentDialog({ isOpen, onClose, section }: SectionContentDialogProps) {
-  
-  if (!section) return null;
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -269,10 +344,16 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
         </ScrollArea>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Save Content</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Cancel</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Content
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+
+    

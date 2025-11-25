@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
-import { useParams, useRouter, notFound } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -41,18 +41,45 @@ import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
 import { DashboardClient } from '@/components/dashboard-client';
 
+const TopTitlePlaceholder = ({ pageId }: { pageId: string }) => {
+    const titles: Record<string, string> = {
+        'home': "Temporary Email Address",
+        'features-page': 'Features',
+        'pricing-page': 'Pricing',
+        'blog-page': 'Blog',
+        'api-page': 'Developer API',
+        'contact': 'Contact Us',
+    }
+    const descriptions: Record<string, string> = {
+        'home': "A 100% Free & Secure way to keep your real inbox safe.",
+        'features-page': 'Everything you need for secure and private communication, from basic privacy to advanced developer tools.',
+        'pricing-page': 'Choose the plan that\'s right for you, with options for everyone from casual users to professional developers.',
+        'blog-page': 'News, updates, and privacy tips from the Tempmailoz team.',
+        'api-page': 'Integrate Tempmailoz\'s powerful temporary email functionality directly into your applications with our simple and robust REST API.',
+        'contact': 'Have questions or need support? We\'re here to help.',
+    }
+    return (
+     <div className="relative w-full max-w-4xl mx-auto text-center py-16">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
+            {titles[pageId] || "Page Title"}
+        </h1>
+        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">{descriptions[pageId] || "This is a placeholder for the page subtitle or description."}</p>
+    </div>
+)}
+
 
 const pageData: { [key: string]: any } = {
   home: {
     name: "Home Page",
     sections: [
+      { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
       { id: "inbox", name: "Inbox", isDynamic: true, component: DashboardClient },
       { id: "why", name: "Why", isDynamic: false, component: UseCasesSection },
       { id: "features", name: "Features", isDynamic: false, component: FeaturesSection },
       { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures },
-      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection },
-      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection },
-      { id: "blog", name: "Blog", isDynamic: true, component: BlogSection },
+      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection, props: { showTitle: true } },
+      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection, props: { showTitle: true } },
+      { id: "blog", name: "Blog", isDynamic: true, component: BlogSection, props: { showTitle: true } },
       { id: "testimonials", name: "Testimonials", isDynamic: false, component: Testimonials },
       { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
       { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
@@ -61,9 +88,10 @@ const pageData: { [key: string]: any } = {
   "features-page": {
     name: "Features",
     sections: [
-      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection },
+      { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
+      { id: "features", name: "Features", isDynamic: false, component: FeaturesSection, props: { showTitle: false } },
       { id: "exclusive-features", name: "Exclusive Features", isDynamic: false, component: ExclusiveFeatures },
-      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection },
+      { id: "comparison", name: "Comparison", isDynamic: false, component: ComparisonSection, props: { removeBorder: true } },
       { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
       { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
     ],
@@ -71,7 +99,8 @@ const pageData: { [key: string]: any } = {
   "pricing-page": {
     name: "Pricing",
     sections: [
-      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection },
+      { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
+      { id: "pricing", name: "Pricing", isDynamic: true, component: PricingSection, props: { showTitle: false } },
       { id: "pricing-comparison", name: "Price Comparison", isDynamic: true, component: PricingComparisonTable },
       { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
       { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
@@ -80,7 +109,8 @@ const pageData: { [key: string]: any } = {
   "blog-page": {
       name: "Blog",
       sections: [
-        { id: "blog", name: "Blog", isDynamic: true, component: BlogSection },
+        { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
+        { id: "blog", name: "Blog", isDynamic: true, component: BlogSection, props: { showTitle: false } },
         { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
         { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
       ]
@@ -88,14 +118,15 @@ const pageData: { [key: string]: any } = {
   "api-page": {
       name: "API",
       sections: [
+        { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
         { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
         { id: "newsletter", name: "Newsletter", isDynamic: true, component: StayConnected },
       ]
   },
-  "about": { name: "About Us", sections: [] },
   "contact": { 
     name: "Contact Us", 
     sections: [
+        { id: "top-title", name: "Top Title", isDynamic: true, component: TopTitlePlaceholder },
         { id: "contact-form", name: "Contact", isDynamic: true, component: ContactPage },
         { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
     ]
@@ -106,6 +137,7 @@ const pageData: { [key: string]: any } = {
         { id: "faq", name: "FAQ", isDynamic: false, component: FaqSection },
       ]
   },
+  "about": { name: "About Us", sections: [] },
   "terms": { name: "Terms of Service", sections: [] },
   "privacy": { name: "Privacy Policy", sections: [] },
 };
@@ -148,13 +180,15 @@ export default function EditPageLayout() {
     setEditingContentSection(null);
   };
 
-  const getSectionProps = (sectionId: string) => {
+  const getSectionProps = (sectionId: string, baseProps: any = {}) => {
       switch (sectionId) {
           case 'pricing':
           case 'pricing-comparison':
-              return { plans: plans || [], showTitle: false };
+              return { ...baseProps, plans: plans || [] };
+          case 'top-title':
+                return { ...baseProps, pageId: pageId };
           default:
-              return { showTitle: false };
+              return baseProps;
       }
   }
 
@@ -343,5 +377,6 @@ export default function EditPageLayout() {
     </>
   );
 }
+
 
     
