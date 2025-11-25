@@ -151,18 +151,19 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   // Start with hardcoded fallbacks, merge in global defaults, then merge in specific overrides
   const finalStyles = { ...fallbackSectionStyles, ...(defaultStyle || {}), ...(styleOverride || {}) };
 
-  const styleProps: React.CSSProperties = {
+  const wrapperStyle: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
     backgroundImage: finalStyles.useGradient ? `linear-gradient(to bottom, ${finalStyles.gradientStart}, ${finalStyles.gradientEnd})` : 'none',
     marginTop: `${finalStyles.marginTop || 0}px`,
     marginBottom: `${finalStyles.marginBottom || 0}px`,
-    paddingTop: `${finalStyles.paddingTop || 0}px`,
-    paddingBottom: `${finalStyles.paddingBottom || 0}px`,
-    paddingLeft: `${finalStyles.paddingLeft || 0}px`,
-    paddingRight: `${finalStyles.paddingRight || 0}px`,
     borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
     borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
   };
+
+  const containerStyle: React.CSSProperties = {
+      paddingTop: `${finalStyles.paddingTop || 0}px`,
+      paddingBottom: `${finalStyles.paddingBottom || 0}px`,
+  }
   
   const componentProps: any = {
     content: content || getDefaultContent(pageId, sectionId),
@@ -173,18 +174,11 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     componentProps.plans = plans;
   }
 
-  // The 'inbox' section needs a container, but other sections already have one internally.
-  const needsContainer = sectionId === 'inbox';
-
   return (
-    <div id={sectionId} style={styleProps}>
-       {needsContainer ? (
-         <div className="container mx-auto px-4">
-           <Component {...componentProps} />
-         </div>
-        ) : (
+    <div id={sectionId} style={wrapperStyle}>
+       <div className="container mx-auto px-4" style={containerStyle}>
           <Component {...componentProps} />
-        )}
+       </div>
     </div>
   );
 };
