@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FeaturesSection } from "@/components/features-section";
@@ -7,11 +6,9 @@ import { ComparisonSection } from "@/components/comparison-section";
 
 export default function FeaturesPage() {
     return (
-        <div className="py-16 sm:py-20">
+        <div className="space-y-16 sm:space-y-20">
             <FeaturesSection showTitle={false} />
-            <div className="bg-muted/30">
-                <ExclusiveFeatures />
-            </div>
+            <ExclusiveFeatures />
             <ComparisonSection removeBorder={true} />
         </div>
     );

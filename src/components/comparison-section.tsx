@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,9 +26,6 @@ export function ComparisonSection({ removeBorder, showTitle = true }: { removeBo
             <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
                 Tempmailoz Vs Others
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                See how Tempmailoz stacks up against other temporary email providers. We focus on privacy, features, and a clean user experience.
-            </p>
             </div>
         )}
         <Card className={cn(removeBorder && "border-0 shadow-none")}>

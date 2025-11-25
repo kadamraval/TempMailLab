@@ -1,4 +1,3 @@
-
 'use client';
 import { usePathname } from "next/navigation";
 import { FaqSection } from "@/components/faq-section";
@@ -9,7 +8,7 @@ export function MainLayoutClient({ children }: { children: React.ReactNode }) {
     const isHomePage = pathname === '/';
     return (
         <>
-            <div className="relative w-full max-w-4xl mx-auto text-center mb-8 px-4">
+            <div className="relative w-full max-w-4xl mx-auto text-center mt-16 px-4">
                 {pathname === '/features' && (
                     <>
                         <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />

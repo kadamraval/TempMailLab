@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,7 +38,6 @@ export function BlogSection({ removeBorder, showTitle = true }: { removeBorder?:
         {showTitle && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">From the Blog</h2>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">News, updates, and privacy tips from the Tempmailoz team.</p>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

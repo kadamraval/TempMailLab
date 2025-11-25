@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from "react";
@@ -74,7 +73,6 @@ export function PricingSection({ plans = [], showTitle = true }: PricingSectionP
                 {showTitle && (
                     <div className="text-center space-y-4 mb-12">
                         <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Pricing</h2>
-                        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Choose the plan that's right for you, with options for everyone from casual users to professional developers.</p>
                     </div>
                 )}
                 <div className="flex items-center justify-center space-x-4 mb-12">
