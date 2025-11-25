@@ -1,52 +1,50 @@
 
-import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApp, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-let adminApp: App;
-let firestore: ReturnType<typeof getFirestore>;
+const ADMIN_APP_NAME = 'tempmail-admin-app';
 
-function initializeAdminApp() {
-    if (getApps().length > 0) {
-        return getApps()[0];
-    }
-
-    const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-
-    if (!rawServiceAccount) {
-        // In a deployed environment like App Hosting, the SDK can initialize without any args.
-        try {
-            console.log("Initializing admin app with default credentials (for deployed environment).");
-            return initializeApp();
-        } catch (e: any) {
-            throw new Error("No FIREBASE_SERVICE_ACCOUNT defined and default initialization failed. Error: " + e.message);
-        }
-    }
-
-    try {
-        console.log("Initializing admin app with FIREBASE_SERVICE_ACCOUNT environment variable.");
-        const serviceAccount: ServiceAccount = JSON.parse(rawServiceAccount);
-        return initializeApp({
-            credential: cert(serviceAccount),
-        });
-    } catch (e: any) {
-        // This will catch JSON parsing errors.
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid, minified JSON string.", e);
-        throw new Error("Server configuration error: Could not parse service account credentials.");
-    }
-}
-
+let adminApp: App | undefined;
+let firestore: ReturnType<typeof getFirestore> | undefined;
 
 function getAdminApp(): App {
-    if (!adminApp) {
-        adminApp = initializeAdminApp();
-    }
+  if (adminApp) return adminApp;
+
+  // Try to reuse if we already created it earlier in this process
+  try {
+    adminApp = getApp(ADMIN_APP_NAME);
     return adminApp;
+  } catch {
+    // app with that name does not exist yet → create it
+  }
+
+  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!rawServiceAccount) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT env var is not set');
+  }
+
+  let serviceAccount: ServiceAccount;
+  try {
+    serviceAccount = JSON.parse(rawServiceAccount) as ServiceAccount;
+  } catch (e) {
+    console.error('FAILED TO PARSE FIREBASE_SERVICE_ACCOUNT', e);
+    throw new Error('Invalid FIREBASE_SERVICE_ACCOUNT JSON');
+  }
+
+  adminApp = initializeApp(
+    {
+      credential: cert(serviceAccount),
+    },
+    ADMIN_APP_NAME
+  );
+
+  return adminApp;
 }
 
-export function getAdminFirestore(): ReturnType<typeof getFirestore> {
-    if (!firestore) {
-        const app = getAdminApp();
-        firestore = getFirestore(app);
-    }
-    return firestore;
+export function getAdminFirestore() {
+  if (!firestore) {
+    const app = getAdminApp();
+    firestore = getFirestore(app);
+  }
+  return firestore;
 }
