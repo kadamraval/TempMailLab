@@ -7,31 +7,32 @@ let firestore: ReturnType<typeof getFirestore>;
 
 function initializeAdminApp() {
     if (getApps().length > 0) {
-        // If an app is already initialized, return it. This happens in hot-reload environments.
         return getApps()[0];
     }
 
-    // Check for the individual environment variables first.
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    // The private key needs to have its escaped newlines replaced with actual newlines.
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
 
-    if (projectId && clientEmail && privateKey) {
-        console.log("Initializing admin app with individual environment variables.");
-        const serviceAccount: ServiceAccount = {
-            projectId,
-            clientEmail,
-            privateKey,
-        };
+    if (!rawServiceAccount) {
+        // In a deployed environment like App Hosting, the SDK can initialize without any args.
+        try {
+            console.log("Initializing admin app with default credentials (for deployed environment).");
+            return initializeApp();
+        } catch (e: any) {
+            throw new Error("No FIREBASE_SERVICE_ACCOUNT defined and default initialization failed. Error: " + e.message);
+        }
+    }
+
+    try {
+        console.log("Initializing admin app with FIREBASE_SERVICE_ACCOUNT environment variable.");
+        const serviceAccount: ServiceAccount = JSON.parse(rawServiceAccount);
         return initializeApp({
             credential: cert(serviceAccount),
         });
+    } catch (e: any) {
+        // This will catch JSON parsing errors.
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure it's a valid, minified JSON string.", e);
+        throw new Error("Server configuration error: Could not parse service account credentials.");
     }
-
-    // Fallback for deployed environments like App Hosting, where credentials are automatically provided.
-    console.log("Initializing admin app with default credentials (for deployed environment).");
-    return initializeApp();
 }
 
 
