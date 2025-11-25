@@ -2,30 +2,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApps, App } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 // Self-contained Firebase Admin initialization
 function getAdminFirestore() {
-    if (getApps().some(app => app.name === 'admin-plans')) {
-        return getFirestore(getApps().find(app => app.name === 'admin-plans'));
+    if (getApps().length) {
+        return getFirestore(getApps()[0]);
     }
-
-    let serviceAccount: ServiceAccount;
-    try {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
-        }
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } catch (e: any) {
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e.message);
-        throw new Error("Server configuration error: Could not parse service account credentials.");
-    }
-    
-    const adminApp = initializeApp({
-        credential: cert(serviceAccount)
-    }, 'admin-plans');
-
+    const adminApp = initializeApp();
     return getFirestore(adminApp);
 }
 

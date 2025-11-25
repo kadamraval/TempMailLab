@@ -9,25 +9,11 @@ import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 
 // Self-contained Firebase Admin initialization
 function getAdminFirestore() {
-    if (getApps().some(app => app.name === 'admin-webhook')) {
-        return getFirestore(getApps().find(app => app.name === 'admin-webhook'));
-    }
-
-    let serviceAccount: ServiceAccount;
-    try {
-        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
-        }
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } catch (e: any) {
-        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e.message);
-        throw new Error("Server configuration error: Could not parse service account credentials.");
+    if (getApps().length) {
+        return getFirestore(getApps()[0]);
     }
     
-    const adminApp = initializeApp({
-        credential: cert(serviceAccount)
-    }, 'admin-webhook');
-
+    const adminApp = initializeApp();
     return getFirestore(adminApp);
 }
 
@@ -91,7 +77,7 @@ export async function POST(request: Request) {
     const headerName = providerConfig.headerName;
 
     if (!secret || !headerName) {
-        console.error(`CRITICAL: Webhook security not configured for inbound.new. Missing secret or headerName.`);
+        console.error(`CRITICAL: Webhook security not configured. Missing secret or headerName.`);
         return NextResponse.json({ message: "Configuration error: Webhook security not set." }, { status: 500 });
     }
     
