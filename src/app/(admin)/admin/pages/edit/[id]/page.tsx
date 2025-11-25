@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useParams, useRouter } from 'next/navigation';
@@ -30,6 +31,60 @@ const pageData: { [key: string]: any } = {
       { id: "faq", name: "FAQ", isDynamic: false },
       { id: "newsletter", name: "Newsletter", isDynamic: false },
     ]
+  },
+  "about": { name: "About Us", sections: [] },
+  "contact": { 
+    name: "Contact Us", 
+    sections: [
+        { id: "contact-form", name: "Contact", isDynamic: true },
+        { id: "faq", name: "FAQ", isDynamic: false },
+    ]
+  },
+  "terms": { name: "Terms of Service", sections: [] },
+  "privacy": { name: "Privacy Policy", sections: [] },
+  "faq-page": { 
+      name: "FAQ", 
+      sections: [
+        { id: "faq", name: "FAQ", isDynamic: false },
+      ]
+  },
+   "features": {
+    name: "Features",
+    sections: [
+      { id: "top-title", name: "Top Title", isDynamic: false },
+      { id: "features", name: "Features", isDynamic: false },
+      { id: "exclusive-features", name: "Exclusive Features", isDynamic: false },
+      { id: "comparison", name: "Comparison", isDynamic: false },
+      { id: "faq", name: "FAQ", isDynamic: false },
+      { id: "newsletter", name: "Newsletter", isDynamic: false },
+    ],
+  },
+  "pricing": {
+    name: "Pricing",
+    sections: [
+      { id: "top-title", name: "Top Title", isDynamic: false },
+      { id: "pricing", name: "Pricing", isDynamic: true },
+      { id: "pricing-comparison", name: "Price Comparison", isDynamic: true },
+      { id: "faq", name: "FAQ", isDynamic: false },
+      { id: "newsletter", name: "Newsletter", isDynamic: false },
+    ],
+  },
+  "blog-page": {
+      name: "Blog",
+      sections: [
+        { id: "top-title", name: "Top Title", isDynamic: false },
+        { id: "blog", name: "Blog", isDynamic: true },
+        { id: "faq", name: "FAQ", isDynamic: false },
+        { id: "newsletter", name: "Newsletter", isDynamic: false },
+      ]
+  },
+  "api": {
+      name: "API",
+      sections: [
+        { id: "top-title", name: "Top Title", isDynamic: false },
+        { id: "faq", name: "FAQ", isDynamic: false },
+        { id: "newsletter", name: "Newsletter", isDynamic: false },
+      ]
   }
 };
 
