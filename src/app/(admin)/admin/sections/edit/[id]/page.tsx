@@ -30,6 +30,8 @@ import { FaqSection } from '@/components/faq-section';
 import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
 import { DashboardClient } from '@/components/dashboard-client';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 const KnowledgebasePlaceholder = () => (
     <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
@@ -65,27 +67,58 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
 };
 
 const sectionDetails: { [key: string]: { name: string, defaultStyles: any } } = {
-    "inbox": { name: "Inbox", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "top-title": { name: "Top Title", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 0, paddingBottom: 0, paddingLeft: 16, paddingRight: 16 } },
-    "why": { name: "Why", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "features": { name: "Features", defaultStyles: { bgColor: '#F5F5F5', gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "exclusive-features": { name: "Exclusive Features", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "comparison": { name: "Comparison", defaultStyles: { bgColor: '#F5F5F5', gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "pricing": { name: "Pricing", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "pricing-comparison": { name: "Price Comparison", defaultStyles: { bgColor: '#F5F5F5', gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "blog": { name: "Blog", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "testimonials": { name: "Testimonials", defaultStyles: { bgColor: '#F5F5F5', gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "faq": { name: "FAQ", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "newsletter": { name: "Newsletter", defaultStyles: { bgColor: '#F5F5F5', gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "contact-form": { name: "Contact", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
-    "knowledgebase": { name: "Knowledgebase", defaultStyles: { bgColor: '#FFFFFF', gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16 } },
+    "inbox": { name: "Inbox", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "top-title": { name: "Top Title", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 64, marginBottom: 64, marginLeft: 0, marginRight: 0, paddingTop: 0, paddingBottom: 0, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "why": { name: "Why", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "features": { name: "Features", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "exclusive-features": { name: "Exclusive Features", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "comparison": { name: "Comparison", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "pricing": { name: "Pricing", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "pricing-comparison": { name: "Price Comparison", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "blog": { name: "Blog", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "testimonials": { name: "Testimonials", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "faq": { name: "FAQ", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "newsletter": { name: "Newsletter", defaultStyles: { bgColor: '#F5F5F5', useGradient: true, gradientColor: '#FFFFFF', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "contact-form": { name: "Contact", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
+    "knowledgebase": { name: "Knowledgebase", defaultStyles: { bgColor: '#FFFFFF', useGradient: true, gradientColor: '#F5F5F5', marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopColor: '#E5E7EB', borderBottomColor: '#E5E7EB', borderLeftColor: '#E5E7EB', borderRightColor: '#E5E7EB' } },
 };
+
+const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => (
+    <div className="space-y-2">
+        <Label>{label}</Label>
+        <div className="flex items-center gap-2">
+            <Input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-12 p-1" />
+            <Input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="font-mono" />
+        </div>
+    </div>
+);
+
+const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom' | 'Left' | 'Right', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
+    const lowerSide = side.toLowerCase();
+    return (
+        <div className="space-y-3">
+            <Label className="font-semibold">{side} Border</Label>
+            <div className="grid grid-cols-2 gap-2">
+                <div className='space-y-2'>
+                    <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
+                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`]} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
+                </div>
+                <div className='space-y-2'>
+                    <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
+                    <Input id={`border${side}Color`} type="color" value={styles[`border${side}Color`]} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} className="h-10 w-full p-1" />
+                </div>
+            </div>
+        </div>
+    )
+};
+
 
 export default function EditSectionPage() {
     const params = useParams();
     const sectionId = params.id as string;
     
     const [styles, setStyles] = useState(sectionDetails[sectionId]?.defaultStyles || {});
+    const [useBackground, setUseBackground] = useState(true);
 
     useEffect(() => {
         // When the sectionId changes, reset the styles to the default for that section
@@ -103,8 +136,8 @@ export default function EditSectionPage() {
     const sectionName = sectionId ? sectionDetails[sectionId]?.name : "Section";
 
     const previewStyle = {
-        backgroundColor: styles.bgColor,
-        backgroundImage: `linear-gradient(to bottom, ${styles.bgColor}, ${styles.gradientColor})`,
+        backgroundColor: useBackground ? styles.bgColor : 'transparent',
+        backgroundImage: useBackground && styles.useGradient ? `linear-gradient(to bottom, ${styles.bgColor}, ${styles.gradientColor})` : 'none',
         marginTop: `${styles.marginTop}px`,
         marginBottom: `${styles.marginBottom}px`,
         marginLeft: `${styles.marginLeft}px`,
@@ -113,6 +146,10 @@ export default function EditSectionPage() {
         paddingBottom: `${styles.paddingBottom}px`,
         paddingLeft: `${styles.paddingLeft}px`,
         paddingRight: `${styles.paddingRight}px`,
+        borderTop: `${styles.borderTopWidth}px solid ${styles.borderTopColor}`,
+        borderBottom: `${styles.borderBottomWidth}px solid ${styles.borderBottomColor}`,
+        borderLeft: `${styles.borderLeftWidth}px solid ${styles.borderLeftColor}`,
+        borderRight: `${styles.borderRightWidth}px solid ${styles.borderRightColor}`,
     };
 
     return (
@@ -155,32 +192,60 @@ export default function EditSectionPage() {
                             <CardDescription>Controls for the '{sectionName}' section.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="space-y-2">
-                                <Label>Background Color</Label>
-                                <Input type="color" value={styles.bgColor || '#FFFFFF'} onChange={(e) => handleStyleChange('bgColor', e.target.value)} className="h-12 w-full p-1" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Gradient Color</Label>
-                                <Input type="color" value={styles.gradientColor || '#F0F8FF'} onChange={(e) => handleStyleChange('gradientColor', e.target.value)} className="h-12 w-full p-1" />
-                            </div>
-                            
+                            {/* Background Controls */}
                             <div className="space-y-4 rounded-md border p-4">
-                                <Label>Margin (px)</Label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Input type="number" placeholder="Top" value={styles.marginTop} onChange={(e) => handleStyleChange('marginTop', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Bottom" value={styles.marginBottom} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Left" value={styles.marginLeft} onChange={(e) => handleStyleChange('marginLeft', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Right" value={styles.marginRight} onChange={(e) => handleStyleChange('marginRight', e.target.valueAsNumber)} />
+                                <div className="flex items-center justify-between">
+                                    <Label className="font-semibold">Background</Label>
+                                    <Switch checked={useBackground} onCheckedChange={setUseBackground} />
                                 </div>
+                                {useBackground && (
+                                    <div className="space-y-4">
+                                        <ColorInput label="Background Color" value={styles.bgColor || '#FFFFFF'} onChange={(value) => handleStyleChange('bgColor', value)} />
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="use-gradient">Use Gradient</Label>
+                                            <Switch id="use-gradient" checked={styles.useGradient} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
+                                        </div>
+                                        {styles.useGradient && (
+                                            <ColorInput label="Gradient End Color" value={styles.gradientColor || '#F0F8FF'} onChange={(value) => handleStyleChange('gradientColor', value)} />
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
+                             {/* Border Controls */}
                             <div className="space-y-4 rounded-md border p-4">
-                                <Label>Padding (px)</Label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Input type="number" placeholder="Top" value={styles.paddingTop} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Bottom" value={styles.paddingBottom} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Left" value={styles.paddingLeft} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
-                                    <Input type="number" placeholder="Right" value={styles.paddingRight} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
+                                <Label className="font-semibold">Borders</Label>
+                                <div className="space-y-4">
+                                    <BorderInputGroup side="Top" styles={styles} handleStyleChange={handleStyleChange} />
+                                    <Separator />
+                                    <BorderInputGroup side="Bottom" styles={styles} handleStyleChange={handleStyleChange} />
+                                    <Separator />
+                                    <BorderInputGroup side="Left" styles={styles} handleStyleChange={handleStyleChange} />
+                                    <Separator />
+                                    <BorderInputGroup side="Right" styles={styles} handleStyleChange={handleStyleChange} />
+                                </div>
+                            </div>
+                            
+                            {/* Margin and Padding */}
+                            <div className="space-y-4 rounded-md border p-4">
+                                <Label className="font-semibold">Spacing (in pixels)</Label>
+                                <div className="space-y-2">
+                                     <Label className="text-xs">Margin (Outer Space)</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input type="number" placeholder="Top" value={styles.marginTop} onChange={(e) => handleStyleChange('marginTop', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Bottom" value={styles.marginBottom} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Left" value={styles.marginLeft} onChange={(e) => handleStyleChange('marginLeft', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Right" value={styles.marginRight} onChange={(e) => handleStyleChange('marginRight', e.target.valueAsNumber)} />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                     <Label className="text-xs">Padding (Inner Space)</Label>
+                                     <div className="grid grid-cols-2 gap-2">
+                                        <Input type="number" placeholder="Top" value={styles.paddingTop} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Bottom" value={styles.paddingBottom} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Left" value={styles.paddingLeft} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
+                                        <Input type="number" placeholder="Right" value={styles.paddingRight} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
+                                    </div>
                                 </div>
                             </div>
                             
@@ -194,3 +259,5 @@ export default function EditSectionPage() {
         </div>
     );
 }
+
+    
