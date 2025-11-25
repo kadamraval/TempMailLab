@@ -19,7 +19,12 @@ async function getInboundProviderSettings() {
     return null;
 }
 
-function getRecipientAddress(parsedEmail: ParsedMail): string | null {
+/**
+ * Extracts the recipient email address from a parsed email object by checking various headers.
+ * @param parsedEmail The ParsedMail object from mailparser.
+ * @returns The recipient email address or null if not found.
+ */
+function getRecipientFromParsedMail(parsedEmail: ParsedMail): string | null {
     // 1. Try 'delivered-to' header first - most reliable
     const deliveredToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'delivered-to');
     if (deliveredToHeader && typeof deliveredToHeader.line === 'string') {
@@ -99,7 +104,23 @@ export async function POST(request: Request) {
 
     if (contentType && contentType.includes('application/json')) {
         const body = await request.json();
-        toAddress = body.To;
+        console.log('FULL_WEBHOOK_BODY', JSON.stringify(body, null, 2));
+
+        // Use a robust extraction function for the recipient
+        const extractRecipient = (body: any): string | null => {
+            return (
+                body.to ||
+                body.To ||
+                body.recipient ||
+                body.Recipient ||
+                (body.envelope && (body.envelope.to || body.envelope.To)) ||
+                body['recipient'] ||
+                (body.envelope && body.envelope['to']) ||
+                null
+            );
+        }
+        
+        toAddress = extractRecipient(body);
         fromAddress = body.From;
         subject = body.Subject;
         htmlContent = body.HtmlBody;
@@ -111,18 +132,20 @@ export async function POST(request: Request) {
     } else {
         rawContent = await request.text();
         const parsedEmail = await simpleParser(rawContent);
+        console.log('FULL_PARSED_EMAIL', JSON.stringify(parsedEmail, null, 2));
         
-        toAddress = getRecipientAddress(parsedEmail);
+        toAddress = getRecipientFromParsedMail(parsedEmail);
         fromAddress = parsedEmail.from?.text;
         subject = parsedEmail.subject;
         htmlContent = parsedEmail.html;
-        textContent = parsedEmail.text;
+        textContent = parsed.text;
         messageId = parsedEmail.messageId;
         attachments = parsedEmail.attachments;
         receivedAt = parsedEmail.date;
     }
     
     if (!toAddress) {
+      console.error('NO_RECIPIENT_IN_PAYLOAD', rawContent);
       return NextResponse.json({ message: "Bad Request: Recipient address could not be determined." }, { status: 400 });
     }
     
