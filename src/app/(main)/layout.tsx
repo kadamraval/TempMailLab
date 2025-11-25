@@ -4,7 +4,6 @@ import { Footer } from '@/components/footer';
 import { DotBackground } from '@/components/dot-background';
 import { FaqSection } from '@/components/faq-section';
 import { StayConnected } from '@/components/stay-connected';
-import { usePathname } from 'next/navigation';
 import { MainLayoutClient } from './main-layout-client';
 
 export default async function MainLayout({
