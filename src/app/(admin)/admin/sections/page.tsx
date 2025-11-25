@@ -30,13 +30,7 @@ export default function AdminSectionsPage() {
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Manage Section Styles</CardTitle>
-                <CardDescription>
-                    Select a section to edit its global CSS properties like colors and spacing.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow>
