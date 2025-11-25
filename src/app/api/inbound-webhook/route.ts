@@ -7,12 +7,11 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Extracts the recipient email address from an inbound.new webhook payload by checking various common fields.
- * Handles the specific nested structures from inbound.new.
+ * Handles the specific nested structures from inbound.new as per their documentation.
  * @param body The parsed JSON body of the webhook request.
  * @returns The recipient email address or null if not found.
  */
 function extractRecipient(body: any): string | null {
-  // inbound.new specific structure
   const email = body.email || {};
   const parsed = email.parsedData || {};
 
@@ -43,7 +42,6 @@ function extractRecipient(body: any): string | null {
 export async function POST(request: Request) {
   try {
     const adminFirestore = getAdminFirestore();
-    // Fetch settings for the generic inbound webhook provider
     const settingsDoc = await adminFirestore.doc('admin_settings/inbound-new').get();
     
     if (!settingsDoc.exists || !settingsDoc.data()?.enabled) {
@@ -52,7 +50,6 @@ export async function POST(request: Request) {
     }
 
     const providerConfig = settingsDoc.data();
-    // The secret is stored under the 'secret' field for inbound.new
     const secret = providerConfig.secret; 
     const headerName = providerConfig.headerName;
 
@@ -89,26 +86,24 @@ export async function POST(request: Request) {
     const inboxDoc = inboxSnapshot.docs[0];
     const inboxData = inboxDoc.data();
 
-    // Use the nested parsedData from inbound.new if it exists, otherwise use top-level fields
-    const emailData = body.email?.parsedData || body;
+    // Use the nested parsedData from inbound.new if it exists, otherwise use top-level fields from the email object
+    const emailData = body.email?.parsedData || body.email || {};
 
     const newEmail = {
       inboxId: inboxDoc.id,
       userId: inboxData.userId,
-      senderName: emailData.from?.name || emailData.from?.address || emailData.From || 'Unknown Sender',
-      subject: emailData.subject || emailData.Subject || 'No Subject',
+      senderName: emailData.from?.name || emailData.from?.address || 'Unknown Sender',
+      subject: emailData.subject || 'No Subject',
       receivedAt: emailData.date ? Timestamp.fromDate(new Date(emailData.date)) : Timestamp.now(),
       createdAt: Timestamp.now(),
-      htmlContent: emailData.htmlBody || emailData.html || '',
-      textContent: emailData.textBody || emailData.text || '',
+      htmlContent: emailData.htmlBody || '',
+      textContent: emailData.textBody || '',
       rawContent: JSON.stringify(body),
       read: false,
       attachments: (emailData.attachments || []).map((att: any) => ({
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size || 0,
-        // The URL is typically not provided directly; content is usually Base64.
-        // For this app, we'll store a placeholder and not handle attachment downloads.
         url: '' 
       })),
     };
