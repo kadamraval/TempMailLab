@@ -2,17 +2,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getAdminFirestore } from '@/lib/firebase/server-init';
+import { Timestamp } from 'firebase-admin/firestore';
 
-// Self-contained Firebase Admin initialization
-function getAdminFirestore() {
-    if (getApps().length) {
-        return getFirestore(getApps()[0]);
-    }
-    const adminApp = initializeApp();
-    return getFirestore(adminApp);
-}
 
 /**
  * Saves a plan to Firestore. Handles both creating a new plan and updating an existing one.

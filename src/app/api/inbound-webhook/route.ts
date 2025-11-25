@@ -4,35 +4,18 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { simpleParser, ParsedMail } from 'mailparser';
-import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-
-// Self-contained Firebase Admin initialization
-function getAdminFirestore() {
-    if (getApps().length) {
-        return getFirestore(getApps()[0]);
-    }
-    
-    const adminApp = initializeApp();
-    return getFirestore(adminApp);
-}
+import { getAdminFirestore } from '@/lib/firebase/server-init';
+import { Timestamp } from 'firebase-admin/firestore';
 
 async function getInboundProviderSettings() {
     const adminFirestore = getAdminFirestore();
-    // Fetch settings for both potential providers
-    const settingsDocs = await adminFirestore.getAll(
-        adminFirestore.doc('admin_settings/inbound-new'),
-        adminFirestore.doc('admin_settings/mailgun')
-    );
+    const settingsDoc = await adminFirestore.doc('admin_settings/inbound-new').get();
     
-    for (const doc of settingsDocs) {
-        if (doc.exists && doc.data()?.enabled) {
-            // Return the config of the first enabled provider found
-            return doc.data();
-        }
+    if (settingsDoc.exists && settingsDoc.data()?.enabled) {
+        return settingsDoc.data();
     }
     
-    console.warn(`Webhook Error: No inbound email provider is enabled or configured.`);
+    console.warn(`Webhook Error: 'inbound-new' provider is not enabled or configured.`);
     return null;
 }
 
