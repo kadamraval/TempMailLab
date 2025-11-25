@@ -10,7 +10,6 @@ import {
   Ticket,
   Megaphone,
   Settings,
-  LogOut,
   Globe,
   Inbox,
   DollarSign,
@@ -22,8 +21,6 @@ import {
   Library,
   ChevronRight,
   ChevronsLeft,
-  Shield,
-  Mail,
 } from "lucide-react"
 import {
   Tooltip,
@@ -39,11 +36,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
-    { 
-      label: "Domain", 
-      icon: Globe, 
-      href: "/admin/domain",
-    },
+    { href: "/admin/domain", icon: Globe, label: "Domain", },
     { href: "/admin/inbox", icon: Inbox, label: "Inbox" },
     { href: "/admin/users", icon: Users, label: "Users" },
     {
@@ -61,7 +54,7 @@ const navItems = [
       icon: FileText,
       subItems: [
         { href: "/admin/pages", icon: FileText, label: "Pages" },
-        { href: "/admin/sections", icon: LayoutGrid, label: "Sections" },
+        { href: "/admin/sections", icon: LayoutGrid, label: "Default Sections" },
         { href: "/admin/blog", icon: BookOpen, label: "Blog" },
         { href: "/admin/categories", icon: Library, label: "Categories" },
       ]
@@ -80,11 +73,13 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
   const pathname = usePathname();
 
   const isLinkActive = (item: any) => {
-    if (item.href === '/admin' && pathname === '/admin') return true;
-    if (item.href !== '/admin' && pathname.startsWith(item.href)) return true;
-    if (item.label === "Settings" && pathname.startsWith('/admin/settings')) return true;
-    if (item.label === "Domain" && pathname.startsWith('/admin/domain')) return true;
-    if (item.label === "Email" && pathname.startsWith('/admin/settings/email')) return true;
+    if (item.href && pathname.startsWith(item.href)) {
+        if (item.href === '/admin' && pathname !== '/admin') return false;
+        return true;
+    }
+    if (item.subItems) {
+      return item.subItems.some((sub: any) => pathname.startsWith(sub.href));
+    }
     return false;
   }
 
@@ -107,7 +102,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed }: AdminSidebarProps)
   };
 
   const renderCollapsible = (item: any) => {
-    const isActive = item.subItems.some((sub: any) => pathname.startsWith(sub.href)) || pathname.startsWith(item.href || '---');
+    const isActive = isLinkActive(item);
     return (
     <Collapsible key={item.label} className="grid gap-1" defaultOpen={isActive}>
       <CollapsibleTrigger asChild>

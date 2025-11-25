@@ -1,11 +1,10 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Plan } from "@/app/(admin)/admin/packages/data";
@@ -63,39 +62,34 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
     }
 }
 
-const sectionDefaultStyles: { [key: string]: any } = {
-    "inbox": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
-    "top-title": { bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 32 },
-    "why": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
-    "features": { bgColor: 'hsl(var(--background))', useGradient: false },
-    "exclusive-features": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
-    "comparison": { bgColor: 'hsl(var(--background))', useGradient: false },
-    "pricing": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
-    "pricing-comparison": { bgColor: 'hsl(var(--background))', useGradient: false },
-    "blog": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
-    "testimonials": { bgColor: 'hsl(var(--background))', useGradient: false },
-    "faq": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)', paddingTop: 64, paddingBottom: 64 },
-    "newsletter": { bgColor: 'hsl(var(--background))', useGradient: false, borderTopWidth: 1, paddingTop: 64, paddingBottom: 64 },
-    "contact-form": { bgColor: 'hsl(var(--background))', useGradient: false, paddingTop: 80, paddingBottom: 80 },
-};
-
 export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
   const firestore = useFirestore();
 
-  // Reference for the section's content document
+  // --- DATA FETCHING ---
+  // Path: /pages/{pageId}/sections/{sectionId}
   const contentRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'pages', pageId, 'sections', sectionId);
   }, [firestore, pageId, sectionId]);
-  
-  // Reference for the section's style override document
-  const styleRef = useMemoFirebase(() => {
+
+  // --- STYLE FETCHING (3-Tier Logic) ---
+  // Tier 2: Get the GLOBAL DEFAULT style for this section TYPE
+  // Path: /sections/{sectionId}
+  const defaultStyleRef = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return doc(firestore, 'sections', sectionId);
+  }, [firestore, sectionId]);
+
+  // Tier 3: Get the PAGE-SPECIFIC style override
+  // Path: /pages/{pageId}/sections/{sectionId}_styles
+  const styleOverrideRef = useMemoFirebase(() => {
     if (!firestore) return null;
     return doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`);
   }, [firestore, pageId, sectionId]);
 
   const { data: content, isLoading: isLoadingContent, error: contentError } = useDoc(contentRef);
-  const { data: styleOverride, isLoading: isLoadingStyle } = useDoc(styleRef);
+  const { data: defaultStyle, isLoading: isLoadingDefaultStyle } = useDoc(defaultStyleRef);
+  const { data: styleOverride, isLoading: isLoadingStyleOverride } = useDoc(styleOverrideRef);
   
   const plansQuery = useMemoFirebase(() => {
     if (!firestore || !['pricing', 'pricing-comparison'].includes(sectionId)) return null;
@@ -104,9 +98,8 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   
   const { data: plans } = useCollection<Plan>(plansQuery);
 
-
-  // Self-seeding logic
-  useEffect(() => {
+  // Self-seeding logic for content
+  React.useEffect(() => {
     if (!isLoadingContent && !content && !contentError && contentRef) {
       const defaultContent = getDefaultContent(pageId, sectionId);
       if (defaultContent) {
@@ -118,7 +111,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
 
-  if (isLoadingContent || isLoadingStyle) {
+  if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -126,8 +119,11 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     );
   }
 
-  const defaultStyles = sectionDefaultStyles[sectionId] || {};
-  const finalStyles = { ...defaultStyles, ...styleOverride };
+  // --- APPLY STYLING CASCADE ---
+  // Tier 1 (Base) is implied by Tailwind theme.
+  // Tier 2 (Section Default) is the base for styles.
+  // Tier 3 (Page Override) merges on top of the default.
+  const finalStyles = { ...(defaultStyle || {}), ...(styleOverride || {}) };
 
   const styleProps = {
     backgroundColor: finalStyles.bgColor,
@@ -136,15 +132,19 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     marginBottom: `${finalStyles.marginBottom}px`,
     paddingTop: `${finalStyles.paddingTop}px`,
     paddingBottom: `${finalStyles.paddingBottom}px`,
-    borderTop: `${finalStyles.borderTopWidth}px solid ${finalStyles.borderTopColor}`,
-    borderBottom: `${finalStyles.borderBottomWidth}px solid ${finalStyles.borderBottomColor}`,
+    borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
+    borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
   };
   
-  const componentProps = {
-    content: content || getDefaultContent(pageId, sectionId), // Pass content to component
-    plans,
+  const componentProps: any = {
+    content: content || getDefaultContent(pageId, sectionId),
     removeBorder: !finalStyles.borderTopWidth && !finalStyles.borderBottomWidth,
   };
+  
+  // Add plans only to the components that need it
+  if (['pricing', 'pricing-comparison'].includes(sectionId)) {
+    componentProps.plans = plans;
+  }
 
   return (
     <div id={sectionId} className="z-10 relative" style={styleProps}>

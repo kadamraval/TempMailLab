@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,14 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import Link from 'next/link';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
-// Import all section components for preview
+// Preview Components
 import { UseCasesSection } from '@/components/use-cases-section';
 import { FeaturesSection } from '@/components/features-section';
 import { ExclusiveFeatures } from '@/components/exclusive-features';
@@ -29,111 +36,53 @@ import { FaqSection } from '@/components/faq-section';
 import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
 import { DashboardClient } from '@/components/dashboard-client';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { TopTitleSection } from '@/components/top-title-section';
+import * as contentData from '@/lib/content-data';
 
-const KnowledgebasePlaceholder = () => (
-    <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
-        <p className="text-lg font-semibold">Knowledgebase Section</p>
-        <p>Content for this section will be managed here in the future.</p>
-    </div>
-);
-
-const TopTitlePlaceholder = () => (
-     <div className="relative w-full max-w-4xl mx-auto text-center py-16">
-        <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
-            Page Title
-        </h1>
-        <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto">This is a placeholder for the page subtitle or description.</p>
-    </div>
-)
 
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
-    "inbox": DashboardClient,
-    "top-title": TopTitlePlaceholder,
-    "why": UseCasesSection,
-    "features": FeaturesSection,
-    "exclusive-features": ExclusiveFeatures,
-    "comparison": ComparisonSection,
-    "pricing": PricingSection,
-    "pricing-comparison": PricingComparisonTable,
-    "blog": BlogSection,
-    "testimonials": Testimonials,
-    "faq": FaqSection,
-    "newsletter": StayConnected,
+    "inbox": DashboardClient, "top-title": TopTitleSection, "why": UseCasesSection,
+    "features": FeaturesSection, "exclusive-features": ExclusiveFeatures, "comparison": ComparisonSection,
+    "pricing": PricingSection, "pricing-comparison": PricingComparisonTable, "blog": BlogSection,
+    "testimonials": Testimonials, "faq": FaqSection, "newsletter": StayConnected,
     "contact-form": ContactPage,
-    "knowledgebase": KnowledgebasePlaceholder,
 };
 
-const defaultStylesBase = {
-    marginTop: 0, marginBottom: 0, marginLeft: 0, marginRight: 0, 
-    paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, 
-    borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, 
-    borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))', 
-    borderLeftColor: 'hsl(var(--border))', borderRightColor: 'hsl(var(--border))'
-};
-
-const sectionDetails: { [key: string]: { name: string, defaultStyles: any } } = {
-    "inbox": { name: "Inbox", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 } },
-    "top-title": { name: "Top Title", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 } },
-    "why": { name: "Why", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' } },
-    "features": { name: "Features", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false } },
-    "exclusive-features": { name: "Exclusive Features", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' } },
-    "comparison": { name: "Comparison", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false } },
-    "pricing": { name: "Pricing", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' } },
-    "pricing-comparison": { name: "Price Comparison", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false } },
-    "blog": { name: "Blog", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' } },
-    "testimonials": { name: "Testimonials", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false } },
-    "faq": { name: "FAQ", defaultStyles: { ...defaultStylesBase, bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)', paddingTop: 64, paddingBottom: 64 } },
-    "newsletter": { name: "Newsletter", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false, borderTopWidth: 1, paddingTop: 64, paddingBottom: 64 } },
-    "contact-form": { name: "Contact", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false, paddingTop: 80, paddingBottom: 80 } },
-    "knowledgebase": { name: "Knowledgebase", defaultStyles: { ...defaultStylesBase, bgColor: 'hsl(var(--background))', useGradient: false, paddingTop: 64, paddingBottom: 64 } },
+const sectionDetails: { [key: string]: { name: string, defaultContent: any } } = {
+    "inbox": { name: "Inbox", defaultContent: {} },
+    "top-title": { name: "Top Title", defaultContent: { title: "Page Title", description: "Page subtitle" } },
+    "why": { name: "Why", defaultContent: { title: "Why Temp Mail?", items: contentData.useCases } },
+    "features": { name: "Features", defaultContent: { title: "Features", items: contentData.features } },
+    "exclusive-features": { name: "Exclusive Features", defaultContent: { title: "Exclusive Features", items: contentData.exclusiveFeatures } },
+    "comparison": { name: "Comparison", defaultContent: { title: "Comparison", items: contentData.comparisonFeatures } },
+    "pricing": { name: "Pricing", defaultContent: { title: "Pricing" } },
+    "pricing-comparison": { name: "Price Comparison", defaultContent: { title: "Price Comparison" } },
+    "blog": { name: "Blog", defaultContent: { title: "From the Blog", items: contentData.blogPosts } },
+    "testimonials": { name: "Testimonials", defaultContent: { title: "What Our Users Say", items: contentData.testimonials } },
+    "faq": { name: "FAQ", defaultContent: { title: "Frequently Asked Questions", items: contentData.faqs } },
+    "newsletter": { name: "Newsletter", defaultContent: { title: "Stay Connected" } },
+    "contact-form": { name: "Contact", defaultContent: {} },
 };
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // This function will convert hex with alpha to rgba for the state
-        const hex = e.target.value; // Format is #RRGGBBAA
-        if (/^#([0-9A-Fa-f]{8})$/.test(hex)) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            const a = parseInt(hex.slice(7, 9), 16) / 255;
-            onChange(`rgba(${r},${g},${b},${a.toFixed(2)})`);
-        }
-    };
-
-    const colorPickerValue = useMemo(() => {
-        // This function converts rgba back to hex for the color picker
-        const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-        if (match) {
-            const [, r, g, b, a = '1'] = match;
-            const toHex = (c: string) => parseInt(c).toString(16).padStart(2, '0');
-            const alphaHex = Math.round(parseFloat(a) * 255).toString(16).padStart(2, '0');
-            return `#${toHex(r)}${toHex(g)}${toHex(b)}${alphaHex}`;
-        }
-        return '#000000ff'; // Fallback
-    }, [value]);
-
-
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
                 <Input
                     type="color"
-                    value={colorPickerValue.slice(0, 7)} // Picker doesn't use alpha
+                    value={(value || '#000000').slice(0, 7)}
                     onChange={(e) => {
-                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${parseFloat(value.split(',')[3] || '1')})`;
+                        const currentVal = value || 'rgba(0,0,0,1)';
+                        const alpha = parseFloat(currentVal.split(',')[3] || '1');
+                        const newRgba = `rgba(${parseInt(e.target.value.slice(1, 3), 16)},${parseInt(e.target.value.slice(3, 5), 16)},${parseInt(e.target.value.slice(5, 7), 16)},${alpha})`;
                         onChange(newRgba);
                     }}
                     className="h-10 w-12 p-1"
                 />
                  <Input
                     type="text"
-                    value={value}
+                    value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
                 />
@@ -141,35 +90,31 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
              <div className="flex items-center gap-2">
                 <Label className="text-xs">Opacity</Label>
                 <Input 
-                    type="range" 
-                    min="0" 
-                    max="1" 
-                    step="0.05"
-                    value={value.match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
+                    type="range" min="0" max="1" step="0.05"
+                    value={(value || 'rgba(0,0,0,1)').match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
                     onChange={(e) => {
                         const newAlpha = e.target.value;
-                        const oldColor = value.replace(/rgba?/, '').replace(')', '');
+                        const oldColor = (value || 'rgba(0,0,0,1)').replace(/rgba?/, '').replace(')', '');
                         const [r,g,b] = oldColor.split(',');
-                         onChange(`rgba(${r},${g},${b}, ${newAlpha})`);
+                         onChange(`rgba(${r || 0},${g || 0},${b || 0}, ${newAlpha})`);
                     }}
                 />
             </div>
         </div>
     );
 };
-const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom' | 'Left' | 'Right', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
-    const lowerSide = side.toLowerCase();
+const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
             <div className="grid grid-cols-2 gap-2">
                 <div className='space-y-2'>
                     <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
-                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`]} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
+                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
                 </div>
                 <div className='space-y-2'>
                     <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
-                    <Input id={`border${side}Color`} type="color" value={styles[`border${side}Color`]} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} className="h-10 w-full p-1" />
+                    <Input id={`border${side}Color`} type="text" value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} />
                 </div>
             </div>
         </div>
@@ -181,58 +126,78 @@ export default function EditSectionPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
+    const firestore = useFirestore();
     const sectionId = params.id as string;
     
-    const [styles, setStyles] = useState(sectionDetails[sectionId]?.defaultStyles || {});
-    const [useBackground, setUseBackground] = useState(true);
+    const [styles, setStyles] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        const newDefaultStyles = sectionDetails[sectionId]?.defaultStyles || {};
-        setStyles(newDefaultStyles);
-        setUseBackground(newDefaultStyles.bgColor !== 'rgba(0,0,0,0)');
-    }, [sectionId]);
+    const sectionRef = useMemoFirebase(() => {
+        if (!firestore || !sectionId) return null;
+        return doc(firestore, "sections", sectionId);
+    }, [firestore, sectionId]);
+    
+    const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
-    const handleStyleChange = (property: string, value: string | number | boolean) => {
-        setStyles((prevStyles: any) => ({
-            ...prevStyles,
-            [property]: value,
-        }));
+    useEffect(() => {
+        const defaultStyles = {
+            marginTop: 0, marginBottom: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
+            borderTopWidth: 0, borderBottomWidth: 0, borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
+            bgColor: 'hsl(var(--background))', useGradient: false, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsl(var(--accent))'
+        };
+        
+        if (savedStyles) {
+            setStyles({ ...defaultStyles, ...savedStyles });
+        } else if (!isLoading) {
+            setStyles(defaultStyles);
+        }
+    }, [savedStyles, isLoading]);
+
+    const handleStyleChange = (property: string, value: any) => {
+        setStyles((prevStyles: any) => ({ ...prevStyles, [property]: value }));
     };
 
     const handleSaveStyles = async () => {
+        if (!sectionRef) return;
         setIsSaving(true);
-        // Simulate saving to a backend
-        console.log("Saving styles for", sectionId, styles);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-        
-        toast({
-            title: "Styles Saved!",
-            description: `The default styles for the '${sectionName}' section have been updated.`,
-        });
-        setIsSaving(false);
-        router.refresh(); // Refresh to reflect changes if they were real
+        try {
+            await setDoc(sectionRef, styles, { merge: true });
+            toast({
+                title: "Styles Saved!",
+                description: `The default styles for the '${sectionName}' section have been updated.`,
+            });
+            router.refresh();
+        } catch (error: any) {
+            toast({ title: "Error Saving", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const SelectedComponent = sectionId ? sectionComponents[sectionId] : null;
-    const sectionName = sectionId ? sectionDetails[sectionId]?.name : "Section";
+    if (!sectionId || !sectionDetails[sectionId]) {
+        return notFound();
+    }
+
+    const SelectedComponent = sectionComponents[sectionId];
+    const sectionName = sectionDetails[sectionId]?.name;
+    const defaultContent = sectionDetails[sectionId]?.defaultContent;
 
     const previewStyle = {
-        backgroundColor: useBackground ? styles.bgColor : 'transparent',
-        backgroundImage: useBackground && styles.useGradient ? `linear-gradient(to bottom, ${styles.gradientStart}, ${styles.gradientEnd})` : 'none',
-        marginTop: `${styles.marginTop}px`,
-        marginBottom: `${styles.marginBottom}px`,
-        marginLeft: `${styles.marginLeft}px`,
-        marginRight: `${styles.marginRight}px`,
-        paddingTop: `${styles.paddingTop}px`,
-        paddingBottom: `${styles.paddingBottom}px`,
-        paddingLeft: `${styles.paddingLeft}px`,
-        paddingRight: `${styles.paddingRight}px`,
-        borderTop: `${styles.borderTopWidth}px solid ${styles.borderTopColor}`,
-        borderBottom: `${styles.borderBottomWidth}px solid ${styles.borderBottomColor}`,
-        borderLeft: `${styles.borderLeftWidth}px solid ${styles.borderLeftColor}`,
-        borderRight: `${styles.borderRightWidth}px solid ${styles.borderRightColor}`,
+        backgroundColor: styles.bgColor || 'transparent',
+        backgroundImage: styles.useGradient ? `linear-gradient(to bottom, ${styles.gradientStart}, ${styles.gradientEnd})` : 'none',
+        marginTop: `${styles.marginTop || 0}px`,
+        marginBottom: `${styles.marginBottom || 0}px`,
+        paddingTop: `${styles.paddingTop || 0}px`,
+        paddingBottom: `${styles.paddingBottom || 0}px`,
+        paddingLeft: `${styles.paddingLeft || 0}px`,
+        paddingRight: `${styles.paddingRight || 0}px`,
+        borderTop: `${styles.borderTopWidth || 0}px solid ${styles.borderTopColor || 'transparent'}`,
+        borderBottom: `${styles.borderBottomWidth || 0}px solid ${styles.borderBottomColor || 'transparent'}`,
     };
+    
+    if (isLoading) {
+        return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+    }
 
     return (
         <div className="space-y-6">
@@ -245,7 +210,7 @@ export default function EditSectionPage() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                    <BreadcrumbPage>Edit {sectionName}</BreadcrumbPage>
+                    <BreadcrumbPage>Edit Default: {sectionName}</BreadcrumbPage>
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
@@ -255,11 +220,12 @@ export default function EditSectionPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Live Preview: {sectionName}</CardTitle>
+                             <CardDescription>This preview shows how this section will look by default on all pages.</CardDescription>
                         </CardHeader>
                         <CardContent>
                            <div className="border rounded-lg bg-background overflow-hidden">
                               <div style={previewStyle}>
-                                {SelectedComponent ? <SelectedComponent removeBorder={true} /> : <p>Section not found.</p>}
+                                {SelectedComponent ? <SelectedComponent content={defaultContent} removeBorder={true} /> : <p>Section preview not available.</p>}
                               </div>
                            </div>
                         </CardContent>
@@ -270,38 +236,26 @@ export default function EditSectionPage() {
                 <div className="lg:col-span-1">
                     <Card>
                         <CardHeader>
-                            <CardTitle>CSS Properties</CardTitle>
-                            <CardDescription>Controls for the '{sectionName}' section.</CardDescription>
+                            <CardTitle>Default CSS Properties</CardTitle>
+                            <CardDescription>Set the global default styles for the '{sectionName}' section.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-6 max-h-[70vh] overflow-y-auto pr-4">
                             {/* Background Controls */}
                             <div className="space-y-4 rounded-md border p-4">
-                                <div className="flex items-center justify-between">
-                                    <Label className="font-semibold">Background</Label>
-                                    <Switch checked={useBackground} onCheckedChange={(checked) => {
-                                        setUseBackground(checked);
-                                        if (!checked) {
-                                            handleStyleChange('bgColor', 'rgba(0,0,0,0)');
-                                        } else {
-                                            handleStyleChange('bgColor', sectionDetails[sectionId]?.defaultStyles.bgColor || 'hsl(var(--background))');
-                                        }
-                                    }} />
-                                </div>
-                                {useBackground && (
-                                    <div className="space-y-4">
-                                        <ColorInput label="Background Color" value={styles.bgColor || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('bgColor', value)} />
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="use-gradient">Use Gradient</Label>
-                                            <Switch id="use-gradient" checked={styles.useGradient} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
-                                        </div>
-                                        {styles.useGradient && (
-                                            <>
-                                                <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart || 'rgba(255,255,255,1)'} onChange={(value) => handleStyleChange('gradientStart', value)} />
-                                                <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd || 'rgba(240,248,255,1)'} onChange={(value) => handleStyleChange('gradientEnd', value)} />
-                                            </>
-                                        )}
+                                <Label className="font-semibold">Background</Label>
+                                <div className="space-y-4">
+                                    <ColorInput label="Background Color" value={styles.bgColor} onChange={(value) => handleStyleChange('bgColor', value)} />
+                                    <div className="flex items-center justify-between">
+                                        <Label htmlFor="use-gradient">Use Gradient</Label>
+                                        <Switch id="use-gradient" checked={styles.useGradient} onCheckedChange={(checked) => handleStyleChange('useGradient', checked)} />
                                     </div>
-                                )}
+                                    {styles.useGradient && (
+                                        <>
+                                            <ColorInput label="Gradient Start Color (Top)" value={styles.gradientStart} onChange={(value) => handleStyleChange('gradientStart', value)} />
+                                            <ColorInput label="Gradient End Color (Bottom)" value={styles.gradientEnd} onChange={(value) => handleStyleChange('gradientEnd', value)} />
+                                        </>
+                                    )}
+                                </div>
                             </div>
 
                              {/* Border Controls */}
@@ -311,10 +265,6 @@ export default function EditSectionPage() {
                                     <BorderInputGroup side="Top" styles={styles} handleStyleChange={handleStyleChange} />
                                     <Separator />
                                     <BorderInputGroup side="Bottom" styles={styles} handleStyleChange={handleStyleChange} />
-                                    <Separator />
-                                    <BorderInputGroup side="Left" styles={styles} handleStyleChange={handleStyleChange} />
-                                    <Separator />
-                                    <BorderInputGroup side="Right" styles={styles} handleStyleChange={handleStyleChange} />
                                 </div>
                             </div>
                             
@@ -326,8 +276,6 @@ export default function EditSectionPage() {
                                     <div className="grid grid-cols-2 gap-2">
                                         <Input type="number" placeholder="Top" value={styles.marginTop} onChange={(e) => handleStyleChange('marginTop', e.target.valueAsNumber)} />
                                         <Input type="number" placeholder="Bottom" value={styles.marginBottom} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
-                                        <Input type="number" placeholder="Left" value={styles.marginLeft} onChange={(e) => handleStyleChange('marginLeft', e.target.valueAsNumber)} />
-                                        <Input type="number" placeholder="Right" value={styles.marginRight} onChange={(e) => handleStyleChange('marginRight', e.target.valueAsNumber)} />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
@@ -344,7 +292,7 @@ export default function EditSectionPage() {
                             <div className="pt-4">
                                 <Button className="w-full" onClick={handleSaveStyles} disabled={isSaving}>
                                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Styles
+                                    Save Default Styles
                                 </Button>
                             </div>
                         </CardContent>
