@@ -90,11 +90,13 @@ const SectionWrapper = ({ section, pageId, plans }: { section: any, pageId: stri
     };
 
     const props = section.id === 'pricing' ? { ...section.props, plans } : section.props;
+    
+    const Component = section.component;
 
     return (
         <div id={section.id} className="z-10 relative" style={backgroundStyle}>
              <div style={{ paddingLeft: `${finalStyles.paddingLeft}px`, paddingRight: `${finalStyles.paddingRight}px`}}>
-                <section.component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} />
+                <Component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} />
              </div>
         </div>
     )
