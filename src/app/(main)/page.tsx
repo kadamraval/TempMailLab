@@ -57,7 +57,7 @@ export default function HomePage() {
   
   return (
     <>
-      <div id="inbox" className={cn("bg-gradient-to-b from-background to-[hsl(var(--gradient-start))]/30", "z-10 relative py-16 sm:py-20")}>
+      <div id="inbox" className="z-10 relative py-16 sm:py-20" style={{ background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.3))' }}>
         <div className="container mx-auto px-4">
           <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
             <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
@@ -75,23 +75,27 @@ export default function HomePage() {
       </div>
       {sections.map((Section, index) => {
         const patternIndex = index % 4;
-        let backgroundClass = "";
+        let backgroundStyle = {};
         let removeBorder = false;
 
-        if (patternIndex === 0) { // 1st Gradient
-            backgroundClass = "bg-gradient-to-b from-white to-[hsl(var(--gradient-start))]/30 dark:from-background dark:to-[hsl(var(--gradient-start))]/10";
+        if (patternIndex === 0) { // Gradient 1
+            backgroundStyle = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-start), 0.1))' };
             removeBorder = true;
-        } else if (patternIndex === 1) { // White
-            backgroundClass = "bg-white dark:bg-background";
-        } else if (patternIndex === 2) { // 2nd Gradient
-            backgroundClass = "bg-gradient-to-b from-white to-[hsl(var(--gradient-end))]/30 dark:from-background dark:to-[hsl(var(--gradient-end))]/10";
+        } else if (patternIndex === 1) { // Solid
+            backgroundStyle = { backgroundColor: 'hsl(var(--background))' };
+        } else if (patternIndex === 2) { // Gradient 2
+            backgroundStyle = { background: 'linear-gradient(to bottom, hsl(var(--background)), hsla(var(--gradient-end), 0.1))' };
             removeBorder = true;
-        } else { // White
-            backgroundClass = "bg-white dark:bg-background";
+        } else { // Solid
+            backgroundStyle = { backgroundColor: 'hsl(var(--background))' };
+        }
+
+        if (Section.id === "newsletter") {
+            backgroundStyle = { backgroundColor: 'hsl(var(--background))', borderTop: '1px solid hsl(var(--border))'};
         }
 
         return (
-            <div key={index} id={Section.id} className={cn(backgroundClass, "z-10 relative py-16 sm:py-20")}>
+            <div key={index} id={Section.id} className="z-10 relative py-16 sm:py-20" style={backgroundStyle}>
                 <Section.component removeBorder={removeBorder && Section.hasCard} {...Section.props} />
             </div>
         )
