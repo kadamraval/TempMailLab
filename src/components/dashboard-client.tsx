@@ -44,7 +44,6 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { signInAnonymously } from 'firebase/auth';
-import { fetchAndStoreEmailsAction } from '@/lib/actions/inbox';
 
 const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
 
@@ -210,34 +209,6 @@ export function DashboardClient() {
   }, [user, isUserLoading, isLoadingPlan, activePlan, auth, firestore, generateNewInbox]);
 
 
-  const handleRefresh = useCallback(async () => {
-    if (!currentInbox || !user) return;
-    setIsRefreshing(true);
-    setServerError(null);
-
-    try {
-        const result = await fetchAndStoreEmailsAction(currentInbox.emailAddress, currentInbox.id, user.uid);
-
-        if (result.success) {
-            toast({
-                title: "Inbox Refreshed",
-                description: result.message || "Checked for new emails.",
-            });
-        } else {
-            throw new Error(result.error || "Failed to refresh inbox.");
-        }
-    } catch (error: any) {
-        setServerError(error.message || "An unexpected error occurred while fetching emails.");
-        toast({
-            title: "Refresh Failed",
-            description: "Could not fetch new emails.",
-            variant: "destructive",
-        });
-    } finally {
-        setIsRefreshing(false);
-    }
-  }, [currentInbox, user, toast]);
-  
    
   useEffect(() => {
     if (!currentInbox?.expiresAt || !activePlan || !auth?.currentUser) return;
@@ -352,9 +323,6 @@ export function DashboardClient() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isRefreshing}>
-            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          </Button>
           <Button
             onClick={handleDeleteAndRegenerate}
             variant="outline"
@@ -391,7 +359,7 @@ export function DashboardClient() {
                          <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
                            <Inbox className="h-16 w-16 mb-4" />
                            <p className="mt-4 text-lg">Your inbox is empty.</p>
-                           <p className="text-sm">Click the refresh button to check for new mail.</p>
+                           <p className="text-sm">New mail will appear here automatically when received.</p>
                          </div>
                       ) : sortedEmails.map((email) => (
                           <button
@@ -459,7 +427,5 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
 
     
