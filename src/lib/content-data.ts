@@ -2,6 +2,11 @@
 "use client";
 import imageData from '@/app/lib/placeholder-images.json';
 
+// This file contains the default content for the application's sections.
+// When an admin edits a section for the first time, this data is loaded
+// into the editor and then saved to Firestore. Subsequent edits will
+// load the data from Firestore.
+
 // Data for UseCasesSection
 export const useCases = [
   {

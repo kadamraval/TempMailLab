@@ -16,19 +16,31 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { IconPicker } from '@/components/icon-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { saveContentAction } from '@/lib/actions/content';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
 
 interface SectionContentDialogProps {
   isOpen: boolean;
   onClose: () => void;
   section: { id: string; name: string, isDynamic?: boolean } | null;
+}
+
+const getDefaultContent = (sectionId: string) => {
+    switch (sectionId) {
+        case 'why': return { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: useCases };
+        case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
+        case 'exclusive-features': return { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: exclusiveFeatures };
+        case 'faq': return { title: "Questions?", description: "Find answers to frequently asked questions.", items: faqs };
+        case 'comparison': return { title: "Tempmailoz Vs Others", description: "", items: comparisonFeatures };
+        case 'testimonials': return { title: "What Our Users Say", description: "", items: testimonials };
+        case 'blog': return { title: "From the Blog", description: "", items: blogPosts };
+        default: return { title: sectionId, description: "", items: [] };
+    }
 }
 
 const TopContentFields = ({ title, description, onTitleChange, onDescriptionChange }: { title: string, description: string, onTitleChange: (val: string) => void, onDescriptionChange: (val: string) => void }) => (
@@ -169,10 +181,15 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
   const { data: savedContent, isLoading: isLoadingContent } = useDoc(contentRef);
   
   React.useEffect(() => {
-      if (savedContent) {
-          setContentData(savedContent);
+      if (section) {
+          if (savedContent) {
+              setContentData(savedContent);
+          } else if (!isLoadingContent) {
+              // If not loading and no saved content, load the default
+              setContentData(getDefaultContent(section.id));
+          }
       }
-  }, [savedContent]);
+  }, [savedContent, isLoadingContent, section]);
 
 
   const handleSave = async () => {
@@ -199,11 +216,8 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
   if (!section) return null;
 
   const renderFormForSection = (section: { id: string; name: string, isDynamic?: boolean }) => {
-    if (isLoadingContent) {
+    if (isLoadingContent || !contentData) {
         return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
-    }
-    if (!contentData) {
-        return <div className="text-center text-muted-foreground p-8">No content data loaded.</div>
     }
 
     if (section.isDynamic) {
@@ -255,5 +269,3 @@ export function SectionContentDialog({ isOpen, onClose, section }: SectionConten
     </Dialog>
   );
 }
-
-    
