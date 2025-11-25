@@ -8,9 +8,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// This is a workaround to get all icon names from lucide-react
-const lucideIcons = d as unknown as { [key: string]: React.FC<any> };
-const iconNames = Object.keys(lucideIcons).filter(key => key !== 'createLucideIcon' && key !== 'icons' && typeof lucideIcons[key] !== 'function');
+// Correctly get all icon names from lucide-react's exported 'icons' object
+const lucideIcons = d.icons as { [key: string]: d.LucideIcon };
+const iconNames = Object.keys(lucideIcons);
 
 interface IconPickerProps {
     value: string;
@@ -20,7 +20,7 @@ interface IconPickerProps {
 export function IconPicker({ value, onChange }: IconPickerProps) {
     const [open, setOpen] = useState(false);
 
-    const Icon = value ? (lucideIcons[value] as React.FC<any>) : null;
+    const Icon = value ? (lucideIcons[value] as d.LucideIcon) : null;
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -45,7 +45,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
                         <CommandEmpty>No icon found.</CommandEmpty>
                         <CommandGroup className="max-h-64 overflow-y-auto">
                             {iconNames.map((iconName) => {
-                                const LoopIcon = lucideIcons[iconName] as React.FC<any>;
+                                const LoopIcon = lucideIcons[iconName] as d.LucideIcon;
                                 return (
                                     <CommandItem
                                         key={iconName}
