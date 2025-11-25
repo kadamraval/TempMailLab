@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -6,32 +7,33 @@ let firestore: ReturnType<typeof getFirestore>;
 
 function initializeAdminApp() {
     if (getApps().length > 0) {
+        // If an app is already initialized, return it. This happens in hot-reload environments.
         return getApps()[0];
     }
 
-    const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT;
+    // Check for the individual environment variables first.
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    // The private key needs to have its escaped newlines replaced with actual newlines.
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-    if (serviceAccountString) {
-        try {
-            const serviceAccount = JSON.parse(serviceAccountString) as ServiceAccount;
-            console.log("Attempting to initialize admin app with FIREBASE_SERVICE_ACCOUNT environment variable.");
-            return initializeApp({
-                credential: cert(serviceAccount),
-            });
-        } catch (error: any) {
-            console.error(
-                "CRITICAL: Failed to parse FIREBASE_SERVICE_ACCOUNT. Make sure the environment variable is a valid JSON string. Falling back to default initialization.",
-                "Error:", error.message
-            );
-            // Fallback to default initialization if parsing fails
-            return initializeApp();
-        }
-    } else {
-        console.log("Initializing admin app with default credentials (for deployed environment).");
-        // This is the standard for deployed environments like App Hosting
-        return initializeApp();
+    if (projectId && clientEmail && privateKey) {
+        console.log("Initializing admin app with individual environment variables.");
+        const serviceAccount: ServiceAccount = {
+            projectId,
+            clientEmail,
+            privateKey,
+        };
+        return initializeApp({
+            credential: cert(serviceAccount),
+        });
     }
+
+    // Fallback for deployed environments like App Hosting, where credentials are automatically provided.
+    console.log("Initializing admin app with default credentials (for deployed environment).");
+    return initializeApp();
 }
+
 
 function getAdminApp(): App {
     if (!adminApp) {
