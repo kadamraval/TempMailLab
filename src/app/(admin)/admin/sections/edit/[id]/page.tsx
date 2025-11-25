@@ -135,16 +135,27 @@ export default function EditSectionPage() {
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
     useEffect(() => {
-        const defaultStyles = {
-            marginTop: 0, marginBottom: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
-            borderTopWidth: 0, borderBottomWidth: 0, borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
-            bgColor: 'hsl(var(--background))', useGradient: false, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsl(var(--accent))'
+        const fallbackStyles = {
+            marginTop: 0, 
+            marginBottom: 0, 
+            paddingTop: 64, 
+            paddingBottom: 64, 
+            paddingLeft: 16, 
+            paddingRight: 16,
+            borderTopWidth: 0, 
+            borderBottomWidth: 0, 
+            borderTopColor: 'hsl(var(--border))', 
+            borderBottomColor: 'hsl(var(--border))',
+            bgColor: 'hsl(var(--background))', 
+            useGradient: false, 
+            gradientStart: 'hsl(var(--background))', 
+            gradientEnd: 'hsl(var(--accent))'
         };
         
         if (savedStyles) {
-            setStyles({ ...defaultStyles, ...savedStyles });
+            setStyles({ ...fallbackStyles, ...savedStyles });
         } else if (!isLoading) {
-            setStyles(defaultStyles);
+            setStyles(fallbackStyles);
         }
     }, [savedStyles, isLoading]);
 
