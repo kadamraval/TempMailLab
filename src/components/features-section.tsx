@@ -49,5 +49,3 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
     </section>
   )
 }
-
-    

@@ -60,5 +60,3 @@ export function ComparisonSection({ removeBorder, content }: ComparisonSectionPr
     </section>
   );
 }
-
-    

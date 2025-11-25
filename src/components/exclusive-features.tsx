@@ -82,5 +82,3 @@ export const ExclusiveFeatures = ({ removeBorder, content }: ExclusiveFeaturesPr
     </section>
   );
 };
-
-    

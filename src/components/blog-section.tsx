@@ -69,5 +69,3 @@ export function BlogSection({ removeBorder, content }: BlogSectionProps) {
     </section>
   )
 }
-
-    

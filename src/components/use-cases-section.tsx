@@ -53,5 +53,3 @@ export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps)
     </section>
   )
 }
-
-    

@@ -52,5 +52,3 @@ export function FaqSection({ removeBorder, content }: FaqSectionProps) {
         </section>
     );
 }
-
-    

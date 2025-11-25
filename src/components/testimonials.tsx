@@ -75,5 +75,3 @@ export function Testimonials({ content }: TestimonialsProps) {
     </section>
   )
 }
-
-    
