@@ -186,7 +186,9 @@ export function DashboardClient() {
                     if (new Date(localData.expiresAt) > new Date()) {
                         const inboxDoc = await getDoc(doc(firestore, 'inboxes', localData.id));
                         if (inboxDoc.exists() && inboxDoc.data().userId === activeUser.uid) {
-                            foundInbox = { id: inboxDoc.id, ...inboxDoc.data() } as InboxType;
+                            const data = inboxDoc.data();
+                            const expiry = data.expiresAt instanceof Timestamp ? data.expiresAt.toDate().toISOString() : data.expiresAt;
+                            foundInbox = { id: inboxDoc.id, ...data, expiresAt: expiry } as InboxType;
                         }
                     }
                 } catch { localStorage.removeItem(LOCAL_INBOX_KEY); }
@@ -194,23 +196,18 @@ export function DashboardClient() {
         } else { // Registered User
             const userInboxesQuery = query(
                 collection(firestore, 'inboxes'), 
-                where('userId', '==', activeUser.uid)
+                where('userId', '==', activeUser.uid),
+                orderBy('createdAt', 'desc'),
+                limit(1)
             );
             const userInboxesSnap = await getDocs(userInboxesQuery);
             if (!userInboxesSnap.empty) {
-                // Sort on the client to find the most recent one
-                const sortedInboxes = userInboxesSnap.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() } as InboxType))
-                    .sort((a, b) => {
-                        const timeA = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
-                        const timeB = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
-                        return timeB - timeA;
-                    });
+                const latestInboxDoc = userInboxesSnap.docs[0];
+                const latestInboxData = latestInboxDoc.data();
+                const expiry = latestInboxData.expiresAt instanceof Timestamp ? latestInboxData.expiresAt.toDate().toISOString() : latestInboxData.expiresAt;
                 
-                const latestInbox = sortedInboxes[0];
-                const expiry = latestInbox.expiresAt instanceof Timestamp ? latestInbox.expiresAt.toDate().toISOString() : latestInbox.expiresAt;
                 if (new Date(expiry) > new Date()) {
-                    foundInbox = { ...latestInbox, expiresAt: expiry };
+                    foundInbox = { id: latestInboxDoc.id, ...latestInboxData, expiresAt: expiry } as InboxType;
                 }
             }
         }

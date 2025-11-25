@@ -51,7 +51,7 @@
     "lucide-react": "^0.475.0",
     "mailparser": "^3.7.1",
     "mini-svg-data-uri": "^1.4.4",
-    "next": "15.3.3",
+    "next": "14.2.3",
     "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
     "patch-package": "^8.0.0",
@@ -68,7 +68,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/mailparser": "^3.4.4",
-    "@types/node": "^20",
+    "@types/node": "^20.11.24",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^9.0.8",
