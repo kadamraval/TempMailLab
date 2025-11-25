@@ -1,6 +1,6 @@
 "use client";
 
-import *d from "lucide-react";
+import * as d from "lucide-react";
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Button } from "./ui/button";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 // This is a workaround to get all icon names from lucide-react
 const lucideIcons = d as unknown as { [key: string]: React.FC<any> };
-const iconNames = Object.keys(lucideIcons).filter(key => key !== 'createLucideIcon' && key !== 'icons');
+const iconNames = Object.keys(lucideIcons).filter(key => key !== 'createLucideIcon' && key !== 'icons' && typeof lucideIcons[key] !== 'function');
 
 interface IconPickerProps {
     value: string;
