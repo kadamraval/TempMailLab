@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SectionContentDialog } from './section-content-dialog';
 
 const pageData: { [key: string]: any } = {
   home: {
@@ -102,18 +103,27 @@ export default function EditPageLayout() {
   const pageId = params.id as string;
   const currentPage = pageData[pageId];
 
-  const [editingSection, setEditingSection] = useState<any | null>(null);
+  const [editingStyleSection, setEditingStyleSection] = useState<any | null>(null);
+  const [editingContentSection, setEditingContentSection] = useState<any | null>(null);
 
   if (!currentPage) {
     return <div>Page not found.</div>;
   }
   
   const handleEditStyle = (section: any) => {
-    setEditingSection(section);
+    setEditingStyleSection(section);
   };
   
-  const handleCloseDialog = () => {
-    setEditingSection(null);
+  const handleCloseStyleDialog = () => {
+    setEditingStyleSection(null);
+  };
+
+  const handleEditContent = (section: any) => {
+    setEditingContentSection(section);
+  };
+  
+  const handleCloseContentDialog = () => {
+    setEditingContentSection(null);
   };
 
 
@@ -164,7 +174,7 @@ export default function EditPageLayout() {
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                           <Button variant="ghost" size="icon" disabled={section.isDynamic}>
+                           <Button variant="ghost" size="icon" onClick={() => handleEditContent(section)} disabled={section.isDynamic}>
                             <FileText className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
@@ -283,10 +293,15 @@ export default function EditPageLayout() {
     </div>
 
     <SectionStyleDialog
-      isOpen={!!editingSection}
-      onClose={handleCloseDialog}
-      section={editingSection}
+      isOpen={!!editingStyleSection}
+      onClose={handleCloseStyleDialog}
+      section={editingStyleSection}
       pageName={currentPage.name}
+    />
+    <SectionContentDialog
+        isOpen={!!editingContentSection}
+        onClose={handleCloseContentDialog}
+        section={editingContentSection}
     />
     </>
   );
