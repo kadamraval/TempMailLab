@@ -1,10 +1,33 @@
 
 'use server';
 
-import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { revalidatePath } from 'next/cache';
-import { Timestamp } from 'firebase-admin/firestore';
-import type { Inbox } from '@/types';
+import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+
+// Self-contained Firebase Admin initialization
+function getAdminFirestore() {
+    if (getApps().some(app => app.name === 'admin-auth')) {
+        return getFirestore(getApps().find(app => app.name === 'admin-auth'));
+    }
+
+    let serviceAccount: ServiceAccount;
+    try {
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+        }
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (e: any) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e.message);
+        throw new Error("Server configuration error: Could not parse service account credentials.");
+    }
+    
+    const adminApp = initializeApp({
+        credential: cert(serviceAccount)
+    }, 'admin-auth');
+
+    return getFirestore(adminApp);
+}
 
 interface SignUpResult {
     success: boolean;

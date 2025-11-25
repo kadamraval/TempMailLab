@@ -4,8 +4,33 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { simpleParser, ParsedMail } from 'mailparser';
-import { getAdminFirestore } from '@/lib/firebase/server-init';
-import { Timestamp } from 'firebase-admin/firestore';
+import { initializeApp, getApps, App, cert, ServiceAccount } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+
+// Self-contained Firebase Admin initialization
+function getAdminFirestore() {
+    if (getApps().some(app => app.name === 'admin-webhook')) {
+        return getFirestore(getApps().find(app => app.name === 'admin-webhook'));
+    }
+
+    let serviceAccount: ServiceAccount;
+    try {
+        if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+        }
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (e: any) {
+        console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", e.message);
+        throw new Error("Server configuration error: Could not parse service account credentials.");
+    }
+    
+    const adminApp = initializeApp({
+        credential: cert(serviceAccount)
+    }, 'admin-webhook');
+
+    return getFirestore(adminApp);
+}
+
 
 async function getInboundProviderSettings() {
     const adminFirestore = getAdminFirestore();
@@ -71,7 +96,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     
-    // The Admin SDK is now correctly initialized via server-init.ts
     const firestore = getAdminFirestore();
 
     let toAddress: string | null = null;
