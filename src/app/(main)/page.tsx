@@ -15,7 +15,6 @@ import { UseCasesSection } from "@/components/use-cases-section";
 import { ComparisonSection } from "@/components/comparison-section";
 import { ExclusiveFeatures } from "@/components/exclusive-features";
 import { BlogSection } from "@/components/blog-section";
-import { cn } from "@/lib/utils";
 import { collection, query, where, doc } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { useDoc } from "@/firebase";
@@ -56,7 +55,7 @@ const sectionDefaultStyles: { [key: string]: any } = {
 };
 
 
-const SectionWrapper = ({ section, pageId, plans }: { section: any, pageId: string, plans: Plan[] }) => {
+const SectionWrapper = ({ section, pageId, plans, children }: { section: any, pageId: string, plans: Plan[], children?: React.ReactNode }) => {
     const firestore = useFirestore();
     const defaultStyles = sectionDefaultStyles[section.id] || defaultStylesBase;
     
@@ -96,7 +95,7 @@ const SectionWrapper = ({ section, pageId, plans }: { section: any, pageId: stri
     return (
         <div id={section.id} className="z-10 relative" style={backgroundStyle}>
              <div style={{ paddingLeft: `${finalStyles.paddingLeft}px`, paddingRight: `${finalStyles.paddingRight}px`}}>
-                <Component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} />
+                {children || (Component ? <Component removeBorder={!finalStyles.borderTopWidth && !finalStyles.borderBottomWidth} {...props} /> : null)}
              </div>
         </div>
     )
@@ -131,7 +130,7 @@ export default function HomePage() {
           pageId="home"
           plans={plans || []}
       >
-        <div id="inbox" className="container mx-auto px-4">
+        <div className="container mx-auto px-4">
             <div className="relative w-full max-w-4xl mx-auto text-center mb-12">
                 <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
                 <span className="inline-block bg-primary/10 text-primary font-semibold px-4 py-1 rounded-full text-sm mb-4">
@@ -158,3 +157,4 @@ export default function HomePage() {
     </>
   );
 }
+
