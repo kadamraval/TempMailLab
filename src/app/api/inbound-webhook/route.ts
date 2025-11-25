@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
     try {
         // 1. Authenticate the request
         const inboundSettings = await getSetting(db, 'inbound-new');
-        if (!inboundSettings?.enabled || !inboundSettings.apiKey || !inboundSettings.headerName) {
+        if (!inboundSettings?.enabled || !inboundSettings.headerValue || !inboundSettings.headerName) {
             return NextResponse.json({ message: 'Inbound webhook is not configured or enabled.' }, { status: 403 });
         }
 
         const receivedSecret = req.headers.get(inboundSettings.headerName.toLowerCase());
-        if (receivedSecret !== inboundSettings.apiKey) {
+        if (receivedSecret !== inboundSettings.headerValue) {
             return NextResponse.json({ message: 'Unauthorized: Invalid secret.' }, { status: 401 });
         }
 
@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
         const inboxSnapshot = await inboxQuery.get();
 
         if (inboxSnapshot.empty) {
-            return NextResponse.json({ message: `Not Found: Inbox for ${recipientEmail} does not exist.` }, { status: 404 });
+            // It's possible the inbox was deleted but a message is still in flight. 
+            // Return 200 to prevent retries for an inbox that no longer exists.
+            return NextResponse.json({ message: `OK: Inbox for ${recipientEmail} does not exist, so message was discarded.` }, { status: 200 });
         }
         
         const inboxDoc = inboxSnapshot.docs[0];

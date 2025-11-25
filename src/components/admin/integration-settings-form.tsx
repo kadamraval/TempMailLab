@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react";
@@ -55,7 +54,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 headerName: 'x-inbound-secret', // Default value
                 ...existingSettings
             });
-        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.apiKey) {
+        } else if (!isLoadingSettings && integration.slug === 'inbound-new' && !settings.headerValue) {
             handleGenerateSecret();
         }
     }, [existingSettings, isLoadingSettings, integration.slug]);
@@ -79,7 +78,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const handleGenerateSecret = (regenerate = false) => {
         const newSecret = uuidv4();
-        setSettings(prev => ({ ...prev, apiKey: newSecret, enabled: true }));
+        setSettings(prev => ({ ...prev, headerValue: newSecret, enabled: true }));
         if (regenerate) {
              toast({ title: 'New Secret Generated', description: 'Click "Save Changes" to apply it.' });
         }
@@ -122,7 +121,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         
         try {
             const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
-                            (integration.slug === 'inbound-new' && !!settings.apiKey && !!settings.headerName);
+                            (integration.slug === 'inbound-new' && !!settings.headerValue && !!settings.headerName);
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -165,11 +164,45 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                     <div className="space-y-6">
                          <Alert>
                             <Info className="h-4 w-4" />
-                            <AlertTitle>Integration Not Available</AlertTitle>
+                            <AlertTitle>Important: Mailgun Setup</AlertTitle>
                             <AlertDescription>
-                                The Mailgun integration is currently not available. Please use `inbound.new` for inbound email processing.
+                                <ol className="list-decimal list-inside space-y-2 mt-2">
+                                    <li>In your Mailgun dashboard, select the desired domain.</li>
+                                    <li>Go to the "Routes" tab and create a new route.</li>
+                                    <li>For the "Expression Type", select "Match Recipient".</li>
+                                    <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
+                                    <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
+                                    <li>Also check "Store and Notify".</li>
+                                </ol>
                             </AlertDescription>
                         </Alert>
+                        <div className="space-y-2">
+                            <Label htmlFor="apiKey">Private API Key</Label>
+                            <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="domain">Mailgun Domain</Label>
+                            <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain || ''} onChange={handleInputChange} />
+                             <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="region">Mailgun Region</Label>
+                             <Select value={settings.region || 'US'} onValueChange={(value) => handleSelectChange('region', value)}>
+                                <SelectTrigger id="region">
+                                    <SelectValue placeholder="Select your Mailgun account region" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="US">US (api.mailgun.net)</SelectItem>
+                                    <SelectItem value="EU">EU (api.eu.mailgun.net)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-sm text-muted-foreground">
+                                Select the region where your Mailgun account is hosted.
+                            </p>
+                        </div>
                     </div>
                 );
             case "inbound-new":
@@ -197,7 +230,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                         </Button>
                                     </li>
                                     <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
-                                    <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
+                                    <li>Copy and paste the <strong>Header Name</strong> and <strong>Header Value / Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
                                 </ol>
                             </AlertDescription>
                         </Alert>
@@ -207,10 +240,10 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                                 <Input id="headerName" placeholder="e.g., x-inbound-secret" value={settings.headerName || ''} onChange={handleInputChange} />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="apiKey">Your Webhook Secret</Label>
+                                <Label htmlFor="headerValue">Header Value / Secret</Label>
                                 <div className="flex items-center gap-2">
-                                    <Input id="apiKey" readOnly type="password" placeholder="Generating secret key..." value={settings.apiKey || ''} className="bg-muted" />
-                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.apiKey, 'Webhook Secret')}>
+                                    <Input id="headerValue" readOnly type="password" placeholder="Generating secret key..." value={settings.headerValue || ''} className="bg-muted" />
+                                    <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(settings.headerValue, 'Webhook Secret')}>
                                         <Copy className="h-4 w-4" />
                                     </Button>
                                      <Button type="button" variant="outline" size="icon" onClick={() => handleGenerateSecret(true)}>
@@ -232,8 +265,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
-        if (integration.slug === 'mailgun') return true; // Always disable for mailgun now
-        if (integration.slug === 'inbound-new' && (!settings.apiKey || !settings.headerName)) return true;
+        if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
+        if (integration.slug === 'inbound-new' && (!settings.headerValue || !settings.headerName)) return true;
         return false;
     };
 
