@@ -31,16 +31,22 @@ function getAdminFirestore() {
     return getFirestore(adminApp);
 }
 
-
 async function getInboundProviderSettings() {
     const adminFirestore = getAdminFirestore();
-    const settingsDoc = await adminFirestore.doc('admin_settings/inbound-new').get();
+    // Fetch settings for both potential providers
+    const settingsDocs = await adminFirestore.getAll(
+        adminFirestore.doc('admin_settings/inbound-new'),
+        adminFirestore.doc('admin_settings/mailgun')
+    );
     
-    if (settingsDoc.exists && settingsDoc.data()?.enabled) {
-        return settingsDoc.data();
+    for (const doc of settingsDocs) {
+        if (doc.exists && doc.data()?.enabled) {
+            // Return the config of the first enabled provider found
+            return doc.data();
+        }
     }
     
-    console.warn(`Webhook Error: inbound.new provider is not enabled or configured.`);
+    console.warn(`Webhook Error: No inbound email provider is enabled or configured.`);
     return null;
 }
 

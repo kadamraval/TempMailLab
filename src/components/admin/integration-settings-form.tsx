@@ -11,8 +11,10 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { verifyMailgunSettingsAction } from "@/lib/actions/settings";
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -30,7 +32,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         headerName: 'x-inbound-secret' // Default value
     });
     const [isSaving, setIsSaving] = useState(false);
-    const [devWebhookUrl, setDevWebhookUrl] = useState('');
+    const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [verificationMessage, setVerificationMessage] = useState('');
     
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -43,15 +46,8 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const { data: existingSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
 
+    // This is now a fixed relative path for the API route.
     const webhookPath = "/api/inbound-webhook";
-
-    useEffect(() => {
-        // This effect runs on the client and checks for the hosting URL env var.
-        const hostingUrl = process.env.NEXT_PUBLIC_WEB_HOSTING_URL;
-        if (hostingUrl) {
-            setDevWebhookUrl(`${hostingUrl}${webhookPath}`);
-        }
-    }, [webhookPath]);
 
     useEffect(() => {
         if (existingSettings) {
@@ -68,10 +64,15 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { id, value } = e.target;
         setSettings(prev => ({ ...prev, [id]: value }));
+        setVerificationStatus('idle');
     };
 
+    const handleSelectChange = (id: string, value: string) => {
+        setSettings(prev => ({...prev, [id]: value}));
+        setVerificationStatus('idle');
+    }
+
     const handleCopy = (text: string, subject: string) => {
-        if (!text) return;
         navigator.clipboard.writeText(text);
         toast({ title: 'Copied!', description: `${subject} copied to clipboard.` });
     };
@@ -89,9 +90,39 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         if (!settingsRef) return;
         
         setIsSaving(true);
+        setVerificationStatus('idle');
+        
+        if (integration.slug === 'mailgun') {
+            setVerificationMessage('Verifying credentials...');
+            try {
+                const verificationResult = await verifyMailgunSettingsAction({
+                    apiKey: settings.apiKey,
+                    domain: settings.domain,
+                    region: settings.region || 'US',
+                });
+
+                setVerificationMessage(verificationResult.message);
+
+                if (!verificationResult.success) {
+                    setVerificationStatus('error');
+                    toast({ title: "Verification Failed", description: verificationResult.message, variant: "destructive" });
+                    setIsSaving(false);
+                    return; 
+                }
+
+                setVerificationStatus('success');
+
+            } catch (error: any) {
+                setVerificationStatus('error');
+                setVerificationMessage(error.message || "An unexpected client-side error occurred.");
+                setIsSaving(false);
+                return;
+            }
+        }
         
         try {
-            const enabled = (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
+            const enabled = (integration.slug === 'mailgun' && !!settings.apiKey && !!settings.domain) || 
+                            (integration.slug === 'inbound-new' && !!settings.secret && !!settings.headerName);
             const settingsToSave = { ...settings, enabled };
 
             await setDoc(settingsRef, settingsToSave, { merge: true });
@@ -129,6 +160,52 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         }
 
         switch (integration.slug) {
+            case "mailgun":
+                 return (
+                    <div className="space-y-6">
+                         <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Important: Mailgun Setup</AlertTitle>
+                            <AlertDescription>
+                                <ol className="list-decimal list-inside space-y-2 mt-2">
+                                    <li>In your Mailgun dashboard, select the desired domain.</li>
+                                    <li>Go to the "Routes" tab and create a new route.</li>
+                                    <li>For the "Expression Type", select "Match Recipient".</li>
+                                    <li>In the "Recipient" field, enter `*@your-domain.com` (replace with your actual Mailgun domain).</li>
+                                    <li>In the "Actions" section, check "Forward" and enter your public webhook URL: `https://[YOUR_PUBLIC_DOMAIN]${webhookPath}`. You must replace `[YOUR_PUBLIC_DOMAIN]` with your app's live domain name.</li>
+                                    <li>Also check "Store and Notify".</li>
+                                </ol>
+                            </AlertDescription>
+                        </Alert>
+                        <div className="space-y-2">
+                            <Label htmlFor="apiKey">Private API Key</Label>
+                            <Input id="apiKey" type="password" placeholder="key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={settings.apiKey || ''} onChange={handleInputChange} />
+                            <p className="text-sm text-muted-foreground">
+                                Your secret API key. Found under Settings &gt; API Keys in Mailgun.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="domain">Mailgun Domain</Label>
+                            <Input id="domain" placeholder="mg.yourdomain.com" value={settings.domain || ''} onChange={handleInputChange} />
+                             <p className="text-sm text-muted-foreground">The domain you have configured in Mailgun for receiving emails.</p>
+                        </div>
+                        <div className="space-y-2">
+                             <Label htmlFor="region">Mailgun Region</Label>
+                             <Select value={settings.region || 'US'} onValueChange={(value) => handleSelectChange('region', value)}>
+                                <SelectTrigger id="region">
+                                    <SelectValue placeholder="Select your Mailgun account region" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="US">US (api.mailgun.net)</SelectItem>
+                                    <SelectItem value="EU">EU (api.eu.mailgun.net)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-sm text-muted-foreground">
+                                Select the region where your Mailgun account is hosted.
+                            </p>
+                        </div>
+                    </div>
+                );
             case "inbound-new":
                  return (
                     <div className="space-y-6">
@@ -136,31 +213,24 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             <Info className="h-4 w-4" />
                             <AlertTitle>Setup Instructions</AlertTitle>
                             <AlertDescription>
-                                <ol className="list-decimal list-inside space-y-3 mt-2">
-                                     {devWebhookUrl && (
-                                        <li className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md border border-blue-200 dark:border-blue-800">
-                                            <strong>Development Testing URL:</strong> Use the full URL below for testing in your local environment. This URL is temporary and public.
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Input readOnly value={devWebhookUrl} className="bg-background font-mono" />
-                                                <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(devWebhookUrl, 'Development Webhook URL')}>
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                             <Button variant="link" size="sm" className="h-auto p-0 mt-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
-                                                Learn More <ExternalLink className="ml-1 h-3 w-3" />
-                                            </Button>
-                                        </li>
-                                    )}
+                                <ol className="list-decimal list-inside space-y-2 mt-2">
                                     <li>
-                                        <strong>Production Webhook URL Path:</strong> For your live app, combine this path with your public domain (e.g., `https://tempmailoz.com${webhookPath}`).
+                                        <strong>Webhook URL Path:</strong> Your webhook is located at the path below. To make it work, you must combine it with your app's public domain.
                                         <div className="flex items-center gap-2 mt-2">
                                             <Input readOnly value={webhookPath} className="bg-muted font-mono" />
                                             <Button type="button" variant="outline" size="icon" onClick={() => handleCopy(webhookPath, 'Webhook Path')}>
                                                 <Copy className="h-4 w-4" />
                                             </Button>
                                         </div>
+                                        <p className="text-xs mt-1">Example Production URL: `https://www.your-app.com/api/inbound-webhook`</p>
                                     </li>
-                                    <li>In your provider's dashboard, paste the appropriate URL (Development or Production) into the "Webhook URL" or "Endpoint" field.</li>
+                                     <li>
+                                        <strong>Testing:</strong> To test this in the development environment, a special temporary public URL will be provided. Use this full URL in your webhook provider's dashboard.
+                                        <Button variant="link" size="sm" className="h-auto p-0 ml-1" onClick={() => window.open('https://g.co/studio/features/port-forwarding', '_blank')}>
+                                            Learn More <ExternalLink className="ml-1 h-3 w-3" />
+                                        </Button>
+                                    </li>
+                                    <li>In your provider's dashboard, paste the full public URL into the "Webhook URL" or "Endpoint" field.</li>
                                     <li>Copy and paste the <strong>Header Name</strong> and <strong>Your Webhook Secret</strong> below into your provider's "Custom Headers" section to secure your endpoint.</li>
                                 </ol>
                             </AlertDescription>
@@ -196,6 +266,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
 
     const isSaveDisabled = () => {
         if (isSaving || isLoadingSettings) return true;
+        if (integration.slug === 'mailgun' && (!settings.apiKey || !settings.domain)) return true;
         if (integration.slug === 'inbound-new' && (!settings.secret || !settings.headerName)) return true;
         return false;
     };
@@ -210,13 +281,22 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                 
                 {renderFormFields()}
 
+                {verificationStatus !== 'idle' && verificationMessage && integration.slug === 'mailgun' && (
+                    <Alert variant={verificationStatus === 'error' ? 'destructive' : 'default'} className={verificationStatus === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}>
+                         {verificationStatus === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+                        <AlertTitle>{verificationStatus === 'success' ? 'Verification Successful' : 'Verification Status'}</AlertTitle>
+                        <AlertDescription>
+                            {verificationMessage}
+                        </AlertDescription>
+                    </Alert>
+                )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
                 <div className="flex justify-end gap-2 w-full">
                     <Button variant="outline" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaveDisabled()}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Changes
+                        {integration.slug === 'mailgun' ? 'Verify & Save' : 'Save Changes'}
                     </Button>
                 </div>
             </CardFooter>
