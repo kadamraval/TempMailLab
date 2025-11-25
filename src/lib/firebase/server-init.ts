@@ -7,8 +7,6 @@ import { getAuth, Auth } from 'firebase-admin/auth';
 // and ensure we're not polluting the global scope unintentionally.
 interface FirebaseAdminGlobal {
     firebaseAdminApp?: App;
-    firestore?: Firestore;
-    auth?: Auth;
 }
 
 // Cast `globalThis` to our new type.
@@ -19,58 +17,33 @@ const firebaseGlobal = globalThis as FirebaseAdminGlobal;
  * This pattern prevents re-initialization in hot-reload environments (like Next.js dev mode).
  */
 function initializeAdminApp() {
-    // If the app is already initialized, just return its services.
     if (firebaseGlobal.firebaseAdminApp) {
-        return {
-            app: firebaseGlobal.firebaseAdminApp,
-            firestore: firebaseGlobal.firestore!,
-            auth: firebaseGlobal.auth!,
-        };
+        return firebaseGlobal.firebaseAdminApp;
     }
-    
-    // If there are already apps initialized by another means, use the first one.
-    // This can happen in some environments.
+
     if (getApps().length > 0) {
         firebaseGlobal.firebaseAdminApp = getApps()[0];
-    } else {
-        const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
-        
-        // This logic handles both local and deployed environments.
-        if (serviceAccountEnv) {
-             // LOCAL: Use the service account JSON from the environment variable.
-             try {
-                const serviceAccount = JSON.parse(serviceAccountEnv);
-                firebaseGlobal.firebaseAdminApp = initializeApp({
-                    credential: cert(serviceAccount)
-                });
-            } catch (e) {
-                console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT. Falling back to applicationDefault().", e);
-                // Fallback for safety, though it might fail locally if ADC isn't set up.
-                firebaseGlobal.firebaseAdminApp = initializeApp({ credential: applicationDefault() });
-            }
-        } else {
-             // LIVE (DEPLOYED): Use Application Default Credentials.
-            firebaseGlobal.firebaseAdminApp = initializeApp({ credential: applicationDefault() });
-        }
+        return firebaseGlobal.firebaseAdminApp;
     }
+    
+    // This is the most direct approach. If the environment is configured correctly,
+    // applicationDefault() should work. If not, the previous attempts have shown
+    // that manually parsing env vars is also failing. This simplifies the logic
+    // to the standard expected behavior.
+    firebaseGlobal.firebaseAdminApp = initializeApp({
+        credential: applicationDefault(),
+    });
 
-    firebaseGlobal.firestore = getFirestore(firebaseGlobal.firebaseAdminApp);
-    firebaseGlobal.auth = getAuth(firebaseGlobal.firebaseAdminApp);
-
-    return {
-        app: firebaseGlobal.firebaseAdminApp,
-        firestore: firebaseGlobal.firestore,
-        auth: firebaseGlobal.auth,
-    };
+    return firebaseGlobal.firebaseAdminApp;
 }
 
 // Initialize on module load.
-const { firestore, auth } = initializeAdminApp();
+const adminApp = initializeAdminApp();
 
 export function getAdminFirestore(): Firestore {
-  return firestore;
+  return getFirestore(adminApp);
 }
 
 export function getAdminAuth(): Auth {
-  return auth;
+  return getAuth(adminApp);
 }

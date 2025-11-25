@@ -1,7 +1,9 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
+import { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Saves a plan to Firestore. Handles both creating a new plan and updating an existing one.
@@ -11,7 +13,7 @@ import { getAdminFirestore } from '@/lib/firebase/server-init';
  */
 export async function savePlanAction(planData: any, planId?: string) {
     try {
-        const firestore = await getAdminFirestore();
+        const firestore = getAdminFirestore();
         if (planId) {
             // Update existing plan
             const planRef = firestore.doc(`plans/${planId}`);
@@ -21,7 +23,7 @@ export async function savePlanAction(planData: any, planId?: string) {
             const collectionRef = firestore.collection("plans");
             await collectionRef.add({
                 ...planData,
-                createdAt: new Date(),
+                createdAt: Timestamp.now(),
             });
         }
         
@@ -46,7 +48,7 @@ export async function deletePlanAction(planId: string) {
             throw new Error("Plan ID is required for deletion.");
         }
         
-        const firestore = await getAdminFirestore();
+        const firestore = getAdminFirestore();
         const planRef = firestore.doc(`plans/${planId}`);
         await planRef.delete();
 

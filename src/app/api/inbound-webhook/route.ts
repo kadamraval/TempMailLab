@@ -9,8 +9,15 @@ import { simpleParser, ParsedMail } from 'mailparser';
 
 async function getInboundProviderSettings() {
     const firestore = getAdminFirestore();
-    const activeProvider = 'inbound-new';
+    // Logic to determine the active provider
+    const emailSettingsDoc = await firestore.doc('admin_settings/email').get();
+    const activeProvider = emailSettingsDoc.exists ? emailSettingsDoc.data()?.provider : 'inbound-new';
     
+    if (!activeProvider) {
+        console.warn(`Webhook Error: No inbound email provider is set in admin_settings/email.`);
+        return null;
+    }
+
     const providerSettingsDoc = await firestore.doc(`admin_settings/${activeProvider}`).get();
     if (providerSettingsDoc.exists && providerSettingsDoc.data()?.enabled) {
         return { provider: activeProvider, settings: providerSettingsDoc.data() };
@@ -21,8 +28,6 @@ async function getInboundProviderSettings() {
 }
 
 function getRecipientAddress(parsedEmail: ParsedMail): string | null {
-    console.log("INBOUND_WEBHOOK_PARSED_EMAIL", JSON.stringify(parsedEmail, null, 2));
-
     const deliveredToHeader = parsedEmail.headerLines?.find(h => h.key.toLowerCase() === 'delivered-to');
     if (deliveredToHeader && typeof deliveredToHeader.line === 'string') {
         const emailMatch = deliveredToHeader.line.match(/<(.+?)>/);
@@ -91,16 +96,14 @@ export async function POST(request: Request) {
 
     if (contentType && contentType.includes('application/json')) {
         const body = await request.json();
-        console.log("INBOUND_WEBHOOK_JSON_PAYLOAD", JSON.stringify(body, null, 2));
 
-        // Handling Postmark-style JSON
         toAddress = body.To;
         fromAddress = body.From;
         subject = body.Subject;
         htmlContent = body.HtmlBody;
         textContent = body.TextBody;
         messageId = body.MessageID;
-        rawContent = JSON.stringify(body); // Store the whole JSON as raw content for now
+        rawContent = JSON.stringify(body);
         receivedAt = body.Date ? new Date(body.Date) : new Date();
 
     } else {
@@ -152,7 +155,7 @@ export async function POST(request: Request) {
         filename: att.filename || 'attachment',
         contentType: att.contentType,
         size: att.size,
-        url: '' // Placeholder for now
+        url: ''
       })),
     };
 
