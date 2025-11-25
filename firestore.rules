@@ -3,6 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isWebhookServiceAccount() {
+      // This UID should correspond to the dedicated service account user
+      // created in Firebase Authentication for the webhook.
+      return request.auth.uid == "WEBHOOK_SERVICE_ACCOUNT_UID";
+    }
+
     // --- Publicly Readable Collections ---
     match /plans/{planId} {
       allow get, list: if true;
@@ -34,18 +40,18 @@ service cloud.firestore {
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
       // Allow a user to read, update, or delete an inbox if they are the owner.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Also allow the webhook service account to update the email count.
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (resource.data.userId == request.auth.uid || isWebhookServiceAccount());
+
 
       // Secure list operation: only allow querying for one's own inboxes.
       allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
-        // Allow public webhook creation.
-        // This rule is intentionally broad for our server-side code (webhook/actions).
-        // The server-side logic provides the necessary security (e.g., secret key validation),
-        // and admin credentials bypass these rules anyway.
-        allow create: if true;
+        // Allow ONLY the webhook service account to create emails.
+        allow create: if isWebhookServiceAccount();
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
         allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
