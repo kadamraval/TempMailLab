@@ -31,7 +31,7 @@ interface SectionContentDialogProps {
   pageId: string;
 }
 
-const getDefaultContent = (sectionId: string) => {
+const getDefaultContent = (pageId: string, sectionId: string) => {
     switch (sectionId) {
         case 'why': return { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: useCases };
         case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
@@ -42,7 +42,9 @@ const getDefaultContent = (sectionId: string) => {
         case 'blog': return { title: "From the Blog", description: "", items: blogPosts };
         case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
         case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
-        case 'top-title': return { title: "Page Title", description: "Page subtitle" };
+        case 'top-title':
+             const pageName = pageId.replace('-page', '').replace('-', ' ');
+             return { title: pageName.charAt(0).toUpperCase() + pageName.slice(1), description: `Everything you need to know about our ${pageName}.` };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return { title: sectionId, description: "", items: [] };
     }
@@ -155,8 +157,8 @@ const isSectionDynamic = (sectionId: string) => {
     return dynamicSections.includes(sectionId);
 }
 
-// Form for sections that are "dynamic" (e.g. pricing, blog) where only title/description is editable
-const DynamicSectionForm = ({ content, onContentChange, section }: { content: any, onContentChange: (data: any) => void, section: { id: string; name: string } }) => {
+// Form for sections that are "dynamic" (e.g. pricing, blog) or simple title/desc
+const SimpleForm = ({ content, onContentChange, section }: { content: any, onContentChange: (data: any) => void, section: { id: string; name: string } }) => {
     return (
         <div className="space-y-4">
             <TopContentFields 
@@ -166,7 +168,7 @@ const DynamicSectionForm = ({ content, onContentChange, section }: { content: an
                 onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
                 isDynamic={true}
             />
-             <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>
+             {isSectionDynamic(section.id) && <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>}
         </div>
     )
 }
@@ -192,7 +194,6 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
 
   const contentRef = useMemoFirebase(() => {
     if (!firestore || !section) return null;
-    // New Structure: /pages/{pageId}/sections/{sectionId}
     return doc(firestore, 'pages', pageId, 'sections', section.id);
   }, [firestore, pageId, section]);
 
@@ -204,10 +205,10 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
               setContentData(savedContent);
           } else if (!isLoadingContent) {
               // If not loading and no saved content, load the default
-              setContentData(getDefaultContent(section.id));
+              setContentData(getDefaultContent(pageId, section.id));
           }
       }
-  }, [savedContent, isLoadingContent, section]);
+  }, [savedContent, isLoadingContent, section, pageId]);
 
 
   const handleSave = async () => {
@@ -238,11 +239,9 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
         return <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
     }
 
-    if (isSectionDynamic(section.id)) {
-        return <DynamicSectionForm section={section} content={contentData} onContentChange={setContentData} />;
-    }
-
     switch (section.id) {
+        case 'top-title':
+            return <SimpleForm section={section} content={contentData} onContentChange={setContentData} />;
         case 'why':
         case 'features':
         case 'exclusive-features':
@@ -254,6 +253,9 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
         case 'faq':
             return <FaqForm content={contentData} onContentChange={setContentData} />;
         default:
+             if (isSectionDynamic(section.id)) {
+                return <SimpleForm section={section} content={contentData} onContentChange={setContentData} />;
+            }
             return <GenericForm content={contentData} onContentChange={setContentData} />;
     }
   }
@@ -285,5 +287,3 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
     </Dialog>
   );
 }
-
-    

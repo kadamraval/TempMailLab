@@ -4,16 +4,14 @@
 import { PageSection } from "@/components/page-section";
 
 const pageId = "features-page";
-const sections = ["features", "exclusive-features", "comparison"];
+const sections = ["top-title", "features", "exclusive-features", "comparison", "faq", "newsletter"];
 
 export default function FeaturesPage() {
     return (
-        <div className="space-y-16 sm:space-y-20 py-16 sm:py-20">
+        <div className="py-16 sm:py-20">
             {sections.map((sectionId, index) => (
                 <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
             ))}
         </div>
     );
 }
-
-    

@@ -23,6 +23,7 @@ import { Testimonials } from '@/components/testimonials';
 import { FaqSection } from '@/components/faq-section';
 import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
+import { TopTitleSection } from './top-title-section';
 
 // Default content data is now imported here for self-seeding
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
@@ -40,9 +41,10 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
   faq: FaqSection,
   newsletter: StayConnected,
   'contact-form': ContactPage,
+  'top-title': TopTitleSection,
 };
 
-const getDefaultContent = (sectionId: string) => {
+const getDefaultContent = (pageId: string, sectionId: string) => {
     switch (sectionId) {
         case 'why': return { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: useCases };
         case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
@@ -53,7 +55,9 @@ const getDefaultContent = (sectionId: string) => {
         case 'blog': return { title: "From the Blog", description: "", items: blogPosts };
         case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
         case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
-        case 'top-title': return { title: "Page Title", description: "Page subtitle" };
+        case 'top-title': 
+             const pageName = pageId.replace('-page', '').replace('-', ' ');
+             return { title: pageName.charAt(0).toUpperCase() + pageName.slice(1), description: `Everything you need to know about our ${pageName}.` };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return null;
     }
@@ -61,7 +65,7 @@ const getDefaultContent = (sectionId: string) => {
 
 const sectionDefaultStyles: { [key: string]: any } = {
     "inbox": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsla(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.3)', paddingTop: 64, paddingBottom: 64 },
-    "top-title": { bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 64 },
+    "top-title": { bgColor: 'rgba(0,0,0,0)', useGradient: false, paddingTop: 64, paddingBottom: 32 },
     "why": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-start), 0.1)' },
     "features": { bgColor: 'hsl(var(--background))', useGradient: false },
     "exclusive-features": { bgColor: 'rgba(0,0,0,0)', useGradient: true, gradientStart: 'hsl(var(--background))', gradientEnd: 'hsla(var(--gradient-end), 0.1)' },
@@ -104,12 +108,12 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   // Self-seeding logic
   useEffect(() => {
     if (!isLoadingContent && !content && !contentError && contentRef) {
-      const defaultContent = getDefaultContent(sectionId);
+      const defaultContent = getDefaultContent(pageId, sectionId);
       if (defaultContent) {
         setDoc(contentRef, { ...defaultContent, order: order, id: sectionId }).catch(console.error);
       }
     }
-  }, [isLoadingContent, content, contentError, contentRef, sectionId, order]);
+  }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
 
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
@@ -137,7 +141,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   };
   
   const componentProps = {
-    content: content || getDefaultContent(sectionId), // Pass content to component
+    content: content || getDefaultContent(pageId, sectionId), // Pass content to component
     plans,
     removeBorder: !finalStyles.borderTopWidth && !finalStyles.borderBottomWidth,
   };
@@ -150,5 +154,3 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
-
-    
