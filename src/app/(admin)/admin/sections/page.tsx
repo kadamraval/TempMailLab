@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { FilePenLine } from 'lucide-react';
 
 const sections = [
-    { id: "use-cases", name: "Why" },
+    { id: "inbox", name: "Inbox" },
+    { id: "top-title", name: "Top Title" },
+    { id: "why", name: "Why" },
     { id: "features", name: "Features" },
     { id: "exclusive-features", name: "Exclusive Features" },
     { id: "comparison", name: "Comparison" },
@@ -17,7 +19,7 @@ const sections = [
     { id: "blog", name: "Blog" },
     { id: "testimonials", name: "Testimonials" },
     { id: "faq", name: "FAQ" },
-    { id: "stay-connected", name: "Newsletter" },
+    { id: "newsletter", name: "Newsletter" },
     { id: "contact-form", name: "Contact" },
     { id: "knowledgebase", name: "Knowledgebase" },
 ];
