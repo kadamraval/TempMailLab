@@ -32,23 +32,7 @@ const pageData: { [key: string]: any } = {
       { id: "newsletter", name: "Newsletter", isDynamic: false },
     ]
   },
-  "about": { name: "About Us", sections: [] },
-  "contact": { 
-    name: "Contact Us", 
-    sections: [
-        { id: "contact-form", name: "Contact", isDynamic: true },
-        { id: "faq", name: "FAQ", isDynamic: false },
-    ]
-  },
-  "terms": { name: "Terms of Service", sections: [] },
-  "privacy": { name: "Privacy Policy", sections: [] },
-  "faq-page": { 
-      name: "FAQ", 
-      sections: [
-        { id: "faq", name: "FAQ", isDynamic: false },
-      ]
-  },
-   "features": {
+  "features": {
     name: "Features",
     sections: [
       { id: "top-title", name: "Top Title", isDynamic: false },
@@ -85,7 +69,23 @@ const pageData: { [key: string]: any } = {
         { id: "faq", name: "FAQ", isDynamic: false },
         { id: "newsletter", name: "Newsletter", isDynamic: false },
       ]
-  }
+  },
+  "about": { name: "About Us", sections: [] },
+  "contact": { 
+    name: "Contact Us", 
+    sections: [
+        { id: "contact-form", name: "Contact", isDynamic: true },
+        { id: "faq", name: "FAQ", isDynamic: false },
+    ]
+  },
+  "faq-page": { 
+      name: "FAQ", 
+      sections: [
+        { id: "faq", name: "FAQ", isDynamic: false },
+      ]
+  },
+  "terms": { name: "Terms of Service", sections: [] },
+  "privacy": { name: "Privacy Policy", sections: [] },
 };
 
 

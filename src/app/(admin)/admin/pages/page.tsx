@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -11,11 +12,15 @@ import { useRouter } from 'next/navigation';
 
 const pages = [
     { id: "home", name: "Home Page", status: "Published" },
+    { id: "features", name: "Features", status: "Published" },
+    { id: "pricing", name: "Pricing", status: "Published" },
+    { id: "blog-page", name: "Blog", status: "Published" },
+    { id: "api", name: "API", status: "Published" },
     { id: "about", name: "About Us", status: "Published" },
     { id: "contact", name: "Contact Us", status: "Published" },
+    { id: "faq-page", name: "FAQ", status: "Published" },
     { id: "terms", name: "Terms of Service", status: "Published" },
     { id: "privacy", name: "Privacy Policy", status: "Draft" },
-    { id: "faq-page", name: "FAQ", status: "Published" },
 ];
 
 export default function AdminPagesPage() {
