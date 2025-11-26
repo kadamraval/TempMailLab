@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-// This object defines the available sections and their default data/components.
+// This object defines the available pages and their default data/components.
 const pageData: { [key: string]: any } = {
   home: { name: "Home Page" }, "features-page": { name: "Features" }, "pricing-page": { name: "Pricing" },
   "blog-page": { name: "Blog" }, "api-page": { name: "API" }, "contact": { name: "Contact Us" },
@@ -91,15 +91,15 @@ export default function EditPageLayout() {
             return { ...s, name: sectionDetail?.name || s.id };
         });
         setLocalSections(sectionsWithName);
-    } else if (!isLoadingSections && pageId === 'home') {
+    } else if (!isLoadingSections && pageId === 'home' && (!pageSections || pageSections.length === 0)) {
         const homeSections = [
-            { id: "top-title", name: "Top Title", order: 0 },
-            { id: "inbox", name: "Inbox", order: 1 },
-            { id: "why", name: "Why", order: 2 },
-            { id: "features", name: "Features", order: 3 },
-            { id: "testimonials", name: "Testimonials", order: 4 },
-            { id: "faq", name: "FAQ", order: 5 },
-            { id: "newsletter", name: "Newsletter", order: 6 },
+            { id: "top-title", name: "Top Title", order: 0, hidden: false },
+            { id: "inbox", name: "Inbox", order: 1, hidden: false },
+            { id: "why", name: "Why", order: 2, hidden: false },
+            { id: "features", name: "Features", order: 3, hidden: false },
+            { id: "testimonials", name: "Testimonials", order: 4, hidden: false },
+            { id: "faq", name: "FAQ", order: 5, hidden: false },
+            { id: "newsletter", name: "Newsletter", order: 6, hidden: false },
         ];
         setLocalSections(homeSections);
         savePageSectionsAction(pageId, homeSections);
@@ -130,7 +130,7 @@ export default function EditPageLayout() {
   
   const handleSaveOrder = async (sectionsToSave: any[]) => {
     setIsSaving(true);
-    const simplifiedSections = sectionsToSave.map(({ id, order }) => ({ id, order }));
+    const simplifiedSections = sectionsToSave.map(({ id, order, hidden }) => ({ id, order, hidden }));
     const result = await savePageSectionsAction(pageId, simplifiedSections);
     if (result.success) {
       toast({ title: "Order saved!", description: "Section order has been updated." });
@@ -143,14 +143,10 @@ export default function EditPageLayout() {
   const toggleSectionVisibility = async (section: any) => {
     if (!firestore) return;
     const newHiddenState = !section.hidden;
-    const sectionRef = doc(firestore, 'pages', pageId, 'sections', section.id);
-    try {
-        await updateDoc(sectionRef, { hidden: newHiddenState });
-        setLocalSections(localSections.map(s => s.id === section.id ? { ...s, hidden: newHiddenState } : s));
-        toast({ title: `Section ${newHiddenState ? 'Hidden' : 'Visible'}` });
-    } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
+    const updatedSections = localSections.map(s => s.id === section.id ? { ...s, hidden: newHiddenState } : s);
+    setLocalSections(updatedSections);
+    handleSaveOrder(updatedSections);
+    toast({ title: `Section ${newHiddenState ? 'Hidden' : 'Visible'}` });
   };
 
   const handleDeleteSection = async () => {
@@ -158,7 +154,9 @@ export default function EditPageLayout() {
     try {
       const sectionRef = doc(firestore, 'pages', pageId, 'sections', deletingSection.id);
       await deleteDoc(sectionRef);
-      setLocalSections(localSections.filter(s => s.id !== deletingSection.id));
+      const updatedSections = localSections.filter(s => s.id !== deletingSection.id);
+      setLocalSections(updatedSections);
+      handleSaveOrder(updatedSections); // Save the order after deletion
       toast({ title: "Section Deleted", description: `'${deletingSection.name}' has been removed from this page.` });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
