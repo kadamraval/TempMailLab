@@ -23,16 +23,12 @@ import { Slider } from '@/components/ui/slider';
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
     const [color, opacity] = useMemo(() => {
-        if (!value) return ['#ffffff', 1];
+        if (!value) return ['#000000', 1];
         if (value.startsWith('hsl')) {
-             const parts = value.match(/(\d+(\.\d+)?)/g);
-             if (parts) {
-                return ['#000000', 1];
-             }
-             return ['#000000', 1];
+             return ['#000000', 1]; // Default for HSL variables
         }
         if (value.startsWith('rgba')) {
-            const parts = value.replace('rgba(', '').replace(')', '').split(',');
+            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
             if (parts.length === 4) {
                 const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
                 return [hex, parseFloat(parts[3])];
@@ -135,9 +131,6 @@ const getInitialStyles = (sectionId: string) => {
     
     if (sectionId === 'top-title') {
         fallbackStyles.useGradient = true;
-        fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
-        fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
-        fallbackStyles.bgColor = 'transparent';
     }
 
     return fallbackStyles;
