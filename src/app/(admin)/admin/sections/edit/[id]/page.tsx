@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { Slider } from '@/components/ui/slider';
+
 
 // Preview Components
 import { UseCasesSection } from '@/components/use-cases-section';
@@ -65,16 +67,70 @@ const sectionDetails: { [key: string]: { name: string, defaultContent: any } } =
 };
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    const [color, opacity] = useMemo(() => {
+        if (!value) return ['#ffffff', 1];
+        if (value.startsWith('hsl')) {
+             return ['#ffffff', 1]; // Default for HSL variables
+        }
+        if (value.startsWith('rgba')) {
+            const parts = value.replace('rgba(', '').replace(')', '').split(',');
+            if (parts.length === 4) {
+                const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
+                return [hex, parseFloat(parts[3])];
+            }
+        }
+        return ['#ffffff', 1];
+    }, [value]);
+
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const hex = e.target.value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity})`);
+    };
+
+    const handleOpacityChange = (newOpacity: number[]) => {
+        if (value && value.startsWith('rgba')) {
+            const parts = value.split(',');
+            parts[3] = ` ${newOpacity[0]})`;
+            onChange(parts.join(','));
+        } else {
+            // Convert from initial non-rgba value
+             const r = parseInt(color.slice(1, 3), 16);
+             const g = parseInt(color.slice(3, 5), 16);
+             const b = parseInt(color.slice(5, 7), 16);
+            onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
+        }
+    };
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                 <Input
+                <div className="relative">
+                    <Input
+                        type="color"
+                        value={color}
+                        onChange={handleColorChange}
+                        className="w-12 h-10 p-1"
+                    />
+                </div>
+                <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., hsl(var(--primary))"
+                    placeholder="e.g., rgba(255,255,255,1)"
+                />
+            </div>
+            <div className="space-y-2 pt-2">
+                <Label className="text-xs">Opacity</Label>
+                <Slider
+                    value={[opacity]}
+                    onValueChange={handleOpacityChange}
+                    max={1}
+                    step={0.05}
                 />
             </div>
         </div>
@@ -99,6 +155,34 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
 };
 
 
+const getInitialStyles = (id: string) => {
+    const fallbackStyles: any = {
+        marginTop: 0, 
+        marginBottom: 0, 
+        paddingTop: 64, 
+        paddingBottom: 64, 
+        paddingLeft: 16, 
+        paddingRight: 16,
+        borderTopWidth: 0, 
+        borderBottomWidth: 0, 
+        borderTopColor: 'hsl(var(--border))', 
+        borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'rgba(255, 255, 255, 0)', // Default transparent
+        useGradient: false, 
+        gradientStart: 'rgba(221, 131, 83, 0.1)', 
+        gradientEnd: 'rgba(190, 128, 96, 0.1)'
+    };
+    
+    if (id === 'top-title') {
+        fallbackStyles.useGradient = true;
+        fallbackStyles.gradientStart = 'rgba(217, 145, 119, 0.1)';
+        fallbackStyles.gradientEnd = 'rgba(190, 80, 64, 0.1)';
+        fallbackStyles.bgColor = 'rgba(255, 255, 255, 0)';
+    }
+
+    return fallbackStyles;
+}
+
 export default function EditSectionPage() {
     const params = useParams();
     const router = useRouter();
@@ -116,36 +200,11 @@ export default function EditSectionPage() {
     
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
-    const getInitialStyles = (id: string) => {
-        const fallbackStyles = {
-            marginTop: 0, 
-            marginBottom: 0, 
-            paddingTop: 64, 
-            paddingBottom: 64, 
-            paddingLeft: 16, 
-            paddingRight: 16,
-            borderTopWidth: 0, 
-            borderBottomWidth: 0, 
-            borderTopColor: 'hsl(var(--border))', 
-            borderBottomColor: 'hsl(var(--border))',
-            bgColor: 'hsl(var(--background))', 
-            useGradient: false, 
-            gradientStart: 'hsl(var(--background))', 
-            gradientEnd: 'hsl(var(--accent))'
-        };
-        
-        if (id === 'top-title') {
-            fallbackStyles.useGradient = true;
-            fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
-            fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
-            fallbackStyles.bgColor = 'transparent';
-        }
-
-        return fallbackStyles;
-    }
-
     useEffect(() => {
+        // TIER 1: Start with hardcoded fallbacks
         const initialStyles = getInitialStyles(sectionId);
+        
+        // TIER 2: Merge the saved global defaults from Firestore
         if (savedStyles) {
             setStyles({ ...initialStyles, ...savedStyles });
         } else if (!isLoading) {

@@ -120,6 +120,35 @@ interface SectionStyleDialogProps {
   pageName: string;
 }
 
+const getInitialStyles = (sectionId: string) => {
+    const fallbackStyles: any = {
+        marginTop: 0, 
+        marginBottom: 0, 
+        paddingTop: 64, 
+        paddingBottom: 64, 
+        paddingLeft: 16, 
+        paddingRight: 16,
+        borderTopWidth: 0, 
+        borderBottomWidth: 0, 
+        borderTopColor: 'hsl(var(--border))', 
+        borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'rgba(255, 255, 255, 0)',
+        useGradient: false, 
+        gradientStart: 'rgba(221, 131, 83, 0.1)', 
+        gradientEnd: 'rgba(190, 128, 96, 0.1)'
+    };
+    
+    if (sectionId === 'top-title') {
+        fallbackStyles.useGradient = true;
+        fallbackStyles.gradientStart = 'rgba(217, 145, 119, 0.1)';
+        fallbackStyles.gradientEnd = 'rgba(190, 80, 64, 0.1)';
+        fallbackStyles.bgColor = 'rgba(255, 255, 255, 0)';
+    }
+
+    return fallbackStyles;
+};
+
+
 export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName }: SectionStyleDialogProps) {
   const { toast } = useToast();
   const [styles, setStyles] = useState<any>({}); 
@@ -143,17 +172,16 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   
   useEffect(() => {
     if (section) {
-        // Base styles for fallback
-        const baseStyles = {
-            marginTop: 0, marginBottom: 0, 
-            paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, 
-            borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, 
-            borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))', borderLeftColor: 'hsl(var(--border))', borderRightColor: 'hsl(var(--border))'
-        };
+        // TIER 1: Start with hardcoded fallbacks
+        const initialStyles = getInitialStyles(section.id);
+        
+        // TIER 2: Merge global defaults from Firestore
+        const mergedWithDefaults = { ...initialStyles, ...(defaultStyles || {}) };
+        
+        // TIER 3: Merge page-specific overrides from Firestore
+        const finalStyles = { ...mergedWithDefaults, ...(savedOverrideStyles || {}) };
 
-        // Cascade: Start with base, merge in global defaults, then merge in specific overrides
-        const initialStyles = { ...baseStyles, ...(defaultStyles || {}), ...(savedOverrideStyles || {}) };
-        setStyles(initialStyles);
+        setStyles(finalStyles);
     }
   }, [section, defaultStyles, savedOverrideStyles]);
   
