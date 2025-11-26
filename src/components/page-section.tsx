@@ -56,7 +56,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         // The inbox has no 'content' to pre-fill, it's a dynamic component. Return an empty object so the doc is created.
-        case 'inbox': return {}; 
+        case 'inbox': return { name: "Inbox" }; 
         default: return null;
     }
 }
@@ -110,7 +110,9 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
   React.useEffect(() => {
     if (!isLoadingContent && !content && !contentError && contentRef) {
       const defaultContent = getDefaultContent(pageId, sectionId);
-      if (defaultContent) setDoc(contentRef, { ...defaultContent, order: order, id: sectionId, hidden: false }).catch(console.error);
+      if (defaultContent) {
+        setDoc(contentRef, { ...defaultContent, order: order, id: sectionId, hidden: false }).catch(console.error);
+      }
     }
   }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
   
@@ -126,6 +128,8 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
   if (!Component) return null;
 
   if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
+    // Return null for inbox while loading to avoid flash of loader on a component that has its own loader
+    if (sectionId === 'inbox') return null;
     return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
