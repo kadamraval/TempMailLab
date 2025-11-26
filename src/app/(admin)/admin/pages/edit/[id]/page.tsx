@@ -131,7 +131,7 @@ export default function EditPageLayout() {
   
   const handleSaveOrder = async (sectionsToSave: any[]) => {
     setIsSaving(true);
-    const simplifiedSections = sectionsToSave.map(({ id, order, hidden, name }) => ({ id, order, hidden, name }));
+    const simplifiedSections = sectionsToSave.map(({ id, order, hidden, name }) => ({ id, order, hidden, name: name || id }));
     const result = await savePageSectionsAction(pageId, simplifiedSections);
     if (result.success) {
       toast({ title: "Order saved!", description: "Section order has been updated." });
