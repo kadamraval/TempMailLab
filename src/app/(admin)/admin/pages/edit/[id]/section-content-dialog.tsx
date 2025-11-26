@@ -32,7 +32,31 @@ interface SectionContentDialogProps {
   pageId: string;
 }
 
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (isObject(source[key])) {
+        if (!target[key]) Object.assign(target, { [key]: {} });
+        mergeDeep(target[key], source[key]);
+      } else {
+        Object.assign(target, { [key]: source[key] });
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
+};
+
+
 const getDefaultContent = (pageId: string, sectionId: string) => {
+    // This function returns a NEW object every time to prevent mutation issues.
     switch (sectionId) {
         case 'why': return { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: useCases };
         case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
@@ -216,11 +240,11 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
       if (section) {
           const defaultContent = getDefaultContent(pageId, section.id);
           if (savedContent) {
-              // Merge saved content with defaults to ensure all fields are present (e.g., new 'badge' field)
-              const mergedContent = { ...defaultContent, ...savedContent, badge: {...defaultContent.badge, ...savedContent.badge} };
-              setContentData(mergedContent);
+              // Deep merge defaults with saved content. Your saved data takes precedence.
+              const merged = mergeDeep({}, defaultContent, savedContent);
+              setContentData(merged);
           } else if (!isLoadingContent) {
-              // If not loading and no saved content, load the default
+              // If not loading and no saved content, just use the defaults.
               setContentData(defaultContent);
           }
       }
