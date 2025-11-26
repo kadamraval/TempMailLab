@@ -78,15 +78,12 @@ const getFallbackSectionStyles = (sectionId: string) => {
         borderBottomColor: 'hsl(var(--border))',
         bgColor: 'transparent',
         useGradient: false, 
-        gradientStart: 'hsl(var(--background))', 
-        gradientEnd: 'hsl(var(--accent))'
+        gradientStart: 'hsl(var(--gradient-start))', 
+        gradientEnd: 'hsl(var(--gradient-end))'
     };
 
     if (sectionId === 'top-title') {
       baseStyles.useGradient = true;
-      baseStyles.gradientStart = 'hsl(var(--gradient-start))';
-      baseStyles.gradientEnd = 'hsl(var(--gradient-end))';
-      baseStyles.bgColor = 'transparent';
     }
     
     return baseStyles;
@@ -121,17 +118,17 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
 
   // --- DATA FETCHING ---
   const contentRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !pageId || !sectionId) return null;
     return doc(firestore, 'pages', pageId, 'sections', sectionId);
   }, [firestore, pageId, sectionId]);
 
   const defaultStyleRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !sectionId) return null;
     return doc(firestore, 'sections', sectionId);
   }, [firestore, sectionId]);
 
   const styleOverrideRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !pageId || !sectionId) return null;
     return doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`);
   }, [firestore, pageId, sectionId]);
 
@@ -170,6 +167,11 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
 
   const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
   
+  const defaultContentData = getDefaultContent(pageId, sectionId);
+  if (isLoading && (!defaultContentData || !Object.keys(defaultContentData).length)) {
+    return null;
+  }
+  
   if (isLoading) {
     if (sectionId === 'inbox' || sectionId === 'top-title') {
         return (
@@ -191,17 +193,17 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     marginBottom: `${finalStyles.marginBottom || 0}px`,
     borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
     borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
-    paddingTop: `${finalStyles.paddingTop || 0}px`,
-    paddingBottom: `${finalStyles.paddingBottom || 0}px`,
   };
 
   const containerStyle: React.CSSProperties = {
+      paddingTop: `${finalStyles.paddingTop || 0}px`,
+      paddingBottom: `${finalStyles.paddingBottom || 0}px`,
       paddingLeft: `${finalStyles.paddingLeft || 0}px`,
       paddingRight: `${finalStyles.paddingRight || 0}px`,
   }
   
   const componentProps: any = {
-    content: content || getDefaultContent(pageId, sectionId),
+    content: content || defaultContentData,
   };
   
   if (['pricing', 'pricing-comparison'].includes(sectionId)) {

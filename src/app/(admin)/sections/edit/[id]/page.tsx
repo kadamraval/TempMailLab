@@ -67,7 +67,7 @@ const sectionDetails: { [key: string]: { name: string, defaultContent: any } } =
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
     const [color, opacity] = useMemo(() => {
-        if (!value) return ['#000000', 1];
+        if (!value || typeof value !== 'string') return ['#000000', 1];
         if (value.startsWith('hsl')) {
              return ['#000000', 1]; // Default for HSL variables
         }
