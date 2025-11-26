@@ -42,10 +42,13 @@ const planToDisplayPlan = (plan: Plan, cycle: 'monthly' | 'yearly') => {
 
 interface PricingSectionProps {
     plans?: Plan[];
-    showTitle?: boolean;
+    content: {
+        title: string;
+        description: string;
+    }
 }
 
-export function PricingSection({ plans, showTitle = true }: PricingSectionProps) {
+export function PricingSection({ plans, content }: PricingSectionProps) {
     const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
     const currentPlans = React.useMemo(() => {
@@ -71,9 +74,10 @@ export function PricingSection({ plans, showTitle = true }: PricingSectionProps)
     
     return (
         <section id="pricing">
-            {showTitle && (
+            {content?.title && (
                 <div className="text-center space-y-4 mb-12">
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">Pricing</h2>
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
+                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
                 </div>
             )}
             <div className="flex items-center justify-center space-x-4 mb-12">

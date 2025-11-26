@@ -50,7 +50,7 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
 
 const sectionDetails: { [key: string]: { name: string, defaultContent: any } } = {
     "inbox": { name: "Inbox", defaultContent: {} },
-    "top-title": { name: "Top Title", defaultContent: { title: "Page Title", description: "Page subtitle" } },
+    "top-title": { name: "Top Title", defaultContent: { title: "Page Title", description: "Page subtitle", badge: { show: false, text: "Badge", icon: "Sparkles" } } },
     "why": { name: "Why", defaultContent: { title: "Why Temp Mail?", items: contentData.useCases } },
     "features": { name: "Features", defaultContent: { title: "Features", items: contentData.features } },
     "exclusive-features": { name: "Exclusive Features", defaultContent: { title: "Exclusive Features", items: contentData.exclusiveFeatures } },
@@ -116,7 +116,7 @@ export default function EditSectionPage() {
     
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
-    useEffect(() => {
+    const getInitialStyles = (id: string) => {
         const fallbackStyles = {
             marginTop: 0, 
             marginBottom: 0, 
@@ -134,17 +134,22 @@ export default function EditSectionPage() {
             gradientEnd: 'hsl(var(--accent))'
         };
         
-        if (sectionId === 'top-title') {
+        if (id === 'top-title') {
             fallbackStyles.useGradient = true;
             fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
             fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
             fallbackStyles.bgColor = 'transparent';
         }
-        
+
+        return fallbackStyles;
+    }
+
+    useEffect(() => {
+        const initialStyles = getInitialStyles(sectionId);
         if (savedStyles) {
-            setStyles({ ...fallbackStyles, ...savedStyles });
+            setStyles({ ...initialStyles, ...savedStyles });
         } else if (!isLoading) {
-            setStyles(fallbackStyles);
+            setStyles(initialStyles);
         }
     }, [savedStyles, isLoading, sectionId]);
 
@@ -177,17 +182,20 @@ export default function EditSectionPage() {
     const sectionName = sectionDetails[sectionId]?.name;
     const defaultContent = sectionDetails[sectionId]?.defaultContent;
 
-    const previewStyle = {
+    const previewStyle: React.CSSProperties = {
         backgroundColor: styles.bgColor || 'transparent',
         backgroundImage: styles.useGradient ? `linear-gradient(to bottom, ${styles.gradientStart}, ${styles.gradientEnd})` : 'none',
         marginTop: `${styles.marginTop || 0}px`,
         marginBottom: `${styles.marginBottom || 0}px`,
+        borderTop: `${styles.borderTopWidth || 0}px solid ${styles.borderTopColor || 'transparent'}`,
+        borderBottom: `${styles.borderBottomWidth || 0}px solid ${styles.borderBottomColor || 'transparent'}`,
+    };
+
+    const previewContainerStyle: React.CSSProperties = {
         paddingTop: `${styles.paddingTop || 0}px`,
         paddingBottom: `${styles.paddingBottom || 0}px`,
         paddingLeft: `${styles.paddingLeft || 0}px`,
         paddingRight: `${styles.paddingRight || 0}px`,
-        borderTop: `${styles.borderTopWidth || 0}px solid ${styles.borderTopColor || 'transparent'}`,
-        borderBottom: `${styles.borderBottomWidth || 0}px solid ${styles.borderBottomColor || 'transparent'}`,
     };
     
     if (isLoading) {
@@ -220,7 +228,9 @@ export default function EditSectionPage() {
                         <CardContent>
                            <div className="border rounded-lg bg-background overflow-hidden">
                               <div style={previewStyle}>
-                                {SelectedComponent ? <SelectedComponent content={defaultContent} removeBorder={true} /> : <p>Section preview not available.</p>}
+                                 <div className="container mx-auto px-4" style={previewContainerStyle}>
+                                    {SelectedComponent ? <SelectedComponent content={defaultContent} /> : <p>Section preview not available.</p>}
+                                 </div>
                               </div>
                            </div>
                         </CardContent>

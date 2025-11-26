@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface BlogSectionProps {
-  removeBorder?: boolean;
   content: {
     title: string;
+    description: string;
     items: {
       title: string;
       description: string;
@@ -22,7 +21,7 @@ interface BlogSectionProps {
   }
 }
 
-export function BlogSection({ removeBorder, content }: BlogSectionProps) {
+export function BlogSection({ content }: BlogSectionProps) {
   
   if (!content || !content.items) {
     return null;
@@ -33,11 +32,12 @@ export function BlogSection({ removeBorder, content }: BlogSectionProps) {
         {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {content.items.map((post: any) => (
-            <Card key={post.title} className={cn("overflow-hidden flex flex-col", removeBorder ? "border-0" : "border")}>
+            <Card key={post.title} className="overflow-hidden flex flex-col border">
               <Link href={post.link}>
                   <Image
                     src={post.image}

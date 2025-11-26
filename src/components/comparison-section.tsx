@@ -4,17 +4,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Check, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface ComparisonSectionProps {
-  removeBorder?: boolean;
   content: {
     title: string;
+    description: string;
     items: { feature: string; tempmailoz: boolean; others: boolean }[];
   }
 }
 
-export function ComparisonSection({ removeBorder, content }: ComparisonSectionProps) {
+export function ComparisonSection({ content }: ComparisonSectionProps) {
 
   if (!content || !content.items) {
     return null;
@@ -24,12 +23,13 @@ export function ComparisonSection({ removeBorder, content }: ComparisonSectionPr
     <section id="comparison">
         {content.title && (
             <div className="text-center space-y-4 mb-12">
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
-                {content.title}
-            </h2>
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
+                    {content.title}
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
             </div>
         )}
-        <Card className={cn(removeBorder && "border-0 shadow-none")}>
+        <Card className="border">
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>

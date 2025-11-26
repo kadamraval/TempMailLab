@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
+import { Switch } from '@/components/ui/switch';
 
 interface SectionContentDialogProps {
   isOpen: boolean;
@@ -37,30 +38,47 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
         case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
         case 'exclusive-features': return { title: "Exclusive Features", description: "Unlock premium features for the ultimate temporary email experience.", items: exclusiveFeatures };
         case 'faq': return { title: "Questions?", description: "Find answers to frequently asked questions.", items: faqs };
-        case 'comparison': return { title: "Tempmailoz Vs Others", description: "", items: comparisonFeatures };
-        case 'testimonials': return { title: "What Our Users Say", description: "", items: testimonials };
-        case 'blog': return { title: "From the Blog", description: "", items: blogPosts };
+        case 'comparison': return { title: "Tempmailoz Vs Others", description: "See how we stack up against the competition.", items: comparisonFeatures };
+        case 'testimonials': return { title: "What Our Users Say", description: "Hear from our satisfied customers.", items: testimonials };
+        case 'blog': return { title: "From the Blog", description: "Latest news and articles from our team.", items: blogPosts };
         case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
-        case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
+        case 'pricing-comparison': return { title: "Full Feature Comparison", description: "A detailed look at all features across our plans." };
         case 'top-title':
              const pageName = pageId.replace('-page', '').replace('-', ' ');
-             return { title: pageName.charAt(0).toUpperCase() + pageName.slice(1), description: `Everything you need to know about our ${pageName}.` };
+             const title = pageId === 'home' ? 'Secure Your Digital Identity' : (pageName.charAt(0).toUpperCase() + pageName.slice(1));
+             const description = pageId === 'home' ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' : `Everything you need to know about our ${pageName}.`;
+             return { title, description, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
-        default: return { title: sectionId, description: "", items: [] };
+        default: return { title: sectionId, description: "Default description", items: [] };
     }
 }
 
-const TopContentFields = ({ title, description, onTitleChange, onDescriptionChange, isDynamic }: { title: string, description: string, onTitleChange: (val: string) => void, onDescriptionChange: (val: string) => void, isDynamic?: boolean }) => (
+const TopContentFields = ({ content, onContentChange, sectionId }: { content: any, onContentChange: (data: any) => void, sectionId: string | undefined }) => (
     <div className="space-y-4">
         <div>
             <Label>Section Title</Label>
-            <Input value={title} onChange={(e) => onTitleChange(e.target.value)} />
+            <Input value={content.title} onChange={(e) => onContentChange({ ...content, title: e.target.value })} />
         </div>
         <div>
             <Label>Section Description</Label>
-            <Textarea value={description} onChange={(e) => onDescriptionChange(e.target.value)} />
+            <Textarea value={content.description} onChange={(e) => onContentChange({ ...content, description: e.target.value })} />
         </div>
-        {!isDynamic && <Separator />}
+
+        {sectionId === 'top-title' && content.badge && (
+          <div className="p-4 border rounded-md space-y-4">
+            <Label className="font-semibold">Badge Settings</Label>
+            <div className="flex flex-row items-center justify-between rounded-lg border p-3">
+              <Label>Show Badge</Label>
+              <Switch checked={content.badge.show} onCheckedChange={(val) => onContentChange({ ...content, badge: {...content.badge, show: val} })}/>
+            </div>
+            <Label>Badge Icon</Label>
+            <IconPicker value={content.badge.icon} onChange={(val) => onContentChange({ ...content, badge: {...content.badge, icon: val} })} />
+            <Label>Badge Text</Label>
+            <Input value={content.badge.text} onChange={(e) => onContentChange({ ...content, badge: {...content.badge, text: e.target.value} })} />
+          </div>
+        )}
+
+        {sectionId !== 'top-title' && <Separator />}
     </div>
 );
 
@@ -85,10 +103,9 @@ const WhyForm = ({ content, onContentChange }: { content: any, onContentChange: 
     return (
         <div className="space-y-4">
             <TopContentFields 
-                title={content.title} 
-                description={content.description} 
-                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
-                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+                content={content} 
+                onContentChange={onContentChange}
+                sectionId="why"
             />
             {content.items.map((item: any, index: number) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
@@ -130,10 +147,9 @@ const FaqForm = ({ content, onContentChange }: { content: any, onContentChange: 
     return (
         <div className="space-y-4">
              <TopContentFields 
-                title={content.title} 
-                description={content.description}
-                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
-                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+                content={content} 
+                onContentChange={onContentChange}
+                sectionId="faq"
             />
              {content.items.map((item: any, index: number) => (
                 <div key={index} className="space-y-2 p-4 border rounded-md">
@@ -162,24 +178,21 @@ const SimpleForm = ({ content, onContentChange, section }: { content: any, onCon
     return (
         <div className="space-y-4">
             <TopContentFields 
-                title={content.title} 
-                description={content.description}
-                onTitleChange={(val) => onContentChange({ ...content, title: val })} 
-                onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
-                isDynamic={true}
+                content={content}
+                onContentChange={onContentChange}
+                sectionId={section.id}
             />
              {isSectionDynamic(section.id) && <p className="text-muted-foreground text-center py-8">The core content of this dynamic section is managed automatically and cannot be edited here.</p>}
         </div>
     )
 }
 
-const GenericForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => (
+const GenericForm = ({ content, onContentChange, sectionId }: { content: any, onContentChange: (data: any) => void, sectionId: string }) => (
      <div className="space-y-4">
         <TopContentFields 
-            title={content?.title || ''} 
-            description={content?.description || ''}
-            onTitleChange={(val) => onContentChange({ ...content, title: val })} 
-            onDescriptionChange={(val) => onContentChange({ ...content, description: val })}
+            content={content} 
+            onContentChange={onContentChange}
+            sectionId={sectionId}
         />
         <p className="text-muted-foreground text-center py-8">This section's detailed content is not yet editable.</p>
     </div>
@@ -201,11 +214,14 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
   
   React.useEffect(() => {
       if (section) {
+          const defaultContent = getDefaultContent(pageId, section.id);
           if (savedContent) {
-              setContentData(savedContent);
+              // Merge saved content with defaults to ensure all fields are present (e.g., new 'badge' field)
+              const mergedContent = { ...defaultContent, ...savedContent, badge: {...defaultContent.badge, ...savedContent.badge} };
+              setContentData(mergedContent);
           } else if (!isLoadingContent) {
               // If not loading and no saved content, load the default
-              setContentData(getDefaultContent(pageId, section.id));
+              setContentData(defaultContent);
           }
       }
   }, [savedContent, isLoadingContent, section, pageId]);
@@ -247,16 +263,15 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
         case 'exclusive-features':
             return <WhyForm content={contentData} onContentChange={setContentData} />;
         case 'comparison':
-            return <GenericForm content={contentData} onContentChange={setContentData} />;
         case 'testimonials':
-            return <GenericForm content={contentData} onContentChange={setContentData} />;
+            return <GenericForm content={contentData} onContentChange={setContentData} sectionId={section.id} />;
         case 'faq':
             return <FaqForm content={contentData} onContentChange={setContentData} />;
         default:
              if (isSectionDynamic(section.id)) {
                 return <SimpleForm section={section} content={contentData} onContentChange={setContentData} />;
             }
-            return <GenericForm content={contentData} onContentChange={setContentData} />;
+            return <GenericForm content={contentData} onContentChange={setContentData} sectionId={section.id} />;
     }
   }
 

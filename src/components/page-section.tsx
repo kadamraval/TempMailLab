@@ -58,28 +58,39 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
              const pageName = pageId === 'home' ? 'Tempmailoz' : pageId.replace('-page', '').replace('-', ' ');
              const pageTitle = pageId === 'home' ? 'Secure Your Digital Identity' : pageName.charAt(0).toUpperCase() + pageName.slice(1);
              const pageDescription = pageId === 'home' ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' : `Everything you need to know about our ${pageName}.`
-             return { title: pageTitle, description: pageDescription };
+             return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return null;
     }
 }
 
 // Sensible, complete default styles for any section
-const fallbackSectionStyles = {
-    marginTop: 0, 
-    marginBottom: 0, 
-    paddingTop: 64, 
-    paddingBottom: 64, 
-    paddingLeft: 16, 
-    paddingRight: 16,
-    borderTopWidth: 0, 
-    borderBottomWidth: 0, 
-    borderTopColor: 'hsl(var(--border))', 
-    borderBottomColor: 'hsl(var(--border))',
-    bgColor: 'hsl(var(--background))', 
-    useGradient: false, 
-    gradientStart: 'hsl(var(--background))', 
-    gradientEnd: 'hsl(var(--accent))'
+const getFallbackSectionStyles = (sectionId: string) => {
+    const baseStyles = {
+        marginTop: 0, 
+        marginBottom: 0, 
+        paddingTop: 64, 
+        paddingBottom: 64, 
+        paddingLeft: 16, 
+        paddingRight: 16,
+        borderTopWidth: 0, 
+        borderBottomWidth: 0, 
+        borderTopColor: 'hsl(var(--border))', 
+        borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'hsl(var(--background))', 
+        useGradient: false, 
+        gradientStart: 'hsl(var(--background))', 
+        gradientEnd: 'hsl(var(--accent))'
+    };
+
+    if (sectionId === 'top-title') {
+      baseStyles.useGradient = true;
+      baseStyles.gradientStart = 'hsl(var(--gradient-start))';
+      baseStyles.gradientEnd = 'hsl(var(--gradient-end))';
+      baseStyles.bgColor = 'transparent';
+    }
+    
+    return baseStyles;
 };
 
 export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
@@ -126,9 +137,9 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   React.useEffect(() => {
       if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
           // If the global default style doc doesn't exist, create it with the fallback styles.
-          setDoc(defaultStyleRef, fallbackSectionStyles).catch(console.error);
+          setDoc(defaultStyleRef, getFallbackSectionStyles(sectionId)).catch(console.error);
       }
-  }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef]);
+  }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef, sectionId]);
 
 
   const Component = sectionComponents[sectionId];
@@ -148,8 +159,10 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   }
 
   // --- APPLY STYLING CASCADE ---
-  // Start with hardcoded fallbacks, merge in global defaults, then merge in specific overrides
-  const finalStyles = { ...fallbackSectionStyles, ...(defaultStyle || {}), ...(styleOverride || {}) };
+  const fallbackStyles = getFallbackSectionStyles(sectionId);
+  // Merge styles: start with fallback, merge global defaults, then merge page-specific overrides.
+  // This ensures properties from overrides replace defaults, but defaults are used if overrides are missing properties.
+  const finalStyles = { ...fallbackStyles, ...(defaultStyle || {}), ...(styleOverride || {}) };
 
   const wrapperStyle: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
@@ -167,7 +180,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   
   const componentProps: any = {
     content: content || getDefaultContent(pageId, sectionId),
-    removeBorder: !finalStyles.borderTopWidth && !finalStyles.borderBottomWidth,
+    removeBorder: true, // This prop is now redundant but kept for safety.
   };
   
   if (['pricing', 'pricing-comparison'].includes(sectionId)) {

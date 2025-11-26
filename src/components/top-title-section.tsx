@@ -1,20 +1,35 @@
 
 "use client";
 
+import { Badge } from "./ui/badge";
+import * as LucideIcons from "lucide-react";
+
 interface TopTitleSectionProps {
   content: {
     title: string;
     description: string;
+    badge?: {
+      text: string;
+      icon: string;
+      show: boolean;
+    }
   }
 }
 
 export function TopTitleSection({ content }: TopTitleSectionProps) {
   if (!content) return null;
 
+  const BadgeIcon = content.badge?.icon ? (LucideIcons as any)[content.badge.icon] : null;
+
   return (
     <section id="top-title">
       <div className="relative w-full max-w-4xl mx-auto text-center px-4">
-          <div className="absolute -top-12 -left-1/2 w-[200%] h-48 bg-primary/10 rounded-full blur-3xl -z-10" />
+          {content.badge?.show && (
+            <Badge variant="outline" className="mb-4 text-sm">
+                {BadgeIcon && <BadgeIcon className="mr-2 h-4 w-4" />}
+                {content.badge.text}
+            </Badge>
+          )}
           <h1 className="text-4xl md:text-6xl font-bold tracking-tighter leading-tight bg-gradient-to-b from-primary to-accent text-transparent bg-clip-text">
               {content.title}
           </h1>

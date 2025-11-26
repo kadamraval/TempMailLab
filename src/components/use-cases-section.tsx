@@ -3,12 +3,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import * as LucideIcons from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface UseCasesSectionProps {
-  removeBorder?: boolean;
   content: {
     title: string;
+    description: string;
     items: {
       iconName: string;
       title: string;
@@ -17,7 +16,7 @@ interface UseCasesSectionProps {
   }
 }
 
-export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps) {
+export function UseCasesSection({ content }: UseCasesSectionProps) {
   
   if (!content || !content.items) {
     return null;
@@ -30,13 +29,14 @@ export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps)
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
                     {content.title}
                 </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
             </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {content.items.map((useCase: any) => {
             const Icon = (LucideIcons as any)[useCase.iconName] || LucideIcons.HelpCircle;
             return (
-              <Card key={useCase.title} className={cn("bg-background text-center", removeBorder && "border-0")}>
+              <Card key={useCase.title} className="bg-background text-center border">
                 <CardHeader className="items-center">
                   <Icon className="h-10 w-10 text-primary" />
                 </CardHeader>

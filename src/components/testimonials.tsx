@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 interface TestimonialsProps {
   content: {
     title: string;
+    description: string;
     items: {
       quote: string;
       name: string;
@@ -36,6 +37,7 @@ export function Testimonials({ content }: TestimonialsProps) {
         {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
             </div>
         )}
         <Carousel

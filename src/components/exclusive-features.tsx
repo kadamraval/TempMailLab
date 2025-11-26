@@ -5,12 +5,11 @@ import * as LucideIcons from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import imageData from '@/app/lib/placeholder-images.json';
-import { cn } from "@/lib/utils";
 
 interface ExclusiveFeaturesProps {
-  removeBorder?: boolean;
   content: {
     title: string;
+    description: string;
     items: {
       iconName: string;
       title: string;
@@ -19,7 +18,7 @@ interface ExclusiveFeaturesProps {
   }
 }
 
-export const ExclusiveFeatures = ({ removeBorder, content }: ExclusiveFeaturesProps) => {
+export const ExclusiveFeatures = ({ content }: ExclusiveFeaturesProps) => {
 
   if (!content || !content.items) {
     return null;
@@ -32,6 +31,7 @@ export const ExclusiveFeatures = ({ removeBorder, content }: ExclusiveFeaturesPr
              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
                  {content.title}
              </h2>
+             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
          </div>
        )}
        
@@ -46,10 +46,7 @@ export const ExclusiveFeatures = ({ removeBorder, content }: ExclusiveFeaturesPr
                whileInView={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.5, delay: index * 0.2 }}
                viewport={{ once: true }}
-               className={cn(
-                   "relative flex flex-col md:flex-row items-center gap-8 p-6 rounded-lg bg-card",
-                   !removeBorder && "border"
-               )}
+               className="relative flex flex-col md:flex-row items-center gap-8 p-6 rounded-lg bg-card border"
                >
                    <div className="w-full md:w-1/2">
                        <Image 
