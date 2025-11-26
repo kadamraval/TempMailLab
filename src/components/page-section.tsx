@@ -79,11 +79,14 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
     if (isObject(target) && isObject(source)) {
         for (const key in source) {
-            if (isObject(source[key]) && source[key] !== null) {
-                if (!target[key] || !isObject(target[key])) target[key] = {};
-                mergeDeep(target[key], source[key]);
-            } else if (source[key] !== undefined) {
-                target[key] = source[key];
+            // This is the fix: Check if the source property is NOT undefined. Null is a valid value for resetting.
+            if (source[key] !== undefined) {
+                if (isObject(source[key])) {
+                    if (!target[key]) Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                } else {
+                    Object.assign(target, { [key]: source[key] });
+                }
             }
         }
     }
@@ -126,9 +129,7 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
     return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  // For the 'inbox' section, the content object itself doesn't matter, but it must not be null.
-  // For other sections, it must have content.
-  const finalContent = sectionId === 'inbox' ? {} : (content || getDefaultContent(pageId, sectionId));
+  const finalContent = content || getDefaultContent(pageId, sectionId);
   if (!finalContent) return null;
   
   const finalStyles = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);

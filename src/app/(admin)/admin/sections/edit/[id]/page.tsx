@@ -23,48 +23,8 @@ import { Loader2 } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Slider } from '@/components/ui/slider';
+import { AdminSectionPreview } from '../../../admin/sections/admin-section-preview';
 
-
-// Preview Components
-import { UseCasesSection } from '@/components/use-cases-section';
-import { FeaturesSection } from '@/components/features-section';
-import { ExclusiveFeatures } from '@/components/exclusive-features';
-import { ComparisonSection } from '@/components/comparison-section';
-import { PricingSection } from '@/components/pricing-section';
-import { PricingComparisonTable } from '@/components/pricing-comparison-table';
-import { BlogSection } from '@/components/blog-section';
-import { Testimonials } from '@/components/testimonials';
-import { FaqSection } from '@/components/faq-section';
-import { StayConnected } from '@/components/stay-connected';
-import ContactPage from '@/app/(main)/contact/page';
-import { DashboardClient } from '@/components/dashboard-client';
-import { TopTitleSection } from '@/components/top-title-section';
-import * as contentData from '@/lib/content-data';
-
-
-const sectionComponents: { [key: string]: React.ComponentType<any> } = {
-    "inbox": DashboardClient, "top-title": TopTitleSection, "why": UseCasesSection,
-    "features": FeaturesSection, "exclusive-features": ExclusiveFeatures, "comparison": ComparisonSection,
-    "pricing": PricingSection, "pricing-comparison": PricingComparisonTable, "blog": BlogSection,
-    "testimonials": Testimonials, "faq": FaqSection, "newsletter": StayConnected,
-    "contact-form": ContactPage,
-};
-
-const sectionDetails: { [key: string]: { name: string, defaultContent: any } } = {
-    "inbox": { name: "Inbox", defaultContent: {} },
-    "top-title": { name: "Top Title", defaultContent: { title: "Page Title", description: "Page subtitle", badge: { show: false, text: "Badge", icon: "Sparkles" } } },
-    "why": { name: "Why", defaultContent: { title: "Why Temp Mail?", items: contentData.useCases } },
-    "features": { name: "Features", defaultContent: { title: "Features", items: contentData.features } },
-    "exclusive-features": { name: "Exclusive Features", defaultContent: { title: "Exclusive Features", items: contentData.exclusiveFeatures } },
-    "comparison": { name: "Comparison", defaultContent: { title: "Comparison", items: contentData.comparisonFeatures } },
-    "pricing": { name: "Pricing", defaultContent: { title: "Pricing" } },
-    "pricing-comparison": { name: "Price Comparison", defaultContent: { title: "Price Comparison" } },
-    "blog": { name: "Blog", defaultContent: { title: "From the Blog", items: contentData.blogPosts } },
-    "testimonials": { name: "Testimonials", defaultContent: { title: "What Our Users Say", items: contentData.testimonials } },
-    "faq": { name: "FAQ", defaultContent: { title: "Frequently Asked Questions", items: contentData.faqs } },
-    "newsletter": { name: "Newsletter", defaultContent: { title: "Stay Connected" } },
-    "contact-form": { name: "Contact", defaultContent: {} },
-};
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
     const [color, opacity] = useMemo(() => {
@@ -218,7 +178,7 @@ export default function EditSectionPage() {
             await setDoc(sectionRef, styles, { merge: true });
             toast({
                 title: "Styles Saved!",
-                description: `The default styles for the '${sectionName}' section have been updated.`,
+                description: `The default styles for the section have been updated.`,
             });
             router.refresh();
         } catch (error: any) {
@@ -228,33 +188,11 @@ export default function EditSectionPage() {
         }
     };
 
-    if (!sectionId || !sectionDetails[sectionId]) {
-        return notFound();
-    }
-
-    const SelectedComponent = sectionComponents[sectionId];
-    const sectionName = sectionDetails[sectionId]?.name;
-    const defaultContent = sectionDetails[sectionId]?.defaultContent;
-
-    const previewStyle: React.CSSProperties = {
-        backgroundColor: styles.bgColor || 'transparent',
-        backgroundImage: styles.useGradient ? `linear-gradient(to bottom, ${styles.gradientStart}, ${styles.gradientEnd})` : 'none',
-        marginTop: `${styles.marginTop || 0}px`,
-        marginBottom: `${styles.marginBottom || 0}px`,
-        borderTop: `${styles.borderTopWidth || 0}px solid ${styles.borderTopColor || 'transparent'}`,
-        borderBottom: `${styles.borderBottomWidth || 0}px solid ${styles.borderBottomColor || 'transparent'}`,
-    };
-
-    const previewContainerStyle: React.CSSProperties = {
-        paddingTop: `${styles.paddingTop || 0}px`,
-        paddingBottom: `${styles.paddingBottom || 0}px`,
-        paddingLeft: `${styles.paddingLeft || 0}px`,
-        paddingRight: `${styles.paddingRight || 0}px`,
-    };
-    
     if (isLoading) {
         return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
     }
+    
+    const sectionName = sectionId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
     return (
         <div className="space-y-6">
@@ -281,11 +219,7 @@ export default function EditSectionPage() {
                         </CardHeader>
                         <CardContent>
                            <div className="border rounded-lg bg-background overflow-hidden">
-                              <div style={previewStyle}>
-                                 <div className="container mx-auto px-4" style={previewContainerStyle}>
-                                    {SelectedComponent ? <SelectedComponent content={defaultContent} /> : <p>Section preview not available.</p>}
-                                 </div>
-                              </div>
+                               <AdminSectionPreview sectionId={sectionId} styles={styles} />
                            </div>
                         </CardContent>
                     </Card>
@@ -360,7 +294,3 @@ export default function EditSectionPage() {
         </div>
     );
 }
-
-    
-
-    

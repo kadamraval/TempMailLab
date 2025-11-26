@@ -85,24 +85,25 @@ export default function EditPageLayout() {
 
   useEffect(() => {
     if (pageSections) {
-        // Find the correct name for the section from allPossibleSections
-        const sectionsWithName = pageSections.map(s => {
-            const sectionDetail = allPossibleSections.find(aps => aps.id === s.id);
-            return { ...s, name: sectionDetail?.name || s.id };
-        });
-        setLocalSections(sectionsWithName);
-    } else if (!isLoadingSections && pageId === 'home' && (!pageSections || pageSections.length === 0)) {
-        const homeSections = [
-            { id: "top-title", name: "Top Title", order: 0, hidden: false },
-            { id: "inbox", name: "Inbox", order: 1, hidden: false },
-            { id: "why", name: "Why", order: 2, hidden: false },
-            { id: "features", name: "Features", order: 3, hidden: false },
-            { id: "testimonials", name: "Testimonials", order: 4, hidden: false },
-            { id: "faq", name: "FAQ", order: 5, hidden: false },
-            { id: "newsletter", name: "Newsletter", order: 6, hidden: false },
-        ];
-        setLocalSections(homeSections);
-        savePageSectionsAction(pageId, homeSections);
+        if (pageSections.length > 0) {
+            const sectionsWithName = pageSections.map(s => {
+                const sectionDetail = allPossibleSections.find(aps => aps.id === s.id);
+                return { ...s, name: sectionDetail?.name || s.id };
+            });
+            setLocalSections(sectionsWithName);
+        } else if (pageId === 'home') {
+             const homeSections = [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "inbox", name: "Inbox", order: 1, hidden: false },
+                { id: "why", name: "Why", order: 2, hidden: false },
+                { id: "features", name: "Features", order: 3, hidden: false },
+                { id: "testimonials", name: "Testimonials", order: 4, hidden: false },
+                { id: "faq", name: "FAQ", order: 5, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 6, hidden: false },
+            ];
+            setLocalSections(homeSections);
+            savePageSectionsAction(pageId, homeSections);
+        }
     }
   }, [pageSections, isLoadingSections, pageId]);
 
@@ -130,7 +131,7 @@ export default function EditPageLayout() {
   
   const handleSaveOrder = async (sectionsToSave: any[]) => {
     setIsSaving(true);
-    const simplifiedSections = sectionsToSave.map(({ id, order, hidden }) => ({ id, order, hidden }));
+    const simplifiedSections = sectionsToSave.map(({ id, order, hidden, name }) => ({ id, order, hidden, name }));
     const result = await savePageSectionsAction(pageId, simplifiedSections);
     if (result.success) {
       toast({ title: "Order saved!", description: "Section order has been updated." });
