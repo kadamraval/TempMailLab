@@ -68,18 +68,27 @@ const sectionDetails: { [key: string]: { name: string, defaultContent: any } } =
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
     const [color, opacity] = useMemo(() => {
-        if (!value) return ['#ffffff', 1];
+        if (!value || typeof value !== 'string') return ['#000000', 1];
         if (value.startsWith('hsl')) {
-             return ['#ffffff', 1]; // Default for HSL variables
+             return ['#000000', 1]; // Default for HSL variables
         }
         if (value.startsWith('rgba')) {
-            const parts = value.replace('rgba(', '').replace(')', '').split(',');
+            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
             if (parts.length === 4) {
-                const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
+                const toHex = (c: number) => parseInt(c.toString(), 10).toString(16).padStart(2, '0');
+                const hex = `#${toHex(Number(parts[0]))}${toHex(Number(parts[1]))}${toHex(Number(parts[2]))}`;
                 return [hex, parseFloat(parts[3])];
             }
         }
-        return ['#ffffff', 1];
+         if (value.startsWith('#')) {
+             if (value.length === 7) return [value, 1];
+             if (value.length === 9) { // #RRGGBBAA
+                const alphaHex = value.slice(7,9);
+                const alpha = parseInt(alphaHex, 16) / 255;
+                return [value.slice(0,7), alpha];
+             }
+         }
+        return [value, 1];
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,17 +100,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     };
 
     const handleOpacityChange = (newOpacity: number[]) => {
-        if (value && value.startsWith('rgba')) {
-            const parts = value.split(',');
-            parts[3] = ` ${newOpacity[0]})`;
-            onChange(parts.join(','));
-        } else {
-            // Convert from initial non-rgba value
-             const r = parseInt(color.slice(1, 3), 16);
-             const g = parseInt(color.slice(3, 5), 16);
-             const b = parseInt(color.slice(5, 7), 16);
-            onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
-        }
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
     };
 
     return (
@@ -140,16 +142,11 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
-            <div className="grid grid-cols-2 gap-2">
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
-                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
-                </div>
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
-                    <Input id={`border${side}Color`} type="text" value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} />
-                </div>
+             <div className='space-y-2'>
+                <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
+                <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
             </div>
+            <ColorInput label={`${side} Border Color`} value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(value) => handleStyleChange(`border${side}Color`, value)} />
         </div>
     )
 };
@@ -167,17 +164,14 @@ const getInitialStyles = (id: string) => {
         borderBottomWidth: 0, 
         borderTopColor: 'hsl(var(--border))', 
         borderBottomColor: 'hsl(var(--border))',
-        bgColor: 'rgba(255, 255, 255, 0)', // Default transparent
+        bgColor: 'transparent',
         useGradient: false, 
-        gradientStart: 'rgba(221, 131, 83, 0.1)', 
-        gradientEnd: 'rgba(190, 128, 96, 0.1)'
+        gradientStart: 'rgba(217, 145, 119, 0.1)',
+        gradientEnd: 'rgba(190, 80, 64, 0.1)'
     };
     
     if (id === 'top-title') {
         fallbackStyles.useGradient = true;
-        fallbackStyles.gradientStart = 'rgba(217, 145, 119, 0.1)';
-        fallbackStyles.gradientEnd = 'rgba(190, 80, 64, 0.1)';
-        fallbackStyles.bgColor = 'rgba(255, 255, 255, 0)';
     }
 
     return fallbackStyles;
@@ -365,3 +359,5 @@ export default function EditSectionPage() {
         </div>
     );
 }
+
+    

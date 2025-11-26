@@ -27,27 +27,24 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     const [color, opacity] = useMemo(() => {
         if (!value || typeof value !== 'string') return ['#000000', 1];
         if (value.startsWith('hsl')) {
-            // This is a basic fallback for HSL variables. A more robust solution might parse the variable.
-             return ['#000000', 1];
+             return ['#000000', 1]; // Default for HSL variables
         }
         if (value.startsWith('rgba')) {
             const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
             if (parts.length === 4) {
-                const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
+                const toHex = (c: number) => parseInt(c.toString(), 10).toString(16).padStart(2, '0');
+                const hex = `#${toHex(Number(parts[0]))}${toHex(Number(parts[1]))}${toHex(Number(parts[2]))}`;
                 return [hex, parseFloat(parts[3])];
             }
         }
          if (value.startsWith('#')) {
-            const r = parseInt(value.slice(1, 3), 16);
-            const g = parseInt(value.slice(3, 5), 16);
-            const b = parseInt(value.slice(5, 7), 16);
-            // If it's a hex, we can't know the opacity, so we assume 1 and convert to rgba for consistency
-            if (value.length === 7) {
-                 onChange(`rgba(${r}, ${g}, ${b}, 1)`);
-                 return [value, 1];
-            }
-            return [value, 1];
-        }
+             if (value.length === 7) return [value, 1];
+             if (value.length === 9) { // #RRGGBBAA
+                const alphaHex = value.slice(7,9);
+                const alpha = parseInt(alphaHex, 16) / 255;
+                return [value.slice(0,7), alpha];
+             }
+         }
         return [value, 1];
     }, [value]);
 
@@ -310,3 +307,5 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
     </Dialog>
   );
 }
+
+    

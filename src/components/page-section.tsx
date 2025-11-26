@@ -65,7 +65,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         case 'inbox': return {}; // Inbox has no text content
-        default: return { title: "Default Title", description: "Default description" };
+        default: return null;
     }
 }
 
@@ -108,15 +108,13 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} });
-        // Don't merge if the source value is undefined
-        if (source[key] !== undefined) {
+      if (source[key] !== undefined && source[key] !== null) { 
+        if (isObject(source[key])) {
+          if (!target[key]) Object.assign(target, { [key]: {} });
           mergeDeep(target[key], source[key]);
+        } else {
+          Object.assign(target, { [key]: source[key] });
         }
-      } else if (source[key] !== undefined) {
-        // Don't merge if the source value is undefined
-        Object.assign(target, { [key]: source[key] });
       }
     }
   }
@@ -166,7 +164,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   // SELF-SEEDING FOR STYLES
   React.useEffect(() => {
       if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
-          // If the global default style doc doesn't exist, create it with the fallback styles.
           setDoc(defaultStyleRef, getFallbackSectionStyles(sectionId)).catch(console.error);
       }
   }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef, sectionId]);
@@ -180,8 +177,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const defaultContentData = getDefaultContent(pageId, sectionId);
   const finalContent = content || defaultContentData;
 
-  // If data is still loading for other sections, or if there's no content to render for this one, return a loader or null.
-  if (!finalContent && sectionId !== 'inbox') {
+  if (!finalContent) {
      if(isLoading) return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
      return null;
   }
@@ -219,3 +215,5 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
+
+    
