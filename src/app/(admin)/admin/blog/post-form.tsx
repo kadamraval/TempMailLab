@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -37,7 +38,8 @@ const formSchema = blogPostSchema.omit({
     id: true, 
     createdAt: true, 
     updatedAt: true, 
-    authorId: true 
+    authorId: true,
+    publishedAt: true, // This field is handled by the server action
 });
 
 interface PostFormProps {
@@ -61,7 +63,6 @@ export function PostForm({ post }: PostFormProps) {
       status: 'draft',
       categoryId: '',
       tags: [],
-      publishedAt: undefined,
     },
   });
 
