@@ -28,10 +28,13 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { type BlogPost, blogPostSchema } from './types';
 import { savePostAction } from '@/lib/actions/blog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Category } from '../categories/types';
 
 
 const formSchema = blogPostSchema.omit({ 
@@ -39,7 +42,7 @@ const formSchema = blogPostSchema.omit({
     createdAt: true, 
     updatedAt: true, 
     authorId: true,
-    publishedAt: true, // This field is handled by the server action
+    publishedAt: true,
 });
 
 interface PostFormProps {
@@ -50,7 +53,15 @@ export function PostForm({ post }: PostFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useUser();
+  const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const categoriesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'categories');
+  }, [firestore]);
+
+  const { data: categories, isLoading: isLoadingCategories } = useCollection<Category>(categoriesQuery);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,6 +81,7 @@ export function PostForm({ post }: PostFormProps) {
     if (post) {
       form.reset({
         ...post,
+        categoryId: post.categoryId || '',
         tags: post.tags || [],
       });
     }
@@ -248,7 +260,30 @@ export function PostForm({ post }: PostFormProps) {
                     <CardTitle>Organization</CardTitle>
                 </CardHeader>
                  <CardContent className="space-y-6">
-                    <p className="text-sm text-muted-foreground">Category and tag management coming soon.</p>
+                   <FormField
+                      control={form.control}
+                      name="categoryId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingCategories}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories?.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                 </CardContent>
             </Card>
           </div>
