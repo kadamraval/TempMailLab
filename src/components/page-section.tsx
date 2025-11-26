@@ -180,7 +180,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   
   const componentProps: any = {
     content: content || getDefaultContent(pageId, sectionId),
-    removeBorder: true, // This prop is now redundant but kept for safety.
   };
   
   if (['pricing', 'pricing-comparison'].includes(sectionId)) {
