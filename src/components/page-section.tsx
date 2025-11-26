@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -43,6 +44,9 @@ const sectionComponents: { [key: string]: React.ComponentType<any> } = {
 };
 
 const getDefaultContent = (pageId: string, sectionId: string) => {
+    const pageName = pageId.replace('-page', '').replace(/-/g, ' ');
+    const titleCasedPageName = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+    
     switch (sectionId) {
         case 'why': return { title: "Why Temp Mail?", description: "Protect your online identity with a disposable email address.", items: useCases };
         case 'features': return { title: "Features", description: "Discover the powerful features that make our service unique.", items: features };
@@ -54,9 +58,10 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
         case 'pricing': return { title: "Pricing", description: "Choose the plan that's right for you." };
         case 'pricing-comparison': return { title: "Full Feature Comparison", description: "" };
         case 'top-title': 
-             const pageName = pageId === 'home' ? 'Tempmailoz' : pageId.replace('-page', '').replace('-', ' ');
-             const pageTitle = pageId === 'home' ? 'Secure Your Digital Identity' : pageName.charAt(0).toUpperCase() + pageName.slice(1);
-             const pageDescription = pageId === 'home' ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' : `Everything you need to know about our ${pageName}.`
+             const pageTitle = pageId === 'home' ? 'Secure Your Digital Identity' : titleCasedPageName;
+             const pageDescription = pageId === 'home' 
+                ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' 
+                : `Everything you need to know about our ${pageName}.`;
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         default: return null;
@@ -168,20 +173,25 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
   
   const defaultContentData = getDefaultContent(pageId, sectionId);
-  if (isLoading && (!defaultContentData || !Object.keys(defaultContentData).length)) {
-    return null;
-  }
-  
+
+  // For sections like 'inbox' that have no default text content, or while data is loading.
   if (isLoading) {
     if (sectionId === 'inbox' || sectionId === 'top-title') {
+        // Show a loader for interactive components or initial hero sections
         return (
-          <div className="flex items-center justify-center min-h-[400px]">
+          <div style={{ paddingTop: '64px', paddingBottom: '64px' }} className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         );
     }
+    // For other static content sections, it's better to render nothing than a loader to avoid layout shifts.
     return null;
   }
+  
+  if (!content && !defaultContentData) {
+      return null;
+  }
+
 
   const fallbackStyles = getFallbackSectionStyles(sectionId);
   const finalStyles = mergeDeep({}, fallbackStyles, defaultStyle, styleOverride);
