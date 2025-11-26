@@ -1,4 +1,3 @@
-
 "use client";
 
 import { usePathname, notFound } from "next/navigation";
@@ -12,7 +11,10 @@ const pageSectionConfig: { [key: string]: string[] } = {
   'faq-page': ['faq'],
 };
 
-const defaultSections = ["top-title", "faq", "newsletter"];
+// All pages handled by this dynamic route will have this layout wrapper.
+const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+    <div className="py-16 sm:py-20">{children}</div>
+);
 
 export default function GenericPage() {
     const pathname = usePathname();
@@ -22,23 +24,22 @@ export default function GenericPage() {
       pageId += '-page';
     }
 
+    const sectionsToRender = pageSectionConfig[pageId];
 
-    // Simple check if page exists, could be more robust
-    if (!pageSectionConfig[pageId] && !['about-page', 'terms-page', 'privacy-page'].includes(pageId)) {
+    // If there's no specific section config, it might be a simple content page.
+    if (!sectionsToRender) {
        return (
-        <div className="py-16 sm:py-20">
+        <PageWrapper>
           <div className="flex flex-col items-center justify-center min-h-[calc(100vh-400px)] text-center">
             <PageSection pageId={pageId} sectionId="top-title" order={0} />
             <p className="mt-8 text-muted-foreground">Content for this page is coming soon.</p>
           </div>
-        </div>
+        </PageWrapper>
       );
     }
-    
-    const sectionsToRender = pageSectionConfig[pageId] || defaultSections;
 
     return (
-        <div className="py-16 sm:py-20">
+        <PageWrapper>
             {sectionsToRender.map((sectionId, index) => (
                 <PageSection
                     key={sectionId}
@@ -47,6 +48,6 @@ export default function GenericPage() {
                     order={index}
                 />
             ))}
-        </div>
+        </PageWrapper>
     );
 }
