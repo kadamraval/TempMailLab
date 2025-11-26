@@ -58,6 +58,38 @@
             }
         },
         "required": ["name", "price", "cycle", "status"]
+    },
+    "BlogPost": {
+        "title": "Blog Post",
+        "type": "object",
+        "description": "Represents a single blog post or article.",
+        "properties": {
+            "title": { "type": "string", "description": "The main title of the blog post." },
+            "slug": { "type": "string", "description": "URL-friendly version of the title." },
+            "content": { "type": "string", "description": "The full content of the blog post, usually in Markdown or HTML." },
+            "excerpt": { "type": "string", "description": "A short summary of the post." },
+            "featuredImage": { "type": "string", "description": "URL of the main image for the post.", "format": "uri" },
+            "status": { "type": "string", "enum": ["draft", "published"], "description": "The publication status of the post." },
+            "authorId": { "type": "string", "description": "The UID of the user who wrote the post." },
+            "categoryId": { "type": "string", "description": "The ID of the primary category for the post." },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "publishedAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the post was published." },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["title", "slug", "content", "status", "authorId"]
+    },
+    "Category": {
+        "title": "Category",
+        "type": "object",
+        "description": "Represents a category for organizing blog posts.",
+        "properties": {
+            "name": { "type": "string", "description": "The name of the category." },
+            "slug": { "type": "string", "description": "URL-friendly version of the name." },
+            "description": { "type": "string", "description": "A short description of the category." },
+            "postCount": { "type": "number", "description": "The number of posts in this category." }
+        },
+        "required": ["name", "slug"]
     }
   },
   "auth": {
@@ -88,6 +120,14 @@
       {
         "path": "/admin_settings/{settingId}",
         "definition": { "schema": { "type": "object" }, "description": "Settings configurable by admins." }
+      },
+       {
+        "path": "/posts/{postId}",
+        "definition": { "schema": { "$ref": "#/entities/BlogPost" }, "description": "Collection of all blog posts." }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": { "schema": { "$ref": "#/entities/Category" }, "description": "Collection of all blog categories." }
       }
     ]
   }

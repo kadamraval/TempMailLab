@@ -15,18 +15,28 @@ service cloud.firestore {
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // --- New Rule for Default Section Styles ---
     match /sections/{sectionId} {
-      // Allow any user (anonymous or signed-in) to read the default styles.
       allow get, list: if true;
-      // Only allow admins to change the global default styles for a section.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Make page content and styles publicly readable
     match /pages/{pageId}/{sectionCollection}/{sectionDocId} {
         allow get, list: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /posts/{postId} {
+      // Allow anyone to read published blog posts
+      allow get, list: if resource.data.status == 'published';
+      // Only allow admins to create, update, or delete blog posts
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /categories/{categoryId} {
+      // Allow anyone to read categories
+      allow get, list: if true;
+      // Only allow admins to create, update, or delete categories
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
     // --- Admin-Only Collections ---
