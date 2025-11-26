@@ -1,11 +1,11 @@
+
 "use client";
 
 import { usePathname, notFound } from "next/navigation";
 import { PageSection } from "@/components/page-section";
 import { Loader2 } from "lucide-react";
 
-// The order of sections for generic pages
-// The Top Title will always be first.
+// This layout now also handles the 'features' page to ensure consistency
 const pageSectionConfig: { [key: string]: string[] } = {
   'features-page': ["top-title", "features", "exclusive-features", "comparison", "faq", "newsletter"],
   'faq-page': ['faq'],

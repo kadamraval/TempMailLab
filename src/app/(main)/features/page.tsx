@@ -1,16 +1,10 @@
+
 "use client";
 
-import { PageSection } from "@/components/page-section";
-
-const pageId = "features-page";
-const sections = ["top-title", "features", "exclusive-features", "comparison", "faq", "newsletter"];
+// This file is now intentionally blank.
+// The logic has been consolidated into /app/(main)/[...slug]/page.tsx to ensure layout consistency.
+// This prevents the "Features" page from having a different layout than other pages.
 
 export default function FeaturesPage() {
-    return (
-        <>
-            {sections.map((sectionId, index) => (
-                <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
-            ))}
-        </>
-    );
+    return null;
 }

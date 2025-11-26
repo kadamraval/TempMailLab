@@ -64,6 +64,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
                 : `Everything you need to know about our ${pageName}.`;
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
+        case 'inbox': return {}; // Inbox has no text content
         default: return null;
     }
 }
@@ -173,21 +174,20 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
   
   const defaultContentData = getDefaultContent(pageId, sectionId);
-
   const finalContent = content || defaultContentData;
 
-  // For sections like 'inbox' that have no default text content, or while data is loading.
-  if (isLoading || !finalContent) {
-    if (sectionId === 'inbox' || sectionId === 'top-title') {
-        // Show a loader for interactive components or initial hero sections
-        return (
-          <div style={{ paddingTop: '64px', paddingBottom: '64px' }} className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        );
-    }
-    // For other static content sections, it's better to render nothing than a loader to avoid layout shifts.
-    return null;
+  // Render a loader for key interactive/hero sections, otherwise render nothing to prevent layout shift.
+  if (isLoading && (sectionId === 'inbox' || sectionId === 'top-title')) {
+    return (
+      <div style={{ paddingTop: '64px', paddingBottom: '64px' }} className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // If data is still loading for other sections, or if there's no content to render, return null.
+  if ((isLoading && !finalContent) || !finalContent) {
+     return null;
   }
   
   const fallbackStyles = getFallbackSectionStyles(sectionId);
@@ -225,5 +225,3 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
-
-    

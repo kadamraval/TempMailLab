@@ -34,6 +34,7 @@ const pageData: { [key: string]: any } = {
   home: {
     name: "Home Page",
     sections: [
+      { id: "top-title", name: "Top Title" },
       { id: "inbox", name: "Inbox" },
       { id: "why", name: "Why" },
       { id: "features", name: "Features" },
@@ -333,5 +334,3 @@ export default function EditPageLayout() {
     </>
   );
 }
-
-    

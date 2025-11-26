@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,18 +20,70 @@ import { Loader2 } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { saveStyleOverrideAction } from '@/lib/actions/content';
+import { Slider } from '@/components/ui/slider';
+
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    const [color, opacity] = useMemo(() => {
+        if (!value || typeof value !== 'string') return ['#000000', 1];
+        if (value.startsWith('hsl')) {
+             return ['#000000', 1]; // Default for HSL variables
+        }
+        if (value.startsWith('rgba')) {
+            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
+            if (parts.length === 4) {
+                const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
+                return [hex, parseFloat(parts[3])];
+            }
+        }
+         if (value.startsWith('#')) {
+            return [value, 1]
+        }
+        return [value, 1];
+    }, [value]);
+
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const hex = e.target.value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity})`);
+    };
+
+    const handleOpacityChange = (newOpacity: number[]) => {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
+    };
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                 <Input
+                 <div className="relative">
+                    <Input
+                        type="color"
+                        value={color}
+                        onChange={handleColorChange}
+                        className="w-12 h-10 p-1"
+                    />
+                </div>
+                <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., hsl(var(--primary))"
+                    placeholder="e.g., rgba(255,255,255,1)"
+                />
+            </div>
+             <div className="space-y-2 pt-2">
+                <Label className="text-xs">Opacity</Label>
+                <Slider
+                    value={[opacity]}
+                    onValueChange={handleOpacityChange}
+                    max={1}
+                    step={0.05}
                 />
             </div>
         </div>
@@ -43,16 +95,11 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
-            <div className="grid grid-cols-2 gap-2">
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
-                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
-                </div>
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
-                    <Input id={`border${side}Color`} type="text" value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} />
-                </div>
+            <div className='space-y-2'>
+                <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
+                <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
             </div>
+            <ColorInput label={`${side} Border Color`} value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(value) => handleStyleChange(`border${side}Color`, value)} />
         </div>
     )
 };
@@ -66,19 +113,67 @@ interface SectionStyleDialogProps {
   pageName: string;
 }
 
+const getInitialStyles = (sectionId: string) => {
+    const fallbackStyles: any = {
+        marginTop: 0, 
+        marginBottom: 0, 
+        paddingTop: 64, 
+        paddingBottom: 64, 
+        paddingLeft: 16, 
+        paddingRight: 16,
+        borderTopWidth: 0, 
+        borderBottomWidth: 0, 
+        borderTopColor: 'hsl(var(--border))', 
+        borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'transparent',
+        useGradient: false, 
+        gradientStart: 'hsl(var(--gradient-start))', 
+        gradientEnd: 'hsl(var(--gradient-end))'
+    };
+    
+    if (sectionId === 'top-title') {
+        fallbackStyles.useGradient = true;
+    }
+
+    return fallbackStyles;
+};
+
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (source[key] !== undefined && source[key] !== null) { // Only merge defined values
+          if (isObject(source[key])) {
+            if (!target[key]) Object.assign(target, { [key]: {} });
+            mergeDeep(target[key], source[key]);
+          } else {
+            Object.assign(target, { [key]: source[key] });
+          }
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
+};
+
+
 export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName }: SectionStyleDialogProps) {
   const { toast } = useToast();
   const [styles, setStyles] = useState<any>({}); 
   const [isSaving, setIsSaving] = useState(false);
   const firestore = useFirestore();
 
-  // Tier 2: Get the GLOBAL DEFAULT style for this section TYPE
   const defaultStyleRef = useMemoFirebase(() => {
     if (!firestore || !section) return null;
     return doc(firestore, 'sections', section.id);
   }, [firestore, section]);
 
-  // Tier 3: Get the PAGE-SPECIFIC style override
   const styleOverrideRef = useMemoFirebase(() => {
     if (!firestore || !section) return null;
     return doc(firestore, 'pages', pageId, 'sections', `${section.id}_styles`);
@@ -88,20 +183,12 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   const { data: savedOverrideStyles, isLoading: isLoadingOverrideStyles } = useDoc(styleOverrideRef);
   
   useEffect(() => {
-    if (section) {
-        // Base styles for fallback
-        const baseStyles = {
-            marginTop: 0, marginBottom: 0, 
-            paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16, 
-            borderTopWidth: 0, borderBottomWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, 
-            borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))', borderLeftColor: 'hsl(var(--border))', borderRightColor: 'hsl(var(--border))'
-        };
-
-        // Cascade: Start with base, merge in global defaults, then merge in specific overrides
-        const initialStyles = { ...baseStyles, ...(defaultStyles || {}), ...(savedOverrideStyles || {}) };
-        setStyles(initialStyles);
+    if (section && !isLoadingDefaultStyles && !isLoadingOverrideStyles) {
+        const initialStyles = getInitialStyles(section.id);
+        const finalStyles = mergeDeep({}, initialStyles, defaultStyles, savedOverrideStyles);
+        setStyles(finalStyles);
     }
-  }, [section, defaultStyles, savedOverrideStyles]);
+  }, [section, defaultStyles, savedOverrideStyles, isLoadingDefaultStyles, isLoadingOverrideStyles, pageId]);
   
   const handleStyleChange = (property: string, value: string | number | boolean) => {
     setStyles((prev: any) => ({ ...prev, [property]: value }));
