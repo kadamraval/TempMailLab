@@ -55,7 +55,8 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
                 : `Everything you need to know about our ${pageName}.`;
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
-        case 'inbox': return {};
+        // The inbox has no 'content' to pre-fill, it's a dynamic component. Return an empty object so the doc is created.
+        case 'inbox': return {}; 
         default: return null;
     }
 }
@@ -125,7 +126,9 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
     return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  const finalContent = content || getDefaultContent(pageId, sectionId);
+  // For the 'inbox' section, the content object itself doesn't matter, but it must not be null.
+  // For other sections, it must have content.
+  const finalContent = sectionId === 'inbox' ? {} : (content || getDefaultContent(pageId, sectionId));
   if (!finalContent) return null;
   
   const finalStyles = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);
@@ -150,5 +153,3 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
     </div>
   );
 };
-
-    
