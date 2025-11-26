@@ -27,8 +27,6 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
         if (value.startsWith('hsl')) {
              const parts = value.match(/(\d+(\.\d+)?)/g);
              if (parts) {
-                // This is a simplified conversion and might not be perfect for all HSL strings
-                // For now, we'll just show a default hex if we can't parse it.
                 return ['#000000', 1];
              }
              return ['#000000', 1];
@@ -43,7 +41,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
          if (value.startsWith('#')) {
             return [value, 1]
         }
-        return [value, 1]; // Fallback for hex or other color names
+        return [value, 1];
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,16 +97,11 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
     return (
         <div className="space-y-3">
             <Label className="font-semibold">{side} Border</Label>
-            <div className="grid grid-cols-2 gap-2">
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
-                    <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
-                </div>
-                <div className='space-y-2'>
-                    <Label htmlFor={`border${side}Color`} className='text-xs'>Color</Label>
-                    <Input id={`border${side}Color`} type="text" value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(e) => handleStyleChange(`border${side}Color`, e.target.value)} />
-                </div>
+            <div className='space-y-2'>
+                <Label htmlFor={`border${side}Width`} className='text-xs'>Size (px)</Label>
+                <Input id={`border${side}Width`} type="number" placeholder="Size" value={styles[`border${side}Width`] || 0} onChange={(e) => handleStyleChange(`border${side}Width`, e.target.valueAsNumber)} />
             </div>
+            <ColorInput label={`${side} Border Color`} value={styles[`border${side}Color`] || 'hsl(var(--border))'} onChange={(value) => handleStyleChange(`border${side}Color`, value)} />
         </div>
     )
 };
@@ -136,8 +129,8 @@ const getInitialStyles = (sectionId: string) => {
         borderBottomColor: 'hsl(var(--border))',
         bgColor: 'transparent',
         useGradient: false, 
-        gradientStart: 'rgba(221, 131, 83, 0.1)', 
-        gradientEnd: 'rgba(190, 128, 96, 0.1)'
+        gradientStart: 'hsl(var(--gradient-start))', 
+        gradientEnd: 'hsl(var(--gradient-end))'
     };
     
     if (sectionId === 'top-title') {
@@ -200,7 +193,7 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
         const finalStyles = mergeDeep({}, initialStyles, defaultStyles, savedOverrideStyles);
         setStyles(finalStyles);
     }
-  }, [section, defaultStyles, savedOverrideStyles, isLoadingDefaultStyles, isLoadingOverrideStyles]);
+  }, [section, defaultStyles, savedOverrideStyles, isLoadingDefaultStyles, isLoadingOverrideStyles, pageId]);
   
   const handleStyleChange = (property: string, value: string | number | boolean) => {
     setStyles((prev: any) => ({ ...prev, [property]: value }));
@@ -292,7 +285,7 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
                       <Label className="text-xs">Padding (Inner Space)</Label>
                       <div className="grid grid-cols-2 gap-2">
                           <Input type="number" placeholder="Top" value={styles.paddingTop || 0} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
-                          <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
                           <Input type="number" placeholder="Left" value={styles.paddingLeft || 0} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
                           <Input type="number" placeholder="Right" value={styles.paddingRight || 0} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
                       </div>
