@@ -46,6 +46,15 @@ const pageData: { [key: string]: any } = {
   "faq-page": { name: "FAQ" }, "about": { name: "About Us" }, "terms": { name: "Terms of Service" }, "privacy": { name: "Privacy Policy" },
 };
 
+const allPossibleSections = [
+    { id: "top-title", name: "Top Title" }, { id: "inbox", name: "Inbox" }, { id: "why", name: "Why" },
+    { id: "features", name: "Features" }, { id: "exclusive-features", name: "Exclusive Features" },
+    { id: "comparison", name: "Comparison" }, { id: "pricing", name: "Pricing" },
+    { id: "pricing-comparison", name: "Price Comparison" }, { id: "blog", name: "Blog" },
+    { id: "testimonials", name: "Testimonials" }, { id: "faq", name: "FAQ" },
+    { id: "newsletter", name: "Newsletter" }, { id: "contact-form", name: "Contact Form" },
+];
+
 export default function EditPageLayout() {
   const params = useParams();
   const pageId = params.id as string;
@@ -76,7 +85,12 @@ export default function EditPageLayout() {
 
   useEffect(() => {
     if (pageSections) {
-      setLocalSections(pageSections);
+        // Find the correct name for the section from allPossibleSections
+        const sectionsWithName = pageSections.map(s => {
+            const sectionDetail = allPossibleSections.find(aps => aps.id === s.id);
+            return { ...s, name: sectionDetail?.name || s.id };
+        });
+        setLocalSections(sectionsWithName);
     }
   }, [pageSections]);
 
@@ -235,5 +249,3 @@ export default function EditPageLayout() {
     </>
   );
 }
-
-    

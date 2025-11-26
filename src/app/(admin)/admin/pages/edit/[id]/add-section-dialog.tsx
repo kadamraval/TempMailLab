@@ -54,11 +54,11 @@ export function AddSectionDialog({ isOpen, onClose, existingSectionIds, onAddSec
               availableSections.map(section => (
                 <div key={section.id} className="flex items-center space-x-2">
                   <Checkbox
-                    id={section.id}
+                    id={`add-${section.id}`}
                     checked={selectedSections.includes(section.id)}
                     onCheckedChange={() => handleToggleSection(section.id)}
                   />
-                  <label htmlFor={section.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  <label htmlFor={`add-${section.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     {section.name}
                   </label>
                 </div>
@@ -76,5 +76,3 @@ export function AddSectionDialog({ isOpen, onClose, existingSectionIds, onAddSec
     </Dialog>
   );
 }
-
-    
