@@ -91,8 +91,20 @@ export default function EditPageLayout() {
             return { ...s, name: sectionDetail?.name || s.id };
         });
         setLocalSections(sectionsWithName);
+    } else if (!isLoadingSections && pageId === 'home') {
+        const homeSections = [
+            { id: "top-title", name: "Top Title", order: 0 },
+            { id: "inbox", name: "Inbox", order: 1 },
+            { id: "why", name: "Why", order: 2 },
+            { id: "features", name: "Features", order: 3 },
+            { id: "testimonials", name: "Testimonials", order: 4 },
+            { id: "faq", name: "FAQ", order: 5 },
+            { id: "newsletter", name: "Newsletter", order: 6 },
+        ];
+        setLocalSections(homeSections);
+        savePageSectionsAction(pageId, homeSections);
     }
-  }, [pageSections]);
+  }, [pageSections, isLoadingSections, pageId]);
 
   if (!currentPageInfo) {
     return notFound();
