@@ -2,10 +2,10 @@
 
 import { PageSection } from "@/components/page-section";
 
-const pageId = "api-page";
-const sections = ["top-title", "faq", "newsletter"];
+const pageId = "features-page";
+const sections = ["top-title", "features", "exclusive-features", "comparison", "faq", "newsletter"];
 
-export default function ApiPage() {
+export default function FeaturesPage() {
     return (
         <>
             {sections.map((sectionId, index) => (

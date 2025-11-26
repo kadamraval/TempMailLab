@@ -8,10 +8,10 @@ const sections = ["top-title", "contact-form", "faq"];
 
 export default function ContactPage() {
   return (
-    <div>
+    <>
         {sections.map((sectionId, index) => (
             <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
         ))}
-    </div>
+    </>
   );
 }

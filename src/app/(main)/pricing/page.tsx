@@ -7,10 +7,10 @@ const sections = ["top-title", "pricing", "pricing-comparison", "faq", "newslett
 
 export default function PricingPage() {
     return (
-        <div>
+        <>
             {sections.map((sectionId, index) => (
                 <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
             ))}
-        </div>
+        </>
     );
 }
