@@ -138,6 +138,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
         </div>
     );
 };
+
 const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
     return (
         <div className="space-y-3">
@@ -359,5 +360,7 @@ export default function EditSectionPage() {
         </div>
     );
 }
+
+    
 
     

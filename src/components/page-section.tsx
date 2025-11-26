@@ -97,29 +97,36 @@ const getFallbackSectionStyles = (sectionId: string) => {
     return baseStyles;
 };
 
-// Deep merge utility
-const isObject = (item: any) => {
-  return (item && typeof item === 'object' && !Array.isArray(item));
+const isObject = (item: any): item is object => {
+    return item && typeof item === 'object' && !Array.isArray(item);
 };
 
 const mergeDeep = (target: any, ...sources: any[]): any => {
-  if (!sources.length) return target;
-  const source = sources.shift();
-
-  if (isObject(target) && isObject(source)) {
-    for (const key in source) {
-      if (source[key] !== undefined && source[key] !== null) { 
-        if (isObject(source[key])) {
-          if (!target[key]) Object.assign(target, { [key]: {} });
-          mergeDeep(target[key], source[key]);
-        } else {
-          Object.assign(target, { [key]: source[key] });
-        }
-      }
+    if (!sources.length) {
+        return target;
     }
-  }
-  return mergeDeep(target, ...sources);
+    const source = sources.shift();
+
+    if (isObject(target) && isObject(source)) {
+        for (const key in source) {
+            // Check if the source property is a non-null object
+            if (isObject(source[key]) && source[key] !== null) {
+                // If the target doesn't have this key, or it's not an object, initialize it
+                if (!target[key] || !isObject(target[key])) {
+                    target[key] = {};
+                }
+                // Recurse
+                mergeDeep(target[key], source[key]);
+            } else if (source[key] !== undefined) {
+                // For non-object properties, assign if not undefined
+                target[key] = source[key];
+            }
+        }
+    }
+
+    return mergeDeep(target, ...sources);
 };
+
 
 export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
   const firestore = useFirestore();
@@ -215,5 +222,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
+
+    
 
     
