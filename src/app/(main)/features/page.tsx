@@ -8,10 +8,10 @@ const sections = ["top-title", "features", "exclusive-features", "comparison", "
 
 export default function FeaturesPage() {
     return (
-        <>
+        <div className="py-16 sm:py-20">
             {sections.map((sectionId, index) => (
                 <PageSection key={sectionId} pageId={pageId} sectionId={sectionId} order={index} />
             ))}
-        </>
+        </div>
     );
 }

@@ -27,7 +27,8 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     const [color, opacity] = useMemo(() => {
         if (!value || typeof value !== 'string') return ['#000000', 1];
         if (value.startsWith('hsl')) {
-             return ['#000000', 1]; // Default for HSL variables
+            // This is a basic fallback for HSL variables. A more robust solution might parse the variable.
+             return ['#000000', 1];
         }
         if (value.startsWith('rgba')) {
             const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
@@ -37,7 +38,15 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
             }
         }
          if (value.startsWith('#')) {
-            return [value, 1]
+            const r = parseInt(value.slice(1, 3), 16);
+            const g = parseInt(value.slice(3, 5), 16);
+            const b = parseInt(value.slice(5, 7), 16);
+            // If it's a hex, we can't know the opacity, so we assume 1 and convert to rgba for consistency
+            if (value.length === 7) {
+                 onChange(`rgba(${r}, ${g}, ${b}, 1)`);
+                 return [value, 1];
+            }
+            return [value, 1];
         }
         return [value, 1];
     }, [value]);
