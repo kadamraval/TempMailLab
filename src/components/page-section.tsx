@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -66,7 +65,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
 
 // Sensible, complete default styles for any section
 const getFallbackSectionStyles = (sectionId: string) => {
-    const baseStyles = {
+    const baseStyles: any = {
         marginTop: 0, 
         marginBottom: 0, 
         paddingTop: 64, 
@@ -77,7 +76,7 @@ const getFallbackSectionStyles = (sectionId: string) => {
         borderBottomWidth: 0, 
         borderTopColor: 'hsl(var(--border))', 
         borderBottomColor: 'hsl(var(--border))',
-        bgColor: 'hsl(var(--background))', 
+        bgColor: 'transparent',
         useGradient: false, 
         gradientStart: 'hsl(var(--background))', 
         gradientEnd: 'hsl(var(--accent))'
@@ -91,6 +90,30 @@ const getFallbackSectionStyles = (sectionId: string) => {
     }
     
     return baseStyles;
+};
+
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (source[key] !== undefined && source[key] !== null) {
+          if (isObject(source[key])) {
+            if (!target[key]) Object.assign(target, { [key]: {} });
+            mergeDeep(target[key], source[key]);
+          } else {
+            Object.assign(target, { [key]: source[key] });
+          }
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
 };
 
 export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
@@ -148,7 +171,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
   
   if (isLoading) {
-    if (sectionId === 'inbox') {
+    if (sectionId === 'inbox' || sectionId === 'top-title') {
         return (
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -158,11 +181,8 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     return null;
   }
 
-  // --- APPLY STYLING CASCADE ---
   const fallbackStyles = getFallbackSectionStyles(sectionId);
-  // Merge styles: start with fallback, merge global defaults, then merge page-specific overrides.
-  // This ensures properties from overrides replace defaults, but defaults are used if overrides are missing properties.
-  const finalStyles = { ...fallbackStyles, ...(defaultStyle || {}), ...(styleOverride || {}) };
+  const finalStyles = mergeDeep({}, fallbackStyles, defaultStyle, styleOverride);
 
   const wrapperStyle: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
@@ -171,11 +191,13 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     marginBottom: `${finalStyles.marginBottom || 0}px`,
     borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
     borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
+    paddingTop: `${finalStyles.paddingTop || 0}px`,
+    paddingBottom: `${finalStyles.paddingBottom || 0}px`,
   };
 
   const containerStyle: React.CSSProperties = {
-      paddingTop: `${finalStyles.paddingTop || 0}px`,
-      paddingBottom: `${finalStyles.paddingBottom || 0}px`,
+      paddingLeft: `${finalStyles.paddingLeft || 0}px`,
+      paddingRight: `${finalStyles.paddingRight || 0}px`,
   }
   
   const componentProps: any = {
@@ -188,7 +210,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
 
   return (
     <div id={sectionId} style={wrapperStyle}>
-       <div className="container mx-auto px-4" style={containerStyle}>
+       <div className="container mx-auto" style={containerStyle}>
           <Component {...componentProps} />
        </div>
     </div>

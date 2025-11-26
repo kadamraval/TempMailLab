@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -26,7 +25,13 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     const [color, opacity] = useMemo(() => {
         if (!value) return ['#ffffff', 1];
         if (value.startsWith('hsl')) {
-             return ['#ffffff', 1];
+             const parts = value.match(/(\d+(\.\d+)?)/g);
+             if (parts) {
+                // This is a simplified conversion and might not be perfect for all HSL strings
+                // For now, we'll just show a default hex if we can't parse it.
+                return ['#000000', 1];
+             }
+             return ['#000000', 1];
         }
         if (value.startsWith('rgba')) {
             const parts = value.replace('rgba(', '').replace(')', '').split(',');
@@ -35,7 +40,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                 return [hex, parseFloat(parts[3])];
             }
         }
-        return ['#ffffff', 1];
+         if (value.startsWith('#')) {
+            return [value, 1]
+        }
+        return [value, 1]; // Fallback for hex or other color names
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,16 +55,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     };
 
     const handleOpacityChange = (newOpacity: number[]) => {
-        if (value && value.startsWith('rgba')) {
-            const parts = value.split(',');
-            parts[3] = ` ${newOpacity[0]})`;
-            onChange(parts.join(','));
-        } else {
-             const r = parseInt(color.slice(1, 3), 16);
-             const g = parseInt(color.slice(3, 5), 16);
-             const b = parseInt(color.slice(5, 7), 16);
-            onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
-        }
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
     };
 
     return (
@@ -132,7 +134,7 @@ const getInitialStyles = (sectionId: string) => {
         borderBottomWidth: 0, 
         borderTopColor: 'hsl(var(--border))', 
         borderBottomColor: 'hsl(var(--border))',
-        bgColor: 'rgba(255, 255, 255, 0)',
+        bgColor: 'transparent',
         useGradient: false, 
         gradientStart: 'rgba(221, 131, 83, 0.1)', 
         gradientEnd: 'rgba(190, 128, 96, 0.1)'
@@ -140,12 +142,36 @@ const getInitialStyles = (sectionId: string) => {
     
     if (sectionId === 'top-title') {
         fallbackStyles.useGradient = true;
-        fallbackStyles.gradientStart = 'rgba(217, 145, 119, 0.1)';
-        fallbackStyles.gradientEnd = 'rgba(190, 80, 64, 0.1)';
-        fallbackStyles.bgColor = 'rgba(255, 255, 255, 0)';
+        fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
+        fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
+        fallbackStyles.bgColor = 'transparent';
     }
 
     return fallbackStyles;
+};
+
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (source[key] !== undefined && source[key] !== null) { // Only merge defined values
+          if (isObject(source[key])) {
+            if (!target[key]) Object.assign(target, { [key]: {} });
+            mergeDeep(target[key], source[key]);
+          } else {
+            Object.assign(target, { [key]: source[key] });
+          }
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
 };
 
 
@@ -155,13 +181,11 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   const [isSaving, setIsSaving] = useState(false);
   const firestore = useFirestore();
 
-  // Tier 2: Get the GLOBAL DEFAULT style for this section TYPE
   const defaultStyleRef = useMemoFirebase(() => {
     if (!firestore || !section) return null;
     return doc(firestore, 'sections', section.id);
   }, [firestore, section]);
 
-  // Tier 3: Get the PAGE-SPECIFIC style override
   const styleOverrideRef = useMemoFirebase(() => {
     if (!firestore || !section) return null;
     return doc(firestore, 'pages', pageId, 'sections', `${section.id}_styles`);
@@ -171,19 +195,12 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
   const { data: savedOverrideStyles, isLoading: isLoadingOverrideStyles } = useDoc(styleOverrideRef);
   
   useEffect(() => {
-    if (section) {
-        // TIER 1: Start with hardcoded fallbacks
+    if (section && !isLoadingDefaultStyles && !isLoadingOverrideStyles) {
         const initialStyles = getInitialStyles(section.id);
-        
-        // TIER 2: Merge global defaults from Firestore
-        const mergedWithDefaults = { ...initialStyles, ...(defaultStyles || {}) };
-        
-        // TIER 3: Merge page-specific overrides from Firestore
-        const finalStyles = { ...mergedWithDefaults, ...(savedOverrideStyles || {}) };
-
+        const finalStyles = mergeDeep({}, initialStyles, defaultStyles, savedOverrideStyles);
         setStyles(finalStyles);
     }
-  }, [section, defaultStyles, savedOverrideStyles]);
+  }, [section, defaultStyles, savedOverrideStyles, isLoadingDefaultStyles, isLoadingOverrideStyles]);
   
   const handleStyleChange = (property: string, value: string | number | boolean) => {
     setStyles((prev: any) => ({ ...prev, [property]: value }));
@@ -275,7 +292,7 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
                       <Label className="text-xs">Padding (Inner Space)</Label>
                       <div className="grid grid-cols-2 gap-2">
                           <Input type="number" placeholder="Top" value={styles.paddingTop || 0} onChange={(e) => handleStyleChange('paddingTop', e.target.valueAsNumber)} />
-                          <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('paddingBottom', e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="Bottom" value={styles.paddingBottom || 0} onChange={(e) => handleStyleChange('marginBottom', e.target.valueAsNumber)} />
                           <Input type="number" placeholder="Left" value={styles.paddingLeft || 0} onChange={(e) => handleStyleChange('paddingLeft', e.target.valueAsNumber)} />
                           <Input type="number" placeholder="Right" value={styles.paddingRight || 0} onChange={(e) => handleStyleChange('paddingRight', e.target.valueAsNumber)} />
                       </div>

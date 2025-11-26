@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -70,7 +69,12 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     const [color, opacity] = useMemo(() => {
         if (!value) return ['#ffffff', 1];
         if (value.startsWith('hsl')) {
-             return ['#ffffff', 1]; // Default for HSL variables
+             const parts = value.match(/(\d+(\.\d+)?)/g);
+             if (parts) {
+                // This is a simplified conversion and might not be perfect for all HSL strings
+                return ['#000000', 1];
+             }
+             return ['#000000', 1];
         }
         if (value.startsWith('rgba')) {
             const parts = value.replace('rgba(', '').replace(')', '').split(',');
@@ -79,7 +83,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                 return [hex, parseFloat(parts[3])];
             }
         }
-        return ['#ffffff', 1];
+         if (value.startsWith('#')) {
+            return [value, 1]
+        }
+        return [value, 1]; // Fallback for hex or other color names
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,17 +98,10 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     };
 
     const handleOpacityChange = (newOpacity: number[]) => {
-        if (value && value.startsWith('rgba')) {
-            const parts = value.split(',');
-            parts[3] = ` ${newOpacity[0]})`;
-            onChange(parts.join(','));
-        } else {
-            // Convert from initial non-rgba value
-             const r = parseInt(color.slice(1, 3), 16);
-             const g = parseInt(color.slice(3, 5), 16);
-             const b = parseInt(color.slice(5, 7), 16);
-            onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
-        }
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
     };
 
     return (
@@ -136,7 +136,6 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
         </div>
     );
 };
-
 const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | 'Bottom', styles: any, handleStyleChange: (prop: string, value: any) => void }) => {
     return (
         <div className="space-y-3">
@@ -156,6 +155,34 @@ const BorderInputGroup = ({ side, styles, handleStyleChange }: { side: 'Top' | '
 };
 
 
+const getInitialStyles = (id: string) => {
+    const fallbackStyles: any = {
+        marginTop: 0, 
+        marginBottom: 0, 
+        paddingTop: 64, 
+        paddingBottom: 64, 
+        paddingLeft: 16, 
+        paddingRight: 16,
+        borderTopWidth: 0, 
+        borderBottomWidth: 0, 
+        borderTopColor: 'hsl(var(--border))', 
+        borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'transparent',
+        useGradient: false, 
+        gradientStart: 'rgba(221, 131, 83, 0.1)', 
+        gradientEnd: 'rgba(190, 128, 96, 0.1)'
+    };
+    
+    if (id === 'top-title') {
+        fallbackStyles.useGradient = true;
+        fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
+        fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
+        fallbackStyles.bgColor = 'transparent';
+    }
+
+    return fallbackStyles;
+}
+
 export default function EditSectionPage() {
     const params = useParams();
     const router = useRouter();
@@ -172,34 +199,6 @@ export default function EditSectionPage() {
     }, [firestore, sectionId]);
     
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
-
-    const getInitialStyles = (id: string) => {
-        const fallbackStyles = {
-            marginTop: 0, 
-            marginBottom: 0, 
-            paddingTop: 64, 
-            paddingBottom: 64, 
-            paddingLeft: 16, 
-            paddingRight: 16,
-            borderTopWidth: 0, 
-            borderBottomWidth: 0, 
-            borderTopColor: 'hsl(var(--border))', 
-            borderBottomColor: 'hsl(var(--border))',
-            bgColor: 'rgba(255, 255, 255, 0)', // Default transparent
-            useGradient: false, 
-            gradientStart: 'rgba(221, 131, 83, 0.1)', 
-            gradientEnd: 'rgba(190, 128, 96, 0.1)'
-        };
-        
-        if (id === 'top-title') {
-            fallbackStyles.useGradient = true;
-            fallbackStyles.gradientStart = 'rgba(217, 145, 119, 0.1)';
-            fallbackStyles.gradientEnd = 'rgba(190, 80, 64, 0.1)';
-            fallbackStyles.bgColor = 'rgba(255, 255, 255, 0)';
-        }
-
-        return fallbackStyles;
-    }
 
     useEffect(() => {
         const initialStyles = getInitialStyles(sectionId);
