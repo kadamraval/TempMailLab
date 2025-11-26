@@ -27,27 +27,25 @@ export function FaqSection({ removeBorder, content }: FaqSectionProps) {
     }
 
     return (
-        <section id="faq" className="py-16 sm:py-20">
-            <div className="container mx-auto px-4">
-                 {content.title && (
-                    <div className="text-center space-y-4 mb-12">
-                        <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
-                    </div>
-                 )}
-                <div>
-                    <Accordion type="single" collapsible className="w-full space-y-4">
-                        {content.items.map((faq: any, index: number) => (
-                             <AccordionItem key={index} value={`item-${index}`} className={cn("rounded-lg bg-card", removeBorder ? "border-0" : "border")}>
-                                <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
-                                    {faq.question}
-                                </AccordionTrigger>
-                                <AccordionContent className="text-base text-muted-foreground px-6 pb-6 leading-relaxed">
-                                    {faq.answer}
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
-                    </Accordion>
+        <section id="faq">
+             {content.title && (
+                <div className="text-center space-y-4 mb-12">
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
                 </div>
+             )}
+            <div>
+                <Accordion type="single" collapsible className="w-full space-y-4">
+                    {content.items.map((faq: any, index: number) => (
+                         <AccordionItem key={index} value={`item-${index}`} className={cn("rounded-lg bg-card", removeBorder ? "border-0" : "border")}>
+                            <AccordionTrigger className="text-lg text-left font-semibold hover:no-underline px-6">
+                                {faq.question}
+                            </AccordionTrigger>
+                            <AccordionContent className="text-base text-muted-foreground px-6 pb-6 leading-relaxed">
+                                {faq.answer}
+                            </AccordionContent>
+                        </AccordionItem>
+                    ))}
+                </Accordion>
             </div>
         </section>
     );

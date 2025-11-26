@@ -30,7 +30,6 @@ export function BlogSection({ removeBorder, content }: BlogSectionProps) {
   
   return (
     <section id="blog">
-      <div className="container mx-auto px-4">
         {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
@@ -65,7 +64,6 @@ export function BlogSection({ removeBorder, content }: BlogSectionProps) {
             </Card>
           ))}
         </div>
-      </div>
     </section>
   )
 }

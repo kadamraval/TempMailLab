@@ -33,7 +33,6 @@ export function Testimonials({ content }: TestimonialsProps) {
 
   return (
     <section id="testimonials">
-      <div className="container mx-auto px-4">
         {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
@@ -71,7 +70,6 @@ export function Testimonials({ content }: TestimonialsProps) {
             ))}
           </CarouselContent>
         </Carousel>
-      </div>
     </section>
   )
 }

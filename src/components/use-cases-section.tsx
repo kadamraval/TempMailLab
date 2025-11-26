@@ -25,7 +25,6 @@ export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps)
 
   return (
     <section id="use-cases">
-      <div className="container mx-auto px-4">
         {content.title && (
             <div className="text-center space-y-4 mb-12">
                 <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">
@@ -49,7 +48,6 @@ export function UseCasesSection({ removeBorder, content }: UseCasesSectionProps)
             )
           })}
         </div>
-      </div>
     </section>
   )
 }
