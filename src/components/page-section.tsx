@@ -90,6 +90,8 @@ const getFallbackSectionStyles = (sectionId: string) => {
 
     if (sectionId === 'top-title') {
       baseStyles.useGradient = true;
+      baseStyles.paddingTop = 80;
+      baseStyles.paddingBottom = 80;
     }
     
     return baseStyles;
@@ -106,7 +108,7 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (source[key] !== undefined && source[key] !== null) {
+      if (source[key] !== undefined) { // Check for undefined, but allow null to be merged
           if (isObject(source[key])) {
             if (!target[key]) Object.assign(target, { [key]: {} });
             mergeDeep(target[key], source[key]);
@@ -176,15 +178,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const defaultContentData = getDefaultContent(pageId, sectionId);
   const finalContent = content || defaultContentData;
 
-  // Render a loader for key interactive/hero sections, otherwise render nothing to prevent layout shift.
-  if (isLoading && (sectionId === 'inbox' || sectionId === 'top-title')) {
-    return (
-      <div style={{ paddingTop: '64px', paddingBottom: '64px' }} className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   // If data is still loading for other sections, or if there's no content to render, return null.
   if ((isLoading && !finalContent) || !finalContent) {
      return null;
@@ -205,8 +198,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   const containerStyle: React.CSSProperties = {
       paddingTop: `${finalStyles.paddingTop || 0}px`,
       paddingBottom: `${finalStyles.paddingBottom || 0}px`,
-      paddingLeft: `${finalStyles.paddingLeft || 0}px`,
-      paddingRight: `${finalStyles.paddingRight || 0}px`,
   }
   
   const componentProps: any = {

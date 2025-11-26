@@ -23,8 +23,8 @@ export function TopTitleSection({ content }: TopTitleSectionProps) {
   const BadgeIcon = content.badge?.icon ? (LucideIcons as any)[content.badge.icon] : null;
 
   return (
-    <section id="top-title" className="py-16 sm:py-20">
-      <div className="relative w-full max-w-4xl mx-auto text-center px-4">
+    <section id="top-title">
+      <div className="relative w-full max-w-4xl mx-auto text-center">
           {content.badge?.show && (
             <Badge variant="outline" className="mb-4 text-sm">
                 {BadgeIcon && <BadgeIcon className="mr-2 h-4 w-4" />}
