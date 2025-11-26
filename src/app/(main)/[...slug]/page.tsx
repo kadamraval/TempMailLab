@@ -1,53 +1,58 @@
 
 "use client";
 
-import { usePathname, notFound } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { PageSection } from "@/components/page-section";
 import { Loader2 } from "lucide-react";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, orderBy } from 'firebase/firestore';
 
-// This layout now also handles the 'features' page to ensure consistency
-const pageSectionConfig: { [key: string]: string[] } = {
-  'features-page': ["top-title", "features", "exclusive-features", "comparison", "faq", "newsletter"],
-  'faq-page': ['faq'],
-};
-
-// All pages handled by this dynamic route will have this layout wrapper.
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="py-16 sm:py-20">{children}</div>
-);
 
 export default function GenericPage() {
     const pathname = usePathname();
-    // Derive pageId from the slug, e.g., /features -> features-page
-    let pageId = pathname.substring(1)
-    if (!pageId.endsWith('-page')) {
-      pageId += '-page';
-    }
+    const firestore = useFirestore();
+    let pageId = pathname.substring(1);
 
-    const sectionsToRender = pageSectionConfig[pageId];
+    if (pageId.endsWith('/')) pageId = pageId.slice(0, -1);
+    if (!pageId.endsWith('-page')) pageId += '-page';
 
-    // If there's no specific section config, it might be a simple content page.
-    if (!sectionsToRender) {
-       return (
-        <PageWrapper>
-          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-400px)] text-center">
-            <PageSection pageId={pageId} sectionId="top-title" order={0} />
-            <p className="mt-8 text-muted-foreground">Content for this page is coming soon.</p>
-          </div>
-        </PageWrapper>
+    const sectionsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, `pages/${pageId}/sections`), orderBy("order"));
+    }, [firestore, pageId]);
+    
+    const { data: sectionsConfig, isLoading: isLoadingSections } = useCollection(sectionsQuery);
+
+    if (isLoadingSections) {
+      return (
+        <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
       );
+    }
+    
+    if (!sectionsConfig || sectionsConfig.length === 0) {
+        return (
+            <div className="container mx-auto py-20 text-center">
+                <h1 className="text-4xl font-bold">Page Not Found</h1>
+                <p className="text-muted-foreground mt-4">The page you're looking for doesn't exist or hasn't been configured yet.</p>
+            </div>
+        )
     }
 
     return (
-        <PageWrapper>
-            {sectionsToRender.map((sectionId, index) => (
+        <>
+            {(sectionsConfig || []).map((section) => (
                 <PageSection
-                    key={sectionId}
+                    key={section.id}
                     pageId={pageId}
-                    sectionId={sectionId}
-                    order={index}
+                    sectionId={section.id}
+                    order={section.order}
+                    isHidden={section.hidden}
                 />
             ))}
-        </PageWrapper>
+        </>
     );
 }
+
+    

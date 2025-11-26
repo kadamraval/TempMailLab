@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
 
 /**
  * Saves or updates content for a specific section on a specific page.
@@ -19,7 +19,6 @@ export async function saveContentAction(fullPath: string, data: any) {
         const firestore = getAdminFirestore();
         const contentRef = firestore.doc(fullPath);
         
-        // Ensure 'createdAt' is set only on document creation
         const docSnap = await contentRef.get();
         if (!docSnap.exists) {
             data.createdAt = FieldValue.serverTimestamp();
@@ -28,7 +27,6 @@ export async function saveContentAction(fullPath: string, data: any) {
         
         await contentRef.set(data, { merge: true });
 
-        // Revalidate the entire site layout to reflect content changes
         revalidatePath('/', 'layout');
 
         return { success: true };
@@ -55,7 +53,6 @@ export async function saveStyleOverrideAction(fullPath: string, styles: any) {
         
         await styleRef.set(styles, { merge: true });
         
-        // Revalidate the entire site layout to reflect style changes
         revalidatePath('/', 'layout');
 
         return { success: true };
@@ -64,3 +61,47 @@ export async function saveStyleOverrideAction(fullPath: string, styles: any) {
         return { success: false, error: error.message || 'Failed to save style override.' };
     }
 }
+
+
+/**
+ * Updates the order or existence of sections on a page.
+ * @param pageId The ID of the page being edited.
+ * @param sections An array of section objects, which could include new sections to add.
+ */
+export async function savePageSectionsAction(pageId: string, sections: { id: string, name?: string, order: number, hidden?: boolean }[]) {
+    if (!pageId || !sections) {
+        return { success: false, error: 'Page ID and sections data are required.' };
+    }
+    
+    try {
+        const firestore = getAdminFirestore();
+        const batch: WriteBatch = firestore.batch();
+        const pageSectionsCollection = firestore.collection(`pages/${pageId}/sections`);
+        
+        sections.forEach(section => {
+            const sectionRef = pageSectionsCollection.doc(section.id);
+            const dataToSet: any = {
+                id: section.id,
+                name: section.name,
+                order: section.order,
+            };
+            // Only set 'hidden' if it's explicitly provided, otherwise leave it untouched
+            if (section.hidden !== undefined) {
+                dataToSet.hidden = section.hidden;
+            }
+
+            batch.set(sectionRef, dataToSet, { merge: true });
+        });
+
+        await batch.commit();
+
+        revalidatePath('/', 'layout');
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('Error saving page sections to Firestore:', error);
+        return { success: false, error: error.message || 'Failed to save page sections.' };
+    }
+}
+
+    

@@ -28,19 +28,10 @@ import { TopTitleSection } from './top-title-section';
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
 
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
-  inbox: DashboardClient,
-  why: UseCasesSection,
-  features: FeaturesSection,
-  'exclusive-features': ExclusiveFeatures,
-  comparison: ComparisonSection,
-  pricing: PricingSection,
-  'pricing-comparison': PricingComparisonTable,
-  blog: BlogSection,
-  testimonials: Testimonials,
-  faq: FaqSection,
-  newsletter: StayConnected,
-  'contact-form': ContactPage,
-  'top-title': TopTitleSection,
+  inbox: DashboardClient, why: UseCasesSection, features: FeaturesSection,
+  'exclusive-features': ExclusiveFeatures, comparison: ComparisonSection, pricing: PricingSection,
+  'pricing-comparison': PricingComparisonTable, blog: BlogSection, testimonials: Testimonials,
+  faq: FaqSection, newsletter: StayConnected, 'contact-form': ContactPage, 'top-title': TopTitleSection,
 };
 
 const getDefaultContent = (pageId: string, sectionId: string) => {
@@ -64,155 +55,92 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
                 : `Everything you need to know about our ${pageName}.`;
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
-        case 'inbox': return {}; // Inbox has no text content
+        case 'inbox': return {};
         default: return null;
     }
 }
 
-// Sensible, complete default styles for any section
 const getFallbackSectionStyles = (sectionId: string) => {
     const baseStyles: any = {
-        marginTop: 0, 
-        marginBottom: 0, 
-        paddingTop: 64, 
-        paddingBottom: 64, 
-        paddingLeft: 16, 
-        paddingRight: 16,
-        borderTopWidth: 0, 
-        borderBottomWidth: 0, 
-        borderTopColor: 'hsl(var(--border))', 
-        borderBottomColor: 'hsl(var(--border))',
-        bgColor: 'transparent',
-        useGradient: false, 
-        gradientStart: 'hsl(var(--gradient-start))', 
-        gradientEnd: 'hsl(var(--gradient-end))'
+        marginTop: 0, marginBottom: 0, paddingTop: 64, paddingBottom: 64, paddingLeft: 16, paddingRight: 16,
+        borderTopWidth: 0, borderBottomWidth: 0, borderTopColor: 'hsl(var(--border))', borderBottomColor: 'hsl(var(--border))',
+        bgColor: 'transparent', useGradient: false, gradientStart: 'hsl(var(--gradient-start))', gradientEnd: 'hsl(var(--gradient-end))'
     };
-
-    if (sectionId === 'top-title') {
-      baseStyles.useGradient = true;
-      baseStyles.paddingTop = 80;
-      baseStyles.paddingBottom = 80;
-    }
-    
+    if (sectionId === 'top-title') { baseStyles.useGradient = true; baseStyles.paddingTop = 80; baseStyles.paddingBottom = 80; }
     return baseStyles;
 };
 
-const isObject = (item: any): item is object => {
-    return item && typeof item === 'object' && !Array.isArray(item);
-};
+const isObject = (item: any): item is object => item && typeof item === 'object' && !Array.isArray(item);
 
 const mergeDeep = (target: any, ...sources: any[]): any => {
-    if (!sources.length) {
-        return target;
-    }
+    if (!sources.length) return target;
     const source = sources.shift();
 
     if (isObject(target) && isObject(source)) {
         for (const key in source) {
-            // Check if the source property is a non-null object
             if (isObject(source[key]) && source[key] !== null) {
-                // If the target doesn't have this key, or it's not an object, initialize it
-                if (!target[key] || !isObject(target[key])) {
-                    target[key] = {};
-                }
-                // Recurse
+                if (!target[key] || !isObject(target[key])) target[key] = {};
                 mergeDeep(target[key], source[key]);
             } else if (source[key] !== undefined) {
-                // For non-object properties, assign if not undefined
                 target[key] = source[key];
             }
         }
     }
-
     return mergeDeep(target, ...sources);
 };
 
-
-export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sectionId: string, order: number }) => {
+export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: string, sectionId: string, order: number, isHidden?: boolean }) => {
   const firestore = useFirestore();
 
-  // --- DATA FETCHING ---
-  const contentRef = useMemoFirebase(() => {
-    if (!firestore || !pageId || !sectionId) return null;
-    return doc(firestore, 'pages', pageId, 'sections', sectionId);
-  }, [firestore, pageId, sectionId]);
-
-  const defaultStyleRef = useMemoFirebase(() => {
-    if (!firestore || !sectionId) return null;
-    return doc(firestore, 'sections', sectionId);
-  }, [firestore, sectionId]);
-
-  const styleOverrideRef = useMemoFirebase(() => {
-    if (!firestore || !pageId || !sectionId) return null;
-    return doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`);
-  }, [firestore, pageId, sectionId]);
+  const contentRef = useMemoFirebase(() => doc(firestore, 'pages', pageId, 'sections', sectionId), [firestore, pageId, sectionId]);
+  const defaultStyleRef = useMemoFirebase(() => doc(firestore, 'sections', sectionId), [firestore, sectionId]);
+  const styleOverrideRef = useMemoFirebase(() => doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`), [firestore, pageId, sectionId]);
 
   const { data: content, isLoading: isLoadingContent, error: contentError } = useDoc(contentRef);
   const { data: defaultStyle, isLoading: isLoadingDefaultStyle, error: defaultStyleError } = useDoc(defaultStyleRef);
   const { data: styleOverride, isLoading: isLoadingStyleOverride } = useDoc(styleOverrideRef);
   
-  const plansQuery = useMemoFirebase(() => {
-    if (!firestore || !['pricing', 'pricing-comparison'].includes(sectionId)) return null;
-    return query(collection(firestore, "plans"), where("status", "==", "active"));
-  }, [firestore, sectionId]);
-  
+  const plansQuery = useMemoFirebase(() => !['pricing', 'pricing-comparison'].includes(sectionId) ? null : query(collection(firestore, "plans"), where("status", "==", "active")), [firestore, sectionId]);
   const { data: plans } = useCollection<Plan>(plansQuery);
 
-  // Self-seeding for content
   React.useEffect(() => {
     if (!isLoadingContent && !content && !contentError && contentRef) {
       const defaultContent = getDefaultContent(pageId, sectionId);
-      if (defaultContent) {
-        setDoc(contentRef, { ...defaultContent, order: order, id: sectionId }).catch(console.error);
-      }
+      if (defaultContent) setDoc(contentRef, { ...defaultContent, order: order, id: sectionId, hidden: false }).catch(console.error);
     }
   }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
   
-  // SELF-SEEDING FOR STYLES
   React.useEffect(() => {
-      if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
-          setDoc(defaultStyleRef, getFallbackSectionStyles(sectionId)).catch(console.error);
-      }
+    if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
+        setDoc(defaultStyleRef, getFallbackSectionStyles(sectionId)).catch(console.error);
+    }
   }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef, sectionId]);
 
+  if (content?.hidden || isHidden) return null;
 
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
 
-  const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
-  
-  const defaultContentData = getDefaultContent(pageId, sectionId);
-  const finalContent = content || defaultContentData;
-
-  if (!finalContent) {
-     if(isLoading) return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-     return null;
+  if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
+    return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  const fallbackStyles = getFallbackSectionStyles(sectionId);
-  const finalStyles = mergeDeep({}, fallbackStyles, defaultStyle, styleOverride);
+  const finalContent = content || getDefaultContent(pageId, sectionId);
+  if (!finalContent) return null;
+  
+  const finalStyles = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);
 
   const wrapperStyle: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
     backgroundImage: finalStyles.useGradient ? `linear-gradient(to bottom, ${finalStyles.gradientStart}, ${finalStyles.gradientEnd})` : 'none',
-    marginTop: `${finalStyles.marginTop || 0}px`,
-    marginBottom: `${finalStyles.marginBottom || 0}px`,
+    marginTop: `${finalStyles.marginTop || 0}px`, marginBottom: `${finalStyles.marginBottom || 0}px`,
     borderTop: `${finalStyles.borderTopWidth || 0}px solid ${finalStyles.borderTopColor || 'transparent'}`,
     borderBottom: `${finalStyles.borderBottomWidth || 0}px solid ${finalStyles.borderBottomColor || 'transparent'}`,
   };
-
-  const containerStyle: React.CSSProperties = {
-      paddingTop: `${finalStyles.paddingTop || 0}px`,
-      paddingBottom: `${finalStyles.paddingBottom || 0}px`,
-  }
+  const containerStyle: React.CSSProperties = { paddingTop: `${finalStyles.paddingTop || 0}px`, paddingBottom: `${finalStyles.paddingBottom || 0}px` };
   
-  const componentProps: any = {
-    content: finalContent,
-  };
-  
-  if (['pricing', 'pricing-comparison'].includes(sectionId)) {
-    componentProps.plans = plans;
-  }
+  const componentProps: any = { content: finalContent };
+  if (['pricing', 'pricing-comparison'].includes(sectionId)) componentProps.plans = plans;
 
   return (
     <div id={sectionId} style={wrapperStyle}>
@@ -222,7 +150,5 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
-
-    
 
     
