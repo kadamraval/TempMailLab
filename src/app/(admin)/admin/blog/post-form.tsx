@@ -30,11 +30,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { type BlogPost, blogPostSchema } from './types';
 import { savePostAction } from '@/lib/actions/blog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Category } from '../categories/types';
+import { Badge } from '@/components/ui/badge';
 
 
 const formSchema = blogPostSchema.omit({ 
@@ -55,6 +56,7 @@ export function PostForm({ post }: PostFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tagInput, setTagInput] = useState('');
 
   const categoriesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -96,6 +98,23 @@ export function PostForm({ post }: PostFormProps) {
       .replace(/\s+/g, '-');
     form.setValue('title', title);
     form.setValue('slug', slug);
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && tagInput.trim() !== '') {
+        e.preventDefault();
+        const newTag = tagInput.trim();
+        const currentTags = form.getValues('tags') || [];
+        if (!currentTags.includes(newTag)) {
+            form.setValue('tags', [...currentTags, newTag]);
+        }
+        setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    const currentTags = form.getValues('tags') || [];
+    form.setValue('tags', currentTags.filter(tag => tag !== tagToRemove));
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -284,6 +303,42 @@ export function PostForm({ post }: PostFormProps) {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="featuredImage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Featured Image URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://example.com/image.jpg" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <div>
+                        <FormLabel>Tags</FormLabel>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(form.getValues('tags') || []).map(tag => (
+                                <Badge key={tag} variant="secondary">
+                                    {tag}
+                                    <button type="button" onClick={() => removeTag(tag)} className="ml-2 rounded-full hover:bg-muted-foreground/20">
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </Badge>
+                            ))}
+                        </div>
+                        <Input
+                            placeholder="Add tags..."
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onKeyDown={handleTagKeyDown}
+                            className="mt-2"
+                        />
+                         <FormDescription>
+                            Press Enter to add a tag.
+                        </FormDescription>
+                    </div>
                 </CardContent>
             </Card>
           </div>
