@@ -174,8 +174,10 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   
   const defaultContentData = getDefaultContent(pageId, sectionId);
 
+  const finalContent = content || defaultContentData;
+
   // For sections like 'inbox' that have no default text content, or while data is loading.
-  if (isLoading) {
+  if (isLoading || !finalContent) {
     if (sectionId === 'inbox' || sectionId === 'top-title') {
         // Show a loader for interactive components or initial hero sections
         return (
@@ -188,11 +190,6 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     return null;
   }
   
-  if (!content && !defaultContentData) {
-      return null;
-  }
-
-
   const fallbackStyles = getFallbackSectionStyles(sectionId);
   const finalStyles = mergeDeep({}, fallbackStyles, defaultStyle, styleOverride);
 
@@ -213,7 +210,7 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
   }
   
   const componentProps: any = {
-    content: content || defaultContentData,
+    content: finalContent,
   };
   
   if (['pricing', 'pricing-comparison'].includes(sectionId)) {
@@ -228,3 +225,5 @@ export const PageSection = ({ pageId, sectionId, order }: { pageId: string, sect
     </div>
   );
 };
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -300,3 +301,5 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
     </Dialog>
   );
 }
+
+    
