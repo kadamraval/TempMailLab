@@ -65,9 +65,6 @@ const sectionDetails: { [key: string]: { name: string, defaultContent: any } } =
 };
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    // Helper to check if a string is a valid HSL(A) color string
-    const isHsl = (color: string) => typeof color === 'string' && color.startsWith('hsl');
-
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
@@ -77,24 +74,9 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., hsl(var(--primary)) or rgba(0,0,0,0.5)"
+                    placeholder="e.g., hsl(var(--primary))"
                 />
             </div>
-             {value && !isHsl(value) && (
-                <div className="flex items-center gap-2">
-                    <Label className="text-xs">Opacity</Label>
-                    <Input 
-                        type="range" min="0" max="1" step="0.05"
-                        value={(value || 'rgba(0,0,0,1)').match(/rgba?\(.*,\s*([\d.]+)\)/)?.[1] || '1'}
-                        onChange={(e) => {
-                            const newAlpha = e.target.value;
-                            const oldColor = (value || 'rgba(0,0,0,1)').replace(/rgba?/, '').replace(')', '');
-                            const [r,g,b] = oldColor.split(',');
-                             onChange(`rgba(${r || 0},${g || 0},${b || 0}, ${newAlpha})`);
-                        }}
-                    />
-                </div>
-            )}
         </div>
     );
 };
@@ -152,12 +134,19 @@ export default function EditSectionPage() {
             gradientEnd: 'hsl(var(--accent))'
         };
         
+        if (sectionId === 'top-title') {
+            fallbackStyles.useGradient = true;
+            fallbackStyles.gradientStart = 'hsl(var(--gradient-start))';
+            fallbackStyles.gradientEnd = 'hsl(var(--gradient-end))';
+            fallbackStyles.bgColor = 'transparent';
+        }
+        
         if (savedStyles) {
             setStyles({ ...fallbackStyles, ...savedStyles });
         } else if (!isLoading) {
             setStyles(fallbackStyles);
         }
-    }, [savedStyles, isLoading]);
+    }, [savedStyles, isLoading, sectionId]);
 
     const handleStyleChange = (property: string, value: any) => {
         setStyles((prevStyles: any) => ({ ...prevStyles, [property]: value }));
