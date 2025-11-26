@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -14,17 +13,16 @@ import {
 import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Brush, FileText, EyeOff, Trash2, GripVertical, PlusCircle, Loader2, Eye } from 'lucide-react';
+import { Brush, FileText, Eye, EyeOff, Trash2, GripVertical, PlusCircle, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SectionStyleDialog } from './section-style-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SectionContentDialog } from './section-content-dialog';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, orderBy, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, doc, orderBy, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { savePageSectionsAction } from '@/lib/actions/content';
 import { AddSectionDialog } from './add-section-dialog';
@@ -66,6 +64,7 @@ export default function EditPageLayout() {
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [deletingSection, setDeletingSection] = useState<any | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pageSettings, setPageSettings] = useState<any>({});
   
   const firestore = useFirestore();
   const router = useRouter();
@@ -75,6 +74,8 @@ export default function EditPageLayout() {
     if (!firestore) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
+
+  const { data: savedPageSettings, isLoading: isLoadingPageSettings } = useDoc(pageRef);
   
   const sectionsQuery = useMemoFirebase(() => {
     if (!pageRef) return null;
@@ -82,6 +83,14 @@ export default function EditPageLayout() {
   }, [pageRef]);
 
   const { data: pageSections, isLoading: isLoadingSections } = useCollection(sectionsQuery);
+
+  useEffect(() => {
+    if (savedPageSettings) {
+      setPageSettings(savedPageSettings);
+    } else if (!isLoadingPageSettings) {
+      setPageSettings(currentPageInfo); // Fallback to static data
+    }
+  }, [savedPageSettings, isLoadingPageSettings, currentPageInfo]);
 
   useEffect(() => {
     if (pageSections) {
@@ -102,7 +111,7 @@ export default function EditPageLayout() {
                 { id: "newsletter", name: "Newsletter", order: 6, hidden: false },
             ];
             setLocalSections(homeSections);
-            savePageSectionsAction(pageId, homeSections);
+            handleSaveOrder(homeSections);
         }
     }
   }, [pageSections, isLoadingSections, pageId]);
@@ -141,13 +150,29 @@ export default function EditPageLayout() {
     setIsSaving(false);
   };
 
+  const handleSettingsSave = async () => {
+    if (!pageRef) return;
+    setIsSaving(true);
+    try {
+        await setDoc(pageRef, pageSettings, { merge: true });
+        toast({ title: "Page settings saved!" });
+    } catch (error: any) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+    setIsSaving(false);
+  };
+
+  const handleSettingsChange = (field: string, value: any) => {
+    setPageSettings((prev: any) => ({ ...prev, [field]: value }));
+  };
+
   const toggleSectionVisibility = async (section: any) => {
     if (!firestore) return;
     const newHiddenState = !section.hidden;
     const updatedSections = localSections.map(s => s.id === section.id ? { ...s, hidden: newHiddenState } : s);
     setLocalSections(updatedSections);
     handleSaveOrder(updatedSections);
-    toast({ title: `Section ${newHiddenState ? 'Hidden' : 'Visible'}` });
+    toast({ title: `Section now ${newHiddenState ? 'Hidden' : 'Visible'}` });
   };
 
   const handleDeleteSection = async () => {
@@ -223,7 +248,7 @@ export default function EditPageLayout() {
                             <div className="flex items-center gap-1">
                             <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setEditingStyleSection(section)}><Brush className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Edit Section Styles</p></TooltipContent></Tooltip>
                             <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setEditingContentSection(section)}><FileText className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Edit Content</p></TooltipContent></Tooltip>
-                            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => toggleSectionVisibility(section)}>{section.hidden ? <Eye className="h-4 w-4 text-blue-500" /> : <EyeOff className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>{section.hidden ? 'Show' : 'Hide'} Section</p></TooltipContent></Tooltip>
+                            <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => toggleSectionVisibility(section)}>{section.hidden ? <EyeOff className="h-4 w-4 text-blue-500" /> : <Eye className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>{section.hidden ? 'Show Section' : 'Hide Section'}</p></TooltipContent></Tooltip>
                             <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeletingSection(section)}><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Remove Section</p></TooltipContent></Tooltip>
                             </div>
                         </CardHeader>
@@ -239,11 +264,45 @@ export default function EditPageLayout() {
            <Card>
                 <CardHeader><CardTitle>Page Settings</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="space-y-2"><Label htmlFor="page-name">Page Name</Label><Input id="page-name" defaultValue={currentPageInfo.name} /></div>
-                    <div className="flex items-center justify-between rounded-lg border p-3"><div className="space-y-0.5"><Label>Status</Label><CardDescription>Draft pages are not visible to the public.</CardDescription></div><Switch defaultChecked={true} /></div>
+                    <div className="space-y-2">
+                        <Label htmlFor="page-name">Page Name</Label>
+                        <Input id="page-name" value={pageSettings.name || ''} onChange={(e) => handleSettingsChange('name', e.target.value)} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                            <Label>Status</Label>
+                            <CardDescription>Draft pages are not visible to the public.</CardDescription>
+                        </div>
+                        <Switch checked={pageSettings.status === 'Published'} onCheckedChange={(checked) => handleSettingsChange('status', checked ? 'Published' : 'Draft')} />
+                    </div>
                 </CardContent>
+                <CardFooter>
+                    <Button className="w-full" onClick={handleSettingsSave} disabled={isSaving}>Save Page Settings</Button>
+                </CardFooter>
             </Card>
-            <Card><CardHeader><CardTitle>SEO Settings</CardTitle><CardDescription>Optimize this page for search engines and social media.</CardDescription></CardHeader><CardContent className="space-y-6"><div className="space-y-2"><Label htmlFor="meta-title">Meta Title</Label><Input id="meta-title" placeholder="Enter meta title" /><CardDescription className="text-xs">Recommended: 50-60 characters.</CardDescription></div><div className="space-y-2"><Label htmlFor="meta-description">Meta Description</Label><Textarea id="meta-description" placeholder="Enter meta description" rows={4}/><CardDescription className="text-xs">Recommended: 150-160 characters.</CardDescription></div><div className="space-y-2"><Label htmlFor="meta-keywords">Keywords</Label><Input id="meta-keywords" placeholder="e.g., temp mail, disposable email" /><CardDescription className="text-xs">Comma-separated keywords.</CardDescription></div></CardContent><CardFooter><Button className="w-full">Save SEO Changes</Button></CardFooter></Card>
+            <Card>
+                <CardHeader><CardTitle>SEO Settings</CardTitle><CardDescription>Optimize this page for search engines and social media.</CardDescription></CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="meta-title">Meta Title</Label>
+                        <Input id="meta-title" placeholder="Enter meta title" value={pageSettings.metaTitle || ''} onChange={(e) => handleSettingsChange('metaTitle', e.target.value)} />
+                        <CardDescription className="text-xs">Recommended: 50-60 characters.</CardDescription>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="meta-description">Meta Description</Label>
+                        <Textarea id="meta-description" placeholder="Enter meta description" rows={4} value={pageSettings.metaDescription || ''} onChange={(e) => handleSettingsChange('metaDescription', e.target.value)} />
+                        <CardDescription className="text-xs">Recommended: 150-160 characters.</CardDescription>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="meta-keywords">Keywords</Label>
+                        <Input id="meta-keywords" placeholder="e.g., temp mail, disposable email" value={pageSettings.metaKeywords || ''} onChange={(e) => handleSettingsChange('metaKeywords', e.target.value)} />
+                        <CardDescription className="text-xs">Comma-separated keywords.</CardDescription>
+                    </div>
+                </CardContent>
+                <CardFooter>
+                    <Button className="w-full" onClick={handleSettingsSave} disabled={isSaving}>Save SEO Changes</Button>
+                </CardFooter>
+            </Card>
         </div>
       </div>
     </div>

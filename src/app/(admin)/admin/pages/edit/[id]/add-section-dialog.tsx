@@ -1,19 +1,26 @@
-
 "use client";
 
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import * as LucideIcons from "lucide-react";
+import { cn } from '@/lib/utils';
 
 const allPossibleSections = [
-    { id: "top-title", name: "Top Title" }, { id: "inbox", name: "Inbox" }, { id: "why", name: "Why" },
-    { id: "features", name: "Features" }, { id: "exclusive-features", name: "Exclusive Features" },
-    { id: "comparison", name: "Comparison" }, { id: "pricing", name: "Pricing" },
-    { id: "pricing-comparison", name: "Price Comparison" }, { id: "blog", name: "Blog" },
-    { id: "testimonials", name: "Testimonials" }, { id: "faq", name: "FAQ" },
-    { id: "newsletter", name: "Newsletter" }, { id: "contact-form", name: "Contact Form" },
+    { id: "top-title", name: "Top Title", icon: "AlignHorizontalJustifyStart" }, 
+    { id: "inbox", name: "Inbox", icon: "Inbox" }, 
+    { id: "why", name: "Why Us Section", icon: "HelpCircle" },
+    { id: "features", name: "Features Grid", icon: "LayoutGrid" }, 
+    { id: "exclusive-features", name: "Exclusive Features", icon: "Star" },
+    { id: "comparison", name: "Comparison Table", icon: "Table" }, 
+    { id: "pricing", name: "Pricing Plans", icon: "CreditCard" },
+    { id: "pricing-comparison", name: "Price Comparison", icon: "Columns" }, 
+    { id: "blog", name: "Blog Posts", icon: "Newspaper" },
+    { id: "testimonials", name: "Testimonials", icon: "MessageSquare" }, 
+    { id: "faq", name: "FAQ", icon: "MessageCircleQuestion" },
+    { id: "newsletter", name: "Newsletter", icon: "Mail" }, 
+    { id: "contact-form", name: "Contact Form", icon: "Send" },
 ];
 
 interface AddSectionDialogProps {
@@ -51,20 +58,26 @@ export function AddSectionDialog({ isOpen, onClose, existingSectionIds, onAddSec
         <ScrollArea className="max-h-96">
           <div className="space-y-2 p-4">
             {availableSections.length > 0 ? (
-              availableSections.map(section => (
-                <div key={section.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`add-${section.id}`}
-                    checked={selectedSections.includes(section.id)}
-                    onCheckedChange={() => handleToggleSection(section.id)}
-                  />
-                  <label htmlFor={`add-${section.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    {section.name}
-                  </label>
-                </div>
-              ))
+              availableSections.map(section => {
+                  const Icon = (LucideIcons as any)[section.icon] || LucideIcons.HelpCircle;
+                  const isSelected = selectedSections.includes(section.id);
+                  return (
+                    <div 
+                        key={section.id} 
+                        onClick={() => handleToggleSection(section.id)}
+                        className={cn("flex items-center gap-4 p-3 rounded-lg border cursor-pointer transition-colors", 
+                            isSelected ? "bg-muted border-primary" : "hover:bg-muted/50"
+                        )}
+                    >
+                      <Icon className="h-6 w-6 text-muted-foreground" />
+                      <span className="text-sm font-medium leading-none">
+                        {section.name}
+                      </span>
+                    </div>
+                  )
+              })
             ) : (
-              <p className="text-muted-foreground text-center">All available sections have been added to this page.</p>
+              <p className="text-muted-foreground text-center py-8">All available sections have been added to this page.</p>
             )}
           </div>
         </ScrollArea>

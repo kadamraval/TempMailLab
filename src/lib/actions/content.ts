@@ -82,7 +82,7 @@ export async function savePageSectionsAction(pageId: string, sections: { id: str
             const sectionRef = pageSectionsCollection.doc(section.id);
             const dataToSet: any = {
                 id: section.id,
-                name: section.name,
+                name: section.name || section.id, // Fallback to id if name is missing
                 order: section.order,
             };
             // Only set 'hidden' if it's explicitly provided, otherwise leave it untouched
@@ -103,5 +103,3 @@ export async function savePageSectionsAction(pageId: string, sections: { id: str
         return { success: false, error: error.message || 'Failed to save page sections.' };
     }
 }
-
-    
