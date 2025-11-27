@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,8 +37,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { Category } from '../categories/types';
 import { Badge } from '@/components/ui/badge';
 import 'react-quill/dist/quill.snow.css';
+import dynamic from 'next/dynamic';
 
-const ReactQuill = lazy(() => import('react-quill'));
+const ReactQuill = dynamic(() => import('react-quill'), { 
+    ssr: false,
+    loading: () => <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
+});
 
 const formSchema = blogPostSchema.omit({ 
     id: true, 
@@ -194,7 +198,6 @@ export function PostForm({ post }: PostFormProps) {
                     <FormItem>
                       <FormLabel>Content</FormLabel>
                       <FormControl>
-                        <Suspense fallback={<div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>}>
                           <ReactQuill 
                             theme="snow" 
                             value={field.value} 
@@ -203,7 +206,6 @@ export function PostForm({ post }: PostFormProps) {
                             className="bg-background"
                             style={{ height: '400px', marginBottom: '4rem' }}
                           />
-                        </Suspense>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
