@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,7 +36,9 @@ import { savePostAction } from '@/lib/actions/blog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Category } from '../categories/types';
 import { Badge } from '@/components/ui/badge';
+import 'react-quill/dist/quill.snow.css';
 
+const ReactQuill = lazy(() => import('react-quill'));
 
 const formSchema = blogPostSchema.omit({ 
     id: true, 
@@ -145,6 +147,16 @@ export function PostForm({ post }: PostFormProps) {
     }
   }
 
+  const quillModules = useMemo(() => ({
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+      [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
+      ['link'],
+      ['clean']
+    ],
+  }), []);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -182,15 +194,17 @@ export function PostForm({ post }: PostFormProps) {
                     <FormItem>
                       <FormLabel>Content</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Write your blog post content here..."
-                          rows={15}
-                          {...field}
-                        />
+                        <Suspense fallback={<div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>}>
+                          <ReactQuill 
+                            theme="snow" 
+                            value={field.value} 
+                            onChange={field.onChange}
+                            modules={quillModules}
+                            className="bg-background"
+                            style={{ height: '400px', marginBottom: '4rem' }}
+                          />
+                        </Suspense>
                       </FormControl>
-                       <FormDescription>
-                        You can use Markdown for formatting.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

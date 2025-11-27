@@ -122,22 +122,30 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
     }
   }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef, sectionId]);
 
+  const [areStylesReady, setAreStylesReady] = React.useState(false);
+  const [finalStyles, setFinalStyles] = React.useState(() => getFallbackSectionStyles(sectionId));
+
+  React.useEffect(() => {
+      if (!isLoadingDefaultStyle && !isLoadingStyleOverride) {
+          const merged = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);
+          setFinalStyles(merged);
+          setAreStylesReady(true);
+      }
+  }, [isLoadingDefaultStyle, isLoadingStyleOverride, defaultStyle, styleOverride, sectionId]);
+
   if (content?.hidden || isHidden) return null;
 
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
 
-  if (isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride) {
-    // Return null for inbox while loading to avoid flash of loader on a component that has its own loader
-    if (sectionId === 'inbox') return null;
-    return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (isLoadingContent || !areStylesReady) {
+      if (sectionId === 'inbox') return null;
+      return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
   const finalContent = content || getDefaultContent(pageId, sectionId);
   if (!finalContent) return null;
   
-  const finalStyles = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);
-
   const wrapperStyle: React.CSSProperties = {
     backgroundColor: finalStyles.bgColor || 'transparent',
     backgroundImage: finalStyles.useGradient ? `linear-gradient(to bottom, ${finalStyles.gradientStart}, ${finalStyles.gradientEnd})` : 'none',

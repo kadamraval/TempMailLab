@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Card, CardContent } from '@/components/ui/card';
+import { createSampleBlogPostsAction } from '@/lib/actions/blog';
 
 export default function AdminBlogPage() {
     const firestore = useFirestore();
@@ -34,6 +35,20 @@ export default function AdminBlogPage() {
     }, [firestore]);
 
     const { data: posts, isLoading } = useCollection<BlogPost>(postsQuery);
+    
+    // Effect to create sample posts on initial load if none exist
+    useEffect(() => {
+        if (!isLoading && posts && posts.length === 0) {
+            createSampleBlogPostsAction().then(result => {
+                if (result.success) {
+                    toast({ title: 'Sample Posts Created', description: 'Three sample blog posts have been added for you.' });
+                } else if (result.error) {
+                    console.error(result.error);
+                }
+            });
+        }
+    }, [isLoading, posts, toast]);
+
 
     const handleAdd = useCallback(() => {
         router.push('/admin/blog/add');
