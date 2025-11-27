@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, doc, deleteDoc, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { DataTable } from '@/components/admin/data-table';
@@ -24,6 +24,7 @@ import { createSampleBlogPostsAction } from '@/lib/actions/blog';
 
 export default function AdminBlogPage() {
     const firestore = useFirestore();
+    const { userProfile } = useUser();
     const router = useRouter();
     const { toast } = useToast();
 
@@ -31,14 +32,19 @@ export default function AdminBlogPage() {
 
     const postsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
-        return collection(firestore, 'posts');
-    }, [firestore]);
+        if (userProfile?.isAdmin) {
+            return collection(firestore, 'posts');
+        } else {
+            // For non-admins, only show published posts (though they shouldn't be on this page)
+            return query(collection(firestore, 'posts'), where('status', '==', 'published'));
+        }
+    }, [firestore, userProfile?.isAdmin]);
 
     const { data: posts, isLoading } = useCollection<BlogPost>(postsQuery);
     
     // Effect to create sample posts on initial load if none exist
     useEffect(() => {
-        if (!isLoading && posts && posts.length === 0) {
+        if (!isLoading && posts && posts.length === 0 && userProfile?.isAdmin) {
             createSampleBlogPostsAction().then(result => {
                 if (result.success) {
                     toast({ title: 'Sample Posts Created', description: 'Three sample blog posts have been added for you.' });
@@ -47,7 +53,7 @@ export default function AdminBlogPage() {
                 }
             });
         }
-    }, [isLoading, posts, toast]);
+    }, [isLoading, posts, toast, userProfile?.isAdmin]);
 
 
     const handleAdd = useCallback(() => {
