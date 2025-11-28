@@ -54,7 +54,7 @@ export default function BlogPage() {
                   <p className="text-muted-foreground line-clamp-3">{post.excerpt}</p>
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
-                   <span className="text-sm text-muted-foreground">{post.publishedAt?.toDate().toLocaleDateString()}</span>
+                   <span className="text-sm text-muted-foreground">{post.publishedAt ? post.publishedAt.toDate().toLocaleDateString() : 'N/A'}</span>
                   <Button asChild variant="ghost" size="sm">
                     <Link href={`/blog/${post.slug}`}>
                       Read More <ArrowRight className="ml-2 h-4 w-4" />
@@ -65,9 +65,11 @@ export default function BlogPage() {
             ))}
           </div>
         )}
-        <div className="text-center my-12">
-          <Button variant="outline">Load More Posts</Button>
-        </div>
+        {posts && posts.length > 0 && (
+          <div className="text-center my-12">
+            <Button variant="outline">Load More Posts</Button>
+          </div>
+        )}
       </div>
 
       <PageSection pageId="blog-page" sectionId="faq" order={2} />
