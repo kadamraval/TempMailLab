@@ -2,7 +2,7 @@
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { type BlogPost } from '@/app/(admin)/admin/blog/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +54,12 @@ export default function BlogPage() {
                   <p className="text-muted-foreground line-clamp-3">{post.excerpt}</p>
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
-                   <span className="text-sm text-muted-foreground">{post.publishedAt ? post.publishedAt.toDate().toLocaleDateString() : 'N/A'}</span>
+                   <span className="text-sm text-muted-foreground">
+                    {post.publishedAt && post.publishedAt instanceof Timestamp 
+                        ? post.publishedAt.toDate().toLocaleDateString() 
+                        : 'N/A'
+                    }
+                   </span>
                   <Button asChild variant="ghost" size="sm">
                     <Link href={`/blog/${post.slug}`}>
                       Read More <ArrowRight className="ml-2 h-4 w-4" />
