@@ -25,15 +25,12 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      // Allow anyone to read a single published post, or any admin to read any post.
-      allow get: if (resource.data.status == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      
-      // Allow listing posts if user is admin OR if the query ONLY filters for published posts.
-      // This is the standard, secure way to allow public listing of a subset of documents.
-      allow list: if (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
-                  || (request.query.limit <= 10 && request.resource == null);
+      // Allow public read for published posts, and admin read for any post.
+      // This single 'read' rule covers both 'get' and 'list' operations.
+      allow read: if resource.data.status == 'published'
+                  || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
 
-      // Only allow admins to create, update, or delete blog posts.
+      // Only admins can create, update, or delete posts.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -62,23 +59,18 @@ service cloud.firestore {
       // Allow any authenticated user (including anonymous) to create an inbox for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Allow a user to read, or delete an inbox if they are the owner.
-      // Updates are now handled by the secure webhook.
+      // Allow a user to read or delete an inbox if they are the owner.
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // Allow updates only from our secure backend (which bypasses these rules),
-      // or allow the user to update specific, safe fields if needed in the future.
-      // For now, we block client-side updates to things like emailCount.
+      // Block client-side updates. These are handled by secure backend functions.
       allow update: if false;
 
-
       // Secure list operation: only allow querying for one's own inboxes.
-      allow list: if request.auth != null && request.query.where[0][0] == "userId" && request.query.where[0][2] == request.auth.uid;
+      allow list: if request.auth != null && request.query.where['userId'] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Disallow all direct client creation. Creation must only happen via the secure webhook.
-        // The server-side logic (webhook/actions), which uses Admin credentials, bypasses these rules.
         allow create: if false;
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
