@@ -29,7 +29,7 @@ service cloud.firestore {
       allow get: if (resource.data.status == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
       
       // Admins can list all posts. Public can ONLY list posts if they filter by status=='published'.
-      allow list: if request.query.get('status') == 'published' || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      allow list: if (request.query.get('status') == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
 
       // Only allow admins to create, update, or delete blog posts.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
