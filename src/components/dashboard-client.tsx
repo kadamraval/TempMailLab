@@ -406,6 +406,19 @@ export function DashboardClient() {
     });
   }
 
+  const parseSender = (sender: string) => {
+    const match = sender.match(/(.*)<(.*)>/);
+    if (match) {
+        return { name: match[1].trim(), email: match[2].trim() };
+    }
+    // If there's no "<>" format, check if it's an email address
+    if (sender.includes('@')) {
+        return { name: sender, email: sender };
+    }
+    // Otherwise, it's just a name
+    return { name: sender, email: '' };
+  };
+
   if (isLoading) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
@@ -527,23 +540,28 @@ export function DashboardClient() {
                         ) : (
                             <ScrollArea className="h-full">
                                 <div className="p-2 space-y-1">
-                                    {displayedEmails.map((email) => (
+                                    {displayedEmails.map((email) => {
+                                        const sender = parseSender(email.senderName);
+                                        return (
                                         <div
-                                        key={email.id}
-                                        onClick={() => handleSelectEmail(email)}
-                                        className={cn(
-                                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
-                                            !email.read && "bg-blue-500/5"
-                                        )}
+                                            key={email.id}
+                                            onClick={() => handleSelectEmail(email)}
+                                            className={cn(
+                                                "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
+                                                !email.read && "bg-blue-500/5"
+                                            )}
                                         >
                                             <div className="flex items-center gap-4">
                                                 <div className="pt-1">
                                                     <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </div>
-                                                <div className="grid grid-cols-12 gap-x-4 flex-grow items-center">
-                                                    <p className={cn("col-span-4 font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                                                    <p className={cn("col-span-5 truncate text-sm", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <span className="col-span-3 text-xs text-muted-foreground text-right">{getReceivedDateTime(email.receivedAt)}</span>
+                                                <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
+                                                    <div className={cn("col-span-4", !email.read && "text-foreground")}>
+                                                        <p className="font-semibold truncate">{sender.name}</p>
+                                                        {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
+                                                    </div>
+                                                    <p className={cn("col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
+                                                    <span className="col-span-3 text-xs text-muted-foreground text-right self-center">{getReceivedDateTime(email.receivedAt)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <TooltipProvider><Tooltip>
@@ -561,7 +579,7 @@ export function DashboardClient() {
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             </ScrollArea>
                         )}
@@ -573,6 +591,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    
