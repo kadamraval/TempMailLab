@@ -218,11 +218,12 @@ export default function EditPageLayout() {
 
   const handleDeleteSection = async () => {
     if (!deletingSection) return;
-    // Optimistically update the UI
+    
     const updatedSections = localSections.filter(s => s.id !== deletingSection.id);
     setLocalSections(updatedSections);
-    // Let the server action handle the actual deletion from the database
+    
     await handleSaveOrder(updatedSections);
+
     toast({ title: "Section Removed", description: `'${deletingSection.name}' has been removed from this page.` });
     setDeletingSection(null);
   };
