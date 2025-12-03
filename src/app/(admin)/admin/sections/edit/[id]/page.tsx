@@ -32,21 +32,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     const [hexColor, opacity] = useMemo(() => {
         if (!value) return ["#000000", 1];
         
-        // If it's a CSS variable, we resolve it dynamically.
-        if (value.startsWith('hsl')) {
-             if (typeof window !== 'undefined' && tempDivRef.current) {
-                tempDivRef.current.style.color = value;
-                const computedColor = window.getComputedStyle(tempDivRef.current).color;
-                const rgb = computedColor.match(/\d+/g);
-                if (rgb) {
-                    const hex = `#${parseInt(rgb[0]).toString(16).padStart(2, '0')}${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}`;
-                    return [hex, 1];
-                }
-            }
-            return ["#000000", 1]; // Fallback while server-rendering or if resolution fails
-        }
-
-        // Handle RGBA
+        // This part now runs on the client-side inside useEffect for HSL vars
         if (value.startsWith('rgba')) {
             const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
             if (parts.length === 4) {
@@ -55,26 +41,39 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
             }
         }
 
-        // Handle Hex
         if (value.startsWith('#')) {
             return [value, 1];
         }
 
-        // Handle keywords like 'transparent'
         if (value === 'transparent') {
             return ['#000000', 0];
         }
-
-        return [value, 1];
+        
+        // Fallback for HSL server-side render
+        return ["#000000", 1];
     }, [value]);
+    
+    // State to hold the client-side resolved color
+    const [resolvedHex, setResolvedHex] = useState(hexColor);
 
     useEffect(() => {
-        // This effect ensures the color is resolved on the client side after mount
         if (value && value.startsWith('hsl')) {
-            // Force a re-render to trigger the useMemo calculation on the client
-            onChange(value);
+             if (typeof window !== 'undefined' && tempDivRef.current) {
+                // Temporarily apply the style to the hidden div
+                tempDivRef.current.style.color = value;
+                // Get the computed color
+                const computedColor = window.getComputedStyle(tempDivRef.current).color;
+                const rgb = computedColor.match(/\d+/g);
+                if (rgb) {
+                    const hex = `#${parseInt(rgb[0]).toString(16).padStart(2, '0')}${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}`;
+                    setResolvedHex(hex);
+                }
+            }
+        } else {
+            setResolvedHex(hexColor);
         }
-    }, [value]);
+    }, [value, hexColor]);
+
 
     const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newHex = e.target.value;
@@ -85,9 +84,9 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
     };
 
     const handleOpacityChange = (newOpacity: number[]) => {
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
+        const r = parseInt(resolvedHex.slice(1, 3), 16);
+        const g = parseInt(resolvedHex.slice(3, 5), 16);
+        const b = parseInt(resolvedHex.slice(5, 7), 16);
         onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
     };
 
@@ -97,7 +96,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
             <div className="flex items-center gap-2">
                 <Input
                     type="color"
-                    value={hexColor}
+                    value={resolvedHex}
                     onChange={handleColorPickerChange}
                     className="w-12 h-10 p-1"
                 />
