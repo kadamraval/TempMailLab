@@ -283,29 +283,21 @@ export function DashboardClient() {
       } else {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
-          where("userId", "==", activeUser.uid)
+          where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
+          limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
 
         if (!userInboxesSnap.empty) {
-          const allInboxes = userInboxesSnap.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          allInboxes.sort(
-            (a, b) =>
-              (b.createdAt as Timestamp).toMillis() -
-              (a.createdAt as Timestamp).toMillis()
-          );
-
-          const latestInboxData = allInboxes[0];
+          const latestInboxData = userInboxesSnap.docs[0].data();
           const expiry =
             latestInboxData.expiresAt instanceof Timestamp
               ? latestInboxData.expiresAt.toDate().toISOString()
               : latestInboxData.expiresAt;
 
           if (new Date(expiry) > new Date()) {
-            foundInbox = { ...latestInboxData, expiresAt: expiry } as InboxType;
+            foundInbox = { id: userInboxesSnap.docs[0].id, ...latestInboxData, expiresAt: expiry } as InboxType;
           }
         }
       }
@@ -498,19 +490,16 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1">
         <CardContent className="p-0 h-full">
-            {displayedEmails.length === 0 && !isLoadingEmails && !isDemoMode ? (
+            {displayedEmails.length === 0 && !isLoadingEmails ? (
                  <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
                     <Inbox className="h-16 w-16 mb-4" />
                     <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
                     <p>New mail will appear here automatically when received.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full min-h-[calc(100vh-400px)]">
-                    {/* Column 1: Inbox List */}
+                <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] h-full min-h-[calc(100vh-400px)]">
+                    {/* Column 1: Inbox List (Compact) */}
                     <div className="hidden md:flex flex-col border-r">
-                        <div className="p-2 border-b">
-                            <h2 className="text-lg font-semibold tracking-tight">Inboxes</h2>
-                        </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
                                 <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
@@ -534,7 +523,7 @@ export function DashboardClient() {
                                 }}
                                 plan={activePlan}
                                 onBack={() => setSelectedEmail(null)}
-                                showBackButton={true} // Always show back button in this layout
+                                showBackButton={true}
                             />
                         ) : (
                             <ScrollArea className="h-full">
@@ -554,10 +543,10 @@ export function DashboardClient() {
                                             </div>
                                             <div className="flex-grow overflow-hidden">
                                                 <div className="flex justify-between items-start">
-                                                    <span className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</span>
+                                                    <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
                                                     <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getReceivedDateTime(email.receivedAt)}</span>
                                                 </div>
-                                                <p className={cn("truncate text-sm", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
+                                                <p className={cn("truncate text-sm", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
                                             </div>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <TooltipProvider><Tooltip>
@@ -587,3 +576,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
+
+    
