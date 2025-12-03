@@ -53,6 +53,53 @@ const allPossibleSections = [
     { id: "newsletter", name: "Newsletter" }, { id: "contact-form", name: "Contact Form" },
 ];
 
+const getDefaultSectionsForPage = (pageId: string) => {
+    switch (pageId) {
+        case 'home':
+            return [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "inbox", name: "Inbox", order: 1, hidden: false },
+                { id: "why", name: "Why", order: 2, hidden: false },
+                { id: "features", name: "Features", order: 3, hidden: false },
+                { id: "blog", name: "Blog", order: 4, hidden: false },
+                { id: "testimonials", name: "Testimonials", order: 5, hidden: false },
+                { id: "faq", name: "FAQ", order: 6, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 7, hidden: false },
+            ];
+        case 'features-page':
+             return [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "features", name: "Features", order: 1, hidden: false },
+                { id: "exclusive-features", name: "Exclusive Features", order: 2, hidden: false },
+                { id: "faq", name: "FAQ", order: 3, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 4, hidden: false },
+            ];
+        case 'pricing-page':
+            return [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "pricing", name: "Pricing", order: 1, hidden: false },
+                { id: "pricing-comparison", name: "Price Comparison", order: 2, hidden: false },
+                { id: "faq", name: "FAQ", order: 3, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 4, hidden: false },
+            ];
+        case 'blog-page':
+             return [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "blog", name: "Blog", order: 1, hidden: false },
+                { id: "faq", name: "FAQ", order: 2, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 3, hidden: false },
+            ];
+        case 'api-page':
+            return [
+                { id: "top-title", name: "Top Title", order: 0, hidden: false },
+                { id: "faq", name: "FAQ", order: 1, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 2, hidden: false },
+            ];
+        default:
+            return [];
+    }
+};
+
 export default function EditPageLayout() {
   const params = useParams();
   const pageId = params.id as string;
@@ -100,19 +147,12 @@ export default function EditPageLayout() {
                 return { ...s, name: sectionDetail?.name || s.id };
             });
             setLocalSections(sectionsWithName);
-        } else if (pageId === 'home') {
-             const homeSections = [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "inbox", name: "Inbox", order: 1, hidden: false },
-                { id: "why", name: "Why", order: 2, hidden: false },
-                { id: "features", name: "Features", order: 3, hidden: false },
-                { id: "blog", name: "Blog", order: 4, hidden: false },
-                { id: "testimonials", name: "Testimonials", order: 5, hidden: false },
-                { id: "faq", name: "FAQ", order: 6, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 7, hidden: false },
-            ];
-            setLocalSections(homeSections);
-            handleSaveOrder(homeSections);
+        } else if (!isLoadingSections) { // Only seed if not loading and sections are confirmed empty
+             const defaultSections = getDefaultSectionsForPage(pageId);
+             if (defaultSections.length > 0) {
+                setLocalSections(defaultSections);
+                handleSaveOrder(defaultSections);
+             }
         }
     }
   }, [pageSections, isLoadingSections, pageId]);
