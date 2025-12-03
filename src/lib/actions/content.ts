@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
+import { updateMenuLabelsAction } from './menus';
 
 /**
  * Creates a new page document in Firestore and adds default sections.
@@ -173,5 +174,37 @@ export async function savePageSectionsAction(pageId: string, sections: { id: str
     } catch (error: any) {
         console.error('Error saving page sections to Firestore:', error);
         return { success: false, error: error.message || 'Failed to save page sections.' };
+    }
+}
+
+
+/**
+ * Saves page settings and updates menu labels if the name changes.
+ */
+export async function savePageSettingsAction(pageId: string, settings: { name: string, [key: string]: any }) {
+    if (!pageId || !settings) {
+        return { success: false, error: 'Page ID and settings are required.' };
+    }
+
+    try {
+        const firestore = getAdminFirestore();
+        const pageRef = firestore.doc(`pages/${pageId}`);
+        const pageSnap = await pageRef.get();
+        const oldSettings = pageSnap.data();
+
+        await pageRef.set(settings, { merge: true });
+        
+        // If the name changed, update all menus
+        if (oldSettings?.name !== settings.name) {
+            await updateMenuLabelsAction(pageId, settings.name);
+        }
+
+        revalidatePath('/admin/pages');
+        revalidatePath(`/${pageId}`);
+        revalidatePath('/', 'layout');
+
+        return { success: true };
+    } catch(e: any) {
+        return { success: false, error: e.message || 'Failed to save settings.' };
     }
 }

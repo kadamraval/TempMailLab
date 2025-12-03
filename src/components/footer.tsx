@@ -8,20 +8,21 @@ import { doc } from "firebase/firestore";
 
 export function Footer() {
     const firestore = useFirestore();
-    const headerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'header') : null, [firestore]);
-    const { data: headerMenuData } = useDoc(headerMenuRef);
+    const topFooterMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer-top') : null, [firestore]);
+    const { data: topFooterMenuData } = useDoc(topFooterMenuRef);
 
-    const footerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer') : null, [firestore]);
-    const { data: footerMenuData } = useDoc(footerMenuRef);
+    const bottomFooterMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer-bottom') : null, [firestore]);
+    const { data: bottomFooterMenuData } = useDoc(bottomFooterMenuRef);
 
     return (
-        <footer className="border-t bg-background/50 backdrop-blur-sm">
+        <footer className="border-t bg-background/50 backdrop-blur-sm z-20">
         <div className="container mx-auto px-4 py-12">
             
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <Link href="/" className="font-bold text-xl">Tempmailoz</Link>
                  <nav className="flex gap-6">
-                    {(headerMenuData?.items || []).map((link: any) => (
-                         <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                    {(topFooterMenuData?.items || []).map((link: any) => (
+                         <Link key={link.href} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             {link.label}
                         </Link>
                     ))}
@@ -35,8 +36,8 @@ export function Footer() {
                      &copy; {new Date().getFullYear()} Tempmailoz. All rights reserved.
                 </p>
                 <div className="flex items-center gap-6">
-                     {(footerMenuData?.items || []).map((link: any) => (
-                         <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                     {(bottomFooterMenuData?.items || []).map((link: any) => (
+                         <Link key={link.href} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             {link.label}
                         </Link>
                     ))}

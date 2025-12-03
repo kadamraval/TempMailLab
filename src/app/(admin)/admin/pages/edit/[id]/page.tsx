@@ -22,9 +22,9 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { SectionContentDialog } from './section-content-dialog';
 import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, doc, orderBy, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, query, doc, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { savePageSectionsAction } from '@/lib/actions/content';
+import { savePageSectionsAction, savePageSettingsAction } from '@/lib/actions/content';
 import { AddSectionDialog } from './add-section-dialog';
 import {
   AlertDialog,
@@ -37,73 +37,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-// This object defines the available pages and their default data/components.
-const pageData: { [key: string]: any } = {
-  home: { name: "Home Page" }, "features-page": { name: "Features" }, "pricing-page": { name: "Pricing" },
-  "blog-page": { name: "Blog" }, "api-page": { name: "API" }, "contact": { name: "Contact Us" },
-  "faq-page": { name: "FAQ" }, "about": { name: "About Us" }, "terms": { name: "Terms of Service" }, "privacy": { name: "Privacy Policy" },
-};
-
-const allPossibleSections = [
-    { id: "top-title", name: "Top Title" }, { id: "inbox", name: "Inbox" }, { id: "why", name: "Why" },
-    { id: "features", name: "Features" }, { id: "exclusive-features", name: "Exclusive Features" },
-    { id: "comparison", name: "Comparison" }, { id: "pricing", name: "Pricing" },
-    { id: "pricing-comparison", name: "Price Comparison" }, { id: "blog", name: "Blog" },
-    { id: "testimonials", name: "Testimonials" }, { id: "faq", name: "FAQ" },
-    { id: "newsletter", name: "Newsletter" }, { id: "contact-form", name: "Contact Form" },
-];
-
-const getDefaultSectionsForPage = (pageId: string) => {
-    switch (pageId) {
-        case 'home':
-            return [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "inbox", name: "Inbox", order: 1, hidden: false },
-                { id: "why", name: "Why", order: 2, hidden: false },
-                { id: "features", name: "Features", order: 3, hidden: false },
-                { id: "blog", name: "Blog", order: 4, hidden: false },
-                { id: "testimonials", name: "Testimonials", order: 5, hidden: false },
-                { id: "faq", name: "FAQ", order: 6, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 7, hidden: false },
-            ];
-        case 'features-page':
-             return [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "features", name: "Features", order: 1, hidden: false },
-                { id: "exclusive-features", name: "Exclusive Features", order: 2, hidden: false },
-                { id: "faq", name: "FAQ", order: 3, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 4, hidden: false },
-            ];
-        case 'pricing-page':
-            return [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "pricing", name: "Pricing", order: 1, hidden: false },
-                { id: "pricing-comparison", name: "Price Comparison", order: 2, hidden: false },
-                { id: "faq", name: "FAQ", order: 3, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 4, hidden: false },
-            ];
-        case 'blog-page':
-             return [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "blog", name: "Blog", order: 1, hidden: false },
-                { id: "faq", name: "FAQ", order: 2, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 3, hidden: false },
-            ];
-        case 'api-page':
-            return [
-                { id: "top-title", name: "Top Title", order: 0, hidden: false },
-                { id: "faq", name: "FAQ", order: 1, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 2, hidden: false },
-            ];
-        default:
-            return [];
-    }
-};
 
 export default function EditPageLayout() {
   const params = useParams();
   const pageId = params.id as string;
-  const currentPageInfo = pageData[pageId];
 
   const [localSections, setLocalSections] = useState<any[]>([]);
   const [editingStyleSection, setEditingStyleSection] = useState<any | null>(null);
@@ -118,11 +55,11 @@ export default function EditPageLayout() {
   const { toast } = useToast();
 
   const pageRef = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !pageId) return null;
     return doc(firestore, 'pages', pageId);
   }, [firestore, pageId]);
 
-  const { data: savedPageSettings, isLoading: isLoadingPageSettings } = useDoc(pageRef);
+  const { data: savedPageSettings, isLoading: isLoadingPageSettings, error: pageError } = useDoc(pageRef);
   
   const sectionsQuery = useMemoFirebase(() => {
     if (!pageRef) return null;
@@ -134,30 +71,16 @@ export default function EditPageLayout() {
   useEffect(() => {
     if (savedPageSettings) {
       setPageSettings(savedPageSettings);
-    } else if (!isLoadingPageSettings) {
-      setPageSettings(currentPageInfo); // Fallback to static data
     }
-  }, [savedPageSettings, isLoadingPageSettings, currentPageInfo]);
+  }, [savedPageSettings]);
 
   useEffect(() => {
     if (pageSections) {
-        if (pageSections.length > 0) {
-            const sectionsWithName = pageSections.map(s => {
-                const sectionDetail = allPossibleSections.find(aps => aps.id === s.id);
-                return { ...s, name: sectionDetail?.name || s.id };
-            });
-            setLocalSections(sectionsWithName);
-        } else if (!isLoadingSections) { // Only seed if not loading and sections are confirmed empty
-             const defaultSections = getDefaultSectionsForPage(pageId);
-             if (defaultSections.length > 0) {
-                setLocalSections(defaultSections);
-                handleSaveOrder(defaultSections);
-             }
-        }
+        setLocalSections(pageSections);
     }
-  }, [pageSections, isLoadingSections, pageId]);
+  }, [pageSections]);
 
-  if (!currentPageInfo) {
+  if (!isLoadingPageSettings && !savedPageSettings) {
     return notFound();
   }
 
@@ -172,17 +95,16 @@ export default function EditPageLayout() {
       newSections.splice(dropIndex, 0, draggedItem);
       const reorderedSections = newSections.map((s, i) => ({ ...s, order: i }));
       setLocalSections(reorderedSections);
-      handleSaveOrder(reorderedSections);
+      handleSaveSections(reorderedSections);
   };
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
   
-  const handleSaveOrder = async (sectionsToSave: any[]) => {
+  const handleSaveSections = async (sectionsToSave: any[]) => {
     setIsSaving(true);
-    const simplifiedSections = sectionsToSave.map(({ id, order, hidden, name }) => ({ id, order, hidden, name: name || id }));
-    const result = await savePageSectionsAction(pageId, simplifiedSections);
+    const result = await savePageSectionsAction(pageId, sectionsToSave);
     if (result.success) {
       toast({ title: "Page updated!", description: "Section changes have been saved." });
     } else {
@@ -192,13 +114,12 @@ export default function EditPageLayout() {
   };
 
   const handleSettingsSave = async () => {
-    if (!pageRef) return;
     setIsSaving(true);
-    try {
-        await setDoc(pageRef, pageSettings, { merge: true });
+    const result = await savePageSettingsAction(pageId, pageSettings);
+    if (result.success) {
         toast({ title: "Page settings saved!" });
-    } catch (error: any) {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
     }
     setIsSaving(false);
   };
@@ -208,21 +129,20 @@ export default function EditPageLayout() {
   };
 
   const toggleSectionVisibility = async (section: any) => {
-    if (!firestore) return;
-    const newHiddenState = !section.hidden;
-    const updatedSections = localSections.map(s => s.id === section.id ? { ...s, hidden: newHiddenState } : s);
+    const updatedSections = localSections.map(s => s.id === section.id ? { ...s, hidden: !s.hidden } : s);
     setLocalSections(updatedSections);
-    handleSaveOrder(updatedSections);
-    toast({ title: `Section now ${newHiddenState ? 'Hidden' : 'Visible'}` });
+    handleSaveSections(updatedSections);
+    toast({ title: `Section now ${!section.hidden ? 'Hidden' : 'Visible'}` });
   };
 
   const handleDeleteSection = async () => {
     if (!deletingSection) return;
     
     const updatedSections = localSections.filter(s => s.id !== deletingSection.id);
-    setLocalSections(updatedSections);
+    const reorderedSections = updatedSections.map((s, i) => ({...s, order: i}));
+    setLocalSections(reorderedSections);
     
-    await handleSaveOrder(updatedSections);
+    await handleSaveSections(reorderedSections);
 
     toast({ title: "Section Removed", description: `'${deletingSection.name}' has been removed from this page.` });
     setDeletingSection(null);
@@ -235,8 +155,9 @@ export default function EditPageLayout() {
               newLocalSections.push({ ...sec, order: newLocalSections.length, hidden: false });
           }
       });
-      setLocalSections(newLocalSections);
-      handleSaveOrder(newLocalSections);
+      const reordered = newLocalSections.map((s, i) => ({...s, order: i}));
+      setLocalSections(reordered);
+      handleSaveSections(reordered);
   };
   
   return (
@@ -251,7 +172,7 @@ export default function EditPageLayout() {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>Edit: {currentPageInfo.name}</BreadcrumbPage>
+            <BreadcrumbPage>Edit: {pageSettings.name || 'Loading...'}</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -266,7 +187,7 @@ export default function EditPageLayout() {
              <div className="flex items-center gap-2">
                 {isSaving && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
                 <Button onClick={() => setIsAddSectionOpen(true)}><PlusCircle className="h-4 w-4 mr-2" />Add Section</Button>
-                <Button onClick={() => router.push(`/${pageId === 'home' ? '' : pageId}`)} variant="outline">View Live Page</Button>
+                <Button onClick={() => router.push(`/${pageId === 'home' ? '' : pageSettings.slug || pageId}`)} variant="outline" disabled={pageSettings.status !== 'Published'}>View Live Page</Button>
             </div>
           </div>
           {isLoadingSections ? (
@@ -304,6 +225,10 @@ export default function EditPageLayout() {
                     <div className="space-y-2">
                         <Label htmlFor="page-name">Page Name</Label>
                         <Input id="page-name" value={pageSettings.name || ''} onChange={(e) => handleSettingsChange('name', e.target.value)} />
+                    </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="page-slug">Page Slug (URL)</Label>
+                        <Input id="page-slug" value={pageSettings.slug || ''} onChange={(e) => handleSettingsChange('slug', e.target.value)} />
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-3">
                         <div className="space-y-0.5">
@@ -344,7 +269,7 @@ export default function EditPageLayout() {
       </div>
     </div>
 
-    <SectionStyleDialog isOpen={!!editingStyleSection} onClose={() => setEditingStyleSection(null)} section={editingStyleSection} pageId={pageId} pageName={currentPageInfo.name} />
+    <SectionStyleDialog isOpen={!!editingStyleSection} onClose={() => setEditingStyleSection(null)} section={editingStyleSection} pageId={pageId} pageName={pageSettings.name} />
     <SectionContentDialog isOpen={!!editingContentSection} onClose={() => setEditingContentSection(null)} section={editingContentSection} pageId={pageId} />
     <AddSectionDialog isOpen={isAddSectionOpen} onClose={() => setIsAddSectionOpen(false)} existingSectionIds={localSections.map(s => s.id)} onAddSections={handleAddSections} />
     <AlertDialog open={!!deletingSection} onOpenChange={(open) => !open && setDeletingSection(null)}>

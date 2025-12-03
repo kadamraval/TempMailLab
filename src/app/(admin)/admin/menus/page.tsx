@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { GripVertical, Loader2 } from 'lucide-react';
+import { GripVertical, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveMenuAction } from '@/lib/actions/menus';
 
@@ -17,21 +16,21 @@ const ItemTypes = {
   MENU_ITEM: 'menu_item',
 };
 
-const DraggableMenuItem = ({ id, text, moveItem, index }: any) => {
+const DraggableMenuItem = ({ item, moveItem, index, onRemove }: any) => {
   const ref = React.useRef<HTMLDivElement>(null);
   const [, drop] = useDrop({
     accept: ItemTypes.MENU_ITEM,
-    hover(item: any) {
+    hover(draggedItem: any) {
       if (!ref.current) return;
-      if (item.index === index) return;
-      moveItem(item.index, index);
-      item.index = index;
+      if (draggedItem.index === index) return;
+      moveItem(draggedItem.index, index);
+      draggedItem.index = index;
     },
   });
 
   const [{ isDragging }, drag] = useDrag({
     type: ItemTypes.MENU_ITEM,
-    item: { id, index },
+    item: { id: item.id, index },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -43,19 +42,44 @@ const DraggableMenuItem = ({ id, text, moveItem, index }: any) => {
     <div
       ref={ref}
       style={{ opacity: isDragging ? 0.5 : 1 }}
-      className="flex items-center gap-2 p-2 border rounded-md bg-background cursor-move"
+      className="flex items-center gap-2 p-2 border rounded-md bg-background"
     >
-      <GripVertical className="h-4 w-4 text-muted-foreground" />
-      <span>{text}</span>
+      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
+      <span className="flex-grow">{item.label}</span>
+      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onRemove(index)}>
+          <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+      </Button>
     </div>
   );
 };
+
+const MenuBuilder = ({ title, items, setItems, moveItem, onRemove }: { title: string, items: any[], setItems: any, moveItem: any, onRemove: any }) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {items.map((item, index) => (
+          <DraggableMenuItem
+            key={item.id}
+            item={item}
+            index={index}
+            moveItem={moveItem}
+            onRemove={onRemove}
+          />
+        ))}
+        {items.length === 0 && <p className="text-sm text-muted-foreground">No items in this menu. Add pages from the left.</p>}
+      </CardContent>
+    </Card>
+);
+
 
 export default function AdminMenusPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [headerMenuItems, setHeaderMenuItems] = useState<any[]>([]);
-  const [footerMenuItems, setFooterMenuItems] = useState<any[]>([]);
+  const [topFooterMenuItems, setTopFooterMenuItems] = useState<any[]>([]);
+  const [bottomFooterMenuItems, setBottomFooterMenuItems] = useState<any[]>([]);
   const [checkedPages, setCheckedPages] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -64,65 +88,61 @@ export default function AdminMenusPage() {
 
   const headerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'header') : null, [firestore]);
   const { data: headerMenuData, isLoading: isLoadingHeader } = useDoc(headerMenuRef);
-
-  const footerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer') : null, [firestore]);
-  const { data: footerMenuData, isLoading: isLoadingFooter } = useDoc(footerMenuRef);
   
-  useEffect(() => {
-    if (headerMenuData?.items) {
-      setHeaderMenuItems(headerMenuData.items);
-    }
-  }, [headerMenuData]);
+  const topFooterMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer-top') : null, [firestore]);
+  const { data: topFooterMenuData, isLoading: isLoadingTopFooter } = useDoc(topFooterMenuRef);
 
-  useEffect(() => {
-    if (footerMenuData?.items) {
-      setFooterMenuItems(footerMenuData.items);
-    }
-  }, [footerMenuData]);
+  const bottomFooterMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer-bottom') : null, [firestore]);
+  const { data: bottomFooterMenuData, isLoading: isLoadingBottomFooter } = useDoc(bottomFooterMenuRef);
+  
+  useEffect(() => { if (headerMenuData?.items) { setHeaderMenuItems(headerMenuData.items) } }, [headerMenuData]);
+  useEffect(() => { if (topFooterMenuData?.items) { setTopFooterMenuItems(topFooterMenuData.items) } }, [topFooterMenuData]);
+  useEffect(() => { if (bottomFooterMenuData?.items) { setBottomFooterMenuItems(bottomFooterMenuData.items) } }, [bottomFooterMenuData]);
 
-  const handleAddToMenu = (menu: 'header' | 'footer') => {
-    const pagesToAdd = pages?.filter(p => checkedPages[p.id]).map(p => ({
+  const handleAddToMenu = (menuSetter: React.Dispatch<React.SetStateAction<any[]>>) => {
+    const pagesToAdd = pages?.filter(p => checkedPages[p.id] && !menuSetter(prev => prev.some(item => item.id === p.id))).map(p => ({
       id: p.id,
       label: p.name,
-      href: p.id === 'home' ? '/' : `/${p.id}`,
+      href: p.id === 'home' ? '/' : `/${p.slug || p.id}`,
     })) || [];
-
-    if (menu === 'header') {
-      setHeaderMenuItems(prev => [...prev, ...pagesToAdd]);
-    } else {
-      setFooterMenuItems(prev => [...prev, ...pagesToAdd]);
+    
+    if (pagesToAdd.length > 0) {
+      menuSetter(prev => [...prev, ...pagesToAdd]);
     }
     setCheckedPages({});
   };
 
-  const moveHeaderItem = (from: number, to: number) => {
-    const newItems = [...headerMenuItems];
+  const createMoveItemHandler = (items: any[], setItems: React.Dispatch<React.SetStateAction<any[]>>) => (from: number, to: number) => {
+    const newItems = [...items];
     const [moved] = newItems.splice(from, 1);
     newItems.splice(to, 0, moved);
-    setHeaderMenuItems(newItems);
+    setItems(newItems);
   };
   
-  const moveFooterItem = (from: number, to: number) => {
-    const newItems = [...footerMenuItems];
-    const [moved] = newItems.splice(from, 1);
-    newItems.splice(to, 0, moved);
-    setFooterMenuItems(newItems);
+  const createRemoveItemHandler = (setItems: React.Dispatch<React.SetStateAction<any[]>>) => (index: number) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
   };
   
   const handleSaveMenus = async () => {
-    setIsSaving(true);
-    const headerResult = await saveMenuAction('header', headerMenuItems);
-    const footerResult = await saveMenuAction('footer', footerMenuItems);
+      if (!firestore) return;
+      setIsSaving(true);
+      try {
+        const batch = writeBatch(firestore);
+        
+        saveMenuAction(batch, 'header', headerMenuItems);
+        saveMenuAction(batch, 'footer-top', topFooterMenuItems);
+        saveMenuAction(batch, 'footer-bottom', bottomFooterMenuItems);
+        
+        await batch.commit();
 
-    if (headerResult.success && footerResult.success) {
-      toast({ title: 'Success', description: 'Menus have been saved successfully.' });
-    } else {
+        toast({ title: 'Success', description: 'Menus have been saved successfully.' });
+    } catch(e: any) {
       toast({ title: 'Error', description: 'Failed to save menus.', variant: 'destructive' });
     }
     setIsSaving(false);
   };
 
-  const isLoading = isLoadingPages || isLoadingHeader || isLoadingFooter;
+  const isLoading = isLoadingPages || isLoadingHeader || isLoadingTopFooter || isLoadingBottomFooter;
 
   if (isLoading) {
       return (
@@ -145,8 +165,8 @@ export default function AdminMenusPage() {
                 Save Menus
             </Button>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          <Card className="lg:col-span-1 sticky top-20">
             <CardHeader>
               <CardTitle>Pages</CardTitle>
               <CardDescription>Select pages to add to a menu.</CardDescription>
@@ -164,49 +184,36 @@ export default function AdminMenusPage() {
                   <label htmlFor={`page-${page.id}`}>{page.name}</label>
                 </div>
               ))}
-              <div className='flex gap-2 pt-4'>
-                <Button size="sm" variant="outline" onClick={() => handleAddToMenu('header')}>Add to Header</Button>
-                <Button size="sm" variant="outline" onClick={() => handleAddToMenu('footer')}>Add to Footer</Button>
+              <div className='flex flex-col gap-2 pt-4'>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setHeaderMenuItems)}>Add to Header</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setTopFooterMenuItems)}>Add to Top Footer</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setBottomFooterMenuItems)}>Add to Bottom Footer</Button>
               </div>
             </CardContent>
           </Card>
 
           <div className="lg:col-span-2 space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Header Menu</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {headerMenuItems.map((item, index) => (
-                  <DraggableMenuItem
-                    key={item.id}
-                    id={item.id}
-                    text={item.label}
-                    index={index}
-                    moveItem={moveHeaderItem}
-                  />
-                ))}
-                {headerMenuItems.length === 0 && <p className="text-sm text-muted-foreground">No items in this menu.</p>}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Footer Menu</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                 {footerMenuItems.map((item, index) => (
-                  <DraggableMenuItem
-                    key={item.id}
-                    id={item.id}
-                    text={item.label}
-                    index={index}
-                    moveItem={moveFooterItem}
-                  />
-                ))}
-                 {footerMenuItems.length === 0 && <p className="text-sm text-muted-foreground">No items in this menu.</p>}
-              </CardContent>
-            </Card>
+            <MenuBuilder 
+                title="Header Menu" 
+                items={headerMenuItems}
+                setItems={setHeaderMenuItems}
+                moveItem={createMoveItemHandler(headerMenuItems, setHeaderMenuItems)}
+                onRemove={createRemoveItemHandler(setHeaderMenuItems)}
+            />
+             <MenuBuilder 
+                title="Top Footer Menu" 
+                items={topFooterMenuItems}
+                setItems={setTopFooterMenuItems}
+                moveItem={createMoveItemHandler(topFooterMenuItems, setTopFooterMenuItems)}
+                onRemove={createRemoveItemHandler(setTopFooterMenuItems)}
+            />
+             <MenuBuilder 
+                title="Bottom Footer Menu" 
+                items={bottomFooterMenuItems}
+                setItems={setBottomFooterMenuItems}
+                moveItem={createMoveItemHandler(bottomFooterMenuItems, setBottomFooterMenuItems)}
+                onRemove={createRemoveItemHandler(bottomFooterMenuItems)}
+            />
           </div>
         </div>
       </div>
