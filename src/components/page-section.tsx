@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore'; // Removed setDoc import
 import { Loader2 } from 'lucide-react';
 import { useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
@@ -24,7 +24,7 @@ import { StayConnected } from '@/components/stay-connected';
 import ContactPage from '@/app/(main)/contact/page';
 import { TopTitleSection } from './top-title-section';
 
-// Default content data is now imported here for self-seeding
+// Default content data is now imported here for fallback
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
 
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
@@ -55,7 +55,6 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
                 : `Everything you need to know about our ${pageName}.`;
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
-        // The inbox has no 'content' to pre-fill, it's a dynamic component. Return an empty object so the doc is created.
         case 'inbox': return { name: "Inbox" }; 
         default: return null;
     }
@@ -79,8 +78,6 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
     if (isObject(target) && isObject(source)) {
         for (const key in source) {
-            // Only merge if the source property is not undefined.
-            // This allows 'null' to be a valid override value.
             if (source[key] !== undefined) {
                 if (isObject(source[key])) {
                     if (!target[key]) Object.assign(target, { [key]: {} });
@@ -101,21 +98,14 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
   const defaultStyleRef = useMemoFirebase(() => doc(firestore, 'sections', sectionId), [firestore, sectionId]);
   const styleOverrideRef = useMemoFirebase(() => doc(firestore, 'pages', pageId, 'sections', `${sectionId}_styles`), [firestore, pageId, sectionId]);
 
-  const { data: content, isLoading: isLoadingContent, error: contentError } = useDoc(contentRef);
-  const { data: defaultStyle, isLoading: isLoadingDefaultStyle, error: defaultStyleError } = useDoc(defaultStyleRef);
+  const { data: content, isLoading: isLoadingContent } = useDoc(contentRef);
+  const { data: defaultStyle, isLoading: isLoadingDefaultStyle } = useDoc(defaultStyleRef);
   const { data: styleOverride, isLoading: isLoadingStyleOverride } = useDoc(styleOverrideRef);
   
   const plansQuery = useMemoFirebase(() => !['pricing', 'pricing-comparison'].includes(sectionId) ? null : query(collection(firestore, "plans"), where("status", "==", "active")), [firestore, sectionId]);
   const { data: plans } = useCollection<Plan>(plansQuery);
 
-  React.useEffect(() => {
-    if (!isLoadingContent && !content && !contentError && contentRef) {
-      const defaultContent = getDefaultContent(pageId, sectionId);
-      if (defaultContent) {
-        setDoc(contentRef, { ...defaultContent, order: order, id: sectionId, hidden: false }).catch(console.error);
-      }
-    }
-  }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
+  // The problematic useEffect that tried to write to the database has been removed.
   
   const finalStyles = useMemo(() => {
     const fallback = getFallbackSectionStyles(sectionId);
@@ -134,6 +124,7 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
       return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
+  // If content is not found in the database, it will use the hardcoded default content.
   const finalContent = content || getDefaultContent(pageId, sectionId);
   if (!finalContent) return null;
   
