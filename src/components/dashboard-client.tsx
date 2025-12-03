@@ -15,6 +15,7 @@ import {
   Forward,
   Star,
   ArrowLeft,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -284,6 +285,7 @@ export function DashboardClient() {
          const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -445,7 +447,7 @@ export function DashboardClient() {
     );
   }
 
-  if (!currentInbox) {
+  if (!currentInbox || !activePlan) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -509,9 +511,16 @@ export function DashboardClient() {
                     <p>New mail will appear here automatically when received.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] h-full min-h-[calc(100vh-400px)]">
-                    {/* Column 1: Inbox List (Compact) */}
-                    <div className="hidden md:flex flex-col border-r">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
+                    {/* Column 1: Inbox List */}
+                    <div className="flex flex-col border-r">
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <h3 className="font-semibold text-lg">Inbox</h3>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Inbox className="h-4 w-4" />
+                                <span>1 / {activePlan.features.maxInboxes}</span>
+                            </div>
+                        </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
                                 <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
@@ -524,6 +533,20 @@ export function DashboardClient() {
                     
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col">
+                        <div className="p-4 border-b flex items-center justify-between">
+                            <h3 className="font-semibold text-lg">Mail</h3>
+                            <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Mail className="h-4 w-4" />
+                                    <span>{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
+                                </div>
+                                <TooltipProvider>
+                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip>
+                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip>
+                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
                         {selectedEmail ? (
                             <EmailView
                                 email={{
@@ -535,7 +558,7 @@ export function DashboardClient() {
                                 }}
                                 plan={activePlan}
                                 onBack={() => setSelectedEmail(null)}
-                                showBackButton={true}
+                                showBackButton={false}
                             />
                         ) : (
                             <ScrollArea className="h-full">
@@ -561,8 +584,8 @@ export function DashboardClient() {
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <div className="col-span-3 text-xs text-muted-foreground text-right self-center hidden md:block">
-                                                        <span className="transition-opacity duration-200 group-hover:opacity-0">{getReceivedDateTime(email.receivedAt)}</span>
+                                                    <div className="hidden md:flex items-center justify-end col-span-3 text-xs text-muted-foreground self-center">
+                                                         <span className="transition-opacity duration-200 opacity-100 group-hover:opacity-0">{getReceivedDateTime(email.receivedAt)}</span>
                                                     </div>
                                                 </div>
                                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -593,6 +616,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    
