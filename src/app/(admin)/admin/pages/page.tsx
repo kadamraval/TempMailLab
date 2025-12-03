@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { FilePenLine, Trash2 } from 'lucide-react';
+import { FilePenLine, Trash2, PlusCircle } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
+import { AddPageDialog } from './add-page-dialog';
 
 const pages = [
     { id: "home", name: "Home Page", status: "Published" },
@@ -23,6 +24,7 @@ const pages = [
 
 export default function AdminPagesPage() {
     const [pageList, setPageList] = useState(pages);
+    const [isAddOpen, setIsAddOpen] = useState(false);
     const router = useRouter();
 
     const handleStatusChange = (pageId: string, newStatus: boolean) => {
@@ -46,17 +48,24 @@ export default function AdminPagesPage() {
     };
 
     return (
+        <>
         <Card>
-            <CardHeader>
-                <CardTitle>Manage Pages</CardTitle>
-                <CardDescription>Edit content, manage visibility, and organize your website's pages.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Manage Pages</CardTitle>
+                    <CardDescription>Edit content, manage visibility, and organize your website's pages.</CardDescription>
+                </div>
+                <Button onClick={() => setIsAddOpen(true)}>
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    New Page
+                </Button>
             </CardHeader>
             <CardContent>
                 <div className="flow-root">
                     <div className="-my-4 divide-y divide-border">
                         {pageList.map((page) => (
                             <div key={page.id} className="flex items-center justify-between gap-4 py-4">
-                                <div className='flex items-center gap-4'>
+                                <div>
                                     <p className="font-medium text-foreground">{page.name}</p>
                                 </div>
                                 <div className="flex items-center gap-4">
@@ -66,15 +75,15 @@ export default function AdminPagesPage() {
                                             checked={page.status === 'Published'}
                                             onCheckedChange={(checked) => handleStatusChange(page.id, checked)}
                                         />
-                                        <Label htmlFor={`status-switch-${page.id}`} className="text-sm text-muted-foreground">
+                                        <Label htmlFor={`status-switch-${page.id}`} className="text-sm text-muted-foreground w-20">
                                             {page.status}
                                         </Label>
                                     </div>
-                                    <Button variant="outline" size="icon" onClick={() => handleEdit(page.id)}>
+                                    <Button variant="outline" size="icon" onClick={() => handleEdit(page.id)} className="h-8 w-8">
                                         <FilePenLine className="h-4 w-4" />
                                         <span className="sr-only">Edit Page</span>
                                     </Button>
-                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(page.id)}>
+                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(page.id)} className="h-8 w-8">
                                         <Trash2 className="h-4 w-4" />
                                         <span className="sr-only">Delete Page</span>
                                     </Button>
@@ -85,5 +94,7 @@ export default function AdminPagesPage() {
                 </div>
             </CardContent>
         </Card>
+        <AddPageDialog isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} />
+        </>
     );
 }

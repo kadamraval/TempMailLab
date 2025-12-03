@@ -1,9 +1,74 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { FieldValue, WriteBatch } from 'firebase-admin/firestore';
+
+/**
+ * Creates a new page document in Firestore and adds default sections.
+ * @param pageId The URL slug and document ID for the new page.
+ * @param pageName The display name for the new page.
+ */
+export async function createPageAction(pageId: string, pageName: string) {
+    if (!pageId || !pageName) {
+        return { success: false, error: 'Page ID and name are required.' };
+    }
+
+    try {
+        const firestore = getAdminFirestore();
+        const pageRef = firestore.doc(`pages/${pageId}`);
+        const pageDoc = await pageRef.get();
+
+        if (pageDoc.exists) {
+            return { success: false, error: `A page with the slug '${pageId}' already exists.` };
+        }
+
+        const batch = firestore.batch();
+
+        // 1. Set the main page document data
+        batch.set(pageRef, {
+            name: pageName,
+            slug: pageId,
+            status: 'Draft', // Pages start as drafts
+            createdAt: FieldValue.serverTimestamp(),
+        });
+
+        // 2. Add default sections
+        const sectionsCollection = pageRef.collection('sections');
+        
+        const topTitleSectionRef = sectionsCollection.doc('top-title');
+        batch.set(topTitleSectionRef, {
+            id: 'top-title',
+            name: 'Top Title',
+            order: 0,
+            hidden: false,
+            title: pageName,
+            description: `This is the default description for the ${pageName} page.`
+        });
+
+        const newsletterSectionRef = sectionsCollection.doc('newsletter');
+        batch.set(newsletterSectionRef, {
+            id: 'newsletter',
+            name: 'Newsletter',
+            order: 1,
+            hidden: false,
+            title: 'Stay Connected',
+            description: 'Subscribe for updates and news.'
+        });
+        
+        await batch.commit();
+
+        revalidatePath('/admin/pages'); // Revalidate the admin page list
+        revalidatePath(`/${pageId}`);    // Revalidate the new page itself
+
+        return { success: true, pageId };
+
+    } catch (error: any) {
+        console.error('Error creating page:', error);
+        return { success: false, error: error.message || 'Failed to create the page.' };
+    }
+}
+
 
 /**
  * Saves or updates content for a specific section on a specific page.
