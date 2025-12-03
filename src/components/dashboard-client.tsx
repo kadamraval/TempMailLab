@@ -51,6 +51,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
+import { Badge } from "./ui/badge";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
