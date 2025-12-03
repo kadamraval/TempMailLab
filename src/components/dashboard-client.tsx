@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -287,6 +288,7 @@ export function DashboardClient() {
          const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -582,6 +584,7 @@ export function DashboardClient() {
                                 <div className="p-2 space-y-1">
                                     {displayedEmails.map((email) => {
                                         const sender = parseSender(email.senderName);
+                                        const isSelected = selectedEmails.includes(email.id);
                                         return (
                                         <div
                                             key={email.id}
@@ -589,17 +592,20 @@ export function DashboardClient() {
                                             className={cn(
                                                 "group w-full text-left p-2 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
                                                 !email.read && "bg-blue-500/5",
-                                                selectedEmails.includes(email.id) && "bg-blue-500/10"
+                                                isSelected && "bg-blue-500/10"
                                             )}
                                         >
                                             <div className="flex items-start gap-3 relative">
                                                 <div className="pt-1 flex items-center h-full">
                                                     <Checkbox 
                                                         id={`select-${email.id}`} 
-                                                        checked={selectedEmails.includes(email.id)}
+                                                        checked={isSelected}
                                                         onCheckedChange={() => handleToggleEmailSelection(email.id)}
                                                         onClick={(e) => e.stopPropagation()} // Prevent row click
-                                                        className="transition-opacity"
+                                                        className={cn(
+                                                            "transition-opacity",
+                                                            !isSelected && "opacity-0 group-hover:opacity-100"
+                                                        )}
                                                     />
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
@@ -608,7 +614,7 @@ export function DashboardClient() {
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
                                                         <span className="transition-opacity duration-200 group-hover:opacity-0 text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                             <TooltipProvider><Tooltip>
