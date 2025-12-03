@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -16,6 +15,8 @@ import {
   Star,
   ArrowLeft,
   Mail,
+  Search,
+  Filter as FilterIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -104,6 +105,7 @@ export function DashboardClient() {
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -365,6 +367,12 @@ export function DashboardClient() {
     setCurrentInbox(newInbox);
     setIsLoading(false);
   };
+  
+  const handleToggleEmailSelection = (emailId: string) => {
+    setSelectedEmails(prev => 
+      prev.includes(emailId) ? prev.filter(id => id !== emailId) : [...prev, emailId]
+    );
+  };
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
@@ -412,11 +420,9 @@ export function DashboardClient() {
     if (match) {
         return { name: match[1].trim(), email: match[2].trim() };
     }
-    // If there's no "<>" format, check if it's an email address
     if (sender.includes('@')) {
         return { name: sender, email: sender };
     }
-    // Otherwise, it's just a name
     return { name: sender, email: '' };
   };
 
@@ -515,7 +521,10 @@ export function DashboardClient() {
                     <div className="flex flex-col border-r">
                         <div className="p-3 border-b flex items-center gap-2">
                             <h3 className="font-semibold text-base">Inbox</h3>
-                            <span className="text-sm text-muted-foreground">1 / {activePlan.features.maxInboxes}</span>
+                             <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Inbox className="h-4 w-4" />
+                                <span className="text-sm">1 / {activePlan.features.maxInboxes}</span>
+                            </div>
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
@@ -532,14 +541,25 @@ export function DashboardClient() {
                         <div className="p-3 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-semibold text-base">Mail</h3>
-                                <span className="text-sm text-muted-foreground">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Mail className="h-4 w-4" />
+                                    <span className="text-sm">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <TooltipProvider>
-                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip>
-                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip>
-                                    <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
-                                </TooltipProvider>
+                            <div className="flex items-center gap-1">
+                                {selectedEmails.length > 0 ? (
+                                    <>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                    </>
+                                ) : (
+                                    <>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Search className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Search</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><FilterIcon className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Filter</p></TooltipContent></Tooltip></TooltipProvider>
+                                    </>
+                                )}
+                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                             </div>
                         </div>
                         {selectedEmail ? (
@@ -566,12 +586,19 @@ export function DashboardClient() {
                                             onClick={() => handleSelectEmail(email)}
                                             className={cn(
                                                 "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
-                                                !email.read && "bg-blue-500/5"
+                                                !email.read && "bg-blue-500/5",
+                                                selectedEmails.includes(email.id) && "bg-blue-500/10"
                                             )}
                                         >
-                                            <div className="flex items-start gap-4 relative">
-                                                <div className="pt-1">
-                                                    <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="flex items-start gap-3 relative">
+                                                <div className="pt-1 flex items-center h-full">
+                                                    <Checkbox 
+                                                        id={`select-${email.id}`} 
+                                                        checked={selectedEmails.includes(email.id)}
+                                                        onCheckedChange={() => handleToggleEmailSelection(email.id)}
+                                                        onClick={(e) => e.stopPropagation()} // Prevent row click
+                                                        className="transition-opacity"
+                                                    />
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
                                                     <div className={cn("col-span-4", !email.read && "text-foreground")}>
@@ -580,7 +607,7 @@ export function DashboardClient() {
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
                                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                                                        <span className="transition-opacity duration-200 opacity-100 group-hover:opacity-0 text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
+                                                        <span className="transition-opacity duration-200 group-hover:opacity-0 text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                             <TooltipProvider><Tooltip>
                                                                 <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
