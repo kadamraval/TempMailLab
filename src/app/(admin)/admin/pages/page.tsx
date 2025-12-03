@@ -1,14 +1,12 @@
-
 "use client";
 
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { FilePenLine, Trash2, EyeOff } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { FilePenLine, Trash2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useRouter } from 'next/navigation';
+import { Label } from '@/components/ui/label';
 
 const pages = [
     { id: "home", name: "Home Page", status: "Published" },
@@ -27,20 +25,24 @@ export default function AdminPagesPage() {
     const [pageList, setPageList] = useState(pages);
     const router = useRouter();
 
-    // This is a placeholder function for the hide toggle
-    const handleHideToggle = (id: string) => {
-        // In a real app, this would update the page status in a database
-        console.log(`Toggling visibility for page ${id}`);
+    const handleStatusChange = (pageId: string, newStatus: boolean) => {
+        setPageList(currentPages => 
+            currentPages.map(p => 
+                p.id === pageId ? { ...p, status: newStatus ? 'Published' : 'Draft' } : p
+            )
+        );
+        // In a real app, you would also save this change to your database here.
+        console.log(`Page ${pageId} status changed to ${newStatus ? 'Published' : 'Draft'}`);
     };
     
     const handleEdit = (id: string) => {
         router.push(`/admin/pages/edit/${id}`);
     };
 
-    // This is a placeholder function for deleting
     const handleDelete = (id: string) => {
         console.log(`Deleting page ${id}`);
-        // Show confirmation dialog and then delete from database
+        // Here you would typically show a confirmation dialog before deleting.
+        setPageList(currentPages => currentPages.filter(p => p.id !== id));
     };
 
     return (
@@ -50,40 +52,38 @@ export default function AdminPagesPage() {
                 <CardDescription>Edit content, manage visibility, and organize your website's pages.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[100px]">Status</TableHead>
-                            <TableHead>Page Name</TableHead>
-                            <TableHead className="text-right w-[200px]">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                <div className="flow-root">
+                    <div className="-my-4 divide-y divide-border">
                         {pageList.map((page) => (
-                            <TableRow key={page.id}>
-                                <TableCell>
-                                    <Badge variant={page.status === 'Published' ? 'default' : 'secondary'}>{page.status}</Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{page.name}</TableCell>
-                                <TableCell className="text-right space-x-2">
-                                    <Button variant="outline" size="sm" onClick={() => handleEdit(page.id)}>
-                                        <FilePenLine className="h-4 w-4 mr-2" />
-                                        Edit
+                            <div key={page.id} className="flex items-center justify-between gap-4 py-4">
+                                <div className='flex items-center gap-4'>
+                                    <p className="font-medium text-foreground">{page.name}</p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center space-x-2">
+                                        <Switch 
+                                            id={`status-switch-${page.id}`} 
+                                            checked={page.status === 'Published'}
+                                            onCheckedChange={(checked) => handleStatusChange(page.id, checked)}
+                                        />
+                                        <Label htmlFor={`status-switch-${page.id}`} className="text-sm text-muted-foreground">
+                                            {page.status}
+                                        </Label>
+                                    </div>
+                                    <Button variant="outline" size="icon" onClick={() => handleEdit(page.id)}>
+                                        <FilePenLine className="h-4 w-4" />
+                                        <span className="sr-only">Edit Page</span>
                                     </Button>
-                                    <Button variant="outline" size="icon" onClick={() => handleHideToggle(page.id)}>
-                                        <EyeOff className="h-4 w-4" />
-                                    </Button>
-                                     <Button variant="destructive" size="icon" onClick={() => handleDelete(page.id)}>
+                                    <Button variant="destructive" size="icon" onClick={() => handleDelete(page.id)}>
                                         <Trash2 className="h-4 w-4" />
+                                        <span className="sr-only">Delete Page</span>
                                     </Button>
-                                </TableCell>
-                            </TableRow>
+                                </div>
+                            </div>
                         ))}
-                    </TableBody>
-                </Table>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
 }
-
-    
