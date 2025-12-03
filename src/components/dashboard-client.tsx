@@ -551,7 +551,7 @@ export function DashboardClient() {
                                                 !email.read && "bg-blue-500/5"
                                             )}
                                         >
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex items-start gap-4 relative">
                                                 <div className="pt-1">
                                                     <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </div>
@@ -560,10 +560,12 @@ export function DashboardClient() {
                                                         <p className="font-semibold truncate">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
-                                                    <p className={cn("col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <span className="col-span-3 text-xs text-muted-foreground text-right self-center">{getReceivedDateTime(email.receivedAt)}</span>
+                                                    <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
+                                                    <div className="col-span-3 text-xs text-muted-foreground text-right self-center hidden md:block">
+                                                        <span className="transition-opacity duration-200 group-hover:opacity-0">{getReceivedDateTime(email.receivedAt)}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                                     <TooltipProvider><Tooltip>
                                                         <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
                                                         <TooltipContent><p>Archive</p></TooltipContent>
@@ -591,3 +593,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
+
+    
