@@ -3,10 +3,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
-import { WriteBatch, doc } from 'firebase/firestore';
+import { WriteBatch } from 'firebase-admin/firestore';
 
 // Note: This function no longer commits the batch itself.
-export function saveMenuAction(batch: WriteBatch, menuId: string, items: any[]) {
+export async function saveMenuAction(batch: WriteBatch, menuId: string, items: any[]) {
     if (!menuId || !items) {
         // In a batched transaction, we might prefer to throw an error
         // or handle it in the calling function.
