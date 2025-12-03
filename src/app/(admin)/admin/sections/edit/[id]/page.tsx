@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -27,22 +26,72 @@ import { AdminSectionPreview } from '../../admin-section-preview';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    const [color, opacity] = useMemo(() => {
+        if (!value || typeof value !== 'string') return ['#000000', 1];
+        if (value.startsWith('hsl')) {
+             return ['#000000', 1]; // Default for HSL variables which we can't parse
+        }
+        if (value.startsWith('rgba')) {
+            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
+            if (parts.length === 4) {
+                const toHex = (c: number) => parseInt(c.toString(), 10).toString(16).padStart(2, '0');
+                const hex = `#${toHex(Number(parts[0]))}${toHex(Number(parts[1]))}${toHex(Number(parts[2]))}`;
+                return [hex, parseFloat(parts[3])];
+            }
+        }
+         if (value.startsWith('#')) {
+             if (value.length === 7) return [value, 1]; // #RRGGBB
+             if (value.length === 9) { // #RRGGBBAA
+                const alphaHex = value.slice(7,9);
+                const alpha = parseInt(alphaHex, 16) / 255;
+                return [value.slice(0,7), alpha];
+             }
+         }
+        return [value, 1];
+    }, [value]);
+
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const hex = e.target.value;
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity.toFixed(2)})`);
+    };
+
+    const handleOpacityChange = (newOpacity: number[]) => {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0].toFixed(2)})`);
+    };
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                <Input
-                    type="color"
-                    value={value?.startsWith('hsl') || value?.startsWith('rgba') ? '#000000' : value} // Basic fallback for picker
-                    onChange={(e) => onChange(e.target.value)}
-                    className="w-12 h-10 p-1"
-                />
+                 <div className="relative">
+                    <Input
+                        type="color"
+                        value={color}
+                        onChange={handleColorChange}
+                        className="w-12 h-10 p-1"
+                    />
+                </div>
                 <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., #ffffff or hsl(var(--card))"
+                    placeholder="e.g., rgba(255,255,255,1)"
+                />
+            </div>
+             <div className="space-y-2 pt-2">
+                <Label className="text-xs">Opacity</Label>
+                <Slider
+                    value={[opacity]}
+                    onValueChange={handleOpacityChange}
+                    max={1}
+                    step={0.05}
                 />
             </div>
         </div>
