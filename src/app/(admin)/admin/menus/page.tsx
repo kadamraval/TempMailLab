@@ -5,12 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { GripVertical, Loader2, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { saveMenuAction } from '@/lib/actions/menus';
+import { saveAllMenusAction } from '@/lib/actions/menus';
 
 const ItemTypes = {
   MENU_ITEM: 'menu_item',
@@ -124,20 +124,21 @@ export default function AdminMenusPage() {
   };
   
   const handleSaveMenus = async () => {
-      if (!firestore) return;
-      setIsSaving(true);
-      try {
-        const batch = writeBatch(firestore);
-        
-        await saveMenuAction(batch, 'header', headerMenuItems);
-        await saveMenuAction(batch, 'footer-top', topFooterMenuItems);
-        await saveMenuAction(batch, 'footer-bottom', bottomFooterMenuItems);
-        
-        await batch.commit();
+    setIsSaving(true);
+    try {
+        const result = await saveAllMenusAction({
+            header: headerMenuItems,
+            'footer-top': topFooterMenuItems,
+            'footer-bottom': bottomFooterMenuItems
+        });
 
-        toast({ title: 'Success', description: 'Menus have been saved successfully.' });
+        if (result.success) {
+            toast({ title: 'Success', description: 'Menus have been saved successfully.' });
+        } else {
+            throw new Error(result.error);
+        }
     } catch(e: any) {
-      toast({ title: 'Error', description: 'Failed to save menus.', variant: 'destructive' });
+      toast({ title: 'Error', description: e.message || 'Failed to save menus.', variant: 'destructive' });
     }
     setIsSaving(false);
   };
@@ -205,7 +206,7 @@ export default function AdminMenusPage() {
                 items={topFooterMenuItems}
                 setItems={setTopFooterMenuItems}
                 moveItem={createMoveItemHandler(topFooterMenuItems, setTopFooterMenuItems)}
-                onRemove={createRemoveItemHandler(setTopFooterMenuItems)}
+                onRemove={createRemoveItemHandler(topFooterMenuItems)}
             />
              <MenuBuilder 
                 title="Bottom Footer Menu" 
