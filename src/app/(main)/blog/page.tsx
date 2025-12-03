@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -55,7 +54,7 @@ export default function BlogPage() {
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
                    <span className="text-sm text-muted-foreground">
-                    {post.publishedAt && post.publishedAt instanceof Timestamp 
+                    {post.publishedAt instanceof Timestamp
                         ? post.publishedAt.toDate().toLocaleDateString() 
                         : 'N/A'
                     }
