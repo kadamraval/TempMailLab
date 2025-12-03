@@ -519,16 +519,18 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
                     {/* Column 1: Inbox List */}
                     <div className="flex flex-col border-r">
-                        <div className="p-3 border-b flex items-center gap-2">
-                            <h3 className="font-semibold text-base">Inbox</h3>
-                             <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Inbox className="h-4 w-4" />
-                                <span className="text-sm">1 / {activePlan.features.maxInboxes}</span>
+                        <div className="p-2 border-b flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-sm">Inbox</h3>
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <Inbox className="h-4 w-4" />
+                                    <span className="text-xs">1 / {activePlan.features.maxInboxes}</span>
+                                </div>
                             </div>
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
-                                <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
+                                <div className="p-2 rounded-lg bg-muted flex items-center justify-between">
                                     <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
                                     <Badge variant="secondary">{displayedEmails.length}</Badge>
                                 </div>
@@ -538,28 +540,28 @@ export function DashboardClient() {
                     
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col">
-                        <div className="p-3 border-b flex items-center justify-between">
+                        <div className="p-2 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base">Mail</h3>
+                                <h3 className="font-semibold text-sm">Mail</h3>
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
                                     <Mail className="h-4 w-4" />
-                                    <span className="text-sm">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
+                                    <span className="text-xs">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
                                 {selectedEmails.length > 0 ? (
                                     <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
                                     </>
                                 ) : (
                                     <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Search className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Search</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><FilterIcon className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Filter</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Search className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Search</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Filter</p></TooltipContent></Tooltip></TooltipProvider>
                                     </>
                                 )}
-                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
-                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                             </div>
                         </div>
                         {selectedEmail ? (
@@ -585,7 +587,7 @@ export function DashboardClient() {
                                             key={email.id}
                                             onClick={() => handleSelectEmail(email)}
                                             className={cn(
-                                                "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
+                                                "group w-full text-left p-2 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
                                                 !email.read && "bg-blue-500/5",
                                                 selectedEmails.includes(email.id) && "bg-blue-500/10"
                                             )}
@@ -602,7 +604,7 @@ export function DashboardClient() {
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
                                                     <div className={cn("col-span-4", !email.read && "text-foreground")}>
-                                                        <p className="font-semibold truncate">{sender.name}</p>
+                                                        <p className="font-semibold truncate text-sm">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
