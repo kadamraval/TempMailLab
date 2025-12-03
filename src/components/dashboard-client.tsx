@@ -11,6 +11,9 @@ import {
   Inbox,
   ServerCrash,
   Eye,
+  Archive,
+  Forward,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +48,8 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { signInAnonymously } from "firebase/auth";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Checkbox } from "./ui/checkbox";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -57,7 +62,7 @@ const demoEmails: Email[] = [
       subject: 'Getting Started with Tempmailoz',
       receivedAt: new Date().toISOString(),
       createdAt: Timestamp.now(),
-      htmlContent: '<h1>Welcome!</h1><p>This is a demo email to showcase the layout.</p>',
+      htmlContent: '<h1>Welcome!</h1><p>This is a demo email to showcase the layout. You can interact with the different elements to see how they behave.</p>',
       textContent: 'Welcome! This is a demo email to showcase the layout.',
       read: false,
     },
@@ -66,10 +71,10 @@ const demoEmails: Email[] = [
       inboxId: 'demo',
       userId: 'demo',
       senderName: 'Promotions',
-      subject: 'Special Offer: 50% Off Premium',
+      subject: 'Special Offer: 50% Off Premium!',
       receivedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       createdAt: Timestamp.now(),
-      htmlContent: '<p>Don\'t miss out on our special offer!</p>',
+      htmlContent: '<p>Don\'t miss out on our special offer! Upgrade today to get more features like custom domains, email forwarding, and an ad-free experience.</p>',
       textContent: 'Don\'t miss out on our special offer!',
       read: true,
     },
@@ -81,8 +86,32 @@ const demoEmails: Email[] = [
       subject: 'Your account was accessed from a new device',
       receivedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
       createdAt: Timestamp.now(),
-      htmlContent: '<p>A new sign-in was detected. If this was not you, please secure your account immediately.</p>',
+      htmlContent: '<p>A new sign-in was detected from a new device. If this was not you, please secure your account immediately by changing your password.</p>',
       textContent: 'A new sign-in was detected. If this was not you, please secure your account immediately.',
+      read: false,
+    },
+    {
+      id: 'demo-4',
+      inboxId: 'demo',
+      userId: 'demo',
+      senderName: 'SocialApp',
+      subject: 'You have a new friend request',
+      receivedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      createdAt: Timestamp.now(),
+      htmlContent: '<p>Jessica wants to connect with you on SocialApp.</p>',
+      textContent: 'Jessica wants to connect with you on SocialApp.',
+      read: true,
+    },
+    {
+      id: 'demo-5',
+      inboxId: 'demo',
+      userId: 'demo',
+      senderName: 'ProjectManager',
+      subject: 'Task "Deploy to Staging" is overdue',
+      receivedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      createdAt: Timestamp.now(),
+      htmlContent: '<p>The task "Deploy to Staging" was due yesterday. Please provide an update.</p>',
+      textContent: 'The task "Deploy to Staging" was due yesterday. Please provide an update.',
       read: false,
     }
   ];
@@ -216,7 +245,6 @@ export function DashboardClient() {
       let activeUser = user;
       let foundInbox: InboxType | null = null;
 
-      // Step 1: Ensure we have a user (sign in anonymously if needed)
       if (!activeUser) {
         try {
           const userCredential = await signInAnonymously(auth);
@@ -229,7 +257,6 @@ export function DashboardClient() {
       }
       if (!activeUser) return;
 
-      // Step 2: Determine the plan
       let planToUse: Plan | null = activePlan;
       if (!planToUse && !isLoadingPlan) {
         const defaultPlanRef = doc(firestore, "plans", "free-default");
@@ -248,11 +275,9 @@ export function DashboardClient() {
             "Default plan 'free-default' not found. Please contact support."
           );
         }
-        // If plan is still loading, just wait for the next render.
         return;
       }
 
-      // Step 3: Try to find an existing inbox
       if (activeUser.isAnonymous) {
         const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
         if (localDataStr) {
@@ -280,8 +305,6 @@ export function DashboardClient() {
           }
         }
       } else {
-        // Registered User
-        // Fetch all inboxes for the user (avoids composite index)
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid)
@@ -289,7 +312,6 @@ export function DashboardClient() {
         const userInboxesSnap = await getDocs(userInboxesQuery);
 
         if (!userInboxesSnap.empty) {
-          // Sort on the client to find the most recent one
           const allInboxes = userInboxesSnap.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
@@ -312,7 +334,6 @@ export function DashboardClient() {
         }
       }
 
-      // Step 4: If no valid inbox found, generate a new one
       if (!foundInbox) {
         foundInbox = await generateNewInbox(activeUser, planToUse);
       }
@@ -412,6 +433,20 @@ export function DashboardClient() {
         setSelectedEmail(demoEmails[0]);
     }
   };
+  
+  const getRelativeTime = (date: string | Timestamp) => {
+    const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+    const now = new Date();
+    const diffSeconds = Math.round((now.getTime() - d.getTime()) / 1000);
+    const diffMinutes = Math.round(diffSeconds / 60);
+    const diffHours = Math.round(diffMinutes / 60);
+    const diffDays = Math.round(diffHours / 24);
+
+    if (diffSeconds < 60) return `${diffSeconds}s`;
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    return `${diffDays}d`;
+  }
 
   if (isLoading) {
     return (
@@ -450,7 +485,7 @@ export function DashboardClient() {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Top Header - Unchanged */}
+      {/* Top Header */}
       <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
         <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
           <Clock className="h-4 w-4" />
@@ -470,13 +505,11 @@ export function DashboardClient() {
             onClick={handleDeleteAndRegenerate}
             variant="outline"
             size="sm"
-            className="text-destructive hover:text-destructive"
           >
-            <Trash2 className="h-4 w-4" />
+            <RefreshCw className="h-4 w-4" />
           </Button>
            <Button onClick={handleToggleDemo} variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-2"/>
-                Toggle UI
+                <Eye className="h-4 w-4"/>
             </Button>
         </div>
       </div>
@@ -489,7 +522,7 @@ export function DashboardClient() {
         </Alert>
       )}
 
-      {/* Conditional Layout for below the header */}
+      {/* Main Content Area */}
       <div className="flex-1">
         <Card className="h-full">
           <CardContent className="p-0 h-full">
@@ -505,60 +538,55 @@ export function DashboardClient() {
                 <p>New mail will appear here automatically when received.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-[250px_350px_1fr] h-full min-h-[calc(100vh-400px)]">
-                {/* Column 1: Compact Inbox List */}
-                <div className="hidden md:flex flex-col border-r p-2">
-                   <div className="p-2 font-semibold text-sm">Inboxes</div>
-                   <button className="w-full text-left p-3 rounded-md bg-muted transition-colors flex flex-col gap-1">
-                      <div className="truncate font-semibold text-sm text-foreground">{currentInbox.emailAddress}</div>
-                      <div className="text-xs text-muted-foreground">{sortedEmails.length} messages</div>
-                   </button>
-                </div>
-
-                {/* Column 2: Email List */}
+              <div className="grid grid-cols-1 md:grid-cols-[400px_1fr] h-full min-h-[calc(100vh-400px)]">
+                
+                {/* Column 1: Email List */}
                 <div className="flex flex-col border-r">
                   <ScrollArea className="flex-1">
                     <div className="p-2 space-y-1">
                       {sortedEmails.map((email) => (
-                        <button
+                        <div
                           key={email.id}
                           onClick={() => handleSelectEmail(email)}
                           className={cn(
-                            "w-full text-left p-3 rounded-md border-b border-transparent transition-colors flex items-center gap-4",
+                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer",
                             selectedEmail?.id === email.id
                               ? "bg-muted"
                               : "hover:bg-muted/50",
-                            !email.read && "font-semibold bg-card"
+                            !email.read && "bg-blue-500/5"
                           )}
                         >
-                          <div
-                            className={cn(
-                              "h-2 w-2 rounded-full shrink-0",
-                              !email.read ? "bg-primary" : "bg-transparent"
-                            )}
-                          ></div>
-                          <div className="flex-grow overflow-hidden">
-                            <div className="truncate font-medium">
-                              {email.senderName}
-                            </div>
-                            <div
-                              className={cn(
-                                "truncate text-sm",
-                                !email.read
-                                  ? "text-foreground"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {email.subject}
-                            </div>
+                          <div className="flex items-center gap-3">
+                              <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <div className="flex-grow overflow-hidden">
+                                  <div className="flex justify-between items-start">
+                                      <span className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</span>
+                                      <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getRelativeTime(email.receivedAt)}</span>
+                                  </div>
+                                  <p className={cn("truncate text-sm", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
+                              </div>
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <TooltipProvider><Tooltip>
+                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
+                                      <TooltipContent><p>Archive</p></TooltipContent>
+                                  </Tooltip></TooltipProvider>
+                                  <TooltipProvider><Tooltip>
+                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
+                                      <TooltipContent><p>Delete</p></TooltipContent>
+                                  </Tooltip></TooltipProvider>
+                                   <TooltipProvider><Tooltip>
+                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                      <TooltipContent><p>Star</p></TooltipContent>
+                                  </Tooltip></TooltipProvider>
+                              </div>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </ScrollArea>
                 </div>
 
-                {/* Column 3: Email Viewer */}
+                {/* Column 2: Email Viewer */}
                 <div className="col-span-1 hidden md:block">
                   {selectedEmail ? (
                     <EmailView
