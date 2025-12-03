@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -26,13 +27,40 @@ import { AdminSectionPreview } from '../../admin-section-preview';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
+    const [colorPickerValue, setColorPickerValue] = useState("#000000");
+    const tempDivRef = useRef<HTMLDivElement>(null);
+
+    // This effect resolves the CSS variable or keyword to a hex color for the color input
+    useEffect(() => {
+        if (tempDivRef.current && value) {
+            // Temporarily apply the value to a hidden div to resolve it
+            tempDivRef.current.style.color = value;
+            const computedColor = window.getComputedStyle(tempDivRef.current).color;
+            
+            // Convert rgb to hex
+            const rgb = computedColor.match(/\d+/g);
+            if (rgb) {
+                const hex = `#${parseInt(rgb[0]).toString(16).padStart(2, '0')}${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}`;
+                setColorPickerValue(hex);
+            }
+        } else if (!value) {
+            setColorPickerValue("#000000");
+        }
+    }, [value]);
+
+    const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        onChange(e.target.value);
+    };
+
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                 <div 
-                    className="h-10 w-12 shrink-0 rounded-md border border-input"
-                    style={{ backgroundColor: value }}
+                 <Input
+                    type="color"
+                    value={colorPickerValue}
+                    onChange={handleColorPickerChange}
+                    className="w-12 h-10 p-1"
                  />
                 <Input
                     type="text"
@@ -42,6 +70,8 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                     placeholder="e.g., hsl(var(--primary))"
                 />
             </div>
+            {/* Hidden div used for color resolution */}
+            <div ref={tempDivRef} style={{ display: 'none' }} />
         </div>
     );
 };
@@ -86,6 +116,31 @@ const getInitialStyles = (id: string) => {
     return fallbackStyles;
 }
 
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (source[key] !== undefined) {
+          if (isObject(source[key])) {
+            if (!target[key]) Object.assign(target, { [key]: {} });
+            mergeDeep(target[key], source[key]);
+          } else {
+            Object.assign(target, { [key]: source[key] });
+          }
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
+};
+
+
 export default function EditSectionPage() {
     const params = useParams();
     const router = useRouter();
@@ -104,12 +159,11 @@ export default function EditSectionPage() {
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
     useEffect(() => {
+      if (!isLoading) {
         const initialStyles = getInitialStyles(sectionId);
-        if (savedStyles) {
-            setStyles({ ...initialStyles, ...savedStyles });
-        } else if (!isLoading) {
-            setStyles(initialStyles);
-        }
+        const finalStyles = mergeDeep({}, initialStyles, savedStyles);
+        setStyles(finalStyles);
+      }
     }, [savedStyles, isLoading, sectionId]);
 
     const handleStyleChange = (property: string, value: any) => {
@@ -239,3 +293,5 @@ export default function EditSectionPage() {
         </div>
     );
 }
+
+    
