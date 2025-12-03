@@ -109,15 +109,15 @@ export function DashboardClient() {
   const { user, userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  const planRef = useMemoFirebase(() => {
+  const planRef = useMemo(() => {
     if (!firestore || !user) return null;
     const planId = userProfile?.planId || "free-default";
     return doc(firestore, "plans", planId);
   }, [firestore, user, userProfile]);
 
-  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
+  const { data: activePlan, isLoading: isLoadingPlan } = useDoc(planRef);
 
-  const emailsQuery = useMemoFirebase(() => {
+  const emailsQuery = useMemo(() => {
     if (!firestore || !currentInbox?.id || !user) return null;
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
@@ -126,20 +126,20 @@ export function DashboardClient() {
   }, [firestore, currentInbox?.id, user]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } =
-    useCollection<Email>(emailsQuery);
+    useCollection(emailsQuery);
 
   const displayedEmails = useMemo(() => {
     return isDemoMode ? demoEmails : (inboxEmails || []);
   }, [isDemoMode, inboxEmails]);
 
-  const generateRandomString = (length: number) => {
+  const generateRandomString = useCallback((length: number) => {
     let result = "";
     const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
     for (let i = 0; i < length; i++) {
       result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
-  };
+  }, []);
 
   const generateNewInbox = useCallback(
     async (activeUser: import("firebase/auth").User, plan: Plan) => {
@@ -211,7 +211,7 @@ export function DashboardClient() {
         setIsLoading(false);
       }
     },
-    [firestore]
+    [firestore, generateRandomString]
   );
 
   useEffect(() => {
@@ -284,7 +284,6 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
-          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -576,6 +575,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    
