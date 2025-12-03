@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -24,15 +23,17 @@ import { Slider } from '@/components/ui/slider';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    const [resolvedColor, setResolvedColor] = useState("#000000");
+    const [hexColor, setHexColor] = useState("#000000");
+    const [opacity, setOpacity] = useState(1);
 
     useEffect(() => {
         if (value && typeof window !== 'undefined') {
-            if (!value.startsWith('hsl(var(') && !value.startsWith('rgba(') && !value.startsWith('#')) {
-                setResolvedColor(value);
+            if (value === 'transparent') {
+                setHexColor('#ffffff'); 
+                setOpacity(0);
                 return;
             }
-            // Create a temporary element to resolve the CSS variable
+
             const tempEl = document.createElement('div');
             tempEl.style.display = 'none';
             tempEl.style.color = value;
@@ -42,42 +43,32 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
             
             document.body.removeChild(tempEl);
 
-            // computedColor is 'rgb(r, g, b)'
-            const rgb = computedColor.match(/\d+/g);
-            if (rgb) {
-                const hex = '#' + rgb.map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
-                setResolvedColor(hex);
+            const match = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+            if (match) {
+                const [, r, g, b, a] = match;
+                const hex = '#' + [r, g, b].map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
+                setHexColor(hex);
+                setOpacity(a !== undefined ? parseFloat(a) : 1);
             }
         }
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const hex = e.target.value;
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        
-        const currentOpacity = getOpacityFromValue(value);
-        onChange(`rgba(${r}, ${g}, ${b}, ${currentOpacity})`);
-        setResolvedColor(hex);
+        const newHex = e.target.value;
+        const r = parseInt(newHex.slice(1, 3), 16);
+        const g = parseInt(newHex.slice(3, 5), 16);
+        const b = parseInt(newHex.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity.toFixed(2)})`);
     };
-
-    const getOpacityFromValue = (val: string) => {
-         if (val && val.startsWith('rgba')) {
-            const parts = val.split(',');
-            if (parts.length === 4) {
-                return parseFloat(parts[3]);
-            }
-        }
-        return 1;
-    }
 
     const handleOpacityChange = (newOpacity: number[]) => {
-        const r = parseInt(resolvedColor.slice(1, 3), 16);
-        const g = parseInt(resolvedColor.slice(3, 5), 16);
-        const b = parseInt(resolvedColor.slice(5, 7), 16);
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
         onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0].toFixed(2)})`);
     };
+
+    const isTransparent = value === 'transparent';
 
     return (
         <div className="space-y-2">
@@ -86,10 +77,14 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                  <div className="relative">
                     <Input
                         type="color"
-                        value={resolvedColor}
+                        value={hexColor}
                         onChange={handleColorChange}
-                        className="w-12 h-10 p-1"
+                        className="w-12 h-10 p-1 disabled:opacity-100"
+                        disabled={isTransparent}
                     />
+                    {isTransparent && (
+                        <div className="absolute inset-0 w-12 h-10 bg-[conic-gradient(#eee_25%,_#888_0_50%,_#eee_0_75%,_#888_0)] bg-[length:10px_10px] rounded-md border border-input"></div>
+                    )}
                 </div>
                 <Input
                     type="text"
@@ -102,10 +97,11 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
              <div className="space-y-2 pt-2">
                 <Label className="text-xs">Opacity</Label>
                 <Slider
-                    value={[getOpacityFromValue(value)]}
+                    value={[opacity]}
                     onValueChange={handleOpacityChange}
                     max={1}
                     step={0.05}
+                    disabled={isTransparent}
                 />
             </div>
         </div>
@@ -171,7 +167,7 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (source[key] !== undefined && source[key] !== null) { // Only merge defined values
+      if (source[key] !== undefined) { // Only merge defined values, allowing null
           if (isObject(source[key])) {
             if (!target[key]) Object.assign(target, { [key]: {} });
             mergeDeep(target[key], source[key]);
