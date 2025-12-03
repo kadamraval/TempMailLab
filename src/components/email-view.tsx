@@ -41,7 +41,7 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
     <Card className="h-full flex flex-col border-0 shadow-none rounded-none">
       <CardHeader className="flex flex-row items-center gap-4">
          {showBackButton && (
-          <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden">
+          <Button variant="ghost" size="icon" onClick={onBack}>
               <ArrowLeft className="h-5 w-5" />
           </Button>
         )}

@@ -14,6 +14,7 @@ import {
   Archive,
   Forward,
   Star,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,30 +91,6 @@ const demoEmails: Email[] = [
       textContent: 'A new sign-in was detected. If this was not you, please secure your account immediately.',
       read: false,
     },
-    {
-      id: 'demo-4',
-      inboxId: 'demo',
-      userId: 'demo',
-      senderName: 'SocialApp',
-      subject: 'You have a new friend request',
-      receivedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      createdAt: Timestamp.now(),
-      htmlContent: '<p>Jessica wants to connect with you on SocialApp.</p>',
-      textContent: 'Jessica wants to connect with you on SocialApp.',
-      read: true,
-    },
-    {
-      id: 'demo-5',
-      inboxId: 'demo',
-      userId: 'demo',
-      senderName: 'ProjectManager',
-      subject: 'Task "Deploy to Staging" is overdue',
-      receivedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      createdAt: Timestamp.now(),
-      htmlContent: '<p>The task "Deploy to Staging" was due yesterday. Please provide an update.</p>',
-      textContent: 'The task "Deploy to Staging" was due yesterday. Please provide an update.',
-      read: false,
-    }
   ];
 
 
@@ -124,7 +101,7 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [demoEmailsVisible, setDemoEmailsVisible] = useState<Email[]>([]);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -150,11 +127,9 @@ export function DashboardClient() {
   const { data: inboxEmails, isLoading: isLoadingEmails } =
     useCollection<Email>(emailsQuery);
 
-  const sortedEmails = useMemo(() => {
-    if (demoEmailsVisible.length > 0) return demoEmailsVisible;
-    if (!inboxEmails) return [];
-    return inboxEmails;
-  }, [inboxEmails, demoEmailsVisible]);
+  const displayedEmails = useMemo(() => {
+    return isDemoMode ? demoEmails : (inboxEmails || []);
+  }, [isDemoMode, inboxEmails]);
 
   const generateRandomString = (length: number) => {
     let result = "";
@@ -400,7 +375,7 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && currentInbox && firestore && !demoEmailsVisible.length) {
+    if (!email.read && currentInbox && firestore && !isDemoMode) {
       try {
         const emailRef = doc(
           firestore,
@@ -425,13 +400,8 @@ export function DashboardClient() {
   };
   
   const handleToggleDemo = () => {
-    if (demoEmailsVisible.length > 0) {
-        setDemoEmailsVisible([]);
-        setSelectedEmail(null);
-    } else {
-        setDemoEmailsVisible(demoEmails);
-        setSelectedEmail(demoEmails[0]);
-    }
+    setSelectedEmail(null);
+    setIsDemoMode(prev => !prev);
   };
   
   const getRelativeTime = (date: string | Timestamp) => {
@@ -523,117 +493,97 @@ export function DashboardClient() {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1">
-        <Card className="h-full">
-          <CardContent className="p-0 h-full">
-            {isLoadingEmails && sortedEmails.length === 0 ? (
-               <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full min-h-[calc(100vh-400px)]">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                  <p className="mt-4 text-lg">Checking for emails...</p>
-               </div>
-            ) : sortedEmails.length === 0 ? (
-              <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full min-h-[calc(100vh-400px)]">
-                <Inbox className="h-16 w-16 mb-4" />
-                <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
-                <p>New mail will appear here automatically when received.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-[400px_1fr] h-full min-h-[calc(100vh-400px)]">
-                
-                {/* Column 1: Email List */}
-                <div className="flex flex-col border-r">
-                  <ScrollArea className="flex-1">
-                    <div className="p-2 space-y-1">
-                      {sortedEmails.map((email) => (
-                        <div
-                          key={email.id}
-                          onClick={() => handleSelectEmail(email)}
-                          className={cn(
-                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer",
-                            selectedEmail?.id === email.id
-                              ? "bg-muted"
-                              : "hover:bg-muted/50",
-                            !email.read && "bg-blue-500/5"
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                              <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                              <div className="flex-grow overflow-hidden">
-                                  <div className="flex justify-between items-start">
-                                      <span className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</span>
-                                      <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getRelativeTime(email.receivedAt)}</span>
-                                  </div>
-                                  <p className={cn("truncate text-sm", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
-                              </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <TooltipProvider><Tooltip>
-                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
-                                      <TooltipContent><p>Archive</p></TooltipContent>
-                                  </Tooltip></TooltipProvider>
-                                  <TooltipProvider><Tooltip>
-                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
-                                      <TooltipContent><p>Delete</p></TooltipContent>
-                                  </Tooltip></TooltipProvider>
-                                   <TooltipProvider><Tooltip>
-                                      <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                      <TooltipContent><p>Star</p></TooltipContent>
-                                  </Tooltip></TooltipProvider>
-                              </div>
-                          </div>
+      <Card className="flex-1">
+        <CardContent className="p-0 h-full">
+            <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full min-h-[calc(100vh-400px)]">
+                {/* Column 1: Inbox List */}
+                <div className="hidden md:flex flex-col border-r">
+                    <div className="p-2 border-b">
+                        <h2 className="text-lg font-semibold tracking-tight">Inboxes</h2>
+                    </div>
+                     <ScrollArea className="flex-1">
+                        <div className="p-2">
+                            <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
+                                <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
+                                <Badge variant="secondary">{displayedEmails.length}</Badge>
+                            </div>
                         </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                    </ScrollArea>
                 </div>
-
-                {/* Column 2: Email Viewer */}
-                <div className="col-span-1 hidden md:block">
-                  {selectedEmail ? (
-                    <EmailView
-                      email={{
-                        ...selectedEmail,
-                        receivedAt:
-                          selectedEmail.receivedAt instanceof Timestamp
-                            ? selectedEmail.receivedAt.toDate().toISOString()
-                            : selectedEmail.receivedAt,
-                      }}
-                      plan={activePlan}
-                      onBack={() => setSelectedEmail(null)}
-                      showBackButton={false}
-                    />
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground bg-card">
-                      <Inbox className="h-16 w-16 mb-4" />
-                      <h3 className="text-xl font-semibold">
-                        Select an email to read
-                      </h3>
-                      <p>Your messages will appear here.</p>
-                    </div>
-                  )}
+                
+                {/* Column 2: Dynamic Content (Email List or Email View) */}
+                <div className="flex flex-col">
+                    {selectedEmail ? (
+                        <EmailView
+                            email={{
+                                ...selectedEmail,
+                                receivedAt:
+                                selectedEmail.receivedAt instanceof Timestamp
+                                    ? selectedEmail.receivedAt.toDate().toISOString()
+                                    : selectedEmail.receivedAt,
+                            }}
+                            plan={activePlan}
+                            onBack={() => setSelectedEmail(null)}
+                            showBackButton={true} // Always show back button in this layout
+                        />
+                    ) : (
+                        isLoadingEmails && displayedEmails.length === 0 ? (
+                            <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                                <p className="mt-4 text-lg">Checking for emails...</p>
+                            </div>
+                        ) : displayedEmails.length === 0 ? (
+                             <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
+                                <Inbox className="h-16 w-16 mb-4" />
+                                <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
+                                <p>New mail will appear here automatically when received.</p>
+                            </div>
+                        ) : (
+                            <ScrollArea className="h-full">
+                                <div className="p-2 space-y-1">
+                                    {displayedEmails.map((email) => (
+                                        <div
+                                        key={email.id}
+                                        onClick={() => handleSelectEmail(email)}
+                                        className={cn(
+                                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer",
+                                            !email.read && "bg-blue-500/5"
+                                        )}
+                                        >
+                                        <div className="flex items-center gap-3">
+                                            <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            <div className="flex-grow overflow-hidden">
+                                                <div className="flex justify-between items-start">
+                                                    <span className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</span>
+                                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getRelativeTime(email.receivedAt)}</span>
+                                                </div>
+                                                <p className={cn("truncate text-sm", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <TooltipProvider><Tooltip>
+                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
+                                                    <TooltipContent><p>Archive</p></TooltipContent>
+                                                </Tooltip></TooltipProvider>
+                                                <TooltipProvider><Tooltip>
+                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
+                                                    <TooltipContent><p>Delete</p></TooltipContent>
+                                                </Tooltip></TooltipProvider>
+                                                <TooltipProvider><Tooltip>
+                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                    <TooltipContent><p>Star</p></TooltipContent>
+                                                </Tooltip></TooltipProvider>
+                                            </div>
+                                        </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )
+                    )}
                 </div>
-
-                {/* Mobile View: Show only email view when an email is selected */}
-                {selectedEmail && (
-                  <div className="md:hidden absolute inset-0 bg-background z-10">
-                    <EmailView
-                      email={{
-                        ...selectedEmail,
-                        receivedAt:
-                          selectedEmail.receivedAt instanceof Timestamp
-                            ? selectedEmail.receivedAt.toDate().toISOString()
-                            : selectedEmail.receivedAt,
-                      }}
-                      plan={activePlan}
-                      onBack={() => setSelectedEmail(null)}
-                      showBackButton={true}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
