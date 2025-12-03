@@ -18,6 +18,9 @@ import {
   Mail,
   Search,
   Filter as FilterIcon,
+  MoreHorizontal,
+  Ban,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +58,7 @@ import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -614,22 +618,23 @@ export function DashboardClient() {
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center">
-                                                        <span className="transition-opacity duration-200 group-hover:opacity-0 text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                            <TooltipProvider><Tooltip>
-                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
-                                                                <TooltipContent><p>Archive</p></TooltipContent>
-                                                            </Tooltip></TooltipProvider>
-                                                            <TooltipProvider><Tooltip>
-                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
-                                                                <TooltipContent><p>Delete</p></TooltipContent>
-                                                            </Tooltip></TooltipProvider>
-                                                            <TooltipProvider><Tooltip>
-                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                                <TooltipContent><p>Star</p></TooltipContent>
-                                                            </Tooltip></TooltipProvider>
-                                                        </div>
+                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+                                                        <span className="text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                                <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                                                                <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
+                                                                <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
+                                                                <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </div>
                                                 </div>
                                             </div>
