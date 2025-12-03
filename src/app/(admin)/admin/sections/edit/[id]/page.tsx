@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -26,28 +27,32 @@ import { AdminSectionPreview } from '../../admin-section-preview';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    const [color, opacity] = useMemo(() => {
-        if (!value || typeof value !== 'string') return ['#000000', 1];
-        if (value.startsWith('hsl')) {
-             return ['#000000', 1]; // Default for HSL variables which we can't parse
-        }
-        if (value.startsWith('rgba')) {
-            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
-            if (parts.length === 4) {
-                const toHex = (c: number) => parseInt(c.toString(), 10).toString(16).padStart(2, '0');
-                const hex = `#${toHex(Number(parts[0]))}${toHex(Number(parts[1]))}${toHex(Number(parts[2]))}`;
-                return [hex, parseFloat(parts[3])];
+    const [resolvedColor, setResolvedColor] = useState("#000000");
+
+    useEffect(() => {
+        if (value && typeof window !== 'undefined') {
+            if (!value.startsWith('hsl(var(') && !value.startsWith('rgba(') && !value.startsWith('#')) {
+                setResolvedColor(value);
+                return;
+            }
+
+            // Create a temporary element to resolve the CSS variable
+            const tempEl = document.createElement('div');
+            tempEl.style.display = 'none';
+            tempEl.style.color = value;
+            document.body.appendChild(tempEl);
+            
+            const computedColor = window.getComputedStyle(tempEl).color;
+            
+            document.body.removeChild(tempEl);
+
+            // computedColor is 'rgb(r, g, b)'
+            const rgb = computedColor.match(/\d+/g);
+            if (rgb) {
+                const hex = '#' + rgb.map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
+                setResolvedColor(hex);
             }
         }
-         if (value.startsWith('#')) {
-             if (value.length === 7) return [value, 1]; // #RRGGBB
-             if (value.length === 9) { // #RRGGBBAA
-                const alphaHex = value.slice(7,9);
-                const alpha = parseInt(alphaHex, 16) / 255;
-                return [value.slice(0,7), alpha];
-             }
-         }
-        return [value, 1];
     }, [value]);
 
     const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,13 +60,26 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
-        onChange(`rgba(${r}, ${g}, ${b}, ${opacity.toFixed(2)})`);
+        
+        const currentOpacity = getOpacityFromValue(value);
+        onChange(`rgba(${r}, ${g}, ${b}, ${currentOpacity})`);
+        setResolvedColor(hex);
     };
 
+    const getOpacityFromValue = (val: string) => {
+         if (val && val.startsWith('rgba')) {
+            const parts = val.split(',');
+            if (parts.length === 4) {
+                return parseFloat(parts[3]);
+            }
+        }
+        return 1;
+    }
+
     const handleOpacityChange = (newOpacity: number[]) => {
-        const r = parseInt(color.slice(1, 3), 16);
-        const g = parseInt(color.slice(3, 5), 16);
-        const b = parseInt(color.slice(5, 7), 16);
+        const r = parseInt(resolvedColor.slice(1, 3), 16);
+        const g = parseInt(resolvedColor.slice(3, 5), 16);
+        const b = parseInt(resolvedColor.slice(5, 7), 16);
         onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0].toFixed(2)})`);
     };
 
@@ -72,7 +90,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
                  <div className="relative">
                     <Input
                         type="color"
-                        value={color}
+                        value={resolvedColor}
                         onChange={handleColorChange}
                         className="w-12 h-10 p-1"
                     />
@@ -88,7 +106,7 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
              <div className="space-y-2 pt-2">
                 <Label className="text-xs">Opacity</Label>
                 <Slider
-                    value={[opacity]}
+                    value={[getOpacityFromValue(value)]}
                     onValueChange={handleOpacityChange}
                     max={1}
                     step={0.05}
