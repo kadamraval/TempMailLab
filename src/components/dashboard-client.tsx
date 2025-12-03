@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -404,18 +405,14 @@ export function DashboardClient() {
     setIsDemoMode(prev => !prev);
   };
   
-  const getRelativeTime = (date: string | Timestamp) => {
+  const getReceivedDateTime = (date: string | Timestamp) => {
     const d = date instanceof Timestamp ? date.toDate() : new Date(date);
-    const now = new Date();
-    const diffSeconds = Math.round((now.getTime() - d.getTime()) / 1000);
-    const diffMinutes = Math.round(diffSeconds / 60);
-    const diffHours = Math.round(diffMinutes / 60);
-    const diffDays = Math.round(diffHours / 24);
-
-    if (diffSeconds < 60) return `${diffSeconds}s`;
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${diffDays}d`;
+    return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
   }
 
   if (isLoading) {
@@ -458,8 +455,14 @@ export function DashboardClient() {
       {/* Top Header */}
       <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
         <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>{formatTime(countdown)}</span>
+          {countdown < 60 && countdown > 0 ? (
+            <>
+              <Clock className="h-4 w-4 text-destructive" />
+              <span className="text-destructive">{formatTime(countdown)}</span>
+            </>
+          ) : (
+             <Clock className="h-4 w-4" />
+          )}
         </div>
 
         <div
@@ -495,13 +498,8 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1">
         <CardContent className="p-0 h-full">
-            {isLoadingEmails && displayedEmails.length === 0 && !isDemoMode ? (
+            {displayedEmails.length === 0 && !isLoadingEmails && !isDemoMode ? (
                  <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="mt-4 text-lg">Checking for emails...</p>
-                </div>
-            ) : displayedEmails.length === 0 ? (
-                <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
                     <Inbox className="h-16 w-16 mb-4" />
                     <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
                     <p>New mail will appear here automatically when received.</p>
@@ -550,12 +548,14 @@ export function DashboardClient() {
                                             !email.read && "bg-blue-500/5"
                                         )}
                                         >
-                                        <div className="flex items-center gap-3">
-                                            <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="flex items-start gap-3">
+                                            <div className="pt-1">
+                                                <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                            </div>
                                             <div className="flex-grow overflow-hidden">
                                                 <div className="flex justify-between items-start">
                                                     <span className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</span>
-                                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getRelativeTime(email.receivedAt)}</span>
+                                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getReceivedDateTime(email.receivedAt)}</span>
                                                 </div>
                                                 <p className={cn("truncate text-sm", !email.read ? "text-foreground" : "text-muted-foreground")}>{email.subject}</p>
                                             </div>
