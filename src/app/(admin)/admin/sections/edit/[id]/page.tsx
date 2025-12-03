@@ -23,7 +23,7 @@ import { Loader2 } from 'lucide-react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Slider } from '@/components/ui/slider';
-import { AdminSectionPreview } from '../../../admin/sections/admin-section-preview';
+import { AdminSectionPreview } from '../../admin-section-preview';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
