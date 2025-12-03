@@ -79,7 +79,8 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
     if (isObject(target) && isObject(source)) {
         for (const key in source) {
-            // This is the fix: Check if the source property is NOT undefined. Null is a valid value for resetting.
+            // Only merge if the source property is not undefined.
+            // This allows 'null' to be a valid override value.
             if (source[key] !== undefined) {
                 if (isObject(source[key])) {
                     if (!target[key]) Object.assign(target, { [key]: {} });
