@@ -23,85 +23,20 @@ import { Slider } from '@/components/ui/slider';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    const [hexColor, setHexColor] = useState("#000000");
-    const [opacity, setOpacity] = useState(1);
-
-    useEffect(() => {
-        if (value && typeof window !== 'undefined') {
-            if (value === 'transparent') {
-                setHexColor('#ffffff'); 
-                setOpacity(0);
-                return;
-            }
-
-            const tempEl = document.createElement('div');
-            tempEl.style.display = 'none';
-            tempEl.style.color = value;
-            document.body.appendChild(tempEl);
-            
-            const computedColor = window.getComputedStyle(tempEl).color;
-            
-            document.body.removeChild(tempEl);
-
-            const match = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-            if (match) {
-                const [, r, g, b, a] = match;
-                const hex = '#' + [r, g, b].map(c => parseInt(c).toString(16).padStart(2, '0')).join('');
-                setHexColor(hex);
-                setOpacity(a !== undefined ? parseFloat(a) : 1);
-            }
-        }
-    }, [value]);
-
-    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newHex = e.target.value;
-        const r = parseInt(newHex.slice(1, 3), 16);
-        const g = parseInt(newHex.slice(3, 5), 16);
-        const b = parseInt(newHex.slice(5, 7), 16);
-        onChange(`rgba(${r}, ${g}, ${b}, ${opacity.toFixed(2)})`);
-    };
-
-    const handleOpacityChange = (newOpacity: number[]) => {
-        const r = parseInt(hexColor.slice(1, 3), 16);
-        const g = parseInt(hexColor.slice(3, 5), 16);
-        const b = parseInt(hexColor.slice(5, 7), 16);
-        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0].toFixed(2)})`);
-    };
-
-    const isTransparent = value === 'transparent';
-
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                 <div className="relative">
-                    <Input
-                        type="color"
-                        value={hexColor}
-                        onChange={handleColorChange}
-                        className="w-12 h-10 p-1 disabled:opacity-100"
-                        disabled={isTransparent}
-                    />
-                    {isTransparent && (
-                        <div className="absolute inset-0 w-12 h-10 bg-[conic-gradient(#eee_25%,_#888_0_50%,_#eee_0_75%,_#888_0)] bg-[length:10px_10px] rounded-md border border-input"></div>
-                    )}
-                </div>
+                 <div 
+                    className="h-10 w-12 shrink-0 rounded-md border border-input"
+                    style={{ backgroundColor: value }}
+                 />
                 <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., rgba(255,255,255,1)"
-                />
-            </div>
-             <div className="space-y-2 pt-2">
-                <Label className="text-xs">Opacity</Label>
-                <Slider
-                    value={[opacity]}
-                    onValueChange={handleOpacityChange}
-                    max={1}
-                    step={0.05}
-                    disabled={isTransparent}
+                    placeholder="e.g., hsl(var(--primary))"
                 />
             </div>
         </div>
