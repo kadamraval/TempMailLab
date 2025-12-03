@@ -46,8 +46,8 @@ import {
 } from "firebase/firestore";
 import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ScrollArea } from "./ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
@@ -109,15 +109,15 @@ export function DashboardClient() {
   const { user, userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  const planRef = useMemo(() => {
+  const planRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     const planId = userProfile?.planId || "free-default";
     return doc(firestore, "plans", planId);
   }, [firestore, user, userProfile]);
 
-  const { data: activePlan, isLoading: isLoadingPlan } = useDoc(planRef);
+  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
 
-  const emailsQuery = useMemo(() => {
+  const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id || !user) return null;
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
@@ -126,7 +126,7 @@ export function DashboardClient() {
   }, [firestore, currentInbox?.id, user]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } =
-    useCollection(emailsQuery);
+    useCollection<Email>(emailsQuery);
 
   const displayedEmails = useMemo(() => {
     return isDemoMode ? demoEmails : (inboxEmails || []);
