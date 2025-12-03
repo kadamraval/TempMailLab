@@ -24,50 +24,97 @@ import { Slider } from '@/components/ui/slider';
 
 
 const ColorInput = ({ label, value, onChange }: { label: string, value: string, onChange: (value: string) => void }) => {
-    const [colorPickerValue, setColorPickerValue] = useState("#000000");
     const tempDivRef = useRef<HTMLDivElement>(null);
 
-    // This effect resolves the CSS variable or keyword to a hex color for the color input
-    useEffect(() => {
-        if (tempDivRef.current && value) {
-            // Temporarily apply the value to a hidden div to resolve it
-            tempDivRef.current.style.color = value;
-            const computedColor = window.getComputedStyle(tempDivRef.current).color;
-            
-            // Convert rgb to hex
-            const rgb = computedColor.match(/\d+/g);
-            if (rgb) {
-                const hex = `#${parseInt(rgb[0]).toString(16).padStart(2, '0')}${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}`;
-                setColorPickerValue(hex);
+    const [hexColor, opacity] = useMemo(() => {
+        if (!value) return ["#000000", 1];
+        
+        // If it's a CSS variable, we resolve it dynamically.
+        if (value.startsWith('hsl')) {
+             if (typeof window !== 'undefined' && tempDivRef.current) {
+                tempDivRef.current.style.color = value;
+                const computedColor = window.getComputedStyle(tempDivRef.current).color;
+                const rgb = computedColor.match(/\d+/g);
+                if (rgb) {
+                    const hex = `#${parseInt(rgb[0]).toString(16).padStart(2, '0')}${parseInt(rgb[1]).toString(16).padStart(2, '0')}${parseInt(rgb[2]).toString(16).padStart(2, '0')}`;
+                    return [hex, 1];
+                }
             }
-        } else if (!value) {
-            setColorPickerValue("#000000");
+            return ["#000000", 1]; // Fallback while server-rendering or if resolution fails
+        }
+
+        // Handle RGBA
+        if (value.startsWith('rgba')) {
+            const parts = value.replace(/rgba?\(|\)/g, '').split(',').map(s => s.trim());
+            if (parts.length === 4) {
+                const hex = `#${parseInt(parts[0]).toString(16).padStart(2, '0')}${parseInt(parts[1]).toString(16).padStart(2, '0')}${parseInt(parts[2]).toString(16).padStart(2, '0')}`;
+                return [hex, parseFloat(parts[3])];
+            }
+        }
+
+        // Handle Hex
+        if (value.startsWith('#')) {
+            return [value, 1];
+        }
+
+        // Handle keywords like 'transparent'
+        if (value === 'transparent') {
+            return ['#000000', 0];
+        }
+
+        return [value, 1];
+    }, [value]);
+
+    useEffect(() => {
+        // This effect ensures the color is resolved on the client side after mount
+        if (value && value.startsWith('hsl')) {
+            // Force a re-render to trigger the useMemo calculation on the client
+            onChange(value);
         }
     }, [value]);
 
     const handleColorPickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange(e.target.value);
+        const newHex = e.target.value;
+        const r = parseInt(newHex.slice(1, 3), 16);
+        const g = parseInt(newHex.slice(3, 5), 16);
+        const b = parseInt(newHex.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${opacity})`);
+    };
+
+    const handleOpacityChange = (newOpacity: number[]) => {
+        const r = parseInt(hexColor.slice(1, 3), 16);
+        const g = parseInt(hexColor.slice(3, 5), 16);
+        const b = parseInt(hexColor.slice(5, 7), 16);
+        onChange(`rgba(${r}, ${g}, ${b}, ${newOpacity[0]})`);
     };
 
     return (
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="flex items-center gap-2">
-                 <Input
+                <Input
                     type="color"
-                    value={colorPickerValue}
+                    value={hexColor}
                     onChange={handleColorPickerChange}
                     className="w-12 h-10 p-1"
-                 />
+                />
                 <Input
                     type="text"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     className="font-mono"
-                    placeholder="e.g., hsl(var(--primary))"
+                    placeholder="e.g., hsl(var(--primary)) or rgba(...)"
                 />
             </div>
-            {/* Hidden div used for color resolution */}
+            <div className="space-y-2 pt-2">
+                <Label className="text-xs">Opacity</Label>
+                <Slider
+                    value={[opacity]}
+                    onValueChange={handleOpacityChange}
+                    max={1}
+                    step={0.05}
+                />
+            </div>
             <div ref={tempDivRef} style={{ display: 'none' }} />
         </div>
     );
@@ -284,5 +331,3 @@ export function SectionStyleDialog({ isOpen, onClose, section, pageId, pageName 
     </Dialog>
   );
 }
-
-    
