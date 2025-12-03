@@ -471,14 +471,8 @@ export function DashboardClient() {
       {/* Top Header */}
       <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
         <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
-          {countdown < 60 && countdown > 0 ? (
-            <>
-              <Clock className="h-4 w-4 text-destructive" />
-              <span className="text-destructive">{formatTime(countdown)}</span>
-            </>
-          ) : (
-             <Clock className="h-4 w-4" />
-          )}
+          <Clock className={cn("h-4 w-4", countdown < 60 && countdown > 0 && "text-destructive")} />
+          <span className={cn(countdown < 60 && countdown > 0 && "text-destructive")}>{formatTime(countdown)}</span>
         </div>
 
         <div
@@ -618,7 +612,11 @@ export function DashboardClient() {
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
-                                                        <span className="text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
+                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
+                                                        <span className="text-xs text-muted-foreground hidden items-center gap-1 group-hover:inline-flex">
+                                                            <Clock className="h-3 w-3" />
+                                                            {formatTime(countdown)}
+                                                        </span>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -650,5 +648,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
