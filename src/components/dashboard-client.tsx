@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -9,6 +10,7 @@ import {
   Trash2,
   Inbox,
   ServerCrash,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,6 +48,46 @@ import { signInAnonymously } from "firebase/auth";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
+const demoEmails: Email[] = [
+    {
+      id: 'demo-1',
+      inboxId: 'demo',
+      userId: 'demo',
+      senderName: 'Welcome Team',
+      subject: 'Getting Started with Tempmailoz',
+      receivedAt: new Date().toISOString(),
+      createdAt: Timestamp.now(),
+      htmlContent: '<h1>Welcome!</h1><p>This is a demo email to showcase the layout.</p>',
+      textContent: 'Welcome! This is a demo email to showcase the layout.',
+      read: false,
+    },
+    {
+      id: 'demo-2',
+      inboxId: 'demo',
+      userId: 'demo',
+      senderName: 'Promotions',
+      subject: 'Special Offer: 50% Off Premium',
+      receivedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      createdAt: Timestamp.now(),
+      htmlContent: '<p>Don\'t miss out on our special offer!</p>',
+      textContent: 'Don\'t miss out on our special offer!',
+      read: true,
+    },
+     {
+      id: 'demo-3',
+      inboxId: 'demo',
+      userId: 'demo',
+      senderName: 'Security Alert',
+      subject: 'Your account was accessed from a new device',
+      receivedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      createdAt: Timestamp.now(),
+      htmlContent: '<p>A new sign-in was detected. If this was not you, please secure your account immediately.</p>',
+      textContent: 'A new sign-in was detected. If this was not you, please secure your account immediately.',
+      read: false,
+    }
+  ];
+
+
 export function DashboardClient() {
   const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -53,6 +95,7 @@ export function DashboardClient() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [demoEmailsVisible, setDemoEmailsVisible] = useState<Email[]>([]);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -79,9 +122,10 @@ export function DashboardClient() {
     useCollection<Email>(emailsQuery);
 
   const sortedEmails = useMemo(() => {
+    if (demoEmailsVisible.length > 0) return demoEmailsVisible;
     if (!inboxEmails) return [];
     return inboxEmails;
-  }, [inboxEmails]);
+  }, [inboxEmails, demoEmailsVisible]);
 
   const generateRandomString = (length: number) => {
     let result = "";
@@ -335,7 +379,7 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && currentInbox && firestore) {
+    if (!email.read && currentInbox && firestore && !demoEmailsVisible.length) {
       try {
         const emailRef = doc(
           firestore,
@@ -357,6 +401,16 @@ export function DashboardClient() {
       2,
       "0"
     )}`;
+  };
+  
+  const handleToggleDemo = () => {
+    if (demoEmailsVisible.length > 0) {
+        setDemoEmailsVisible([]);
+        setSelectedEmail(null);
+    } else {
+        setDemoEmailsVisible(demoEmails);
+        setSelectedEmail(demoEmails[0]);
+    }
   };
 
   if (isLoading) {
@@ -420,6 +474,10 @@ export function DashboardClient() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+           <Button onClick={handleToggleDemo} variant="outline" size="sm">
+                <Eye className="h-4 w-4 mr-2"/>
+                Toggle UI
+            </Button>
         </div>
       </div>
 
