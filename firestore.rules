@@ -19,23 +19,29 @@ service cloud.firestore {
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Rule for the page document itself
+    // Allow admins to write to any page document
     match /pages/{pageId} {
-      allow get: if true;
+      allow get: if true; // A single page is public
+      allow list: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true; // Admins can list all pages
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Rule for subcollections within a page
+    // Allow admins to write to any subcollection within a page
     match /pages/{pageId}/{sectionCollection}/{sectionDocId} {
-        allow get, list: if true;
+        allow get: if true; // Content and styles are public
+        allow list: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     match /posts/{postId} {
-      // Public: read any published post, Admins: read any post
-      allow read: if (resource.data.status == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      // Allow anyone to read a single published post, or any admin to read any post.
+      allow get: if (resource.data.status == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
       
-      // Only admin can create/update/delete
+      // Allow listing if user is an admin OR if the query ONLY filters for published posts.
+      allow list: if (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+                  || (request.query.where['status'] == 'published');
+
+      // Only allow admins to create, update, or delete blog posts.
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
@@ -64,11 +70,15 @@ service cloud.firestore {
       // Allow any authenticated user (including anonymous) to create an inbox for themselves.
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // Allow a user to read or delete an inbox if they are the owner.
+      // Allow a user to read, or delete an inbox if they are the owner.
+      // Updates are now handled by the secure webhook.
       allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // Block client-side updates. These are handled by secure backend functions.
+      // Allow updates only from our secure backend (which bypasses these rules),
+      // or allow the user to update specific, safe fields if needed in the future.
+      // For now, we block client-side updates to things like emailCount.
       allow update: if false;
+
 
       // Secure list operation: only allow querying for one's own inboxes.
       allow list: if request.auth != null && request.query.where['userId'] == request.auth.uid;
@@ -76,6 +86,7 @@ service cloud.firestore {
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Disallow all direct client creation. Creation must only happen via the secure webhook.
+        // The server-side logic (webhook/actions), which uses Admin credentials, bypasses these rules.
         allow create: if false;
 
         // Allow a user to read or update their own emails by checking the parent inbox's ownership.
