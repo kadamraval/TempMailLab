@@ -1,10 +1,9 @@
-
 "use client";
 
 import Link from "next/link";
 import { Mail, LogIn, LogOut, LayoutDashboard, Settings } from "lucide-react";
 import { Button } from "./ui/button";
-import { useUser, useAuth } from "@/firebase";
+import { useUser, useAuth, useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -18,20 +17,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "./mode-toggle";
+import { doc, orderBy, query, collection } from "firebase/firestore";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { Skeleton } from "./ui/skeleton";
 
-
-const navLinks = [
-    { href: "/features", label: "Features" },
-    { href: "/pricing", label: "Pricing" },
-    { href: "/blog", label: "Blog" },
-    { href: "/api", label: "API" },
-];
 
 export function Header() {
   const { user } = useUser();
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const menuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'header') : null, [firestore]);
+  const { data: menuData, isLoading: isLoadingMenu } = useDoc(menuRef);
 
   const handleLogout = async () => {
     try {
@@ -65,11 +64,19 @@ export function Header() {
           <h1 className="text-xl font-bold text-foreground">Tempmailoz</h1>
         </Link>
         <nav className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
-                <Link key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-                    {link.label}
-                </Link>
-            ))}
+            {isLoadingMenu ? (
+              <>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+              </>
+            ) : (
+              (menuData?.items || []).map((link: any) => (
+                  <Link key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+                      {link.label}
+                  </Link>
+              ))
+            )}
         </nav>
         <div className="flex items-center gap-2">
           {user && !user.isAnonymous ? (

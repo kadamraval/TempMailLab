@@ -1,31 +1,28 @@
+"use client";
 
 import Link from "next/link";
 import { Separator } from "./ui/separator";
-
-const topNavLinks = [
-    { name: "Features", href: "/features" },
-    { name: "Pricing", href: "/pricing" },
-    { name: "Blog", href: "/blog" },
-    { name: "API", href: "/api" },
-    { name: "Extension", href: "/extension" },
-    { name: "Help Center", href: "/contact" },
-];
-
-const legalLinks = [
-    { name: "Terms of Service", href: "/terms" },
-    { name: "Privacy Policy", href: "/privacy" },
-];
+import { useFirestore, useMemoFirebase } from "@/firebase";
+import { useDoc } from "@/firebase/firestore/use-doc";
+import { doc } from "firebase/firestore";
 
 export function Footer() {
+    const firestore = useFirestore();
+    const headerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'header') : null, [firestore]);
+    const { data: headerMenuData } = useDoc(headerMenuRef);
+
+    const footerMenuRef = useMemoFirebase(() => firestore ? doc(firestore, 'menus', 'footer') : null, [firestore]);
+    const { data: footerMenuData } = useDoc(footerMenuRef);
+
     return (
         <footer className="border-t bg-background/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-12">
             
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                  <nav className="flex gap-6">
-                    {topNavLinks.map((link) => (
+                    {(headerMenuData?.items || []).map((link: any) => (
                          <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                            {link.name}
+                            {link.label}
                         </Link>
                     ))}
                  </nav>
@@ -38,9 +35,9 @@ export function Footer() {
                      &copy; {new Date().getFullYear()} Tempmailoz. All rights reserved.
                 </p>
                 <div className="flex items-center gap-6">
-                     {legalLinks.map((link) => (
+                     {(footerMenuData?.items || []).map((link: any) => (
                          <Link key={link.name} href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                            {link.name}
+                            {link.label}
                         </Link>
                     ))}
                 </div>

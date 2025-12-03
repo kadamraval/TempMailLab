@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -21,6 +20,7 @@ import {
   Library,
   ChevronRight,
   ChevronsLeft,
+  Menu,
 } from "lucide-react"
 import {
   Tooltip,
@@ -54,7 +54,8 @@ const navItems = [
       icon: FileText,
       subItems: [
         { href: "/admin/pages", icon: FileText, label: "Pages" },
-        { href: "/admin/sections", icon: LayoutGrid, label: "Default Sections" },
+        { href: "/admin/sections", icon: LayoutGrid, label: "Sections" },
+        { href: "/admin/menus", icon: Menu, label: "Menus" },
         { href: "/admin/blog", icon: BookOpen, label: "Blog" },
         { href: "/admin/categories", icon: Library, label: "Categories" },
       ]

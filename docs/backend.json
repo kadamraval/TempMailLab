@@ -90,6 +90,26 @@
             "postCount": { "type": "number", "description": "The number of posts in this category." }
         },
         "required": ["name", "slug"]
+    },
+    "Menu": {
+      "title": "Menu",
+      "type": "object",
+      "description": "Represents a navigation menu.",
+      "properties": {
+        "id": { "type": "string" },
+        "items": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "href": { "type": "string" },
+              "order": { "type": "number" }
+            }
+          }
+        }
+      }
     }
   },
   "auth": {
@@ -128,6 +148,10 @@
       {
         "path": "/categories/{categoryId}",
         "definition": { "schema": { "$ref": "#/entities/Category" }, "description": "Collection of all blog categories." }
+      },
+      {
+        "path": "/menus/{menuId}",
+        "definition": { "schema": { "$ref": "#/entities/Menu" }, "description": "Stores navigation menus (e.g., header, footer)." }
       }
     ]
   }
