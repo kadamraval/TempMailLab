@@ -1,13 +1,13 @@
-
 "use client";
 
 import React, { useMemo } from 'react';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore'; // Removed setDoc import
+import { doc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import type { Plan } from "@/app/(admin)/admin/packages/data";
+import DOMPurify from 'isomorphic-dompurify';
 
 // Import all possible section components
 import { DashboardClient } from '@/components/dashboard-client';
@@ -27,11 +27,29 @@ import { TopTitleSection } from './top-title-section';
 // Default content data is now imported here for fallback
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
 
+// Generic content component with WYSIWYG support
+const ContentSection = ({ content }: { content: { title: string, html: string } }) => {
+  if (!content) return null;
+  const cleanHtml = DOMPurify.sanitize(content.html);
+  return (
+    <section>
+        <div className="text-center space-y-4 mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tighter">{content.title}</h2>
+        </div>
+        <div 
+            className="prose dark:prose-invert max-w-4xl mx-auto"
+            dangerouslySetInnerHTML={{ __html: cleanHtml }}
+        />
+    </section>
+  )
+};
+
 const sectionComponents: { [key: string]: React.ComponentType<any> } = {
   inbox: DashboardClient, why: UseCasesSection, features: FeaturesSection,
   'exclusive-features': ExclusiveFeatures, comparison: ComparisonSection, pricing: PricingSection,
   'pricing-comparison': PricingComparisonTable, blog: BlogSection, testimonials: Testimonials,
   faq: FaqSection, newsletter: StayConnected, 'contact-form': ContactPage, 'top-title': TopTitleSection,
+  content: ContentSection,
 };
 
 const getDefaultContent = (pageId: string, sectionId: string) => {
@@ -56,6 +74,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
              return { title: pageTitle, description: pageDescription, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
         case 'inbox': return { name: "Inbox" }; 
+        case 'content': return { title: titleCasedPageName, html: `<p>This is the default content for the ${titleCasedPageName} page. You can edit this in the admin panel.</p>` };
         default: return null;
     }
 }
@@ -104,8 +123,6 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
   
   const plansQuery = useMemoFirebase(() => !['pricing', 'pricing-comparison'].includes(sectionId) ? null : query(collection(firestore, "plans"), where("status", "==", "active")), [firestore, sectionId]);
   const { data: plans } = useCollection<Plan>(plansQuery);
-
-  // The problematic useEffect that tried to write to the database has been removed.
   
   const finalStyles = useMemo(() => {
     const fallback = getFallbackSectionStyles(sectionId);
@@ -124,7 +141,6 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
       return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
-  // If content is not found in the database, it will use the hardcoded default content.
   const finalContent = content || getDefaultContent(pageId, sectionId);
   if (!finalContent) return null;
   

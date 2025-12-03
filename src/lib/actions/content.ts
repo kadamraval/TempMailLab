@@ -42,18 +42,14 @@ export async function createPageAction(pageId: string, pageName: string) {
             name: 'Top Title',
             order: 0,
             hidden: false,
-            title: pageName,
-            description: `This is the default description for the ${pageName} page.`
         });
-
-        const newsletterSectionRef = sectionsCollection.doc('newsletter');
-        batch.set(newsletterSectionRef, {
-            id: 'newsletter',
-            name: 'Newsletter',
+        
+        const contentSectionRef = sectionsCollection.doc('content');
+        batch.set(contentSectionRef, {
+            id: 'content',
+            name: 'Content',
             order: 1,
             hidden: false,
-            title: 'Stay Connected',
-            description: 'Subscribe for updates and news.'
         });
         
         await batch.commit();
@@ -152,6 +148,8 @@ export async function savePageSectionsAction(pageId: string, sections: { id: str
         currentSectionIds.forEach(id => {
             if (!newSectionIds.has(id)) {
                 batch.delete(pageSectionsCollection.doc(id));
+                // Also delete the associated style override document if it exists
+                batch.delete(pageSectionsCollection.doc(`${id}_styles`));
             }
         });
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -24,6 +23,13 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useCases, features, faqs, comparisonFeatures, testimonials, exclusiveFeatures, blogPosts } from '@/lib/content-data';
 import { Switch } from '@/components/ui/switch';
+import dynamic from 'next/dynamic';
+import 'react-quill/dist/quill.snow.css';
+
+const ReactQuill = dynamic(() => import('react-quill'), { 
+    ssr: false,
+    loading: () => <div className="h-[400px] w-full bg-muted rounded-md flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>
+});
 
 interface SectionContentDialogProps {
   isOpen: boolean;
@@ -73,6 +79,7 @@ const getDefaultContent = (pageId: string, sectionId: string) => {
              const description = pageId === 'home' ? 'Generate instant, private, and secure temporary email addresses. Keep your real inbox safe from spam, trackers, and prying eyes.' : `Everything you need to know about our ${pageName}.`;
              return { title, description, badge: { text: "New Feature", icon: "Sparkles", show: false } };
         case 'newsletter': return { title: "Stay Connected", description: "Subscribe for updates." };
+        case 'content': return { title: "Content", html: "<p>Start writing your content here...</p>" };
         default: return { title: sectionId, description: "Default description", items: [] };
     }
 }
@@ -83,10 +90,13 @@ const TopContentFields = ({ content, onContentChange, sectionId }: { content: an
             <Label>Section Title</Label>
             <Input value={content.title} onChange={(e) => onContentChange({ ...content, title: e.target.value })} />
         </div>
-        <div>
-            <Label>Section Description</Label>
-            <Textarea value={content.description} onChange={(e) => onContentChange({ ...content, description: e.target.value })} />
-        </div>
+        
+        {'description' in content && (
+             <div>
+                <Label>Section Description</Label>
+                <Textarea value={content.description} onChange={(e) => onContentChange({ ...content, description: e.target.value })} />
+            </div>
+        )}
 
         {sectionId === 'top-title' && content.badge && (
           <div className="p-4 border rounded-md space-y-4">
@@ -192,6 +202,39 @@ const FaqForm = ({ content, onContentChange }: { content: any, onContentChange: 
     )
 }
 
+const ContentForm = ({ content, onContentChange }: { content: any, onContentChange: (data: any) => void }) => {
+    const quillModules = React.useMemo(() => ({
+        toolbar: [
+          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{'list': 'ordered'}, {'list': 'bullet'}],
+          ['link', 'blockquote'],
+          ['clean']
+        ],
+    }), []);
+
+    return (
+        <div className="space-y-4">
+             <TopContentFields 
+                content={content} 
+                onContentChange={onContentChange}
+                sectionId="content"
+            />
+             <div className="space-y-2">
+                <Label>Main Content</Label>
+                 <ReactQuill 
+                    theme="snow" 
+                    value={content.html} 
+                    onChange={(value) => onContentChange({ ...content, html: value })}
+                    modules={quillModules}
+                    className="bg-background"
+                    style={{ height: '400px', marginBottom: '4rem' }}
+                  />
+             </div>
+        </div>
+    )
+}
+
 const isSectionDynamic = (sectionId: string) => {
     const dynamicSections = ['inbox', 'pricing', 'pricing-comparison', 'blog', 'contact-form'];
     return dynamicSections.includes(sectionId);
@@ -282,6 +325,8 @@ export function SectionContentDialog({ isOpen, onClose, section, pageId }: Secti
     switch (section.id) {
         case 'top-title':
             return <SimpleForm section={section} content={contentData} onContentChange={setContentData} />;
+        case 'content':
+            return <ContentForm content={contentData} onContentChange={setContentData} />;
         case 'why':
         case 'features':
         case 'exclusive-features':

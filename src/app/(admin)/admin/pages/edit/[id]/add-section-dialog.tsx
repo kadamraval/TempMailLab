@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 const allPossibleSections = [
     { id: "top-title", name: "Top Title", icon: "AlignHorizontalJustifyStart" }, 
+    { id: "content", name: "Content (WYSIWYG)", icon: "FileText" },
     { id: "inbox", name: "Inbox", icon: "Inbox" }, 
     { id: "why", name: "Why Us Section", icon: "HelpCircle" },
     { id: "features", name: "Features Grid", icon: "LayoutGrid" }, 

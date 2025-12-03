@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from 'next/navigation';
@@ -11,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 const sections = [
     { id: "inbox", name: "Inbox", pages: ["Home", "Dashboard"] },
     { id: "top-title", name: "Top Title", pages: ["Home", "Features", "Pricing", "Blog", "API"] },
+    { id: "content", name: "Content (WYSIWYG)", pages: ["About", "Privacy", "Terms"] },
     { id: "why", name: "Why", pages: ["Home"] },
     { id: "features", name: "Features", pages: ["Home", "Features"] },
     { id: "exclusive-features", name: "Exclusive Features", pages: ["Home", "Features"] },
