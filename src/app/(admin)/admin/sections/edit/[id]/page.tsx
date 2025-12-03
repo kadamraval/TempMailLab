@@ -31,11 +31,6 @@ const ColorInput = ({ label, value, onChange }: { label: string, value: string, 
 
     useEffect(() => {
         if (value && typeof window !== 'undefined') {
-            if (!value.startsWith('hsl(var(') && !value.startsWith('rgba(') && !value.startsWith('#')) {
-                setResolvedColor(value);
-                return;
-            }
-
             // Create a temporary element to resolve the CSS variable
             const tempEl = document.createElement('div');
             tempEl.style.display = 'none';
@@ -173,10 +168,7 @@ export default function EditSectionPage() {
     const {data: savedStyles, isLoading} = useDoc(sectionRef);
 
     useEffect(() => {
-        // TIER 1: Start with hardcoded fallbacks
         const initialStyles = getInitialStyles(sectionId);
-        
-        // TIER 2: Merge the saved global defaults from Firestore
         if (savedStyles) {
             setStyles({ ...initialStyles, ...savedStyles });
         } else if (!isLoading) {

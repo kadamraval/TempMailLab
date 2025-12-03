@@ -117,29 +117,19 @@ export const PageSection = ({ pageId, sectionId, order, isHidden }: { pageId: st
     }
   }, [isLoadingContent, content, contentError, contentRef, pageId, sectionId, order]);
   
-  React.useEffect(() => {
-    if (!isLoadingDefaultStyle && !defaultStyle && !defaultStyleError && defaultStyleRef) {
-        setDoc(defaultStyleRef, getFallbackSectionStyles(sectionId)).catch(console.error);
-    }
-  }, [isLoadingDefaultStyle, defaultStyle, defaultStyleError, defaultStyleRef, sectionId]);
+  const finalStyles = useMemo(() => {
+    const fallback = getFallbackSectionStyles(sectionId);
+    return mergeDeep({}, fallback, defaultStyle, styleOverride);
+  }, [defaultStyle, styleOverride, sectionId]);
 
-  const [areStylesReady, setAreStylesReady] = React.useState(false);
-  const [finalStyles, setFinalStyles] = React.useState(() => getFallbackSectionStyles(sectionId));
-
-  React.useEffect(() => {
-      if (!isLoadingDefaultStyle && !isLoadingStyleOverride) {
-          const merged = mergeDeep({}, getFallbackSectionStyles(sectionId), defaultStyle, styleOverride);
-          setFinalStyles(merged);
-          setAreStylesReady(true);
-      }
-  }, [isLoadingDefaultStyle, isLoadingStyleOverride, defaultStyle, styleOverride, sectionId]);
+  const isLoading = isLoadingContent || isLoadingDefaultStyle || isLoadingStyleOverride;
 
   if (content?.hidden || isHidden) return null;
 
   const Component = sectionComponents[sectionId];
   if (!Component) return null;
 
-  if (isLoadingContent || !areStylesReady) {
+  if (isLoading) {
       if (sectionId === 'inbox') return null;
       return <div className="flex items-center justify-center min-h-[200px]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
