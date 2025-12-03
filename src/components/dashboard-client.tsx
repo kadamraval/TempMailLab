@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -496,49 +495,49 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1">
         <CardContent className="p-0 h-full">
-            <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full min-h-[calc(100vh-400px)]">
-                {/* Column 1: Inbox List */}
-                <div className="hidden md:flex flex-col border-r">
-                    <div className="p-2 border-b">
-                        <h2 className="text-lg font-semibold tracking-tight">Inboxes</h2>
-                    </div>
-                     <ScrollArea className="flex-1">
-                        <div className="p-2">
-                            <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
-                                <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
-                                <Badge variant="secondary">{displayedEmails.length}</Badge>
-                            </div>
-                        </div>
-                    </ScrollArea>
+            {isLoadingEmails && displayedEmails.length === 0 && !isDemoMode ? (
+                 <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <p className="mt-4 text-lg">Checking for emails...</p>
                 </div>
-                
-                {/* Column 2: Dynamic Content (Email List or Email View) */}
-                <div className="flex flex-col">
-                    {selectedEmail ? (
-                        <EmailView
-                            email={{
-                                ...selectedEmail,
-                                receivedAt:
-                                selectedEmail.receivedAt instanceof Timestamp
-                                    ? selectedEmail.receivedAt.toDate().toISOString()
-                                    : selectedEmail.receivedAt,
-                            }}
-                            plan={activePlan}
-                            onBack={() => setSelectedEmail(null)}
-                            showBackButton={true} // Always show back button in this layout
-                        />
-                    ) : (
-                        isLoadingEmails && displayedEmails.length === 0 ? (
-                            <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
-                                <Loader2 className="h-8 w-8 animate-spin" />
-                                <p className="mt-4 text-lg">Checking for emails...</p>
+            ) : displayedEmails.length === 0 ? (
+                <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
+                    <Inbox className="h-16 w-16 mb-4" />
+                    <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
+                    <p>New mail will appear here automatically when received.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-full min-h-[calc(100vh-400px)]">
+                    {/* Column 1: Inbox List */}
+                    <div className="hidden md:flex flex-col border-r">
+                        <div className="p-2 border-b">
+                            <h2 className="text-lg font-semibold tracking-tight">Inboxes</h2>
+                        </div>
+                        <ScrollArea className="flex-1">
+                            <div className="p-2">
+                                <div className="p-3 rounded-lg bg-muted flex items-center justify-between">
+                                    <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
+                                    <Badge variant="secondary">{displayedEmails.length}</Badge>
+                                </div>
                             </div>
-                        ) : displayedEmails.length === 0 ? (
-                             <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 h-full">
-                                <Inbox className="h-16 w-16 mb-4" />
-                                <h3 className="text-xl font-semibold">Your inbox is empty.</h3>
-                                <p>New mail will appear here automatically when received.</p>
-                            </div>
+                        </ScrollArea>
+                    </div>
+                    
+                    {/* Column 2: Dynamic Content (Email List or Email View) */}
+                    <div className="flex flex-col">
+                        {selectedEmail ? (
+                            <EmailView
+                                email={{
+                                    ...selectedEmail,
+                                    receivedAt:
+                                    selectedEmail.receivedAt instanceof Timestamp
+                                        ? selectedEmail.receivedAt.toDate().toISOString()
+                                        : selectedEmail.receivedAt,
+                                }}
+                                plan={activePlan}
+                                onBack={() => setSelectedEmail(null)}
+                                showBackButton={true} // Always show back button in this layout
+                            />
                         ) : (
                             <ScrollArea className="h-full">
                                 <div className="p-2 space-y-1">
@@ -547,7 +546,7 @@ export function DashboardClient() {
                                         key={email.id}
                                         onClick={() => handleSelectEmail(email)}
                                         className={cn(
-                                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer",
+                                            "group w-full text-left p-3 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
                                             !email.read && "bg-blue-500/5"
                                         )}
                                         >
@@ -579,10 +578,10 @@ export function DashboardClient() {
                                     ))}
                                 </div>
                             </ScrollArea>
-                        )
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
         </CardContent>
       </Card>
     </div>
