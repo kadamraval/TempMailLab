@@ -513,12 +513,9 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
                     {/* Column 1: Inbox List */}
                     <div className="flex flex-col border-r">
-                        <div className="p-4 border-b flex items-center justify-between">
-                            <h3 className="font-semibold text-lg">Inbox</h3>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Inbox className="h-4 w-4" />
-                                <span>1 / {activePlan.features.maxInboxes}</span>
-                            </div>
+                        <div className="p-3 border-b flex items-center gap-2">
+                            <h3 className="font-semibold text-base">Inbox</h3>
+                            <span className="text-sm text-muted-foreground">1 / {activePlan.features.maxInboxes}</span>
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
@@ -532,13 +529,12 @@ export function DashboardClient() {
                     
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col">
-                        <div className="p-4 border-b flex items-center justify-between">
-                            <h3 className="font-semibold text-lg">Mail</h3>
+                        <div className="p-3 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Mail className="h-4 w-4" />
-                                    <span>{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
-                                </div>
+                                <h3 className="font-semibold text-base">Mail</h3>
+                                <span className="text-sm text-muted-foreground">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
                                 <TooltipProvider>
                                     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip>
                                     <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip>
@@ -583,23 +579,23 @@ export function DashboardClient() {
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
-                                                    <div className="hidden md:flex items-center justify-end col-span-3 text-xs text-muted-foreground self-center">
-                                                         <span className="transition-opacity duration-200 opacity-100 group-hover:opacity-0">{getReceivedDateTime(email.receivedAt)}</span>
+                                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                                                        <span className="transition-opacity duration-200 opacity-100 group-hover:opacity-0 text-xs text-muted-foreground">{getReceivedDateTime(email.receivedAt)}</span>
+                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                            <TooltipProvider><Tooltip>
+                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
+                                                                <TooltipContent><p>Archive</p></TooltipContent>
+                                                            </Tooltip></TooltipProvider>
+                                                            <TooltipProvider><Tooltip>
+                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
+                                                                <TooltipContent><p>Delete</p></TooltipContent>
+                                                            </Tooltip></TooltipProvider>
+                                                            <TooltipProvider><Tooltip>
+                                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                                <TooltipContent><p>Star</p></TooltipContent>
+                                                            </Tooltip></TooltipProvider>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                                    <TooltipProvider><Tooltip>
-                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
-                                                        <TooltipContent><p>Archive</p></TooltipContent>
-                                                    </Tooltip></TooltipProvider>
-                                                    <TooltipProvider><Tooltip>
-                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
-                                                        <TooltipContent><p>Delete</p></TooltipContent>
-                                                    </Tooltip></TooltipProvider>
-                                                    <TooltipProvider><Tooltip>
-                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                        <TooltipContent><p>Star</p></TooltipContent>
-                                                    </Tooltip></TooltipProvider>
                                                 </div>
                                             </div>
                                         </div>
@@ -615,5 +611,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
