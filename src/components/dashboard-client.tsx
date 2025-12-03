@@ -60,7 +60,7 @@ const demoEmails: Email[] = [
       id: 'demo-1',
       inboxId: 'demo',
       userId: 'demo',
-      senderName: 'Welcome Team',
+      senderName: 'Welcome Team <welcome@example.com>',
       subject: 'Getting Started with Tempmailoz',
       receivedAt: new Date().toISOString(),
       createdAt: Timestamp.now(),
@@ -73,7 +73,7 @@ const demoEmails: Email[] = [
       inboxId: 'demo',
       userId: 'demo',
       senderName: 'Promotions',
-      subject: 'Special Offer: 50% Off Premium!',
+      subject: 'Special Offer: 50% Off Premium! Plus, check out this very long subject line to see how truncation works in our new UI.',
       receivedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       createdAt: Timestamp.now(),
       htmlContent: '<p>Don\'t miss out on our special offer! Upgrade today to get more features like custom domains, email forwarding, and an ad-free experience.</p>',
@@ -281,7 +281,7 @@ export function DashboardClient() {
           }
         }
       } else {
-        const userInboxesQuery = query(
+         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
           limit(1)
@@ -536,32 +536,30 @@ export function DashboardClient() {
                                             !email.read && "bg-blue-500/5"
                                         )}
                                         >
-                                        <div className="flex items-start gap-3">
-                                            <div className="pt-1">
-                                                <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            </div>
-                                            <div className="flex-grow overflow-hidden">
-                                                <div className="flex justify-between items-start">
-                                                    <p className={cn("font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
-                                                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">{getReceivedDateTime(email.receivedAt)}</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="pt-1">
+                                                    <Checkbox id={`select-${email.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </div>
-                                                <p className={cn("truncate text-sm", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
+                                                <div className="grid grid-cols-12 gap-x-4 flex-grow items-center">
+                                                    <p className={cn("col-span-4 font-semibold truncate", !email.read && "text-foreground")}>{email.senderName}</p>
+                                                    <p className={cn("col-span-5 truncate text-sm", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
+                                                    <span className="col-span-3 text-xs text-muted-foreground text-right">{getReceivedDateTime(email.receivedAt)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <TooltipProvider><Tooltip>
+                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
+                                                        <TooltipContent><p>Archive</p></TooltipContent>
+                                                    </Tooltip></TooltipProvider>
+                                                    <TooltipProvider><Tooltip>
+                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
+                                                        <TooltipContent><p>Delete</p></TooltipContent>
+                                                    </Tooltip></TooltipProvider>
+                                                    <TooltipProvider><Tooltip>
+                                                        <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                        <TooltipContent><p>Star</p></TooltipContent>
+                                                    </Tooltip></TooltipProvider>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <TooltipProvider><Tooltip>
-                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger>
-                                                    <TooltipContent><p>Archive</p></TooltipContent>
-                                                </Tooltip></TooltipProvider>
-                                                <TooltipProvider><Tooltip>
-                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger>
-                                                    <TooltipContent><p>Delete</p></TooltipContent>
-                                                </Tooltip></TooltipProvider>
-                                                <TooltipProvider><Tooltip>
-                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                    <TooltipContent><p>Star</p></TooltipContent>
-                                                </Tooltip></TooltipProvider>
-                                            </div>
-                                        </div>
                                         </div>
                                     ))}
                                 </div>
@@ -575,3 +573,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
+
+    
