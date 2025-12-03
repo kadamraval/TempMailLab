@@ -19,18 +19,23 @@ service cloud.firestore {
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
+    // Rule for the page document itself
+    match /pages/{pageId} {
+      allow get: if true;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Rule for subcollections within a page
     match /pages/{pageId}/{sectionCollection}/{sectionDocId} {
         allow get, list: if true;
         allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     match /posts/{postId} {
-      // Allow public read for published posts, and admin read for any post.
-      // This single 'read' rule covers both 'get' and 'list' operations.
-      allow read: if resource.data.status == 'published'
-                  || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-
-      // Only admins can create, update, or delete posts.
+      // Public: read any published post, Admins: read any post
+      allow read: if (resource.data.status == 'published') || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      
+      // Only admin can create/update/delete
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
