@@ -184,7 +184,7 @@ export default function EditPageLayout() {
     const simplifiedSections = sectionsToSave.map(({ id, order, hidden, name }) => ({ id, order, hidden, name: name || id }));
     const result = await savePageSectionsAction(pageId, simplifiedSections);
     if (result.success) {
-      toast({ title: "Order saved!", description: "Section order has been updated." });
+      toast({ title: "Page updated!", description: "Section changes have been saved." });
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
@@ -217,19 +217,14 @@ export default function EditPageLayout() {
   };
 
   const handleDeleteSection = async () => {
-    if (!firestore || !deletingSection) return;
-    try {
-      const sectionRef = doc(firestore, 'pages', pageId, 'sections', deletingSection.id);
-      await deleteDoc(sectionRef);
-      const updatedSections = localSections.filter(s => s.id !== deletingSection.id);
-      setLocalSections(updatedSections);
-      handleSaveOrder(updatedSections); // Save the order after deletion
-      toast({ title: "Section Deleted", description: `'${deletingSection.name}' has been removed from this page.` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setDeletingSection(null);
-    }
+    if (!deletingSection) return;
+    // Optimistically update the UI
+    const updatedSections = localSections.filter(s => s.id !== deletingSection.id);
+    setLocalSections(updatedSections);
+    // Let the server action handle the actual deletion from the database
+    await handleSaveOrder(updatedSections);
+    toast({ title: "Section Removed", description: `'${deletingSection.name}' has been removed from this page.` });
+    setDeletingSection(null);
   };
 
   const handleAddSections = (addedSections: any[]) => {

@@ -129,9 +129,9 @@ export async function saveStyleOverrideAction(fullPath: string, styles: any) {
 
 
 /**
- * Updates the order or existence of sections on a page.
+ * Synchronizes the sections for a page, handling additions, updates, and deletions.
  * @param pageId The ID of the page being edited.
- * @param sections An array of section objects, which could include new sections to add.
+ * @param sections The desired final array of section objects for the page.
  */
 export async function savePageSectionsAction(pageId: string, sections: { id: string, name?: string, order: number, hidden?: boolean }[]) {
     if (!pageId || !sections) {
@@ -140,21 +140,30 @@ export async function savePageSectionsAction(pageId: string, sections: { id: str
     
     try {
         const firestore = getAdminFirestore();
-        const batch: WriteBatch = firestore.batch();
+        const batch = firestore.batch();
         const pageSectionsCollection = firestore.collection(`pages/${pageId}/sections`);
-        
+
+        // Get current sections from DB to compare for deletions
+        const currentSectionsSnapshot = await pageSectionsCollection.get();
+        const currentSectionIds = new Set(currentSectionsSnapshot.docs.map(doc => doc.id));
+        const newSectionIds = new Set(sections.map(s => s.id));
+
+        // 1. Delete sections that are in the DB but not in the new list
+        currentSectionIds.forEach(id => {
+            if (!newSectionIds.has(id)) {
+                batch.delete(pageSectionsCollection.doc(id));
+            }
+        });
+
+        // 2. Add or update sections from the new list
         sections.forEach(section => {
             const sectionRef = pageSectionsCollection.doc(section.id);
             const dataToSet: any = {
                 id: section.id,
-                name: section.name || section.id, // Fallback to id if name is missing
+                name: section.name || section.id,
                 order: section.order,
+                hidden: section.hidden !== undefined ? section.hidden : false,
             };
-            // Only set 'hidden' if it's explicitly provided, otherwise leave it untouched
-            if (section.hidden !== undefined) {
-                dataToSet.hidden = section.hidden;
-            }
-
             batch.set(sectionRef, dataToSet, { merge: true });
         });
 
