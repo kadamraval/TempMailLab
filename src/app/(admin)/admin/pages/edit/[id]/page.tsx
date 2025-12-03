@@ -106,9 +106,10 @@ export default function EditPageLayout() {
                 { id: "inbox", name: "Inbox", order: 1, hidden: false },
                 { id: "why", name: "Why", order: 2, hidden: false },
                 { id: "features", name: "Features", order: 3, hidden: false },
-                { id: "testimonials", name: "Testimonials", order: 4, hidden: false },
-                { id: "faq", name: "FAQ", order: 5, hidden: false },
-                { id: "newsletter", name: "Newsletter", order: 6, hidden: false },
+                { id: "blog", name: "Blog", order: 4, hidden: false },
+                { id: "testimonials", name: "Testimonials", order: 5, hidden: false },
+                { id: "faq", name: "FAQ", order: 6, hidden: false },
+                { id: "newsletter", name: "Newsletter", order: 7, hidden: false },
             ];
             setLocalSections(homeSections);
             handleSaveOrder(homeSections);

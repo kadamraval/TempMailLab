@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, Loader2 } from "lucide-react"
+import { ArrowRight, Loader2, Newspaper } from "lucide-react"
 import type { BlogPost } from "@/app/(admin)/admin/blog/types"
 
 interface BlogSectionProps {
@@ -40,7 +40,7 @@ export function BlogSection({ content }: BlogSectionProps) {
     )
   }
 
-  if (!content || !posts || posts.length === 0) {
+  if (!content) {
     return null;
   }
   
@@ -52,35 +52,46 @@ export function BlogSection({ content }: BlogSectionProps) {
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">{content.description}</p>
             </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map((post: any) => (
-            <Card key={post.id} className="overflow-hidden flex flex-col border">
-              <Link href={`/blog/${post.slug}`}>
-                  <Image
-                    src={post.featuredImage || "https://picsum.photos/seed/blog1/600/400"}
-                    alt={post.title}
-                    width={600}
-                    height={400}
-                    className="w-full h-48 object-cover"
-                  />
-              </Link>
-              <CardHeader>
-                <CardTitle className="text-xl">{post.title}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="text-muted-foreground line-clamp-3">{post.excerpt}</p>
-              </CardContent>
-              <CardFooter className="flex justify-between items-center">
-                 <span className="text-sm text-muted-foreground">{post.publishedAt?.toDate().toLocaleDateString()}</span>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/blog/${post.slug}`}>
-                    Read More <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+
+        {posts && posts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {posts.map((post: any) => (
+                <Card key={post.id} className="overflow-hidden flex flex-col border">
+                <Link href={`/blog/${post.slug}`}>
+                    <Image
+                        src={post.featuredImage || "https://picsum.photos/seed/blog1/600/400"}
+                        alt={post.title}
+                        width={600}
+                        height={400}
+                        className="w-full h-48 object-cover"
+                    />
+                </Link>
+                <CardHeader>
+                    <CardTitle className="text-xl">{post.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    <p className="text-muted-foreground line-clamp-3">{post.excerpt}</p>
+                </CardContent>
+                <CardFooter className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">{post.publishedAt?.toDate().toLocaleDateString()}</span>
+                    <Button asChild variant="ghost" size="sm">
+                    <Link href={`/blog/${post.slug}`}>
+                        Read More <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                    </Button>
+                </CardFooter>
+                </Card>
+            ))}
+            </div>
+        ) : (
+             <div className="text-center py-16 px-4 border-2 border-dashed rounded-lg">
+                <Newspaper className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold text-foreground">No Blog Posts Yet</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    Published posts from the admin panel will appear here.
+                </p>
+            </div>
+        )}
     </section>
   )
 }
