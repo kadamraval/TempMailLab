@@ -99,8 +99,8 @@ export default function AdminMenusPage() {
   useEffect(() => { if (topFooterMenuData?.items) { setTopFooterMenuItems(topFooterMenuData.items) } }, [topFooterMenuData]);
   useEffect(() => { if (bottomFooterMenuData?.items) { setBottomFooterMenuItems(bottomFooterMenuData.items) } }, [bottomFooterMenuData]);
 
-  const handleAddToMenu = (menuSetter: React.Dispatch<React.SetStateAction<any[]>>) => {
-    const pagesToAdd = pages?.filter(p => checkedPages[p.id] && !menuSetter(prev => prev.some(item => item.id === p.id))).map(p => ({
+  const handleAddToMenu = (menuSetter: React.Dispatch<React.SetStateAction<any[]>>, currentItems: any[]) => {
+    const pagesToAdd = pages?.filter(p => checkedPages[p.id] && !currentItems.some(item => item.id === p.id)).map(p => ({
       id: p.id,
       label: p.name,
       href: p.id === 'home' ? '/' : `/${p.slug || p.id}`,
@@ -129,9 +129,9 @@ export default function AdminMenusPage() {
       try {
         const batch = writeBatch(firestore);
         
-        saveMenuAction(batch, 'header', headerMenuItems);
-        saveMenuAction(batch, 'footer-top', topFooterMenuItems);
-        saveMenuAction(batch, 'footer-bottom', bottomFooterMenuItems);
+        await saveMenuAction(batch, 'header', headerMenuItems);
+        await saveMenuAction(batch, 'footer-top', topFooterMenuItems);
+        await saveMenuAction(batch, 'footer-bottom', bottomFooterMenuItems);
         
         await batch.commit();
 
@@ -185,9 +185,9 @@ export default function AdminMenusPage() {
                 </div>
               ))}
               <div className='flex flex-col gap-2 pt-4'>
-                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setHeaderMenuItems)}>Add to Header</Button>
-                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setTopFooterMenuItems)}>Add to Top Footer</Button>
-                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setBottomFooterMenuItems)}>Add to Bottom Footer</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setHeaderMenuItems, headerMenuItems)}>Add to Header</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setTopFooterMenuItems, topFooterMenuItems)}>Add to Top Footer</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddToMenu(setBottomFooterMenuItems, bottomFooterMenuItems)}>Add to Bottom Footer</Button>
               </div>
             </CardContent>
           </Card>
