@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   Ban,
   ShieldAlert,
+  QrCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,6 +60,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import Image from "next/image";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -111,6 +114,7 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [isQrOpen, setIsQrOpen] = useState(false);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -518,7 +522,7 @@ export function DashboardClient() {
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
                     {/* Column 1: Inbox List */}
                     <div className="flex flex-col border-r">
-                        <div className="p-2 border-b flex items-center justify-between">
+                        <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-semibold text-sm">Inbox</h3>
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -531,7 +535,49 @@ export function DashboardClient() {
                             <div className="p-2">
                                 <div className="p-2 rounded-lg bg-muted flex items-center justify-between">
                                     <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
-                                    <Badge variant="secondary">{displayedEmails.length}</Badge>
+                                    <div className="flex items-center gap-1">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>Copy Email</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                <QrCode className="h-4 w-4" />
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent><p>Show QR Code</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <DialogContent className="sm:max-w-xs">
+                                                <DialogHeader>
+                                                <DialogTitle>Scan QR Code</DialogTitle>
+                                                <DialogDescription>
+                                                    Scan this code on your mobile device to use this email address.
+                                                </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="flex items-center justify-center p-4">
+                                                    <Image 
+                                                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox.emailAddress)}`}
+                                                        alt="QR Code for email address"
+                                                        width={200}
+                                                        height={200}
+                                                    />
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Badge variant="secondary">{displayedEmails.length}</Badge>
+                                    </div>
                                 </div>
                             </div>
                         </ScrollArea>
@@ -539,7 +585,7 @@ export function DashboardClient() {
                     
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col">
-                        <div className="p-2 border-b flex items-center justify-between">
+                        <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-semibold text-sm">Mail</h3>
                                 <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -614,7 +660,7 @@ export function DashboardClient() {
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                          <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
-                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                            <span className="text-xs text-muted-foreground hidden items-center gap-1 group-hover:inline-flex">
                                                                 <Clock className="h-3 w-3" />
                                                                 {formatTime(countdown)}
                                                             </span>
