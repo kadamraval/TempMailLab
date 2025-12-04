@@ -296,7 +296,6 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
-          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -536,23 +535,25 @@ export function DashboardClient() {
                             <div className="p-2">
                                 <div className="p-2 rounded-lg bg-muted flex items-center justify-between group relative">
                                     <div className="flex-1 flex items-center gap-2 truncate">
-                                        <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
-                                        <div className="hidden group-hover:flex items-center gap-1">
-                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <Clock className="h-3 w-3" />
-                                                {formatTime(countdown)}
-                                            </span>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
-                                                    <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                        <div className="relative flex-1 truncate">
+                                            <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
+                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {formatTime(countdown)}
+                                                </span>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                                        <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
+                                                        <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
@@ -680,10 +681,6 @@ export function DashboardClient() {
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                          <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
-                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                                <Clock className="h-3 w-3" />
-                                                                {formatTime(countdown)}
-                                                            </span>
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
