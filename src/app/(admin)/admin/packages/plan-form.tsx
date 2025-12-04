@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -56,7 +55,6 @@ const featureTooltips: Record<string, string> = {
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
-  linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
   exportEmails: "Allow users to download single emails (as .eml) or bulk export (as .zip).",
 
   // Storage
@@ -71,6 +69,11 @@ const featureTooltips: Record<string, string> = {
   spamFilteringLevel: "The level of spam filtering applied to incoming emails.",
   virusScanning: "Automatically scan all incoming attachments for malware.",
   auditLogs: "For team/business accounts, a log of actions taken by team members.",
+  linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
+  star: "Allow users to mark important emails with a star.",
+  spam: "Allow users to mark emails as spam.",
+  block: "Allow users to block specific senders or domains.",
+  filter: "Enable filtering rules for incoming mail.",
 
   // API
   apiAccess: "Grant access to the developer REST API for programmatic use.",
@@ -89,10 +92,6 @@ const featureTooltips: Record<string, string> = {
   usageAnalytics: "Grant access to a dashboard for viewing detailed usage statistics.",
 
   // New features
-  star: "Allow users to mark important emails with a star.",
-  spam: "Allow users to mark emails as spam.",
-  block: "Allow users to block specific senders or domains.",
-  filter: "Enable filtering rules for incoming mail.",
   qrCode: "Allow users to generate a QR code for their inbox address.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
@@ -169,7 +168,6 @@ export function PlanForm({ plan }: PlanFormProps) {
         allowAttachments: false,
         maxAttachmentSize: 5,
         sourceCodeView: false,
-        linkSanitization: false,
         exportEmails: false,
         maxEmailsPerInbox: 25,
         totalStorageQuota: 0,
@@ -180,6 +178,7 @@ export function PlanForm({ plan }: PlanFormProps) {
         spamFilteringLevel: "basic",
         virusScanning: false,
         auditLogs: false,
+        linkSanitization: false,
         apiAccess: false,
         apiRateLimit: 0,
         webhooks: false,
@@ -207,7 +206,6 @@ export function PlanForm({ plan }: PlanFormProps) {
   })
 
   const planType = form.watch('planType');
-  const billingType = form.watch('billing');
 
   useEffect(() => {
     if (plan) {
@@ -223,11 +221,11 @@ export function PlanForm({ plan }: PlanFormProps) {
     if (planType === 'guest' || planType === 'freemium') {
       form.setValue('billing', 'lifetime_free');
       form.setValue('price', 0);
-    } else if (planType === 'pro' && billingType === 'lifetime_free') {
+    } else if (planType === 'pro' && form.getValues('billing') === 'lifetime_free') {
       // If switching to pro from free, default to monthly
       form.setValue('billing', 'monthly');
     }
-  }, [planType, billingType, form]);
+  }, [planType, form]);
 
 
   async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
@@ -323,7 +321,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 name="billing"
                                 render={({ field }) => (
                                     <FormItem className="space-y-3">
-                                    <FormLabel>Billing</FormLabel>
+                                    <FormLabel>Billing Cycle</FormLabel>
                                     <FormControl>
                                         <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
                                             <FormItem className="flex items-center space-x-2 space-y-0">
@@ -386,11 +384,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
                             <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
                             <FeatureSwitch name="features.sourceCodeView" label="Source Code View" control={form.control} />
-                            <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
-                            <FeatureSwitch name="features.star" label="Star Emails" control={form.control} />
-                            <FeatureSwitch name="features.spam" label="Spam Reporting" control={form.control} />
-                            <FeatureSwitch name="features.block" label="Block Senders" control={form.control} />
-                            <FeatureSwitch name="features.filter" label="Mail Filtering" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -427,7 +420,12 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
                             <FeatureSwitch name="features.twoFactorAuth" label="Two-Factor Auth (Account)" control={form.control} />
                             <FeatureSwitch name="features.virusScanning" label="Virus Scanning" control={form.control} />
+                            <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
                             <FeatureSwitch name="features.auditLogs" label="Audit Logs" control={form.control} />
+                            <FeatureSwitch name="features.star" label="Star Emails" control={form.control} />
+                            <FeatureSwitch name="features.spam" label="Spam Reporting" control={form.control} />
+                            <FeatureSwitch name="features.block" label="Block Senders" control={form.control} />
+                            <FeatureSwitch name="features.filter" label="Mail Filtering" control={form.control} />
                         </div>
                     </div>
                     <Separator />

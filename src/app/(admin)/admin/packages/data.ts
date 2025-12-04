@@ -1,4 +1,3 @@
-
 "use client"
 
 import { z } from "zod"
@@ -8,8 +7,8 @@ import type { Timestamp } from "firebase/firestore"
 export const planSchema = z.object({
   id: z.string().optional(), // Optional for new plans
   name: z.string().min(1, "Plan name is required."),
-  planType: z.enum(['guest', 'freemium', 'pro']).default('freemium'),
-  billing: z.enum(['monthly', 'yearly', 'lifetime_free']).default('monthly'),
+  planType: z.enum(['guest', 'freemium', 'pro']).default('guest'),
+  billing: z.enum(['monthly', 'yearly', 'lifetime_free']).default('lifetime_free'),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   status: z.enum(["active", "archived"]),
   
@@ -27,7 +26,6 @@ export const planSchema = z.object({
     allowAttachments: z.boolean().default(false),
     maxAttachmentSize: z.coerce.number().int().min(0, "Cannot be negative."),
     sourceCodeView: z.boolean().default(false),
-    linkSanitization: z.boolean().default(false),
     exportEmails: z.boolean().default(false),
 
     // 3. Storage & Data Management
@@ -42,7 +40,12 @@ export const planSchema = z.object({
     spamFilteringLevel: z.enum(["none", "basic", "aggressive"]).default("basic"),
     virusScanning: z.boolean().default(false),
     auditLogs: z.boolean().default(false),
-    
+    linkSanitization: z.boolean().default(false),
+    star: z.boolean().default(false),
+    spam: z.boolean().default(false),
+    block: z.boolean().default(false),
+    filter: z.boolean().default(false),
+
     // 5. API & Automation
     apiAccess: z.boolean().default(false),
     apiRateLimit: z.coerce.number().int().min(0, "Cannot be negative."),
@@ -60,10 +63,6 @@ export const planSchema = z.object({
     usageAnalytics: z.boolean().default(false),
 
     // New Features from user request
-    star: z.boolean().default(false),
-    spam: z.boolean().default(false),
-    block: z.boolean().default(false),
-    filter: z.boolean().default(false),
     qrCode: z.boolean().default(false),
     extendTime: z.boolean().default(false),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
@@ -74,6 +73,7 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 
 
 
