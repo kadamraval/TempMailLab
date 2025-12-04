@@ -361,7 +361,6 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
-          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -724,17 +723,18 @@ export function DashboardClient() {
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
                                     </>
-                                 ) : selectedEmails.length > 0 ? (
+                                 ) : (
                                     <>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
-                                        {isSearching ? (
+                                        {selectedEmails.length > 0 ? (
+                                            <>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
+                                            </>
+                                        ) : (
+                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
+                                        )}
+
+                                        {isSearching && selectedEmails.length === 0 && !selectedEmail ? (
                                             <div className="w-full relative">
                                                 <Input 
                                                     placeholder="Search mail..." 
@@ -747,20 +747,22 @@ export function DashboardClient() {
                                             </div>
                                         ) : (
                                             <>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    {mailFilterOptions.slice(0, 5).map(filter => (
-                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                    ))}
-                                                    <DropdownMenuSeparator />
-                                                    {mailFilterOptions.slice(5).map(filter => (
-                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                    ))}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            {selectedEmails.length === 0 && (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        {mailFilterOptions.slice(0, 5).map(filter => (
+                                                            <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                        ))}
+                                                        <DropdownMenuSeparator />
+                                                        {mailFilterOptions.slice(5).map(filter => (
+                                                            <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
