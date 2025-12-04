@@ -62,7 +62,7 @@ const featureTooltips: Record<string, string> = {
   maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. 0 for unlimited.",
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
   searchableHistory: "Enables server-side full-text search of email history.",
-  dataRetentionDays: "The number of days emails are kept, even if the inbox expires (for premium accounts). 0 for forever.",
+  dataRetentionDays: "The number of days emails are kept, even if the inbox expires (for premium accounts). 0 for unlimited.",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -93,7 +93,7 @@ const featureTooltips: Record<string, string> = {
   block: "Allow users to block specific senders or domains.",
   filter: "Enable filtering rules for incoming mail.",
   qrCode: "Allow users to generate a QR code for their inbox address.",
-  extendTime: "Allow users to extend the lifetime of their inbox, in minutes.",
+  extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
   dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. 0 for unlimited.",
 };
@@ -193,7 +193,7 @@ export function PlanForm({ plan }: PlanFormProps) {
         block: false,
         filter: false,
         qrCode: false,
-        extendTime: 0,
+        extendTime: false,
         dailyInboxLimit: 0,
         dailyEmailLimit: 0,
     }
@@ -243,6 +243,8 @@ export function PlanForm({ plan }: PlanFormProps) {
     }
   }
 
+  const planType = form.watch('price') > 0 ? 'pro' : 'free';
+
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -255,7 +257,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {isFreePlan && (
                         <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                             <Lock className="h-3 w-3" />
-                            You are editing the non-deletable default Free plan.
+                            You are editing the non-deletable default Guest plan.
                         </Badge>
                     )}
                 </CardHeader>
@@ -263,22 +265,52 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {/* --- Basic Information --- */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Basic Information</h3>
+                        
+                        <FormField
+                            control={form.control}
+                            name="price"
+                            render={() => (
+                                <FormItem className="space-y-3">
+                                <FormLabel>Plan Type</FormLabel>
+                                <FormControl>
+                                    <RadioGroup
+                                        value={planType}
+                                        onValueChange={(value) => form.setValue('price', value === 'free' ? 0 : plan?.price || 9.99)}
+                                        className="flex space-x-4"
+                                        disabled={isFreePlan}
+                                    >
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl><RadioGroupItem value="free" /></FormControl>
+                                            <FormLabel className="font-normal">Free Plan (For Registered Users)</FormLabel>
+                                        </FormItem>
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl><RadioGroupItem value="pro" /></FormControl>
+                                            <FormLabel className="font-normal">Pro Plan (Paid)</FormLabel>
+                                        </FormItem>
+                                    </RadioGroup>
+                                </FormControl>
+                                {isFreePlan && <FormDescription>The Guest plan must be a Free plan.</FormDescription>}
+                                </FormItem>
+                            )}
+                            />
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField control={form.control} name="name" render={({ field }) => (
                                 <FormItem className="md:col-span-1">
                                     <FormLabel>Plan Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isFreePlan} /></FormControl>
-                                    {isFreePlan && <FormDescription>The 'Free' plan name cannot be changed.</FormDescription>}
+                                    <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="price" render={({ field }) => (
+                           {planType === 'pro' && (
+                                <FormField control={form.control} name="price" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Price (USD)</FormLabel>
                                     <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
+                           )}
                             <FormField control={form.control} name="cycle" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Billing Cycle</FormLabel>
@@ -303,7 +335,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Max Active Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.inboxLifetime" label="Inbox Lifetime (minutes)" control={form.control} type="number" />
                             <FeatureInput name="features.customDomains" label="Custom Domains" control={form.control} type="number" />
-                             <FeatureInput name="features.extendTime" label="Extend Time (minutes)" control={form.control} type="number" />
+                            <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Prefix" control={form.control} />
                             <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
@@ -333,8 +365,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureSwitch name="features.sourceCodeView" label="Source Code View" control={form.control} />
                             <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
                             <FeatureSwitch name="features.star" label="Star Emails" control={form.control} />
-                            <FeatureSwitch name="features.spam" label="Spam/Block Controls" control={form.control} />
-                            <FeatureSwitch name="features.filter" label="Filter Mail" control={form.control} />
+                            <FeatureSwitch name="features.spam" label="Spam Reporting" control={form.control} />
+                            <FeatureSwitch name="features.block" label="Block Senders" control={form.control} />
+                            <FeatureSwitch name="features.filter" label="Mail Filtering" control={form.control} />
                         </div>
                     </div>
                     <Separator />
