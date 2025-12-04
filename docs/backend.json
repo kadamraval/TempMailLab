@@ -21,6 +21,7 @@
       "properties": {
         "userId": { "type": "string", "description": "The UID of the user who owns this inbox." },
         "emailAddress": { "type": "string", "description": "The temporary email address of the inbox." },
+        "emailCount": { "type": "number", "description": "The number of emails currently in the inbox." },
         "expiresAt": { "type": "string", "description": "Timestamp indicating when the inbox and its contents will be deleted.", "format": "date-time" },
         "createdAt": { "type": "string", "description": "Timestamp of when the inbox was created.", "format": "date-time" }
       },

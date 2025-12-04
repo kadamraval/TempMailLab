@@ -1,8 +1,10 @@
+
 "use server";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminFirestore } from '@/lib/firebase/server-init';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import type { Plan } from '@/app/(admin)/admin/packages/data';
 
 async function getSetting(db: FirebaseFirestore.Firestore, settingId: string): Promise<any> {
     const doc = await db.collection('admin_settings').doc(settingId).get();
@@ -28,10 +30,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // The body is JSON from inbound.new, not raw email text.
         const payload = await req.json();
-        
-        // Extract the parsed data directly from the JSON payload.
         const parsedEmail = payload.email?.parsedData;
         const recipientEmail = payload.email?.recipient;
 
@@ -44,12 +43,39 @@ export async function POST(req: NextRequest) {
         const inboxSnapshot = await inboxQuery.get();
 
         if (inboxSnapshot.empty) {
-            console.log(`Webhook OK: Inbox for ${recipientEmail} does not exist, message discarded.`);
-            return NextResponse.json({ message: `OK: Inbox for ${recipientEmail} does not exist, message discarded.` }, { status: 200 });
+            console.log(`Webhook OK: Mailbox for ${recipientEmail} does not exist. Message discarded.`);
+            return NextResponse.json({ message: `OK: Mailbox does not exist.` }, { status: 200 });
         }
         
         const inboxDoc = inboxSnapshot.docs[0];
         const inboxData = inboxDoc.data();
+
+        // Prevent "Zombie" Emails: Check if email is older than the inbox
+        const emailReceivedAt = parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : Timestamp.now();
+        if (inboxData.createdAt && emailReceivedAt < inboxData.createdAt) {
+            console.log(`Webhook OK: Stale email for ${recipientEmail} received and discarded.`);
+            return NextResponse.json({ message: `OK: Stale email discarded.` }, { status: 200 });
+        }
+
+        const userRef = db.doc(`users/${inboxData.userId}`);
+        const userSnap = await userRef.get();
+        const planId = userSnap.exists() ? userSnap.data()?.planId || 'free-default' : 'free-default';
+
+        const planRef = db.doc(`plans/${planId}`);
+        const planSnap = await planRef.get();
+        
+        if (!planSnap.exists()) {
+             console.error(`Webhook Abort: Plan '${planId}' not found for user ${inboxData.userId}.`);
+             return NextResponse.json({ message: 'Configuration error: Plan not found.' }, { status: 500 });
+        }
+        const plan = planSnap.data() as Plan;
+        
+        // Enforce max emails per inbox
+        const maxEmails = plan.features.maxEmailsPerInbox ?? 25; // Default to 25 if not set
+        if (maxEmails > 0 && (inboxData.emailCount || 0) >= maxEmails) {
+             console.log(`Webhook OK: Mailbox ${inboxDoc.id} is full. Message discarded.`);
+             return NextResponse.json({ message: `OK: Mailbox full.` }, { status: 200 });
+        }
 
         const fromAddress = parsedEmail.from?.addresses?.[0];
 
@@ -58,11 +84,11 @@ export async function POST(req: NextRequest) {
             userId: inboxData.userId,
             senderName: fromAddress?.name || fromAddress?.address || 'Unknown Sender',
             subject: parsedEmail.subject || 'No Subject',
-            receivedAt: parsedEmail.date ? Timestamp.fromDate(new Date(parsedEmail.date)) : FieldValue.serverTimestamp(),
+            receivedAt: emailReceivedAt,
             createdAt: FieldValue.serverTimestamp(),
             htmlContent: parsedEmail.htmlBody || null,
             textContent: parsedEmail.textBody || null,
-            rawContent: parsedEmail.raw, // The raw content is inside the parsedData
+            rawContent: parsedEmail.raw,
             read: false,
         };
 
@@ -71,8 +97,6 @@ export async function POST(req: NextRequest) {
                 filename: att.filename,
                 contentType: att.contentType,
                 size: att.size,
-                // The URL for the attachment would need to be handled separately,
-                // e.g., by uploading to a storage bucket. For now, we leave it empty.
                 url: '', 
             }));
         }
@@ -80,9 +104,7 @@ export async function POST(req: NextRequest) {
         await db.runTransaction(async (transaction) => {
             const emailRef = inboxDoc.ref.collection('emails').doc();
             transaction.set(emailRef, newEmail);
-            // Ensure emailCount exists before incrementing
-            const currentCount = inboxData.emailCount || 0;
-            transaction.update(inboxDoc.ref, { emailCount: currentCount + 1 });
+            transaction.update(inboxDoc.ref, { emailCount: FieldValue.increment(1) });
         });
 
         console.log(`Email successfully processed for inbox ${inboxDoc.id}`);

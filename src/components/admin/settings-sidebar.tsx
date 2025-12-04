@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { SlidersHorizontal, Palette, FileText, Mail, Share2, DollarSign, Code, Clock, Database, Wrench, HardDrive, Cloud, Server, LayoutGrid } from "lucide-react"
+import { SlidersHorizontal, Palette, FileText, Mail, Share2, DollarSign, Code, Clock, Database, Wrench, HardDrive, Cloud, Server, LayoutGrid, Shield } from "lucide-react"
 
 const navItems = [
   { href: "/admin/settings/general", label: "General", icon: SlidersHorizontal },
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/admin/sections", label: "Default Sections", icon: LayoutGrid },
   { href: "/admin/settings/email", label: "Email", icon: Mail },
   { href: "/admin/settings/integrations", label: "Integrations", icon: Share2 },
+  { href: "/admin/settings/rules", label: "Rules Book", icon: Shield },
   { href: "/admin/settings/sales", label: "Sales", icon: DollarSign },
   { href: "/admin/settings/api", label: "API", icon: Code },
   { href: "/admin/settings/cronjob", label: "Cronjob", icon: Clock },
