@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -353,7 +352,8 @@ export function DashboardClient() {
       } else {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
-          where("userId", "==", activeUser.uid)
+          where("userId", "==", activeUser.uid),
+          limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
 
@@ -627,7 +627,10 @@ export function DashboardClient() {
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-2 truncate flex-1">
                                                 <div className="relative flex-1 truncate flex items-center">
-                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
+                                                    <div className="flex items-center gap-1 group-hover:hidden">
+                                                        <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
+                                                    </div>
+                                                    <div className="hidden items-center gap-1 group-hover:flex">
                                                          <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity -ml-2" onClick={(e) => e.stopPropagation()}>
@@ -644,7 +647,6 @@ export function DashboardClient() {
                                                             {formatTime(countdown)}
                                                         </span>
                                                     </div>
-                                                    <span className="font-semibold text-sm truncate group-hover:hidden">{inbox.emailAddress}</span>
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-1">
@@ -829,5 +831,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
 
 
