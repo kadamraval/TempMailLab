@@ -30,6 +30,7 @@ export const planSchema = z.object({
         unit: z.enum(['minutes', 'hours', 'days'])
     }).default({ count: 10, unit: 'minutes' }),
     extendTime: z.boolean().default(false),
+    maxExtensionMultiplier: z.coerce.number().min(1, "Multiplier must be 1 or greater.").default(1.5),
     customPrefix: z.boolean().default(false),
     inboxLocking: z.boolean().default(false),
     qrCode: z.boolean().default(false),
