@@ -293,7 +293,7 @@ export function DashboardClient() {
           }
         }
       } else {
-         const userInboxesQuery = query(
+        const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
           limit(1)
@@ -533,50 +533,69 @@ export function DashboardClient() {
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
-                                <div className="p-2 rounded-lg bg-muted flex items-center justify-between">
+                                <div className="p-2 rounded-lg bg-muted flex items-center justify-between group">
                                     <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
                                     <div className="flex items-center gap-1">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
-                                                        <Copy className="h-4 w-4" />
+                                        <div className="hidden items-center gap-1 group-hover:flex">
+                                             <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                {formatTime(countdown)}
+                                            </span>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
+                                                        <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>Copy Email</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                        <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                                    <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
+                                                    <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                        <div className="flex items-center gap-1 group-hover:hidden">
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <DialogTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                                <QrCode className="h-4 w-4" />
-                                                            </Button>
-                                                        </DialogTrigger>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
+                                                            <Copy className="h-4 w-4" />
+                                                        </Button>
                                                     </TooltipTrigger>
-                                                    <TooltipContent><p>Show QR Code</p></TooltipContent>
+                                                    <TooltipContent><p>Copy Email</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-                                            <DialogContent className="sm:max-w-xs">
-                                                <DialogHeader>
-                                                <DialogTitle>Scan QR Code</DialogTitle>
-                                                <DialogDescription>
-                                                    Scan this code on your mobile device to use this email address.
-                                                </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="flex items-center justify-center p-4">
-                                                    <Image 
-                                                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox.emailAddress)}`}
-                                                        alt="QR Code for email address"
-                                                        width={200}
-                                                        height={200}
-                                                    />
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                        <Badge variant="secondary">{displayedEmails.length}</Badge>
+                                            <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                    <QrCode className="h-4 w-4" />
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent><p>Show QR Code</p></TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <DialogContent className="sm:max-w-xs">
+                                                    <DialogHeader>
+                                                    <DialogTitle>Scan QR Code</DialogTitle>
+                                                    <DialogDescription>
+                                                        Scan this code on your mobile device to use this email address.
+                                                    </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="flex items-center justify-center p-4">
+                                                        <Image 
+                                                            src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox.emailAddress)}`}
+                                                            alt="QR Code for email address"
+                                                            width={200}
+                                                            height={200}
+                                                        />
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                            <Badge variant="secondary">{displayedEmails.length}</Badge>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -660,7 +679,7 @@ export function DashboardClient() {
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                          <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
-                                                            <span className="text-xs text-muted-foreground hidden items-center gap-1 group-hover:inline-flex">
+                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                                                                 <Clock className="h-3 w-3" />
                                                                 {formatTime(countdown)}
                                                             </span>
@@ -696,3 +715,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
