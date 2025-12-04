@@ -296,6 +296,7 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -533,11 +534,11 @@ export function DashboardClient() {
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
-                                <div className="p-2 rounded-lg bg-muted flex items-center justify-between group">
-                                    <span className="font-semibold text-sm truncate">{currentInbox.emailAddress}</span>
-                                    <div className="flex items-center gap-1">
-                                        <div className="hidden items-center gap-1 group-hover:flex">
-                                             <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <div className="p-2 rounded-lg bg-muted flex items-center justify-between group relative">
+                                    <div className="flex-1 flex items-center gap-2 truncate">
+                                        <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
+                                        <div className="hidden group-hover:flex items-center gap-1">
+                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
                                                 <Clock className="h-3 w-3" />
                                                 {formatTime(countdown)}
                                             </span>
@@ -553,49 +554,49 @@ export function DashboardClient() {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
-                                        <div className="flex items-center gap-1 group-hover:hidden">
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>Copy Email</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
                                             <TooltipProvider>
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
-                                                            <Copy className="h-4 w-4" />
-                                                        </Button>
+                                                        <DialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                <QrCode className="h-4 w-4" />
+                                                            </Button>
+                                                        </DialogTrigger>
                                                     </TooltipTrigger>
-                                                    <TooltipContent><p>Copy Email</p></TooltipContent>
+                                                    <TooltipContent><p>Show QR Code</p></TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
-                                            <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <DialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                                    <QrCode className="h-4 w-4" />
-                                                                </Button>
-                                                            </DialogTrigger>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>Show QR Code</p></TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                                <DialogContent className="sm:max-w-xs">
-                                                    <DialogHeader>
-                                                    <DialogTitle>Scan QR Code</DialogTitle>
-                                                    <DialogDescription>
-                                                        Scan this code on your mobile device to use this email address.
-                                                    </DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="flex items-center justify-center p-4">
-                                                        <Image 
-                                                            src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox.emailAddress)}`}
-                                                            alt="QR Code for email address"
-                                                            width={200}
-                                                            height={200}
-                                                        />
-                                                    </div>
-                                                </DialogContent>
-                                            </Dialog>
-                                            <Badge variant="secondary">{displayedEmails.length}</Badge>
-                                        </div>
+                                            <DialogContent className="sm:max-w-xs">
+                                                <DialogHeader>
+                                                <DialogTitle>Scan QR Code</DialogTitle>
+                                                <DialogDescription>
+                                                    Scan this code on your mobile device to use this email address.
+                                                </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="flex items-center justify-center p-4">
+                                                    <Image 
+                                                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox.emailAddress)}`}
+                                                        alt="QR Code for email address"
+                                                        width={200}
+                                                        height={200}
+                                                    />
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                        <Badge variant="secondary">{displayedEmails.length}</Badge>
                                     </div>
                                 </div>
                             </div>
@@ -715,5 +716,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
