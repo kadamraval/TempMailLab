@@ -22,6 +22,7 @@ import {
   Ban,
   ShieldAlert,
   QrCode,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,7 +60,7 @@ import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "./ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import Image from "next/image";
 import { Separator } from "./ui/separator";
@@ -531,22 +532,27 @@ export function DashboardClient() {
                                     <span className="text-xs">1 / {activePlan.features.maxInboxes}</span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="p-2 border-b">
-                            <div className="space-y-1">
-                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                    <Star className="mr-2 h-4 w-4" /> Starred
-                                </Button>
-                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                    <ShieldAlert className="mr-2 h-4 w-4" /> Spam
-                                </Button>
-                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                    <Ban className="mr-2 h-4 w-4" /> Blocked
-                                </Button>
-                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
-                                    <Archive className="mr-2 h-4 w-4" /> Archived
-                                </Button>
-                            </div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem><Plus className="mr-2 h-4 w-4" /> Add</DropdownMenuItem>
+                                    <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                                    <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel>Filter</DropdownMenuLabel>
+                                    <DropdownMenuCheckboxItem>All</DropdownMenuCheckboxItem>
+                                    <DropdownMenuCheckboxItem>New</DropdownMenuCheckboxItem>
+                                    <DropdownMenuCheckboxItem>Old</DropdownMenuCheckboxItem>
+                                    <DropdownMenuCheckboxItem>Unread</DropdownMenuCheckboxItem>
+                                    <DropdownMenuCheckboxItem>Star</DropdownMenuCheckboxItem>
+                                    <DropdownMenuCheckboxItem>Archive</DropdownMenuCheckboxItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
@@ -554,7 +560,7 @@ export function DashboardClient() {
                                     <div className="flex-1 flex items-center gap-2 truncate">
                                         <div className="relative flex-1 truncate flex items-center">
                                             <div className="hidden group-hover:flex items-center gap-1">
-                                                 <DropdownMenu>
+                                                <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
                                                             <MoreHorizontal className="h-4 w-4" />
@@ -644,8 +650,21 @@ export function DashboardClient() {
                                     </>
                                 ) : (
                                     <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Search className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Search</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Filter</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                <DropdownMenuItem>All</DropdownMenuItem>
+                                                <DropdownMenuItem>New</DropdownMenuItem>
+                                                <DropdownMenuItem>Old</DropdownMenuItem>
+                                                <DropdownMenuItem>Unread</DropdownMenuItem>
+                                                <DropdownMenuItem>Star</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem>Block</DropdownMenuItem>
+                                                <DropdownMenuItem>Spam</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </>
                                 )}
                                 <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
@@ -734,4 +753,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
