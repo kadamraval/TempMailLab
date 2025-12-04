@@ -78,7 +78,12 @@ export const getPlanColumns = (
         return <div className="font-medium text-left">Free</div>
       }
 
-      return <div className="font-medium text-left">{formatted}<span className="text-xs text-muted-foreground">/{billing.slice(0,2)}</span></div>
+      return (
+        <div className="font-medium text-left">
+            {formatted}
+            {billing && <span className="text-xs text-muted-foreground">/{billing.slice(0,2)}</span>}
+        </div>
+      )
     },
   },
   {
