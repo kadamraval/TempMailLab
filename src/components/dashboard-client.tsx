@@ -145,6 +145,13 @@ export function DashboardClient() {
   }, [firestore, user, userProfile]);
 
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
+  
+  const inboxQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return query(collection(firestore, 'inboxes'), where('userId', '==', user.uid));
+  }, [firestore, user?.uid]);
+  const { data: userInboxes } = useCollection<InboxType>(inboxQuery);
+
 
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !currentInbox?.id || !user) return null;
@@ -159,8 +166,8 @@ export function DashboardClient() {
 
   const displayedInboxes = useMemo(() => {
       // This is a placeholder for inbox filtering logic
-      return isDemoMode ? demoInboxes : (currentInbox ? [currentInbox] : []);
-  }, [isDemoMode, currentInbox, activeInboxFilter]);
+      return isDemoMode ? demoInboxes : (userInboxes || []);
+  }, [isDemoMode, userInboxes, activeInboxFilter]);
 
   const filteredEmails = useMemo(() => {
     const sourceEmails = isDemoMode ? demoEmails : (inboxEmails || []);
@@ -353,6 +360,7 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -621,16 +629,16 @@ export function DashboardClient() {
                             </div>
                         </div>
                         <ScrollArea className="flex-1">
-                            <div className="p-2 space-y-1">
+                            <div className="p-2 space-y-0">
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => (
-                                    <div key={inbox.id} className="p-2 rounded-lg group relative">
+                                    <div key={inbox.id} className="p-2 rounded-lg group relative border-b">
                                         <div className="flex justify-between items-center">
                                             <div className="flex items-center gap-2 truncate flex-1">
                                                 <div className="relative flex-1 truncate flex items-center">
                                                     <div className="flex items-center gap-1 group-hover:hidden">
                                                         <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
                                                     </div>
-                                                    <div className="hidden items-center gap-1 group-hover:flex">
+                                                     <div className="hidden items-center gap-1 group-hover:flex">
                                                          <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity -ml-2" onClick={(e) => e.stopPropagation()}>
@@ -705,7 +713,10 @@ export function DashboardClient() {
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
-                             <div className={cn("flex items-center gap-2", isSearching && "flex-grow")}>
+                             <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-sm">{`Mail (${filteredEmails.length})`}</h3>
+                            </div>
+                             <div className={cn("flex items-center gap-1", isSearching && "flex-grow")}>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(prev => !prev)}><Search className="h-4 w-4" /></Button>
                                 {isSearching ? (
                                     <div className="w-full relative">
@@ -719,34 +730,32 @@ export function DashboardClient() {
                                         />
                                     </div>
                                 ) : (
-                                    <h3 className="font-semibold text-sm">Mail</h3>
-                                )}
-                            </div>
-                             <div className="flex items-center gap-1">
-                                {selectedEmail ? (
                                     <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                    {selectedEmail ? (
+                                        <>
+                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
+                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                        </>
+                                        ) : (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {mailFilterOptions.slice(0, 5).map(filter => (
+                                                    <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                ))}
+                                                <DropdownMenuSeparator />
+                                                {mailFilterOptions.slice(5).map(filter => (
+                                                    <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                    <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                    <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                                     </>
-                                ) : (
-                                    !isSearching &&
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            {mailFilterOptions.slice(0, 5).map(filter => (
-                                                 <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                            ))}
-                                            <DropdownMenuSeparator />
-                                            {mailFilterOptions.slice(5).map(filter => (
-                                                 <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
                                 )}
-                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
-                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                             </div>
                         </div>
                         {selectedEmail ? (
@@ -788,7 +797,7 @@ export function DashboardClient() {
                                                     />
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
-                                                    <div className={cn("col-span-4", !email.read && "font-semibold text-foreground")}>
+                                                    <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <p className="truncate text-sm">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
@@ -833,4 +842,4 @@ export function DashboardClient() {
 }
 
 
-
+    
