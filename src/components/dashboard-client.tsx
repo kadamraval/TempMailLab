@@ -535,10 +535,10 @@ export function DashboardClient() {
                             <div className="p-2">
                                 <div className="p-2 rounded-lg bg-muted flex items-center justify-between group relative">
                                     <div className="flex-1 flex items-center gap-2 truncate">
-                                        <div className="relative flex-1 truncate">
+                                        <div className="relative flex-1 truncate flex items-center">
                                             <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
-                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-1">
-                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <div className="hidden group-hover:flex items-center gap-1">
+                                                <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
                                                     <Clock className="h-3 w-3" />
                                                     {formatTime(countdown)}
                                                 </span>
