@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Separator } from "./ui/separator";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { Timestamp } from "firebase/firestore";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface EmailViewProps {
   email: Email;
@@ -38,58 +39,38 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
 
 
   return (
-    <Card className="h-full flex flex-col border-0 shadow-none rounded-none">
-      <CardHeader className="flex flex-row items-center gap-4">
+    <div className="h-full flex flex-col">
+      <div className="flex items-center gap-4 p-2 border-b">
          {showBackButton && (
-          <Button variant="ghost" size="icon" onClick={onBack}>
-              <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
+              <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
         <div className="flex-grow">
-            <CardTitle className="text-lg font-semibold">{email.subject}</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground pt-1">
+            <h3 className="text-sm font-semibold leading-none">{email.subject}</h3>
+            <p className="text-xs text-muted-foreground pt-1">
               From: {email.senderName}
-            </CardDescription>
+            </p>
         </div>
         <div className="text-xs text-muted-foreground text-right shrink-0">
-            {receivedAtDate.toLocaleDateString()}
-            <br />
-            {receivedAtDate.toLocaleTimeString()}
+            {receivedAtDate.toLocaleDateString()} {receivedAtDate.toLocaleTimeString()}
         </div>
-      </CardHeader>
-      <Separator />
-      <CardContent className="pt-6 flex-1 flex flex-col min-h-0">
-        <Tabs defaultValue={email.htmlContent ? "html" : "text"} className="w-full flex-1 flex flex-col">
-          <TabsList>
-            <TabsTrigger value="html" disabled={!email.htmlContent}>Preview</TabsTrigger>
-            <TabsTrigger value="text" disabled={!email.textContent}>Text</TabsTrigger>
-            {showSourceCode && <TabsTrigger value="source">Source</TabsTrigger>}
-          </TabsList>
-          <TabsContent value="html" className="flex-1 mt-4 rounded-md border overflow-hidden">
+      </div>
+      
+      <ScrollArea className="flex-1">
+        <div className="p-4">
              {email.htmlContent ? (
                  <iframe
                     srcDoc={email.htmlContent}
-                    className="w-full h-full border-0 bg-white"
+                    className="w-full h-full border-0 bg-white min-h-[calc(100vh-500px)]"
                     sandbox="allow-same-origin"
                  />
-            ) : <p className="p-4 text-muted-foreground">No HTML view available.</p>}
-          </TabsContent>
-          <TabsContent value="text" className="flex-1 mt-4 rounded-md border p-4 bg-muted/30">
-            <pre className="whitespace-pre-wrap font-mono text-sm overflow-auto h-full">
-              {email.textContent || 'No plain text view available.'}
-            </pre>
-          </TabsContent>
-          {showSourceCode && (
-            <TabsContent value="source" className="flex-1 mt-4 rounded-md border p-4 bg-muted/30">
-                <pre className="whitespace-pre-wrap font-mono text-sm overflow-auto h-full">
-                    {email.rawContent || "No raw source available."}
-                </pre>
-            </TabsContent>
-          )}
-        </Tabs>
-      </CardContent>
+            ) : <pre className="whitespace-pre-wrap font-mono text-sm">{email.textContent || 'No content to display.'}</pre>}
+        </div>
+      </ScrollArea>
+      
       {allowAttachments && email.attachments && email.attachments.length > 0 && (
-         <CardFooter className="p-4 border-t">
+         <div className="p-4 border-t">
             <div className="w-full">
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
                     <Paperclip className="h-4 w-4" />
@@ -113,8 +94,8 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
                     ))}
                 </div>
             </div>
-        </CardFooter>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }

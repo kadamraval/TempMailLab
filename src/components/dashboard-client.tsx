@@ -296,6 +296,7 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -538,10 +539,6 @@ export function DashboardClient() {
                                         <div className="relative flex-1 truncate flex items-center">
                                             <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
                                             <div className="hidden group-hover:flex items-center gap-1">
-                                                <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                                                    <Clock className="h-3 w-3" />
-                                                    {formatTime(countdown)}
-                                                </span>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
@@ -553,6 +550,10 @@ export function DashboardClient() {
                                                         <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
+                                                <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {formatTime(countdown)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
