@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -14,6 +13,7 @@ const navItems = [
   { href: "/admin/sections", label: "Default Sections", icon: LayoutGrid },
   { href: "/admin/settings/email", label: "Email", icon: Mail },
   { href: "/admin/settings/integrations", label: "Integrations", icon: Share2 },
+  { href: "/admin/settings/security", label: "Security", icon: Shield },
   { href: "/admin/settings/rules", label: "Rules Book", icon: Shield },
   { href: "/admin/settings/sales", label: "Sales", icon: DollarSign },
   { href: "/admin/settings/api", label: "API", icon: Code },
