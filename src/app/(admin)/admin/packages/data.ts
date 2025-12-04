@@ -33,7 +33,7 @@ export const planSchema = z.object({
     maxEmailsPerInbox: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     searchableHistory: z.boolean().default(false),
-    dataRetentionDays: zcoerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
+    dataRetentionDays: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     
     // 4. Security & Privacy
     passwordProtection: z.boolean().default(false),
@@ -73,5 +73,6 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 
 
