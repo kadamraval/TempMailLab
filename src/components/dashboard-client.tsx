@@ -728,47 +728,53 @@ export function DashboardClient() {
                                     <>
                                         <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                                     </>
-                                ) : isSearching ? (
-                                    <div className="w-full relative">
-                                        <Input 
-                                            placeholder="Search mail..." 
-                                            className="h-8 w-full"
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            autoFocus
-                                            onBlur={() => { if (!searchQuery) setIsSearching(false); }}
-                                        />
-                                    </div>
                                 ) : (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {mailFilterOptions.slice(0, 5).map(filter => (
-                                                    <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                ))}
-                                                <DropdownMenuSeparator />
-                                                {mailFilterOptions.slice(5).map(filter => (
-                                                    <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                <TooltipContent><p>Star</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                         <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
-                                                <TooltipContent><p>Forward</p></TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        {isSearching ? (
+                                            <div className="w-full relative">
+                                                <Input 
+                                                    placeholder="Search mail..." 
+                                                    className="h-8 w-full"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    autoFocus
+                                                    onBlur={() => { if (!searchQuery) setIsSearching(false); }}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {mailFilterOptions.slice(0, 5).map(filter => (
+                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                    ))}
+                                                    <DropdownMenuSeparator />
+                                                    {mailFilterOptions.slice(5).map(filter => (
+                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                    <TooltipContent><p>Star</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
+                                                    <TooltipContent><p>Forward</p></TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            </>
+                                        )}
                                     </>
                                 )}
                             </div>
@@ -820,21 +826,21 @@ export function DashboardClient() {
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                    <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                                    <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
-                                                                    <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
-                                                                    <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
-                                                                    <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
-                                                                    <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
+                                                          <DropdownMenu>
+                                                              <DropdownMenuTrigger asChild>
+                                                                  <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
+                                                                      <MoreHorizontal className="h-4 w-4" />
+                                                                  </Button>
+                                                              </DropdownMenuTrigger>
+                                                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                                  <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                                  <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                                                                  <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
+                                                                  <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
+                                                                  <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
+                                                                  <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                              </DropdownMenuContent>
+                                                          </DropdownMenu>
                                                         </div>
                                                     </div>
                                                 </div>
