@@ -62,6 +62,7 @@ import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import Image from "next/image";
+import { Separator } from "./ui/separator";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -531,14 +532,29 @@ export function DashboardClient() {
                                 </div>
                             </div>
                         </div>
+                        <div className="p-2 border-b">
+                            <div className="space-y-1">
+                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                    <Star className="mr-2 h-4 w-4" /> Starred
+                                </Button>
+                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                    <ShieldAlert className="mr-2 h-4 w-4" /> Spam
+                                </Button>
+                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                    <Ban className="mr-2 h-4 w-4" /> Blocked
+                                </Button>
+                                <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+                                    <Archive className="mr-2 h-4 w-4" /> Archived
+                                </Button>
+                            </div>
+                        </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2">
                                 <div className="p-2 rounded-lg bg-muted flex items-center justify-between group relative">
                                     <div className="flex-1 flex items-center gap-2 truncate">
                                         <div className="relative flex-1 truncate flex items-center">
-                                            <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
                                             <div className="hidden group-hover:flex items-center gap-1">
-                                                <DropdownMenu>
+                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
                                                             <MoreHorizontal className="h-4 w-4" />
@@ -554,6 +570,7 @@ export function DashboardClient() {
                                                     {formatTime(countdown)}
                                                 </span>
                                             </div>
+                                            <span className="font-semibold text-sm truncate group-hover:hidden">{currentInbox.emailAddress}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
@@ -614,8 +631,13 @@ export function DashboardClient() {
                                     <span className="text-xs">{displayedEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                                {selectedEmails.length > 0 ? (
+                             <div className="flex items-center gap-1">
+                                {selectedEmail ? (
+                                     <>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                    </>
+                                ) : selectedEmails.length > 0 ? (
                                     <>
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
@@ -678,7 +700,7 @@ export function DashboardClient() {
                                                     </div>
                                                     <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
-                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
+                                                        <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
@@ -712,3 +734,4 @@ export function DashboardClient() {
     </div>
   );
 }
+
