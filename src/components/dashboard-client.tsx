@@ -137,7 +137,7 @@ export function DashboardClient() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, userProfile, isUserLoading } = useUser();
-  const { useMemoFirebase } = useMemoFirebase();
+  const planRef = useMemoFirebase(() => (firestore && userProfile?.planId) ? doc(firestore, 'plans', userProfile.planId) : null, [firestore, userProfile?.planId]);
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const inboxQuery = useMemoFirebase(() => {
@@ -851,5 +851,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
