@@ -25,7 +25,10 @@ export const planSchema = z.object({
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
-    inboxLifetime: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
+    inboxLifetime: z.object({
+        count: z.coerce.number().int().min(0),
+        unit: z.enum(['minutes', 'hours', 'days', 'lifetime'])
+    }).default({ count: 10, unit: 'minutes' }),
     extendTime: z.boolean().default(false),
     customPrefix: z.boolean().default(false),
     inboxLocking: z.boolean().default(false),
@@ -41,14 +44,18 @@ export const planSchema = z.object({
     sourceCodeView: z.boolean().default(false),
 
     // Custom Domain
-    customDomains: z.coerce.number().int().min(0, "Cannot be negative.").default(0),
+    customDomains: z.boolean().default(false),
+    totalCustomDomains: z.coerce.number().int().min(0).default(0),
     dailyCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
     totalCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
     allowPremiumDomains: z.boolean().default(false),
 
     // Storage
     totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
-    dataRetentionDays: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
+    dataRetention: z.object({
+        count: z.coerce.number().int().min(0),
+        unit: z.enum(['minutes', 'hours', 'days', 'lifetime'])
+    }).default({ count: 0, unit: 'lifetime' }),
     
     // Security & Privacy
     passwordProtection: z.boolean().default(false),

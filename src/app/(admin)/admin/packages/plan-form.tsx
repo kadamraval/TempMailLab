@@ -55,7 +55,7 @@ const featureTooltips: Record<string, string> = {
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
-  inboxLifetime: "Duration in minutes an inbox exists before being purged. Set to 0 for unlimited lifetime.",
+  inboxLifetime: "Duration an inbox exists before being purged.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
@@ -71,14 +71,15 @@ const featureTooltips: Record<string, string> = {
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
   // Custom Domain
-  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com). Enable this to see more options.",
+  customDomains: "Enable custom domain features for this plan.",
+  totalCustomDomains: "Total number of unique custom domains a user can add.",
   dailyCustomDomainInboxLimit: "The number of inboxes that can be created per day using custom domains.",
   totalCustomDomainInboxLimit: "The total number of active inboxes that can exist at one time using custom domains.",
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
 
   // Storage
-  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. Set to 0 for unlimited.",
-  dataRetentionDays: "The number of days emails are kept, even if the inbox expires. Set to 0 for unlimited (email expires with inbox).",
+  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
+  dataRetention: "The duration emails are kept, even if the inbox expires. 'Lifetime' means emails expire with the inbox.",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -120,7 +121,7 @@ const FeatureSwitch = ({ name, label, control }: { name: any, label: string, con
         render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
-                    <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.')[1]]} />
+                    <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
                 </div>
                 <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -136,13 +137,48 @@ const FeatureInput = ({ name, label, control, ...props }: { name: any, label: st
         name={name}
         render={({ field }) => (
             <FormItem>
-                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.')[1]]} />
+                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
                 <FormControl><Input {...props} {...field} /></FormControl>
                 <FormMessage />
             </FormItem>
         )}
     />
 );
+
+const TimeDurationInput = ({ name, label, control }: { name: any; label: string; control: any }) => (
+    <FormField
+        control={control}
+        name={name}
+        render={({ field }) => (
+            <FormItem>
+                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
+                <div className="flex items-center gap-2">
+                    <Input 
+                        type="number" 
+                        placeholder="0 for lifetime"
+                        value={field.value.count}
+                        onChange={(e) => field.onChange({ ...field.value, count: parseInt(e.target.value, 10) || 0 })}
+                    />
+                    <Select value={field.value.unit} onValueChange={(unit) => field.onChange({ ...field.value, unit })}>
+                        <FormControl>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="minutes">Minutes</SelectItem>
+                            <SelectItem value="hours">Hours</SelectItem>
+                            <SelectItem value="days">Days</SelectItem>
+                            <SelectItem value="lifetime">Lifetime</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <FormMessage />
+            </FormItem>
+        )}
+    />
+);
+
 
 export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -157,17 +193,17 @@ export function PlanForm({ plan }: PlanFormProps) {
     price: 0,
     status: "active",
     features: {
-      teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
-      customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
-      maxInboxes: 1, dailyInboxLimit: 0, inboxLifetime: 10, extendTime: false,
-      customPrefix: false, inboxLocking: false, qrCode: false,
-      dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
-      maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
-      customDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
-      totalStorageQuota: 0, dataRetentionDays: 0, passwordProtection: false,
-      twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
-      linkSanitization: false, spam: false, block: false, filter: false,
-      apiAccess: false, apiRateLimit: 0, webhooks: false,
+        teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
+        customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
+        maxInboxes: 1, dailyInboxLimit: 0, inboxLifetime: { count: 10, unit: 'minutes' }, extendTime: false,
+        customPrefix: false, inboxLocking: false, qrCode: false,
+        dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
+        maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
+        customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
+        totalStorageQuota: 0, dataRetention: { count: 0, unit: 'lifetime' }, passwordProtection: false,
+        twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
+        linkSanitization: false, spam: false, block: false, filter: false,
+        apiAccess: false, apiRateLimit: 0, webhooks: false,
     }
   }
 
@@ -177,7 +213,7 @@ export function PlanForm({ plan }: PlanFormProps) {
   })
 
   const planType = form.watch('planType');
-  const allowCustomDomains = form.watch('features.customDomains') > 0;
+  const enableCustomDomains = form.watch('features.customDomains');
 
   useEffect(() => {
     if (plan) {
@@ -249,15 +285,13 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {/* --- Basic Information --- */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Basic Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FormField control={form.control} name="name" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Plan Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
+                         <FormField control={form.control} name="name" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Plan Name</FormLabel>
+                                <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                          <FormField control={form.control} name="planType" render={({ field }) => (
                             <FormItem className="space-y-3">
                             <FormLabel>Plan Type</FormLabel>
@@ -316,7 +350,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
-                            <FeatureInput name="features.inboxLifetime" label="Inbox Expire (minutes)" control={form.control} type="number" />
+                            <TimeDurationInput name="features.inboxLifetime" label="Inbox Expire" control={form.control} />
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
@@ -344,14 +378,15 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Custom Domain</h3>
                         <div className="space-y-4">
-                            <FeatureInput name="features.customDomains" label="Allowed Custom Domains" control={form.control} type="number" />
-                             {allowCustomDomains && (
+                            <FeatureSwitch name="features.customDomains" label="Allow Custom Domains" control={form.control} />
+                             {enableCustomDomains && (
                                 <div className="p-4 border rounded-md space-y-4 ml-4">
+                                     <FeatureInput name="features.totalCustomDomains" label="Total Custom Domains" control={form.control} type="number" />
                                      <FeatureInput name="features.dailyCustomDomainInboxLimit" label="Daily Custom Domain Inboxes" control={form.control} type="number" />
                                      <FeatureInput name="features.totalCustomDomainInboxLimit" label="Total Custom Domain Inboxes" control={form.control} type="number" />
-                                     <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
                                 </div>
                             )}
+                            <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -361,7 +396,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <h3 className="text-lg font-medium tracking-tight">Storage</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
-                            <FeatureInput name="features.dataRetentionDays" label="Data Retention (Days)" control={form.control} type="number" />
+                            <TimeDurationInput name="features.dataRetention" label="Data Retention" control={form.control} />
                         </div>
                     </div>
                     <Separator />
