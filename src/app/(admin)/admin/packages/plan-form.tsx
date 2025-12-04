@@ -53,7 +53,7 @@ const featureTooltips: Record<string, string> = {
 
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
-  dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
+  dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
   inboxLifetime: "Duration in minutes an inbox exists before being purged. Set to 0 for unlimited lifetime.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
@@ -61,8 +61,8 @@ const featureTooltips: Record<string, string> = {
   qrCode: "Allow users to generate a QR code for their inbox address.",
   
   // Email
-  dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. 0 for unlimited.",
-  maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. 0 for unlimited.",
+  dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. Set to 0 for unlimited.",
+  maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. Set to 0 for unlimited.",
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
   emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
@@ -70,12 +70,14 @@ const featureTooltips: Record<string, string> = {
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
   // Custom Domain
-  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
+  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com). Enable this to see more options.",
+  dailyCustomDomainInboxLimit: "The number of inboxes that can be created per day using custom domains.",
+  totalCustomDomainInboxLimit: "The total number of active inboxes that can exist at one time using custom domains.",
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
 
   // Storage
-  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  dataRetentionDays: "The number of days emails are kept, even if the inbox expires (for premium accounts). 0 for unlimited.",
+  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. Set to 0 for unlimited.",
+  dataRetentionDays: "The number of days emails are kept, even if the inbox expires. Set to 0 for unlimited (email expires with inbox).",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -90,7 +92,7 @@ const featureTooltips: Record<string, string> = {
 
   // API
   apiAccess: "Grant access to the developer REST API for programmatic use.",
-  apiRateLimit: "Number of API requests a user can make per minute. 0 for unlimited.",
+  apiRateLimit: "Number of API requests a user can make per minute. Set to 0 for unlimited.",
   webhooks: "Allow incoming emails to be forwarded to a user-defined webhook URL for automation.",
 };
 
@@ -160,10 +162,10 @@ export function PlanForm({ plan }: PlanFormProps) {
       customPrefix: false, inboxLocking: false, qrCode: false,
       dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
       maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
-      customDomains: 0, allowPremiumDomains: false, totalStorageQuota: 0,
-      dataRetentionDays: 0, passwordProtection: false, twoFactorAuth: false,
-      spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, linkSanitization: false,
-      spam: false, block: false, filter: false,
+      customDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
+      totalStorageQuota: 0, dataRetentionDays: 0, passwordProtection: false,
+      twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
+      linkSanitization: false, spam: false, block: false, filter: false,
       apiAccess: false, apiRateLimit: 0, webhooks: false,
     }
   }
@@ -174,6 +176,7 @@ export function PlanForm({ plan }: PlanFormProps) {
   })
 
   const planType = form.watch('planType');
+  const allowCustomDomains = form.watch('features.customDomains') > 0;
 
   useEffect(() => {
     if (plan) {
@@ -296,8 +299,8 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <h3 className="text-lg font-medium tracking-tight">General</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
-                          <FeatureSwitch name="features.noAds" label="Ads" control={form.control} />
-                          <FeatureSwitch name="features.usageAnalytics" label="Analytics" control={form.control} />
+                          <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
+                          <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
                           <FeatureSwitch name="features.browserExtension" label="Browser Extension" control={form.control} />
                           <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
                           <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
@@ -313,7 +316,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.inboxLifetime" label="Inbox Expire (minutes)" control={form.control} type="number" />
-                            <FeatureSwitch name="features.extendTime" label="Inbox Time Extend" control={form.control} />
+                            <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
                             <FeatureSwitch name="features.qrCode" label="QR Code" control={form.control} />
@@ -325,7 +328,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Email Features</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.maxEmailsPerInbox" label="Total Emails Received (per Inbox)" control={form.control} type="number" />
+                            <FeatureInput name="features.maxEmailsPerInbox" label="Total Emails Per Inbox" control={form.control} type="number" />
                             <FeatureInput name="features.dailyEmailLimit" label="Daily Emails Received" control={form.control} type="number" />
                             <FeatureInput name="features.maxAttachmentSize" label="Max Attachment Size (MB)" control={form.control} type="number" />
                             <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
@@ -339,9 +342,15 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {/* --- Custom Domain --- */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Custom Domain</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.customDomains" label="Total Custom Domains" control={form.control} type="number" />
-                            <FeatureSwitch name="features.allowPremiumDomains" label="Premium Domain" control={form.control} />
+                        <div className="space-y-4">
+                            <FeatureInput name="features.customDomains" label="Allowed Custom Domains" control={form.control} type="number" />
+                             {allowCustomDomains && (
+                                <div className="p-4 border rounded-md space-y-4 ml-4">
+                                     <FeatureInput name="features.dailyCustomDomainInboxLimit" label="Daily Custom Domain Inboxes" control={form.control} type="number" />
+                                     <FeatureInput name="features.totalCustomDomainInboxLimit" label="Total Custom Domain Inboxes" control={form.control} type="number" />
+                                     <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
+                                </div>
+                            )}
                         </div>
                     </div>
                     <Separator />

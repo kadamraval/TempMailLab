@@ -40,7 +40,9 @@ export const planSchema = z.object({
     sourceCodeView: z.boolean().default(false),
 
     // Custom Domain
-    customDomains: z.coerce.number().int().min(0, "Cannot be negative."),
+    customDomains: z.coerce.number().int().min(0, "Cannot be negative.").default(0),
+    dailyCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
+    totalCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
     allowPremiumDomains: z.boolean().default(false),
 
     // Storage
