@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -85,6 +86,16 @@ const featureTooltips: Record<string, string> = {
   teamMembers: "Number of team members a user can invite to share their plan features.",
   customBranding: "For enterprise clients, allow white-labeling of the interface.",
   usageAnalytics: "Grant access to a dashboard for viewing detailed usage statistics.",
+
+  // New features
+  star: "Allow users to mark important emails with a star.",
+  spam: "Allow users to mark emails as spam.",
+  block: "Allow users to block specific senders or domains.",
+  filter: "Enable filtering rules for incoming mail.",
+  qrCode: "Allow users to generate a QR code for their inbox address.",
+  extendTime: "Allow users to extend the lifetime of their inbox, in minutes.",
+  dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
+  dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. 0 for unlimited.",
 };
 
 const FormLabelWithTooltip = ({ label, tooltipText }: { label: string; tooltipText: string }) => (
@@ -177,6 +188,14 @@ export function PlanForm({ plan }: PlanFormProps) {
         teamMembers: 0,
         customBranding: false,
         usageAnalytics: false,
+        star: false,
+        spam: false,
+        block: false,
+        filter: false,
+        qrCode: false,
+        extendTime: 0,
+        dailyInboxLimit: 0,
+        dailyEmailLimit: 0,
     }
   }
 
@@ -284,9 +303,21 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Max Active Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.inboxLifetime" label="Inbox Lifetime (minutes)" control={form.control} type="number" />
                             <FeatureInput name="features.customDomains" label="Custom Domains" control={form.control} type="number" />
+                             <FeatureInput name="features.extendTime" label="Extend Time (minutes)" control={form.control} type="number" />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Prefix" control={form.control} />
                             <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
+                             <FeatureSwitch name="features.qrCode" label="QR Code Access" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                     {/* --- Daily Limits --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Daily Limits</h3>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FeatureInput name="features.dailyInboxLimit" label="Daily Inbox Creation Limit" control={form.control} type="number" />
+                           <FeatureInput name="features.dailyEmailLimit" label="Daily Email Reception Limit" control={form.control} type="number" />
                         </div>
                     </div>
                     <Separator />
@@ -301,6 +332,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
                             <FeatureSwitch name="features.sourceCodeView" label="Source Code View" control={form.control} />
                             <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
+                            <FeatureSwitch name="features.star" label="Star Emails" control={form.control} />
+                            <FeatureSwitch name="features.spam" label="Spam/Block Controls" control={form.control} />
+                            <FeatureSwitch name="features.filter" label="Filter Mail" control={form.control} />
                         </div>
                     </div>
                     <Separator />

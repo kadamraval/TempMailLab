@@ -57,9 +57,20 @@ export const planSchema = z.object({
     teamMembers: z.coerce.number().int().min(0, "Cannot be negative."),
     customBranding: z.boolean().default(false),
     usageAnalytics: z.boolean().default(false),
+
+    // New Features from user request
+    star: z.boolean().default(false),
+    spam: z.boolean().default(false),
+    block: z.boolean().default(false),
+    filter: z.boolean().default(false),
+    qrCode: z.boolean().default(false),
+    extendTime: z.coerce.number().int().min(0).default(0),
+    dailyInboxLimit: z.coerce.number().int().min(0).default(0),
+    dailyEmailLimit: z.coerce.number().int().min(0).default(0),
   }),
 
   createdAt: z.custom<Timestamp>().optional()
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
