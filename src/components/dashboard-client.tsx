@@ -149,7 +149,6 @@ export function DashboardClient() {
   
   const inboxQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
-    // The query that was causing the error has been corrected here
     return query(collection(firestore, 'inboxes'), where('userId', '==', user.uid));
   }, [firestore, user?.uid]);
   const { data: userInboxes } = useCollection<InboxType>(inboxQuery);
@@ -362,6 +361,7 @@ export function DashboardClient() {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
           where("userId", "==", activeUser.uid),
+          orderBy("createdAt", "desc"),
           limit(1)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
@@ -601,7 +601,7 @@ export function DashboardClient() {
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Inbox className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Inbox (${displayedInboxes.length})`}</h3>
+                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, displayedInboxes.length)}/${displayedInboxes.length})`}</h3>
                             </div>
                             <div className="flex items-center gap-1">
                                 <DropdownMenu>
@@ -716,18 +716,20 @@ export function DashboardClient() {
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                              <div className="flex items-center gap-2">
                                 <Mail className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Mail (${filteredEmails.length})`}</h3>
+                                <h3 className="font-semibold text-sm">{`Mail (${Math.min(visibleEmailsCount, filteredEmails.length)}/${filteredEmails.length})`}</h3>
                             </div>
                             <div className={cn("flex items-center gap-1", isSearching && "flex-grow")}>
                                 {selectedEmail ? (
-                                        <>
-                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
-                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
-                                        </>
-                                ) : (
-                                <>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(prev => !prev)}><Search className="h-4 w-4" /></Button>
-                                {isSearching ? (
+                                    <>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
+                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
+                                    </>
+                                 ) : selectedEmails.length > 0 ? (
+                                    <>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
+                                    </>
+                                ) : isSearching ? (
                                     <div className="w-full relative">
                                         <Input 
                                             placeholder="Search mail..." 
@@ -739,6 +741,8 @@ export function DashboardClient() {
                                         />
                                     </div>
                                 ) : (
+                                    <>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
@@ -753,8 +757,19 @@ export function DashboardClient() {
                                                 ))}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                )}
-                                </>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                <TooltipContent><p>Star</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
+                                                <TooltipContent><p>Forward</p></TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -840,4 +855,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
