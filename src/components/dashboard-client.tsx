@@ -128,7 +128,8 @@ export function DashboardClient() {
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [visibleInboxesCount, setVisibleInboxesCount] = useState(ITEMS_PER_PAGE);
   const [visibleEmailsCount, setVisibleEmailsCount] = useState(ITEMS_PER_PAGE);
-  const [activeFilter, setActiveFilter] = useState('All');
+  const [activeInboxFilter, setActiveInboxFilter] = useState('All');
+  const [activeMailFilter, setActiveMailFilter] = useState('All');
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -158,18 +159,15 @@ export function DashboardClient() {
     useCollection<Email>(emailsQuery);
 
   const displayedInboxes = useMemo(() => {
+      // This is a placeholder for inbox filtering logic
       return isDemoMode ? demoInboxes : (currentInbox ? [currentInbox] : []);
-  }, [isDemoMode, currentInbox]);
+  }, [isDemoMode, currentInbox, activeInboxFilter]);
 
   const filteredEmails = useMemo(() => {
     const sourceEmails = isDemoMode ? demoEmails : (inboxEmails || []);
     let filtered = sourceEmails;
 
-    switch (activeFilter) {
-        case 'New':
-        case 'Old':
-            // This is just a sort direction, not a filter
-            break;
+    switch (activeMailFilter) {
         case 'Unread':
             filtered = sourceEmails.filter(e => !e.read);
             break;
@@ -185,7 +183,7 @@ export function DashboardClient() {
         case 'Spam':
             filtered = sourceEmails.filter(e => e.isSpam);
             break;
-        default: // All
+        default: // All, New, Old
             filtered = sourceEmails;
     }
 
@@ -196,12 +194,12 @@ export function DashboardClient() {
         );
     }
     
-    if (activeFilter === 'Old') {
+    if (activeMailFilter === 'Old') {
         return filtered.sort((a,b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
     }
-    // New is the default sort
+    // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  }, [isDemoMode, inboxEmails, activeFilter, searchQuery]);
+  }, [isDemoMode, inboxEmails, activeMailFilter, searchQuery]);
 
 
   const generateRandomString = useCallback((length: number) => {
@@ -355,8 +353,7 @@ export function DashboardClient() {
       } else {
         const userInboxesQuery = query(
           collection(firestore, "inboxes"),
-          where("userId", "==", activeUser.uid),
-          limit(1)
+          where("userId", "==", activeUser.uid)
         );
         const userInboxesSnap = await getDocs(userInboxesQuery);
 
@@ -487,7 +484,7 @@ export function DashboardClient() {
   const parseSender = (sender: string) => {
     const match = sender.match(/(.*)<(.*)>/);
     if (match) {
-        return { name: match[1].trim(), email: match[2].trim() };
+        return { name: match[1].trim().replace(/"/g, ''), email: match[2].trim() };
     }
     if (sender.includes('@')) {
         return { name: sender, email: sender };
@@ -538,7 +535,8 @@ export function DashboardClient() {
     );
   }
 
-  const filterOptions = ["All", "New", "Old", "Unread", "Starred", "Archived", "Blocked", "Spam"];
+  const mailFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Spam", "Blocked"];
+  const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -593,94 +591,105 @@ export function DashboardClient() {
                     <div className="flex flex-col border-r">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">All Mail</h3>
+                                <Inbox className="h-4 w-4 text-muted-foreground" />
+                                <h3 className="font-semibold text-sm">Inbox</h3>
                             </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
-                                        {activeFilter}
-                                        <ChevronsUpDown className="h-3 w-3 text-muted-foreground" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    {["All", "New", "Old", "Unread", "Starred", "Archived"].map(filter => (
-                                        <DropdownMenuCheckboxItem key={filter} checked={activeFilter === filter} onSelect={() => setActiveFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                    ))}
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuCheckboxItem checked={activeFilter === 'Blocked'} onSelect={() => setActiveFilter('Blocked')}>Blocked</DropdownMenuCheckboxItem>
-                                    <DropdownMenuCheckboxItem checked={activeFilter === 'Spam'} onSelect={() => setActiveFilter('Spam')}>Spam</DropdownMenuCheckboxItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center gap-1">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Filter Inboxes</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {inboxFilterOptions.map(filter => (
+                                            <DropdownMenuCheckboxItem key={filter} checked={activeInboxFilter === filter} onSelect={() => setActiveInboxFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem><Plus className="mr-2 h-4 w-4" /> Add Inbox</DropdownMenuItem>
+                                        <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star Inbox</DropdownMenuItem>
+                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive Inbox</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete Inbox</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
                         <ScrollArea className="flex-1">
                             <div className="p-2 space-y-1">
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => (
-                                    <div key={inbox.id} className="p-2 rounded-lg bg-muted flex items-center justify-between group relative">
-                                        <div className="flex-1 flex items-center gap-2 truncate">
-                                            <div className="relative flex-1 truncate flex items-center">
-                                                <div className="hidden group-hover:flex items-center gap-1">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                                                            <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
-                                                            <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                                                        <Clock className="h-3 w-3" />
-                                                        {formatTime(countdown)}
-                                                    </span>
+                                    <div key={inbox.id} className="p-2 rounded-lg group relative">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2 truncate flex-1">
+                                                <div className="relative flex-1 truncate flex items-center">
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
+                                                         <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity -ml-2" onClick={(e) => e.stopPropagation()}>
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
+                                                                <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                                                            <Clock className="h-3 w-3" />
+                                                            {formatTime(countdown)}
+                                                        </span>
+                                                    </div>
+                                                    <span className="font-semibold text-sm truncate group-hover:hidden">{inbox.emailAddress}</span>
                                                 </div>
-                                                <span className="font-semibold text-sm truncate group-hover:hidden">{inbox.emailAddress}</span>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
-                                                            <Copy className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent><p>Copy Email</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                                             <div className="flex items-center gap-1">
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <DialogTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                                    <QrCode className="h-4 w-4" />
-                                                                </Button>
-                                                            </DialogTrigger>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
+                                                                <Copy className="h-4 w-4" />
+                                                            </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent><p>Show QR Code</p></TooltipContent>
+                                                        <TooltipContent><p>Copy Email</p></TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
-                                                <DialogContent className="sm:max-w-xs">
-                                                    <DialogHeader>
-                                                    <DialogTitle>Scan QR Code</DialogTitle>
-                                                    <DialogDescription>
-                                                        Scan this code on your mobile device to use this email address.
-                                                    </DialogDescription>
-                                                    </DialogHeader>
-                                                    <div className="flex items-center justify-center p-4">
-                                                        <Image 
-                                                            src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(inbox.emailAddress)}`}
-                                                            alt="QR Code for email address"
-                                                            width={200}
-                                                            height={200}
-                                                        />
-                                                    </div>
-                                                </DialogContent>
-                                            </Dialog>
-                                            <Badge variant="secondary">{inbox.emailCount}</Badge>
+                                                <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <DialogTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                                        <QrCode className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DialogTrigger>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>Show QR Code</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                    <DialogContent className="sm:max-w-xs">
+                                                        <DialogHeader>
+                                                        <DialogTitle>Scan QR Code</DialogTitle>
+                                                        <DialogDescription>
+                                                            Scan this code on your mobile device to use this email address.
+                                                        </DialogDescription>
+                                                        </DialogHeader>
+                                                        <div className="flex items-center justify-center p-4">
+                                                            <Image 
+                                                                src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(inbox.emailAddress)}`}
+                                                                alt="QR Code for email address"
+                                                                width={200}
+                                                                height={200}
+                                                            />
+                                                        </div>
+                                                    </DialogContent>
+                                                </Dialog>
+                                                <Badge variant="secondary">{inbox.emailCount}</Badge>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -695,12 +704,12 @@ export function DashboardClient() {
                     <div className="flex flex-col">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                              <div className={cn("flex items-center gap-2", isSearching && "flex-grow")}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(prev => !prev)}><Search className="h-4 w-4" /></Button>
                                 {isSearching ? (
                                     <div className="w-full relative">
-                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input 
                                             placeholder="Search mail..." 
-                                            className="pl-8 h-8 w-full"
+                                            className="h-8 w-full"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             autoFocus
@@ -708,23 +717,11 @@ export function DashboardClient() {
                                         />
                                     </div>
                                 ) : (
-                                    <>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
-                                        <h3 className="font-semibold text-sm">Mail</h3>
-                                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                                            <Mail className="h-4 w-4" />
-                                            <span className="text-xs">{filteredEmails.length} / {activePlan.features.maxEmailsPerInbox === 0 ? '∞' : activePlan.features.maxEmailsPerInbox}</span>
-                                        </div>
-                                    </>
+                                    <h3 className="font-semibold text-sm">Mail</h3>
                                 )}
                             </div>
                              <div className="flex items-center gap-1">
                                 {selectedEmail ? (
-                                    <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
-                                    </>
-                                ) : selectedEmails.length > 0 ? (
                                     <>
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
@@ -735,13 +732,13 @@ export function DashboardClient() {
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            {filterOptions.slice(0, 5).map(filter => (
-                                                 <DropdownMenuCheckboxItem key={filter} checked={activeFilter === filter} onSelect={() => setActiveFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                        <DropdownMenuContent align="end">
+                                            {mailFilterOptions.slice(0, 5).map(filter => (
+                                                 <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
                                             ))}
                                             <DropdownMenuSeparator />
-                                            {filterOptions.slice(5).map(filter => (
-                                                 <DropdownMenuCheckboxItem key={filter} checked={activeFilter === filter} onSelect={() => setActiveFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                            {mailFilterOptions.slice(5).map(filter => (
+                                                 <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
                                             ))}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -765,7 +762,7 @@ export function DashboardClient() {
                         ) : (
                            filteredEmails.length === 0 ? renderEmptyState() :
                             <ScrollArea className="h-full">
-                                <div className="p-2 space-y-1">
+                                <div className="p-2 space-y-0">
                                     {filteredEmails.slice(0, visibleEmailsCount).map((email) => {
                                         const sender = parseSender(email.senderName);
                                         const isSelected = selectedEmails.includes(email.id);
@@ -773,11 +770,7 @@ export function DashboardClient() {
                                         <div
                                             key={email.id}
                                             onClick={() => handleSelectEmail(email)}
-                                            className={cn(
-                                                "group w-full text-left p-2 rounded-lg border-b border-transparent transition-colors cursor-pointer hover:bg-muted/50",
-                                                !email.read && "bg-blue-500/5",
-                                                isSelected && "bg-blue-500/10"
-                                            )}
+                                            className="group w-full text-left p-2 rounded-lg border-b transition-colors cursor-pointer hover:bg-muted/50"
                                         >
                                             <div className="flex items-start gap-3 relative">
                                                 <div className="pt-1 flex items-center h-full">
@@ -793,11 +786,11 @@ export function DashboardClient() {
                                                     />
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
-                                                    <div className={cn("col-span-4", !email.read && "text-foreground")}>
-                                                        <p className="font-semibold truncate text-sm">{sender.name}</p>
+                                                    <div className={cn("col-span-4", !email.read && "font-semibold text-foreground")}>
+                                                        <p className="truncate text-sm">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
-                                                    <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "text-foreground font-medium" : "text-muted-foreground")}>{email.subject}</p>
+                                                    <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>{email.subject}</p>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
@@ -807,7 +800,7 @@ export function DashboardClient() {
                                                                         <MoreHorizontal className="h-4 w-4" />
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                                     <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
                                                                     <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
                                                                     <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
@@ -836,3 +829,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+
