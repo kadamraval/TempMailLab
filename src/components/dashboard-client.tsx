@@ -73,7 +73,7 @@ const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
     id: `demo-${i + 1}`,
     inboxId: 'demo',
     userId: 'demo',
-    senderName: ['Welcome Team', 'Promotions', 'Security Alert', 'Newsletter', 'Support', 'Feedback Request'][i % 6],
+    senderName: ['Welcome Team <welcome@example.com>', 'Promotions <promo@example.com>', 'Security Alert <security@example.com>', 'Newsletter <news@example.com>', 'Support <support@example.com>', 'Feedback Request <feedback@example.com>'][i % 6],
     subject: [
         'Getting Started with Tempmailoz', 
         'Special Offer: 50% Off Premium!', 
@@ -137,14 +137,7 @@ export function DashboardClient() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, userProfile, isUserLoading } = useUser();
-  const { toast } = useToast();
-
-  const planRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    const planId = userProfile?.planId || "free-default";
-    return doc(firestore, "plans", planId);
-  }, [firestore, user, userProfile]);
-
+  const { useMemoFirebase } = useMemoFirebase();
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const inboxQuery = useMemoFirebase(() => {
@@ -631,33 +624,16 @@ export function DashboardClient() {
                         <ScrollArea className="flex-1">
                             <div className="p-2 space-y-0">
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => (
-                                    <div key={inbox.id} className="p-2 rounded-lg group relative border-b">
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-2 truncate flex-1">
-                                                <div className="relative flex-1 truncate flex items-center">
-                                                    <div className="flex items-center gap-1 group-hover:hidden">
-                                                        <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
-                                                    </div>
-                                                     <div className="hidden items-center gap-1 group-hover:flex">
-                                                         <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity -ml-2" onClick={(e) => e.stopPropagation()}>
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                                                                <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
-                                                                <DropdownMenuItem><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                                                            <Clock className="h-3 w-3" />
-                                                            {formatTime(countdown)}
-                                                        </span>
-                                                    </div>
+                                    <div key={inbox.id} className="p-2 group relative border-b">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 truncate">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
+                                                    <Badge variant="secondary">{inbox.emailCount}</Badge>
                                                 </div>
+                                                 <p className="text-xs text-muted-foreground">Expires: {new Date(inbox.expiresAt).toLocaleTimeString()}</p>
                                             </div>
-                                             <div className="flex items-center gap-1">
+                                             <div className="flex items-center gap-0">
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -698,7 +674,15 @@ export function DashboardClient() {
                                                         </div>
                                                     </DialogContent>
                                                 </Dialog>
-                                                <Badge variant="secondary">{inbox.emailCount}</Badge>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         </div>
                                     </div>
@@ -726,7 +710,7 @@ export function DashboardClient() {
                                  ) : (
                                     <>
                                         {selectedEmails.length > 0 ? (
-                                            <>
+                                             <>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
                                             </>
@@ -763,18 +747,22 @@ export function DashboardClient() {
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             )}
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                    <TooltipContent><p>Star</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
-                                                    <TooltipContent><p>Forward</p></TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                             {selectedEmails.length === 0 ? (
+                                                <>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
+                                                            <TooltipContent><p>Star</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
+                                                            <TooltipContent><p>Forward</p></TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </>
+                                            ) : null}
                                             </>
                                         )}
                                     </>
@@ -804,7 +792,7 @@ export function DashboardClient() {
                                         <div
                                             key={email.id}
                                             onClick={() => handleSelectEmail(email)}
-                                            className="group w-full text-left p-2 rounded-lg border-b transition-colors cursor-pointer hover:bg-muted/50"
+                                            className="group w-full text-left p-2 border-b transition-colors cursor-pointer hover:bg-muted/50"
                                         >
                                             <div className="flex items-start gap-3 relative">
                                                 <div className="pt-1 flex items-center h-full">
@@ -863,3 +851,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
