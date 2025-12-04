@@ -55,7 +55,7 @@ const featureTooltips: Record<string, string> = {
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
-  inboxLifetime: "Duration an inbox exists before being purged.",
+  inboxLifetime: "Duration an inbox address remains active before it stops receiving new mail.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
@@ -79,7 +79,7 @@ const featureTooltips: Record<string, string> = {
 
   // Storage
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  dataRetention: "The duration emails are kept, even if the inbox expires. 'Lifetime' means emails expire with the inbox.",
+  dataRetention: "The duration emails are kept after an inbox address has expired. 'Lifetime' means emails are deleted when the inbox address expires.",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -155,9 +155,10 @@ const TimeDurationInput = ({ name, label, control }: { name: any; label: string;
                 <div className="flex items-center gap-2">
                     <Input 
                         type="number" 
-                        placeholder="0 for lifetime"
+                        placeholder="0 for unlimited"
                         value={field.value.count}
                         onChange={(e) => field.onChange({ ...field.value, count: parseInt(e.target.value, 10) || 0 })}
+                        disabled={field.value.unit === 'lifetime'}
                     />
                     <Select value={field.value.unit} onValueChange={(unit) => field.onChange({ ...field.value, unit })}>
                         <FormControl>
