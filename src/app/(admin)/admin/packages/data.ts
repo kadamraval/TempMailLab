@@ -8,8 +8,9 @@ import type { Timestamp } from "firebase/firestore"
 export const planSchema = z.object({
   id: z.string().optional(), // Optional for new plans
   name: z.string().min(1, "Plan name is required."),
+  planType: z.enum(['guest', 'freemium', 'pro']).default('freemium'),
+  billing: z.enum(['monthly', 'yearly', 'lifetime_free']).default('monthly'),
   price: z.coerce.number().min(0, "Price must be a positive number."),
-  cycle: z.enum(["monthly", "yearly"]),
   status: z.enum(["active", "archived"]),
   
   features: z.object({
@@ -73,6 +74,7 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 
 
 

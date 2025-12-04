@@ -54,11 +54,11 @@ export const getPlanColumns = (
     accessorKey: "name",
     header: "Name",
     cell: ({ row }) => {
-        const isFreePlan = row.original.id === 'free-default';
+        const isDefaultPlan = row.original.id === 'free-default';
         return (
-            <div className={cn("font-medium text-left flex items-center gap-2", isFreePlan && "text-muted-foreground")}>
+            <div className={cn("font-medium text-left flex items-center gap-2", isDefaultPlan && "text-muted-foreground")}>
                 {row.getValue("name")}
-                {isFreePlan && <Lock className="h-3 w-3" />}
+                {isDefaultPlan && <Lock className="h-3 w-3" />}
             </div>
         )
     }
@@ -68,13 +68,17 @@ export const getPlanColumns = (
     header: "Price",
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("price"))
-      const cycle = row.original.cycle;
+      const billing = row.original.billing;
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
       }).format(amount)
 
-      return <div className="font-medium text-left">{formatted}<span className="text-xs text-muted-foreground">/{cycle.slice(0,2)}</span></div>
+      if (billing === 'lifetime_free') {
+        return <div className="font-medium text-left">Free</div>
+      }
+
+      return <div className="font-medium text-left">{formatted}<span className="text-xs text-muted-foreground">/{billing.slice(0,2)}</span></div>
     },
   },
   {

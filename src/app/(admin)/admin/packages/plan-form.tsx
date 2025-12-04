@@ -34,6 +34,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { savePlanAction } from "@/lib/actions/plans"
+import { cn } from "@/lib/utils"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -149,12 +150,13 @@ export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
-  const isFreePlan = plan?.id === 'free-default';
+  const isDefaultPlan = plan?.id === 'free-default';
 
   const defaultValues: z.infer<typeof formSchemaToSubmit> = {
-    name: "",
+    name: "Default",
+    planType: 'guest',
+    billing: 'lifetime_free',
     price: 0,
-    cycle: "monthly",
     status: "active",
     features: {
         maxInboxes: 1,
@@ -204,6 +206,9 @@ export function PlanForm({ plan }: PlanFormProps) {
     defaultValues,
   })
 
+  const planType = form.watch('planType');
+  const billingType = form.watch('billing');
+
   useEffect(() => {
     if (plan) {
         const mergedFeatures = { ...defaultValues.features, ...plan.features };
@@ -213,12 +218,19 @@ export function PlanForm({ plan }: PlanFormProps) {
     }
   }, [plan, form]);
 
-  async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
-    if (isFreePlan && values.name.toLowerCase() !== 'free') {
-        toast({ title: "Invalid Operation", description: "The name of the 'Free' plan cannot be changed.", variant: "destructive" });
-        return;
+  // Effect to manage conditional logic for billing and price
+  useEffect(() => {
+    if (planType === 'guest' || planType === 'freemium') {
+      form.setValue('billing', 'lifetime_free');
+      form.setValue('price', 0);
+    } else if (planType === 'pro' && billingType === 'lifetime_free') {
+      // If switching to pro from free, default to monthly
+      form.setValue('billing', 'monthly');
     }
-    
+  }, [planType, billingType, form]);
+
+
+  async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
     setIsSubmitting(true)
     
     try {
@@ -243,18 +255,16 @@ export function PlanForm({ plan }: PlanFormProps) {
     }
   }
 
-  const planType = form.watch('price') > 0 ? 'pro' : 'free';
-
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
             <Card>
                 <CardHeader>
-                    <CardTitle>{plan ? 'Edit Plan' : 'Add New Plan'}</CardTitle>
+                    <CardTitle>{plan ? `Edit: ${plan.name}` : 'Add New Plan'}</CardTitle>
                     <CardDescription>
                         {plan ? "Update the details for this subscription plan." : "Fill out the form to create a new subscription plan."}
                     </CardDescription>
-                    {isFreePlan && (
+                     {isDefaultPlan && (
                         <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                             <Lock className="h-3 w-3" />
                             You are editing the non-deletable default Guest plan.
@@ -265,66 +275,79 @@ export function PlanForm({ plan }: PlanFormProps) {
                     {/* --- Basic Information --- */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Basic Information</h3>
-                        
-                        <FormField
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <FormField control={form.control} name="name" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Plan Name</FormLabel>
+                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                        </div>
+
+                         <FormField
                             control={form.control}
-                            name="price"
-                            render={() => (
+                            name="planType"
+                            render={({ field }) => (
                                 <FormItem className="space-y-3">
                                 <FormLabel>Plan Type</FormLabel>
                                 <FormControl>
                                     <RadioGroup
-                                        value={planType}
-                                        onValueChange={(value) => form.setValue('price', value === 'free' ? 0 : plan?.price || 9.99)}
-                                        className="flex space-x-4"
-                                        disabled={isFreePlan}
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                        className="flex flex-col md:flex-row gap-4"
+                                        disabled={isDefaultPlan}
                                     >
                                         <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="free" /></FormControl>
-                                            <FormLabel className="font-normal">Free Plan (For Registered Users)</FormLabel>
+                                            <FormControl><RadioGroupItem value="guest" /></FormControl>
+                                            <FormLabel className="font-normal">Guest (Anonymous Users)</FormLabel>
+                                        </FormItem>
+                                        <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl><RadioGroupItem value="freemium" /></FormControl>
+                                            <FormLabel className="font-normal">Freemium (Registered Users)</FormLabel>
                                         </FormItem>
                                         <FormItem className="flex items-center space-x-2 space-y-0">
                                             <FormControl><RadioGroupItem value="pro" /></FormControl>
-                                            <FormLabel className="font-normal">Pro Plan (Paid)</FormLabel>
+                                            <FormLabel className="font-normal">Pro (Paid Users)</FormLabel>
                                         </FormItem>
                                     </RadioGroup>
                                 </FormControl>
-                                {isFreePlan && <FormDescription>The Guest plan must be a Free plan.</FormDescription>}
+                                {isDefaultPlan && <FormDescription>The Default plan must be a Guest plan.</FormDescription>}
                                 </FormItem>
                             )}
                             />
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="name" render={({ field }) => (
-                                <FormItem className="md:col-span-1">
-                                    <FormLabel>Plan Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                           {planType === 'pro' && (
-                                <FormField control={form.control} name="price" render={({ field }) => (
-                                <FormItem>
+                        
+                         <div className={cn("space-y-4", planType !== 'pro' && 'hidden')}>
+                             <FormField
+                                control={form.control}
+                                name="billing"
+                                render={({ field }) => (
+                                    <FormItem className="space-y-3">
+                                    <FormLabel>Billing</FormLabel>
+                                    <FormControl>
+                                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="monthly" /></FormControl>
+                                                <FormLabel className="font-normal">Monthly</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="yearly" /></FormControl>
+                                                <FormLabel className="font-normal">Yearly</FormLabel>
+                                            </FormItem>
+                                        </RadioGroup>
+                                    </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField control={form.control} name="price" render={({ field }) => (
+                                <FormItem className="w-full md:w-1/3">
                                     <FormLabel>Price (USD)</FormLabel>
                                     <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                           )}
-                            <FormField control={form.control} name="cycle" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Billing Cycle</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a cycle" /></SelectTrigger></FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="monthly">Monthly</SelectItem>
-                                            <SelectItem value="yearly">Yearly</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </div>
+                         </div>
+
                     </div>
                     <Separator />
 
