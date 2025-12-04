@@ -137,7 +137,9 @@ export function DashboardClient() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, userProfile, isUserLoading } = useUser();
-  const planRef = useMemoFirebase(() => (firestore && userProfile?.planId) ? doc(firestore, 'plans', userProfile.planId) : null, [firestore, userProfile?.planId]);
+  
+  const planId = userProfile?.planId || 'free-default';
+  const planRef = useMemoFirebase(() => (firestore && planId) ? doc(firestore, 'plans', planId) : null, [firestore, planId]);
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
   
   const inboxQuery = useMemoFirebase(() => {
@@ -316,12 +318,12 @@ export function DashboardClient() {
       }
 
       if (!planToUse) {
-        if (!isLoadingPlan) {
+        if (!isLoadingPlan && !isUserLoading) { // Check both loading flags
           setServerError(
             "Default plan 'free-default' not found. Please contact support."
           );
         }
-        return;
+        return; // THIS IS A POTENTIAL EXIT POINT
       }
 
       if (activeUser.isAnonymous) {
@@ -713,6 +715,8 @@ export function DashboardClient() {
                                              <>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
+                                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
                                             </>
                                         ) : (
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
