@@ -42,25 +42,39 @@ interface PlanFormProps {
 const formSchemaToSubmit = planSchema.omit({ id: true, createdAt: true });
 
 const featureTooltips: Record<string, string> = {
+  // General
+  teamMembers: "Number of team members a user can invite to share their plan features.",
+  noAds: "Removes all advertisements from the user interface.",
+  usageAnalytics: "Grant access to a dashboard for viewing detailed usage statistics.",
+  browserExtension: "Grant access to the Chrome/Firefox browser extension.",
+  customBranding: "For enterprise clients, allow white-labeling of the interface.",
+  prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
+  dedicatedAccountManager: "Assign a dedicated account manager for high-value enterprise clients.",
+
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
+  dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
   inboxLifetime: "Duration in minutes an inbox exists before being purged. Set to 0 for unlimited lifetime.",
+  extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
-  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
-  allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
+  qrCode: "Allow users to generate a QR code for their inbox address.",
   
   // Email
-  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
+  dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. 0 for unlimited.",
+  maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. 0 for unlimited.",
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
-  sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
+  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
   exportEmails: "Allow users to download single emails (as .eml) or bulk export (as .zip).",
+  sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
+
+  // Custom Domain
+  customDomains: "Number of custom domains a user can connect (e.g., test@qa.mycompany.com).",
+  allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
 
   // Storage
-  maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. 0 for unlimited.",
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  searchableHistory: "Enables server-side full-text search of email history.",
   dataRetentionDays: "The number of days emails are kept, even if the inbox expires (for premium accounts). 0 for unlimited.",
   
   // Security
@@ -70,7 +84,6 @@ const featureTooltips: Record<string, string> = {
   virusScanning: "Automatically scan all incoming attachments for malware.",
   auditLogs: "For team/business accounts, a log of actions taken by team members.",
   linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
-  star: "Allow users to mark important emails with a star.",
   spam: "Allow users to mark emails as spam.",
   block: "Allow users to block specific senders or domains.",
   filter: "Enable filtering rules for incoming mail.",
@@ -79,23 +92,6 @@ const featureTooltips: Record<string, string> = {
   apiAccess: "Grant access to the developer REST API for programmatic use.",
   apiRateLimit: "Number of API requests a user can make per minute. 0 for unlimited.",
   webhooks: "Allow incoming emails to be forwarded to a user-defined webhook URL for automation.",
-  
-  // Support
-  prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
-  dedicatedAccountManager: "Assign a dedicated account manager for high-value enterprise clients.",
-
-  // General
-  noAds: "Removes all advertisements from the user interface.",
-  browserExtension: "Grant access to the Chrome/Firefox browser extension.",
-  teamMembers: "Number of team members a user can invite to share their plan features.",
-  customBranding: "For enterprise clients, allow white-labeling of the interface.",
-  usageAnalytics: "Grant access to a dashboard for viewing detailed usage statistics.",
-
-  // New features
-  qrCode: "Allow users to generate a QR code for their inbox address.",
-  extendTime: "Allow users to manually extend the lifetime of their active inbox.",
-  dailyInboxLimit: "Maximum number of new inboxes a user can create per day. 0 for unlimited.",
-  dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. 0 for unlimited.",
 };
 
 const FormLabelWithTooltip = ({ label, tooltipText }: { label: string; tooltipText: string }) => (
@@ -158,45 +154,17 @@ export function PlanForm({ plan }: PlanFormProps) {
     price: 0,
     status: "active",
     features: {
-        maxInboxes: 1,
-        inboxLifetime: 10,
-        customPrefix: false,
-        customDomains: 0,
-        allowPremiumDomains: false,
-        inboxLocking: false,
-        emailForwarding: false,
-        allowAttachments: false,
-        maxAttachmentSize: 5,
-        sourceCodeView: false,
-        exportEmails: false,
-        maxEmailsPerInbox: 25,
-        totalStorageQuota: 0,
-        searchableHistory: false,
-        dataRetentionDays: 0,
-        passwordProtection: false,
-        twoFactorAuth: false,
-        spamFilteringLevel: "basic",
-        virusScanning: false,
-        auditLogs: false,
-        linkSanitization: false,
-        apiAccess: false,
-        apiRateLimit: 0,
-        webhooks: false,
-        prioritySupport: false,
-        dedicatedAccountManager: false,
-        noAds: false,
-        browserExtension: false,
-        teamMembers: 0,
-        customBranding: false,
-        usageAnalytics: false,
-        star: false,
-        spam: false,
-        block: false,
-        filter: false,
-        qrCode: false,
-        extendTime: false,
-        dailyInboxLimit: 0,
-        dailyEmailLimit: 0,
+      teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
+      customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
+      maxInboxes: 1, dailyInboxLimit: 0, inboxLifetime: 10, extendTime: false,
+      customPrefix: false, inboxLocking: false, qrCode: false,
+      dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
+      maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
+      customDomains: 0, allowPremiumDomains: false, totalStorageQuota: 0,
+      dataRetentionDays: 0, passwordProtection: false, twoFactorAuth: false,
+      spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, linkSanitization: false,
+      spam: false, block: false, filter: false,
+      apiAccess: false, apiRateLimit: 0, webhooks: false,
     }
   }
 
@@ -216,16 +184,20 @@ export function PlanForm({ plan }: PlanFormProps) {
     }
   }, [plan, form]);
 
-  // Effect to manage conditional logic for billing and price
   useEffect(() => {
     if (planType === 'guest' || planType === 'freemium') {
       form.setValue('billing', 'lifetime_free');
-      form.setValue('price', 0);
     } else if (planType === 'pro' && form.getValues('billing') === 'lifetime_free') {
-      // If switching to pro from free, default to monthly
       form.setValue('billing', 'monthly');
     }
   }, [planType, form]);
+  
+  useEffect(() => {
+    const currentBilling = form.getValues('billing');
+    if (currentBilling === 'lifetime_free') {
+      form.setValue('price', 0);
+    }
+  }, [form.watch('billing'), form]);
 
 
   async function onSubmit(values: z.infer<typeof formSchemaToSubmit>) {
@@ -277,75 +249,60 @@ export function PlanForm({ plan }: PlanFormProps) {
                            <FormField control={form.control} name="name" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Plan Name</FormLabel>
-                                    <FormControl><Input placeholder="e.g., Premium" {...field} disabled={isDefaultPlan} /></FormControl>
+                                    <FormControl><Input placeholder="e.g., Premium" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
                         </div>
+                         <FormField control={form.control} name="planType" render={({ field }) => (
+                            <FormItem className="space-y-3">
+                            <FormLabel>Plan Type</FormLabel>
+                            <FormControl>
+                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col md:flex-row gap-4" disabled={isDefaultPlan}>
+                                    <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="guest" /></FormControl><FormLabel className="font-normal">Guest (Anonymous Users)</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="freemium" /></FormControl><FormLabel className="font-normal">Freemium (Registered Users)</FormLabel></FormItem>
+                                    <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="pro" /></FormControl><FormLabel className="font-normal">Pro (Paid Users)</FormLabel></FormItem>
+                                </RadioGroup>
+                            </FormControl>
+                            {isDefaultPlan && <FormDescription>The Default plan must be a Guest plan.</FormDescription>}
+                            </FormItem>
+                        )} />
+                        <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-4 pt-2")}>
+                          <FormField control={form.control} name="billing" render={({ field }) => (
+                              <FormItem className="space-y-3">
+                              <FormLabel>Billing</FormLabel>
+                              <FormControl>
+                                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4" disabled={planType !== 'pro'}>
+                                      <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="monthly" /></FormControl><FormLabel className="font-normal">Monthly</FormLabel></FormItem>
+                                      <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="yearly" /></FormControl><FormLabel className="font-normal">Yearly</FormLabel></FormItem>
+                                      <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="lifetime_free" /></FormControl><FormLabel className="font-normal">Lifetime Free</FormLabel></FormItem>
+                                  </RadioGroup>
+                              </FormControl>
+                              </FormItem>
+                          )} />
+                          <FormField control={form.control} name="price" render={({ field }) => (
+                              <FormItem className={cn(form.getValues('billing') === 'lifetime_free' && 'hidden')}>
+                                  <FormLabel>Price (USD)</FormLabel>
+                                  <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )} />
+                        </div>
+                    </div>
+                    <Separator />
 
-                         <FormField
-                            control={form.control}
-                            name="planType"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Plan Type</FormLabel>
-                                <FormControl>
-                                    <RadioGroup
-                                        onValueChange={field.onChange}
-                                        value={field.value}
-                                        className="flex flex-col md:flex-row gap-4"
-                                        disabled={isDefaultPlan}
-                                    >
-                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="guest" /></FormControl>
-                                            <FormLabel className="font-normal">Guest (Anonymous Users)</FormLabel>
-                                        </FormItem>
-                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="freemium" /></FormControl>
-                                            <FormLabel className="font-normal">Freemium (Registered Users)</FormLabel>
-                                        </FormItem>
-                                        <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl><RadioGroupItem value="pro" /></FormControl>
-                                            <FormLabel className="font-normal">Pro (Paid Users)</FormLabel>
-                                        </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                {isDefaultPlan && <FormDescription>The Default plan must be a Guest plan.</FormDescription>}
-                                </FormItem>
-                            )}
-                            />
-                        
-                         <div className={cn("space-y-4", planType !== 'pro' && 'hidden')}>
-                             <FormField
-                                control={form.control}
-                                name="billing"
-                                render={({ field }) => (
-                                    <FormItem className="space-y-3">
-                                    <FormLabel>Billing Cycle</FormLabel>
-                                    <FormControl>
-                                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
-                                            <FormItem className="flex items-center space-x-2 space-y-0">
-                                                <FormControl><RadioGroupItem value="monthly" /></FormControl>
-                                                <FormLabel className="font-normal">Monthly</FormLabel>
-                                            </FormItem>
-                                            <FormItem className="flex items-center space-x-2 space-y-0">
-                                                <FormControl><RadioGroupItem value="yearly" /></FormControl>
-                                                <FormLabel className="font-normal">Yearly</FormLabel>
-                                            </FormItem>
-                                        </RadioGroup>
-                                    </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField control={form.control} name="price" render={({ field }) => (
-                                <FormItem className="w-full md:w-1/3">
-                                    <FormLabel>Price (USD)</FormLabel>
-                                    <FormControl><Input type="number" step="0.01" placeholder="e.g., 9.99" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                         </div>
-
+                    {/* --- General --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">General</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
+                          <FeatureSwitch name="features.noAds" label="Ads" control={form.control} />
+                          <FeatureSwitch name="features.usageAnalytics" label="Analytics" control={form.control} />
+                          <FeatureSwitch name="features.browserExtension" label="Browser Extension" control={form.control} />
+                          <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
+                          <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
+                          <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
+                        </div>
                     </div>
                     <Separator />
 
@@ -353,24 +310,13 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Inbox Features</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.maxInboxes" label="Max Active Inboxes" control={form.control} type="number" />
-                            <FeatureInput name="features.inboxLifetime" label="Inbox Lifetime (minutes)" control={form.control} type="number" />
-                            <FeatureInput name="features.customDomains" label="Custom Domains" control={form.control} type="number" />
-                            <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
-                            <FeatureSwitch name="features.customPrefix" label="Customizable Prefix" control={form.control} />
-                            <FeatureSwitch name="features.allowPremiumDomains" label="Allow Premium Domains" control={form.control} />
+                            <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
+                            <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
+                            <FeatureInput name="features.inboxLifetime" label="Inbox Expire (minutes)" control={form.control} type="number" />
+                            <FeatureSwitch name="features.extendTime" label="Inbox Time Extend" control={form.control} />
+                            <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
-                             <FeatureSwitch name="features.qrCode" label="QR Code Access" control={form.control} />
-                        </div>
-                    </div>
-                    <Separator />
-
-                     {/* --- Daily Limits --- */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium tracking-tight">Daily Limits</h3>
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FeatureInput name="features.dailyInboxLimit" label="Daily Inbox Creation Limit" control={form.control} type="number" />
-                           <FeatureInput name="features.dailyEmailLimit" label="Daily Email Reception Limit" control={form.control} type="number" />
+                            <FeatureSwitch name="features.qrCode" label="QR Code" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -379,6 +325,8 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Email Features</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.maxEmailsPerInbox" label="Total Emails Received (per Inbox)" control={form.control} type="number" />
+                            <FeatureInput name="features.dailyEmailLimit" label="Daily Emails Received" control={form.control} type="number" />
                             <FeatureInput name="features.maxAttachmentSize" label="Max Attachment Size (MB)" control={form.control} type="number" />
                             <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
                             <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
@@ -388,14 +336,22 @@ export function PlanForm({ plan }: PlanFormProps) {
                     </div>
                     <Separator />
 
-                    {/* --- Storage & Data --- */}
+                    {/* --- Custom Domain --- */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
+                        <h3 className="text-lg font-medium tracking-tight">Custom Domain</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.maxEmailsPerInbox" label="Max Emails Per Inbox" control={form.control} type="number" />
-                            <FeatureInput name="features.totalStorageQuota" label="Total Storage Quota (MB)" control={form.control} type="number" />
+                            <FeatureInput name="features.customDomains" label="Total Custom Domains" control={form.control} type="number" />
+                            <FeatureSwitch name="features.allowPremiumDomains" label="Premium Domain" control={form.control} />
+                        </div>
+                    </div>
+                    <Separator />
+
+                    {/* --- Storage --- */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium tracking-tight">Storage</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
                             <FeatureInput name="features.dataRetentionDays" label="Data Retention (Days)" control={form.control} type="number" />
-                            <FeatureSwitch name="features.searchableHistory" label="Searchable History" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -422,7 +378,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureSwitch name="features.virusScanning" label="Virus Scanning" control={form.control} />
                             <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
                             <FeatureSwitch name="features.auditLogs" label="Audit Logs" control={form.control} />
-                            <FeatureSwitch name="features.star" label="Star Emails" control={form.control} />
                             <FeatureSwitch name="features.spam" label="Spam Reporting" control={form.control} />
                             <FeatureSwitch name="features.block" label="Block Senders" control={form.control} />
                             <FeatureSwitch name="features.filter" label="Mail Filtering" control={form.control} />
@@ -437,29 +392,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.apiRateLimit" label="API Rate Limit (req/min)" control={form.control} type="number" />
                             <FeatureSwitch name="features.apiAccess" label="API Access" control={form.control} />
                             <FeatureSwitch name="features.webhooks" label="Webhooks" control={form.control} />
-                        </div>
-                    </div>
-                    <Separator />
-                    
-                    {/* --- Support --- */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium tracking-tight">Support</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
-                            <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
-                        </div>
-                    </div>
-                    <Separator />
-
-                    {/* --- General Features --- */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium tracking-tight">General & Team Features</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
-                            <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
-                            <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
-                            <FeatureSwitch name="features.browserExtension" label="Browser Extension Access" control={form.control} />
-                             <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
                         </div>
                     </div>
                     <Separator />
