@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
@@ -79,7 +79,7 @@ const featureTooltips: Record<string, string> = {
 
   // Storage
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  dataRetention: "The duration emails are kept after an inbox address has expired. 'Lifetime' means emails are deleted when the inbox address expires.",
+  dataRetention: "'As Inbox Time': Emails are deleted when the inbox expires. 'Lifetime': Emails are kept until manually deleted. 'Days': Emails are kept for a specific number of days after receipt, regardless of inbox status.",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -155,10 +155,9 @@ const TimeDurationInput = ({ name, label, control }: { name: any; label: string;
                 <div className="flex items-center gap-2">
                     <Input 
                         type="number" 
-                        placeholder="0 for unlimited"
+                        placeholder="Count"
                         value={field.value.count}
                         onChange={(e) => field.onChange({ ...field.value, count: parseInt(e.target.value, 10) || 0 })}
-                        disabled={field.value.unit === 'lifetime'}
                     />
                     <Select value={field.value.unit} onValueChange={(unit) => field.onChange({ ...field.value, unit })}>
                         <FormControl>
@@ -170,10 +169,46 @@ const TimeDurationInput = ({ name, label, control }: { name: any; label: string;
                             <SelectItem value="minutes">Minutes</SelectItem>
                             <SelectItem value="hours">Hours</SelectItem>
                             <SelectItem value="days">Days</SelectItem>
-                            <SelectItem value="lifetime">Lifetime</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
+                <FormMessage />
+            </FormItem>
+        )}
+    />
+);
+
+const DataRetentionInput = ({ name, label, control }: { name: any, label: string, control: any }) => (
+    <FormField
+        control={control}
+        name={name}
+        render={({ field }) => (
+            <FormItem>
+                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
+                 <RadioGroup onValueChange={(mode) => field.onChange({ ...field.value, mode })} value={field.value.mode} className="space-y-2 pt-2">
+                    <FormItem className="flex items-center space-x-2">
+                        <FormControl><RadioGroupItem value="inbox" /></FormControl>
+                        <FormLabel className="font-normal">As Inbox Time</FormLabel>
+                    </FormItem>
+                     <FormItem className="flex items-center space-x-2">
+                        <FormControl><RadioGroupItem value="lifetime" /></FormControl>
+                        <FormLabel className="font-normal">Lifetime</FormLabel>
+                    </FormItem>
+                    <FormItem className="flex items-center space-x-2">
+                        <FormControl><RadioGroupItem value="days" /></FormControl>
+                        <FormLabel className="font-normal">Days</FormLabel>
+                    </FormItem>
+                </RadioGroup>
+                {field.value.mode === 'days' && (
+                     <div className="pt-2 pl-6">
+                        <Input 
+                            type="number"
+                            placeholder="Number of days"
+                            value={field.value.value || ''}
+                            onChange={(e) => field.onChange({ ...field.value, value: parseInt(e.target.value, 10) || 0 })}
+                        />
+                     </div>
+                )}
                 <FormMessage />
             </FormItem>
         )}
@@ -201,7 +236,7 @@ export function PlanForm({ plan }: PlanFormProps) {
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
         customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
-        totalStorageQuota: 0, dataRetention: { count: 0, unit: 'lifetime' }, passwordProtection: false,
+        totalStorageQuota: 0, dataRetention: { mode: 'inbox' }, passwordProtection: false,
         twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
         linkSanitization: false, spam: false, block: false, filter: false,
         apiAccess: false, apiRateLimit: 0, webhooks: false,
@@ -397,7 +432,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <h3 className="text-lg font-medium tracking-tight">Storage</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
-                            <TimeDurationInput name="features.dataRetention" label="Data Retention" control={form.control} />
+                            <DataRetentionInput name="features.dataRetention" label="Data Retention" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -485,5 +520,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
-    

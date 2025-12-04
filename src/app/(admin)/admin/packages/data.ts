@@ -27,7 +27,7 @@ export const planSchema = z.object({
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
     inboxLifetime: z.object({
         count: z.coerce.number().int().min(0),
-        unit: z.enum(['minutes', 'hours', 'days', 'lifetime'])
+        unit: z.enum(['minutes', 'hours', 'days'])
     }).default({ count: 10, unit: 'minutes' }),
     extendTime: z.boolean().default(false),
     customPrefix: z.boolean().default(false),
@@ -53,9 +53,9 @@ export const planSchema = z.object({
     // Storage
     totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     dataRetention: z.object({
-        count: z.coerce.number().int().min(0),
-        unit: z.enum(['minutes', 'hours', 'days', 'lifetime'])
-    }).default({ count: 0, unit: 'lifetime' }),
+        mode: z.enum(['inbox', 'lifetime', 'days']),
+        value: z.coerce.number().int().min(0).optional(),
+    }).default({ mode: 'inbox' }),
     
     // Security & Privacy
     passwordProtection: z.boolean().default(false),
@@ -78,5 +78,3 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
-
-    
