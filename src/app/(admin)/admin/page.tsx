@@ -4,6 +4,7 @@ import { Activity, Users, Package, Globe } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import type { Plan } from "./packages/data";
+import { AnalyticsDashboard } from "@/components/admin/dashboard/analytics-dashboard";
 
 export default function AdminDashboardPage() {
     const firestore = useFirestore();
@@ -44,7 +45,7 @@ export default function AdminDashboardPage() {
     ];
 
   return (
-    <>
+    <div className="space-y-8">
         <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
             {stats.map(stat => (
                 <StatCard 
@@ -56,9 +57,7 @@ export default function AdminDashboardPage() {
                 />
             ))}
         </div>
-        <div className="mt-8">
-            {/* The main data table for the dashboard can go here */}
-        </div>
-    </>
+        <AnalyticsDashboard />
+    </div>
   );
 }
