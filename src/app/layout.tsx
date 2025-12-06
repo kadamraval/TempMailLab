@@ -23,7 +23,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
-        <Analytics />
       </head>
       <body className="font-body antialiased flex flex-col min-h-screen bg-background">
         <ThemeProvider
@@ -34,6 +33,7 @@ export default function RootLayout({
         >
           <FirebaseClientProvider>
             <AuthProvider>
+              <Analytics />
               {children}
               <Toaster />
             </AuthProvider>
