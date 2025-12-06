@@ -203,7 +203,7 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
                             </AlertDescription>
                         </Alert>
                         <div className="space-y-2">
-                            <Label htmlFor="client-id">Publisher ID</Label>
+                            <Label htmlFor="clientId">Publisher ID</Label>
                             <Input id="clientId" placeholder="pub-xxxxxxxxxxxxxxxx" value={settings.clientId || ''} onChange={handleInputChange} />
                              <p className="text-sm text-muted-foreground">
                                 Your Google AdSense publisher ID.

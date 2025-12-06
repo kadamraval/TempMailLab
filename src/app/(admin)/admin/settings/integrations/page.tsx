@@ -105,15 +105,14 @@ export default function IntegrationsPage() {
             </div>
              <div className="flex items-center gap-4">
               <div className={cn('text-xs font-semibold px-2 py-1 rounded-full', 
-                  integration.isConfigured ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  integration.isConfigured ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'
               )}>
-                {integration.isConfigured ? 'Connected' : 'Coming Soon'}
+                {integration.isConfigured ? 'Configured' : 'Coming Soon'}
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => handleConfigureClick(integration.slug)}
-                disabled={!integration.isConfigured}
               >
                 Configure <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
