@@ -137,6 +137,7 @@ export function DashboardClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [customPrefix, setCustomPrefix] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
+  const [selectedLifetime, setSelectedLifetime] = useState<string | undefined>(undefined);
 
 
   const firestore = useFirestore();
@@ -234,7 +235,10 @@ export function DashboardClient() {
      if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
       setSelectedDomain(allowedDomains[0].domain);
     }
-  }, [currentInbox, generateRandomString, allowedDomains, selectedDomain]);
+    if (!selectedLifetime && activePlan) {
+        setSelectedLifetime(`${activePlan.features.inboxLifetime.count}_${activePlan.features.inboxLifetime.unit}`)
+    }
+  }, [currentInbox, generateRandomString, allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
 
   const createNewInbox = useCallback(
@@ -256,7 +260,8 @@ export function DashboardClient() {
             const prefix = customPrefix || generateRandomString(10);
             const emailAddress = `${prefix}@${domainToUse}`;
             
-            const lifetimeInMs = (plan.features.inboxLifetime.count || 10) * (plan.features.inboxLifetime.unit === 'minutes' ? 60 : (plan.features.inboxLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
+            const [count, unit] = selectedLifetime!.split('_');
+            const lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
             const expiresAt = new Date(Date.now() + lifetimeInMs);
 
             const newInboxData = {
@@ -284,13 +289,12 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, generateRandomString, allowedDomains, customPrefix, selectedDomain, toast]
+    }, [firestore, generateRandomString, allowedDomains, customPrefix, selectedDomain, toast, selectedLifetime]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
     if (!firestore) return null;
     
-    // Updated query to remove orderBy and avoid index requirement
     const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', uid));
     const snap = await getDocs(userInboxesQuery);
     
@@ -301,7 +305,6 @@ export function DashboardClient() {
     const sortedInboxes = snap.docs
         .map(doc => {
             const data = doc.data();
-            // Ensure createdAt is a Date object for reliable sorting
             const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
             return { id: doc.id, ...data, expiresAt: (data.expiresAt as Timestamp).toDate().toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
         })
@@ -511,12 +514,11 @@ export function DashboardClient() {
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="flex-grow w-full border rounded-lg bg-card text-card-foreground p-1.5 flex items-center gap-2 h-11">
-            
+        <div className="flex-grow w-full border rounded-lg bg-card text-card-foreground p-1.5 flex items-center gap-4 h-11">
             {currentInbox ? (
-                 <div className="flex items-center gap-2 px-2">
+                 <div className="flex items-center gap-2 pl-2">
                      <div className="relative h-8 w-8">
-                         <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90" />
+                         <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary" />
                          <div className="absolute inset-0 flex items-center justify-center">
                             <Clock className="h-4 w-4 text-primary" />
                          </div>
@@ -524,24 +526,29 @@ export function DashboardClient() {
                      <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
                  </div>
             ) : (
-                <Select defaultValue="10">
-                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 h-full">
+                <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
+                    <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0">
                         <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <SelectValue />
+                        <SelectValue placeholder="Lifetime" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="10">10 Min</SelectItem>
-                        <SelectItem value="60">1 Hour</SelectItem>
-                        <SelectItem value="1440">1 Day</SelectItem>
+                        <SelectItem value="10_minutes">10 Minutes</SelectItem>
+                        <SelectItem value="30_minutes">30 Minutes</SelectItem>
+                        <SelectItem value="1_hours">1 Hour</SelectItem>
+                        <SelectItem value="6_hours">6 Hours</SelectItem>
+                        <SelectItem value="1_days">1 Day</SelectItem>
                     </SelectContent>
                 </Select>
             )}
 
             <Separator orientation="vertical" className="h-6" />
             
-             <div className="flex-grow flex items-center">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCustomPrefix(generateRandomString(10))}>
-                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
+             <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCustomPrefix(generateRandomString(10))}>
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCustomPrefix(generateRandomString(10))}>
+                    <span className="text-xs font-bold">Auto</span>
                 </Button>
                 
                 <Input 
@@ -554,7 +561,7 @@ export function DashboardClient() {
                 />
                 <span className="text-muted-foreground">@</span>
                 <Select value={selectedDomain} onValueChange={setSelectedDomain} disabled={!!currentInbox}>
-                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 font-mono text-base h-full">
+                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 font-mono text-base h-full">
                         <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
@@ -566,11 +573,10 @@ export function DashboardClient() {
             </div>
             
             {currentInbox ? (
-                 <Button onClick={handleCopyEmail} variant="secondary" className="h-full"><Copy className="h-4 w-4"/>
-                 </Button>
+                 <Button onClick={handleCopyEmail} className="h-full"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
             ) : (
                  <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full">
-                    {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
                     Create
                 </Button>
             )}
@@ -855,7 +861,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    
