@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react";
@@ -10,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { doc, setDoc } from "firebase/firestore";
 import { useDoc } from "@/firebase/firestore/use-doc";
-import { Loader2, AlertTriangle, Copy, Info, RefreshCw, ExternalLink } from "lucide-react";
+import { Loader2, Copy, Info, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { v4 as uuidv4 } from 'uuid';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
@@ -245,3 +246,5 @@ export function IntegrationSettingsForm({ integration }: IntegrationSettingsForm
         </Card>
     )
 }
+
+    

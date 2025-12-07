@@ -245,7 +245,7 @@ export function DashboardClient() {
         const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
 
         const expiresAt = new Date(
-          Date.now() + (plan.features.inboxLifetime || 10) * 60 * 1000
+          Date.now() + (plan.features.inboxLifetime.count || 10) * 60 * 1000
         );
 
         const newInboxData = {
@@ -855,6 +855,8 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
 

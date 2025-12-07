@@ -1,12 +1,10 @@
+
 "use client";
 
 import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, TrendingUp, Settings } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { AudienceChart } from "./audience-chart";
 import { TopPagesTable } from "./top-pages-table";
 import { AudienceGeo } from "./audience-geo";
@@ -15,7 +13,7 @@ import { DeviceChart } from "./device-chart";
 export function AnalyticsDashboard() {
     const firestore = useFirestore();
     const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'google-analytics') : null, [firestore]);
-    const { data: settings, isLoading } = useDoc(settingsRef);
+    const { isLoading } = useDoc(settingsRef);
 
     if (isLoading) {
         return (
@@ -25,31 +23,6 @@ export function AnalyticsDashboard() {
                 </CardHeader>
                 <CardContent className="flex items-center justify-center p-8">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </CardContent>
-            </Card>
-        )
-    }
-
-    if (!settings?.measurementId) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Analytics Overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Alert>
-                        <TrendingUp className="h-4 w-4" />
-                        <AlertTitle>Google Analytics Not Connected</AlertTitle>
-                        <AlertDescription>
-                            To view detailed audience and traffic metrics, please connect your Google Analytics account.
-                            <Button asChild variant="link" className="p-0 h-auto ml-1">
-                                <Link href="/admin/settings/integrations/google-analytics">
-                                    <Settings className="mr-2 h-4 w-4" />
-                                    Configure Now
-                                </Link>
-                            </Button>
-                        </AlertDescription>
-                    </Alert>
                 </CardContent>
             </Card>
         )
@@ -104,3 +77,5 @@ export function AnalyticsDashboard() {
         </div>
     )
 }
+
+    
