@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -66,6 +65,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import Image from "next/image";
 import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -132,6 +132,8 @@ export function DashboardClient() {
   const [activeMailFilter, setActiveMailFilter] = useState('All');
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [customPrefix, setCustomPrefix] = useState('');
+  const [selectedDomain, setSelectedDomain] = useState('');
 
 
   const firestore = useFirestore();
@@ -141,6 +143,16 @@ export function DashboardClient() {
   const planId = userProfile?.planId || 'free-default';
   const planRef = useMemoFirebase(() => (firestore && planId) ? doc(firestore, 'plans', planId) : null, [firestore, planId]);
   const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
+
+  const allowedDomainsQuery = useMemoFirebase(() => {
+    if (!firestore || !activePlan) return null;
+    return query(
+        collection(firestore, "allowed_domains"),
+        where("tier", "in", activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"])
+    );
+  }, [firestore, activePlan]);
+  const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
+
   
   const inboxQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
@@ -215,76 +227,59 @@ export function DashboardClient() {
 
   const generateNewInbox = useCallback(
     async (activeUser: import("firebase/auth").User, plan: Plan) => {
-      if (!firestore) {
-        setServerError("Services not ready. Please try again in a moment.");
-        return null;
-      }
-
-      setIsLoading(true);
-      setServerError(null);
-
-      const domainsQuery = query(
-        collection(firestore, "allowed_domains"),
-        where(
-          "tier",
-          "in",
-          plan.features.allowPremiumDomains ? ["free", "premium"] : ["free"]
-        )
-      );
-
-      try {
-        const domainsSnapshot = await getDocs(domainsQuery);
-        if (domainsSnapshot.empty)
-          throw new Error("No domains are configured by the administrator.");
-
-        const allowedDomains = domainsSnapshot.docs.map(
-          (doc) => doc.data().domain as string
-        );
-        const randomDomain =
-          allowedDomains[Math.floor(Math.random() * allowedDomains.length)];
-        const emailAddress = `${generateRandomString(12)}@${randomDomain}`;
-
-        const expiresAt = new Date(
-          Date.now() + (plan.features.inboxLifetime.count || 10) * 60 * 1000
-        );
-
-        const newInboxData = {
-          userId: activeUser.uid,
-          emailAddress,
-          domain: randomDomain,
-          emailCount: 0,
-          expiresAt: Timestamp.fromDate(expiresAt),
-          createdAt: serverTimestamp(),
-        };
-
-        const newInboxRef = await addDoc(
-          collection(firestore, `inboxes`),
-          newInboxData
-        );
-        const newInbox = {
-          id: newInboxRef.id,
-          ...newInboxData,
-          expiresAt: expiresAt.toISOString(),
-        } as InboxType;
-
-        if (activeUser.isAnonymous) {
-          localStorage.setItem(
-            LOCAL_INBOX_KEY,
-            JSON.stringify({ id: newInbox.id, expiresAt: newInbox.expiresAt })
-          );
+        if (!firestore || !allowedDomains) {
+            setServerError("Services not ready. Please try again in a moment.");
+            return null;
         }
-        return newInbox;
-      } catch (error: any) {
-        setServerError(
-          error.message || "Could not generate a new email address."
-        );
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [firestore, generateRandomString]
+
+        setIsLoading(true);
+        setServerError(null);
+
+        try {
+            if (allowedDomains.length === 0) throw new Error("No domains are configured by the administrator.");
+            
+            const domainToUse = selectedDomain || allowedDomains[0]?.domain;
+            if (!domainToUse) throw new Error("Could not determine a domain to use.");
+            
+            const prefix = customPrefix || generateRandomString(12);
+            const emailAddress = `${prefix}@${domainToUse}`;
+            
+            const expiresAt = new Date(Date.now() + (plan.features.inboxLifetime.count || 10) * 60 * 1000);
+
+            const newInboxData = {
+                userId: activeUser.uid,
+                emailAddress,
+                domain: domainToUse,
+                emailCount: 0,
+                expiresAt: Timestamp.fromDate(expiresAt),
+                createdAt: serverTimestamp(),
+            };
+
+            const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+            const newInbox = {
+                id: newInboxRef.id,
+                ...newInboxData,
+                expiresAt: expiresAt.toISOString(),
+            } as InboxType;
+
+            if (activeUser.isAnonymous) {
+                localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ id: newInbox.id, expiresAt: newInbox.expiresAt }));
+            }
+            return newInbox;
+        } catch (error: any) {
+            setServerError(error.message || "Could not generate a new email address.");
+            return null;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [firestore, generateRandomString, allowedDomains, customPrefix, selectedDomain]
   );
+
+  useEffect(() => {
+    if (allowedDomains && allowedDomains.length > 0 && !selectedDomain) {
+        setSelectedDomain(allowedDomains[0].domain);
+    }
+  }, [allowedDomains, selectedDomain]);
 
   useEffect(() => {
     const initializeSession = async () => {
@@ -375,6 +370,12 @@ export function DashboardClient() {
 
       if (!foundInbox) {
         foundInbox = await generateNewInbox(activeUser, planToUse);
+      }
+      
+      if (foundInbox) {
+        const [prefix, domain] = foundInbox.emailAddress.split('@');
+        setCustomPrefix(prefix);
+        setSelectedDomain(domain);
       }
 
       setCurrentInbox(foundInbox);
@@ -503,7 +504,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading) {
+  if (isLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -540,37 +541,105 @@ export function DashboardClient() {
 
   const mailFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Spam", "Blocked"];
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
+  
+  const canCustomizePrefix = activePlan.features.customPrefix;
+  const fullEmailAddress = `${customPrefix}@${selectedDomain}`;
 
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 p-2 border bg-card text-card-foreground rounded-lg">
-        <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">
-          <Clock className={cn("h-4 w-4", countdown < 60 && countdown > 0 && "text-destructive")} />
-          <span className={cn(countdown < 60 && countdown > 0 && "text-destructive")}>{formatTime(countdown)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 p-2 border bg-card text-card-foreground rounded-lg">
+        <div className="flex items-center gap-4">
+            <div className="relative h-12 w-12 text-blue-500">
+                <svg className="w-full h-full" viewBox="0 0 36 36">
+                    <path
+                        className="text-muted-foreground/20"
+                        d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                    />
+                    <path
+                        className="text-primary"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        strokeDasharray={`${(countdown / ((activePlan.features.inboxLifetime.count || 10) * 60)) * 100}, 100`}
+                        d="M18 2.0845
+                        a 15.9155 15.9155 0 0 1 0 31.831
+                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        strokeLinecap="round"
+                        transform="rotate(-90 18 18)"
+                    />
+                </svg>
+                <div className={cn("absolute inset-0 flex flex-col items-center justify-center", countdown < 60 && "text-destructive")}>
+                     <span className="text-lg font-bold">{formatTime(countdown)}</span>
+                </div>
+            </div>
+            <div>
+                 <Select defaultValue={`${activePlan.features.inboxLifetime.count}-${activePlan.features.inboxLifetime.unit}`}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10-minutes">10 Minutes</SelectItem>
+                        <SelectItem value="1-hours">1 Hour</SelectItem>
+                        <SelectItem value="1-days">1 Day</SelectItem>
+                        <SelectItem value="7-days">7 Days</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
 
-        <div
-          onClick={handleCopyEmail}
-          className="flex-grow flex items-center justify-center font-mono text-base md:text-lg text-foreground bg-muted hover:bg-secondary cursor-pointer p-2 rounded-md transition-colors group"
-        >
-          <span className="truncate">{currentInbox.emailAddress}</span>
-          <Copy className="h-4 w-4 ml-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+        <div className="flex items-center border rounded-md">
+            <Input 
+                value={customPrefix} 
+                onChange={(e) => setCustomPrefix(e.target.value)}
+                className="flex-grow !border-0 !ring-0 !shadow-none font-mono text-base text-right"
+                disabled={!canCustomizePrefix}
+            />
+            <span className="px-2 text-muted-foreground">@</span>
+            <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                <SelectTrigger className="!border-0 !ring-0 !shadow-none font-mono text-base w-auto">
+                    <SelectValue/>
+                </SelectTrigger>
+                <SelectContent>
+                     {allowedDomains?.map(d => (
+                        <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
+                     ))}
+                </SelectContent>
+            </Select>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleDeleteAndRegenerate}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-           <Button onClick={handleToggleDemo} variant="outline" size="sm">
-                <Eye className="h-4 w-4"/>
-            </Button>
+        
+        <div className="flex items-center gap-2 justify-self-end">
+            <Button onClick={() => setCustomPrefix(generateRandomString(12))} variant="outline" size="sm">Auto</Button>
+            <Button onClick={handleCopyEmail} variant="outline" size="sm"><Copy className="h-4 w-4" /></Button>
+            {activePlan.features.qrCode && <Button onClick={() => setIsQrOpen(true)} variant="outline" size="sm"><QrCode className="h-4 w-4"/></Button>}
+            <Button onClick={handleDeleteAndRegenerate} variant="outline" size="sm"><RefreshCw className="h-4 w-4" /></Button>
+            <Button onClick={handleToggleDemo} variant="outline" size="sm"><Eye className="h-4 w-4"/></Button>
         </div>
       </div>
+      
+       <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
+            <DialogContent className="sm:max-w-xs">
+                <DialogHeader>
+                <DialogTitle>Scan QR Code</DialogTitle>
+                <DialogDescription>
+                    Scan this code on your mobile device to use this email address.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center justify-center p-4">
+                    <Image 
+                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(fullEmailAddress)}`}
+                        alt="QR Code for email address"
+                        width={200}
+                        height={200}
+                    />
+                </div>
+            </DialogContent>
+        </Dialog>
 
       {serverError && (
         <Alert variant="destructive">
@@ -646,36 +715,7 @@ export function DashboardClient() {
                                                         <TooltipContent><p>Copy Email</p></TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
-                                                <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <DialogTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                                                                        <QrCode className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DialogTrigger>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent><p>Show QR Code</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                    <DialogContent className="sm:max-w-xs">
-                                                        <DialogHeader>
-                                                        <DialogTitle>Scan QR Code</DialogTitle>
-                                                        <DialogDescription>
-                                                            Scan this code on your mobile device to use this email address.
-                                                        </DialogDescription>
-                                                        </DialogHeader>
-                                                        <div className="flex items-center justify-center p-4">
-                                                            <Image 
-                                                                src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(inbox.emailAddress)}`}
-                                                                alt="QR Code for email address"
-                                                                width={200}
-                                                                height={200}
-                                                            />
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
+                                                
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
@@ -855,9 +895,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    
-
-    

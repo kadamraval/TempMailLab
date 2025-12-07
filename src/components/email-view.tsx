@@ -1,16 +1,15 @@
-
-
 "use client";
 
 import type { Email } from "@/types";
 import { Button } from "./ui/button";
-import { ArrowLeft, Paperclip, Download, Code } from "lucide-react";
+import { ArrowLeft, Paperclip, Download, Code, Archive, Trash2, Forward, Star, Ban, ShieldAlert, MoreHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "./ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Separator } from "./ui/separator";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { Timestamp } from "firebase/firestore";
 import { ScrollArea } from "./ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface EmailViewProps {
   email: Email;
@@ -40,20 +39,37 @@ export function EmailView({ email, plan, onBack, showBackButton = true }: EmailV
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-4 p-2 border-b">
+      <div className="flex items-center gap-2 p-2 border-b">
          {showBackButton && (
           <Button variant="ghost" size="icon" onClick={onBack} className="h-7 w-7">
               <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
-        <div className="flex-grow">
-            <h3 className="text-sm font-semibold leading-none">{email.subject}</h3>
-            <p className="text-xs text-muted-foreground pt-1">
+        <div className="flex-grow truncate">
+            <h3 className="text-sm font-semibold leading-none truncate">{email.subject}</h3>
+            <p className="text-xs text-muted-foreground pt-1 truncate">
               From: {email.senderName}
             </p>
         </div>
-        <div className="text-xs text-muted-foreground text-right shrink-0">
-            {receivedAtDate.toLocaleDateString()} {receivedAtDate.toLocaleTimeString()}
+         <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground text-right shrink-0 hidden sm:inline-block">
+                {receivedAtDate.toLocaleDateString()} {receivedAtDate.toLocaleTimeString()}
+            </span>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                    <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                    <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
+                    <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
+                    <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
       
