@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -56,7 +57,6 @@ const featureTooltips: Record<string, string> = {
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
   inboxLifetime: "Duration an inbox address remains active before it stops receiving new mail.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
-  maxExtensionMultiplier: "A multiplier of the original inbox lifetime that sets the absolute maximum time an inbox can be extended to. E.g., a value of 1.5 on a 10-minute inbox allows a maximum extension of 5 minutes (for a 15-minute total lifetime).",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
   qrCode: "Allow users to generate a QR code for their inbox address.",
@@ -79,7 +79,6 @@ const featureTooltips: Record<string, string> = {
 
   // Storage
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  dataRetention: "'As Inbox Time': Emails are deleted when the inbox expires. 'Lifetime': Emails are kept until manually deleted. 'Days': Emails are kept for a specific number of days after receipt, regardless of inbox status.",
   
   // Security
   passwordProtection: "Allow users to secure their temporary inboxes with a password.",
@@ -178,43 +177,6 @@ const TimeDurationInput = ({ name, label, control }: { name: any; label: string;
     />
 );
 
-const DataRetentionInput = ({ name, label, control }: { name: any, label: string, control: any }) => (
-    <FormField
-        control={control}
-        name={name}
-        render={({ field }) => (
-            <FormItem>
-                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
-                 <RadioGroup onValueChange={(mode) => field.onChange({ ...field.value, mode })} value={field.value.mode} className="space-y-2 pt-2">
-                    <FormItem className="flex items-center space-x-2">
-                        <FormControl><RadioGroupItem value="inbox" /></FormControl>
-                        <FormLabel className="font-normal">As Inbox Time</FormLabel>
-                    </FormItem>
-                     <FormItem className="flex items-center space-x-2">
-                        <FormControl><RadioGroupItem value="lifetime" /></FormControl>
-                        <FormLabel className="font-normal">Lifetime</FormLabel>
-                    </FormItem>
-                    <FormItem className="flex items-center space-x-2">
-                        <FormControl><RadioGroupItem value="days" /></FormControl>
-                        <FormLabel className="font-normal">Days</FormLabel>
-                    </FormItem>
-                </RadioGroup>
-                {field.value.mode === 'days' && (
-                     <div className="pt-2 pl-6">
-                        <Input 
-                            type="number"
-                            placeholder="Number of days"
-                            value={field.value.value || ''}
-                            onChange={(e) => field.onChange({ ...field.value, value: parseInt(e.target.value, 10) || 0 })}
-                        />
-                     </div>
-                )}
-                <FormMessage />
-            </FormItem>
-        )}
-    />
-);
-
 
 export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -232,12 +194,11 @@ export function PlanForm({ plan }: PlanFormProps) {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
         maxInboxes: 1, dailyInboxLimit: 0, inboxLifetime: { count: 10, unit: 'minutes' }, extendTime: false,
-        maxExtensionMultiplier: 1.5,
         customPrefix: false, inboxLocking: false, qrCode: false,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
         customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
-        totalStorageQuota: 0, dataRetention: { mode: 'inbox' }, passwordProtection: false,
+        totalStorageQuota: 0, passwordProtection: false,
         twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
         linkSanitization: false, spam: false, block: false, filter: false,
         apiAccess: false, apiRateLimit: 0, webhooks: false,
@@ -251,7 +212,6 @@ export function PlanForm({ plan }: PlanFormProps) {
 
   const planType = form.watch('planType');
   const enableCustomDomains = form.watch('features.customDomains');
-  const enableTimeExtension = form.watch('features.extendTime');
 
   useEffect(() => {
     if (plan) {
@@ -389,14 +349,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <TimeDurationInput name="features.inboxLifetime" label="Inbox Expire" control={form.control} />
-                            <div className="space-y-4">
-                                <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
-                                {enableTimeExtension && (
-                                    <div className="p-4 border rounded-md space-y-4 ml-4">
-                                        <FeatureInput name="features.maxExtensionMultiplier" label="Max Extension Multiplier" control={form.control} type="number" step="0.1" />
-                                    </div>
-                                )}
-                            </div>
+                            <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
                             <FeatureSwitch name="features.qrCode" label="QR Code" control={form.control} />
@@ -441,7 +394,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <h3 className="text-lg font-medium tracking-tight">Storage</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
-                            <DataRetentionInput name="features.dataRetention" label="Data Retention" control={form.control} />
                         </div>
                     </div>
                     <Separator />

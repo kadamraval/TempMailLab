@@ -1,3 +1,4 @@
+
 "use client"
 
 import { z } from "zod"
@@ -29,7 +30,6 @@ export const planSchema = z.object({
         unit: z.enum(['minutes', 'hours', 'days'])
     }).default({ count: 10, unit: 'minutes' }),
     extendTime: z.boolean().default(false),
-    maxExtensionMultiplier: z.coerce.number().min(1, "Multiplier must be 1 or greater.").default(1.5),
     customPrefix: z.boolean().default(false),
     inboxLocking: z.boolean().default(false),
     qrCode: z.boolean().default(false),
@@ -52,10 +52,6 @@ export const planSchema = z.object({
 
     // Storage
     totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
-    dataRetention: z.object({
-        mode: z.enum(['inbox', 'lifetime', 'days']),
-        value: z.coerce.number().int().min(0).optional(),
-    }).default({ mode: 'inbox' }),
     
     // Security & Privacy
     passwordProtection: z.boolean().default(false),
