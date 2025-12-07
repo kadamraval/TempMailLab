@@ -136,7 +136,7 @@ export function DashboardClient() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [customPrefix, setCustomPrefix] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState('auto');
+  const [selectedDomain, setSelectedDomain] = useState('');
 
 
   const firestore = useFirestore();
@@ -229,9 +229,12 @@ export function DashboardClient() {
   
   useEffect(() => {
     if (!currentInbox) {
-      setCustomPrefix(generateRandomString(12));
+      setCustomPrefix(generateRandomString(10));
     }
-  }, [currentInbox, generateRandomString]);
+     if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
+      setSelectedDomain(allowedDomains[0].domain);
+    }
+  }, [currentInbox, generateRandomString, allowedDomains, selectedDomain]);
 
 
   const createNewInbox = useCallback(
@@ -247,10 +250,10 @@ export function DashboardClient() {
         try {
             if (allowedDomains.length === 0) throw new Error("No domains are configured by the administrator.");
             
-            const domainToUse = selectedDomain === 'auto' ? allowedDomains[0]?.domain : selectedDomain;
+            const domainToUse = selectedDomain || allowedDomains[0]?.domain;
             if (!domainToUse) throw new Error("Could not determine a domain to use.");
             
-            const prefix = customPrefix || generateRandomString(12);
+            const prefix = customPrefix || generateRandomString(10);
             const emailAddress = `${prefix}@${domainToUse}`;
             
             const lifetimeInMs = (plan.features.inboxLifetime.count || 10) * (plan.features.inboxLifetime.unit === 'minutes' ? 60 : (plan.features.inboxLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
@@ -300,16 +303,14 @@ export function DashboardClient() {
             const data = doc.data();
             // Ensure createdAt is a Date object for reliable sorting
             const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-            return { id: doc.id, ...data, createdAt: createdAtDate } as InboxType & { createdAt: Date };
+            return { id: doc.id, ...data, expiresAt: (data.expiresAt as Timestamp).toDate().toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
         })
         .filter(inbox => new Date(inbox.expiresAt) > now)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     if (sortedInboxes.length === 0) return null;
     
-    const latestInbox = sortedInboxes[0];
-    // Convert Date back to ISO string to match original type
-    return { ...latestInbox, createdAt: (latestInbox.createdAt as unknown as Date).toISOString() } as unknown as InboxType;
+    return sortedInboxes[0];
   }, [firestore]);
 
 
@@ -510,7 +511,7 @@ export function DashboardClient() {
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="flex-grow w-full border rounded-lg bg-card text-card-foreground p-1.5 flex items-center gap-2">
+        <div className="flex-grow w-full border rounded-lg bg-card text-card-foreground p-1.5 flex items-center gap-2 h-11">
             
             {currentInbox ? (
                  <div className="flex items-center gap-2 px-2">
@@ -523,15 +524,15 @@ export function DashboardClient() {
                      <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
                  </div>
             ) : (
-                <Select defaultValue="10-minutes">
-                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0">
+                <Select defaultValue="10">
+                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 h-full">
                         <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="10-minutes">10 Min</SelectItem>
-                        <SelectItem value="1-hour">1 Hour</SelectItem>
-                        <SelectItem value="1-day">1 Day</SelectItem>
+                        <SelectItem value="10">10 Min</SelectItem>
+                        <SelectItem value="60">1 Hour</SelectItem>
+                        <SelectItem value="1440">1 Day</SelectItem>
                     </SelectContent>
                 </Select>
             )}
@@ -539,26 +540,24 @@ export function DashboardClient() {
             <Separator orientation="vertical" className="h-6" />
             
              <div className="flex-grow flex items-center">
-                {!currentInbox && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCustomPrefix(generateRandomString(12))}>
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCustomPrefix(generateRandomString(10))}>
+                    <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                </Button>
+                
                 <Input 
                     value={currentInbox ? currentInbox.emailAddress.split('@')[0] : customPrefix}
                     onChange={(e) => setCustomPrefix(e.target.value)}
-                    className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent"
+                    className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full"
                     placeholder="your-prefix"
                     readOnly={!!currentInbox}
                     disabled={!canCustomizePrefix || !!currentInbox}
                 />
                 <span className="text-muted-foreground">@</span>
                 <Select value={selectedDomain} onValueChange={setSelectedDomain} disabled={!!currentInbox}>
-                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 font-mono text-base">
+                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 font-mono text-base h-full">
                         <SelectValue/>
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="auto">auto</SelectItem>
                          {allowedDomains?.map(d => (
                             <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
                          ))}
@@ -567,10 +566,10 @@ export function DashboardClient() {
             </div>
             
             {currentInbox ? (
-                 <Button onClick={handleCopyEmail} variant="secondary" className="h-9"><Copy className="h-4 w-4"/>
+                 <Button onClick={handleCopyEmail} variant="secondary" className="h-full"><Copy className="h-4 w-4"/>
                  </Button>
             ) : (
-                <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-9 bg-white text-black hover:bg-gray-200">
+                 <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full">
                     {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                     Create
                 </Button>
@@ -578,8 +577,8 @@ export function DashboardClient() {
         </div>
         
         <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-             <Button onClick={handleDeleteAndRegenerate} variant="outline" size="sm"><RefreshCw className="h-4 w-4 mr-2"/>Regenerate</Button>
-             <Button onClick={handleToggleDemo} variant="outline" size="sm"><Eye className="h-4 w-4 mr-2"/>Demo</Button>
+             <Button onClick={handleDeleteAndRegenerate} variant="outline" size="sm" className="h-11"><RefreshCw className="h-4 w-4 mr-2"/>Regenerate</Button>
+             <Button onClick={handleToggleDemo} variant="outline" size="sm" className="h-11"><Eye className="h-4 w-4 mr-2"/>Demo</Button>
         </div>
       </div>
       
@@ -856,5 +855,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
