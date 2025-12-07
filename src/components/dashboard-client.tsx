@@ -67,6 +67,8 @@ import Image from "next/image";
 import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Progress } from "./ui/progress";
+
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
@@ -122,7 +124,7 @@ export function DashboardClient() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] = useState({ total: 0, remaining: 0 });
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
@@ -224,6 +226,13 @@ export function DashboardClient() {
     }
     return result;
   }, []);
+  
+  useEffect(() => {
+    if (!currentInbox) {
+      setCustomPrefix(generateRandomString(12));
+    }
+  }, [currentInbox, generateRandomString]);
+
 
   const createNewInbox = useCallback(
     async (activeUser: import("firebase/auth").User, plan: Plan) => {
@@ -244,7 +253,7 @@ export function DashboardClient() {
             const prefix = customPrefix || generateRandomString(12);
             const emailAddress = `${prefix}@${domainToUse}`;
             
-            const lifetimeInMs = (plan.features.inboxLifetime.count || 10) * 60 * 1000;
+            const lifetimeInMs = (plan.features.inboxLifetime.count || 10) * (plan.features.inboxLifetime.unit === 'minutes' ? 60 : (plan.features.inboxLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
             const expiresAt = new Date(Date.now() + lifetimeInMs);
 
             const newInboxData = {
@@ -278,19 +287,29 @@ export function DashboardClient() {
   const findActiveInbox = useCallback(async (uid: string) => {
     if (!firestore) return null;
     
+    // Updated query to remove orderBy and avoid index requirement
     const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', uid));
     const snap = await getDocs(userInboxesQuery);
     
     if (snap.empty) return null;
 
     const now = new Date();
-    // Find the most recently created, non-expired inbox
+    // Find the most recently created, non-expired inbox by sorting on the client
     const sortedInboxes = snap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as InboxType))
+        .map(doc => {
+            const data = doc.data();
+            // Ensure createdAt is a Date object for reliable sorting
+            const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+            return { id: doc.id, ...data, createdAt: createdAtDate } as InboxType & { createdAt: Date };
+        })
         .filter(inbox => new Date(inbox.expiresAt) > now)
-        .sort((a, b) => new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime());
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    return sortedInboxes.length > 0 ? sortedInboxes[0] : null;
+    if (sortedInboxes.length === 0) return null;
+    
+    const latestInbox = sortedInboxes[0];
+    // Convert Date back to ISO string to match original type
+    return { ...latestInbox, createdAt: (latestInbox.createdAt as unknown as Date).toISOString() } as unknown as InboxType;
   }, [firestore]);
 
 
@@ -356,17 +375,20 @@ export function DashboardClient() {
   }, [user, isUserLoading, activePlan, isLoadingPlan, auth, firestore, findActiveInbox]);
 
   useEffect(() => {
-    if (!currentInbox?.expiresAt || !activePlan || !auth?.currentUser) {
-        setCountdown(0);
+    if (!currentInbox?.expiresAt || !currentInbox?.createdAt || !activePlan || !auth?.currentUser) {
+        setCountdown({ total: 0, remaining: 0 });
         return;
     };
 
     const expiryDate = new Date(currentInbox.expiresAt);
+    const creationDate = (currentInbox.createdAt as Timestamp).toDate();
+    const totalDuration = expiryDate.getTime() - creationDate.getTime();
+    
     const interval = setInterval(async () => {
-      const newCountdown = Math.floor((expiryDate.getTime() - Date.now()) / 1000);
-      setCountdown(newCountdown > 0 ? newCountdown : 0);
+      const remainingMs = expiryDate.getTime() - Date.now();
+      setCountdown({ total: totalDuration, remaining: remainingMs > 0 ? remainingMs : 0});
 
-      if (newCountdown <= 0) {
+      if (remainingMs <= 0) {
         clearInterval(interval);
         setCurrentInbox(null);
         setSelectedEmail(null);
@@ -478,61 +500,86 @@ export function DashboardClient() {
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
   
   const canCustomizePrefix = activePlan.features.customPrefix;
-  const fullEmailAddress = `${customPrefix}@${selectedDomain}`;
+  
+  const countdownMinutes = Math.floor(countdown.remaining / 60000);
+  const countdownSeconds = Math.floor((countdown.remaining % 60000) / 1000);
+  const progress = countdown.total > 0 ? (countdown.remaining / countdown.total) * 100 : 0;
+
 
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] items-center gap-4">
-        <div className="flex items-center border rounded-lg bg-card text-card-foreground focus-within:ring-2 focus-within:ring-ring h-12 px-2">
-            <Select defaultValue="10-minutes">
-                <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="10-minutes">10 Min</SelectItem>
-                    <SelectItem value="1-hour">1 Hour</SelectItem>
-                    <SelectItem value="1-day">1 Day</SelectItem>
-                </SelectContent>
-            </Select>
-            <Separator orientation="vertical" className="h-6 mx-2" />
-            <Button variant="ghost" size="sm" onClick={() => setCustomPrefix(generateRandomString(12))}>Auto</Button>
-            <Mail className="h-4 w-4 text-muted-foreground mx-2" />
-            <Input 
-                value={customPrefix}
-                onChange={(e) => setCustomPrefix(e.target.value)}
-                className="flex-grow !border-0 !ring-0 !shadow-none p-0 font-mono text-base"
-                placeholder="your-prefix"
-                disabled={!canCustomizePrefix || !!currentInbox}
-            />
-            <span className="text-muted-foreground">@</span>
-            <Select value={selectedDomain} onValueChange={setSelectedDomain} disabled={!!currentInbox}>
-                <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 font-mono text-base">
-                    <SelectValue/>
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="auto">auto</SelectItem>
-                     {allowedDomains?.map(d => (
-                        <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
-                     ))}
-                </SelectContent>
-            </Select>
+      <div className="flex flex-col md:flex-row items-center gap-4">
+        <div className="flex-grow w-full border rounded-lg bg-card text-card-foreground p-1.5 flex items-center gap-2">
+            
+            {currentInbox ? (
+                 <div className="flex items-center gap-2 px-2">
+                     <div className="relative h-8 w-8">
+                         <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90" />
+                         <div className="absolute inset-0 flex items-center justify-center">
+                            <Clock className="h-4 w-4 text-primary" />
+                         </div>
+                     </div>
+                     <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
+                 </div>
+            ) : (
+                <Select defaultValue="10-minutes">
+                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0">
+                        <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="10-minutes">10 Min</SelectItem>
+                        <SelectItem value="1-hour">1 Hour</SelectItem>
+                        <SelectItem value="1-day">1 Day</SelectItem>
+                    </SelectContent>
+                </Select>
+            )}
+
+            <Separator orientation="vertical" className="h-6" />
+            
+             <div className="flex-grow flex items-center">
+                {!currentInbox && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCustomPrefix(generateRandomString(12))}>
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                )}
+                <Input 
+                    value={currentInbox ? currentInbox.emailAddress.split('@')[0] : customPrefix}
+                    onChange={(e) => setCustomPrefix(e.target.value)}
+                    className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent"
+                    placeholder="your-prefix"
+                    readOnly={!!currentInbox}
+                    disabled={!canCustomizePrefix || !!currentInbox}
+                />
+                <span className="text-muted-foreground">@</span>
+                <Select value={selectedDomain} onValueChange={setSelectedDomain} disabled={!!currentInbox}>
+                    <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 font-mono text-base">
+                        <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="auto">auto</SelectItem>
+                         {allowedDomains?.map(d => (
+                            <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
+                         ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            
+            {currentInbox ? (
+                 <Button onClick={handleCopyEmail} variant="secondary" className="h-9"><Copy className="h-4 w-4"/>
+                 </Button>
+            ) : (
+                <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-9 bg-white text-black hover:bg-gray-200">
+                    {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Create
+                </Button>
+            )}
         </div>
         
         <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-            {currentInbox ? (
-                <>
-                    <Button onClick={handleCopyEmail} variant="outline" size="sm" className="h-12"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
-                    <Button onClick={() => setIsQrOpen(true)} variant="outline" size="sm" className="h-12"><QrCode className="h-4 w-4 mr-2"/>QR</Button>
-                    <Button onClick={handleDeleteAndRegenerate} variant="outline" size="sm" className="h-12"><RefreshCw className="h-4 w-4 mr-2"/>Regenerate</Button>
-                </>
-            ) : (
-                <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-12 text-base px-6">
-                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                    Create Email
-                </Button>
-            )}
-             <Button onClick={handleToggleDemo} variant="outline" size="sm" className="h-12"><Eye className="h-4 w-4 mr-2"/>Demo</Button>
+             <Button onClick={handleDeleteAndRegenerate} variant="outline" size="sm"><RefreshCw className="h-4 w-4 mr-2"/>Regenerate</Button>
+             <Button onClick={handleToggleDemo} variant="outline" size="sm"><Eye className="h-4 w-4 mr-2"/>Demo</Button>
         </div>
       </div>
       
@@ -809,3 +856,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
