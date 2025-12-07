@@ -135,7 +135,7 @@ export function DashboardClient() {
   const [activeMailFilter, setActiveMailFilter] = useState('All');
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [customPrefix, setCustomPrefix] = useState('');
+  const [prefixInput, setPrefixInput] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedLifetime, setSelectedLifetime] = useState<string | undefined>(undefined);
 
@@ -245,7 +245,7 @@ export function DashboardClient() {
             return null;
         }
         
-        if (!customPrefix) {
+        if (!prefixInput) {
             toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button.", variant: "destructive" });
             return;
         }
@@ -259,7 +259,7 @@ export function DashboardClient() {
             const domainToUse = selectedDomain || allowedDomains[0]?.domain;
             if (!domainToUse) throw new Error("Could not determine a domain to use.");
             
-            const emailAddress = `${customPrefix}@${domainToUse}`;
+            const emailAddress = `${prefixInput}@${domainToUse}`;
 
             // Check if inbox already exists
             const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
@@ -291,6 +291,7 @@ export function DashboardClient() {
             setCurrentInbox(newInbox);
             navigator.clipboard.writeText(emailAddress);
             toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
+            setPrefixInput(''); // Clear input after creation
             
         } catch (error: any) {
             toast({
@@ -302,7 +303,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, allowedDomains, customPrefix, selectedDomain, toast, selectedLifetime]
+    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -417,16 +418,6 @@ export function DashboardClient() {
     return () => clearInterval(interval);
   }, [currentInbox, user?.isAnonymous, auth, activePlan]);
   
-  useEffect(() => {
-    if (currentInbox) {
-        const [prefix, domain] = currentInbox.emailAddress.split('@');
-        setCustomPrefix(prefix);
-        setSelectedDomain(domain);
-    } else {
-        setCustomPrefix(''); // Clear prefix when no inbox is active
-    }
-  }, [currentInbox]);
-
   const handleCopyEmail = () => {
     if (currentInbox?.emailAddress) {
       navigator.clipboard.writeText(currentInbox.emailAddress);
@@ -443,7 +434,7 @@ export function DashboardClient() {
     if (user?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
     setCurrentInbox(null);
     setSelectedEmail(null);
-    setCustomPrefix(''); // Reset prefix
+    setPrefixInput(''); // Reset prefix
     setIsCreating(false); // Let createNewInbox handle the new creation
   };
   
@@ -564,11 +555,13 @@ export function DashboardClient() {
                         </Select>
                         
                         <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                             <Button variant="ghost" size="sm" className="h-7 ml-1" onClick={() => setCustomPrefix(generateRandomString(10))}>Auto</Button>
+                            <Button variant="ghost" size="sm" className="h-7 ml-1 group" onClick={() => setPrefixInput(generateRandomString(10))}>
+                                <Mail className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                Auto
+                            </Button>
                             <Input 
-                                value={customPrefix}
-                                onChange={(e) => setCustomPrefix(e.target.value)}
+                                value={prefixInput}
+                                onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
                                 disabled={!canCustomizePrefix}
@@ -876,7 +869,5 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
 
     
