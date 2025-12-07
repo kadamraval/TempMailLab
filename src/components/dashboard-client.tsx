@@ -321,7 +321,9 @@ export function DashboardClient() {
         .map(doc => {
             const data = doc.data();
             const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-            return { id: doc.id, ...data, expiresAt: (data.expiresAt as Timestamp).toDate().toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
+            // Safely handle expiresAt which could be a Timestamp or an ISO string from local state
+            const expiresAtDate = data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : new Date(data.expiresAt);
+            return { id: doc.id, ...data, expiresAt: expiresAtDate.toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
         })
         .filter(inbox => new Date(inbox.expiresAt) > now)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -869,5 +871,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
