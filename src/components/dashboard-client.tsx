@@ -244,6 +244,11 @@ export function DashboardClient() {
             setServerError("Services not ready. Please try again in a moment.");
             return null;
         }
+        
+        if (!customPrefix) {
+            toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button.", variant: "destructive" });
+            return;
+        }
 
         setIsCreating(true);
         setServerError(null);
@@ -254,16 +259,13 @@ export function DashboardClient() {
             const domainToUse = selectedDomain || allowedDomains[0]?.domain;
             if (!domainToUse) throw new Error("Could not determine a domain to use.");
             
-            const prefix = customPrefix || generateRandomString(10);
-            if (!prefix) throw new Error("Email prefix cannot be empty.");
-
-            const emailAddress = `${prefix}@${domainToUse}`;
+            const emailAddress = `${customPrefix}@${domainToUse}`;
 
             // Check if inbox already exists
-            const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress));
+            const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
             const existingInboxSnapshot = await getDocs(existingInboxQuery);
             if (!existingInboxSnapshot.empty) {
-                throw new Error(`The email address '${emailAddress}' is already taken.`);
+                throw new Error(`The email address '${emailAddress}' is already taken. Please choose another.`);
             }
             
             const [count, unit] = selectedLifetime!.split('_');
@@ -300,7 +302,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, generateRandomString, allowedDomains, customPrefix, selectedDomain, toast, selectedLifetime]
+    }, [firestore, allowedDomains, customPrefix, selectedDomain, toast, selectedLifetime]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -527,77 +529,79 @@ export function DashboardClient() {
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center gap-4">
-        <Card className="p-1.5 w-full">
-            {currentInbox ? (
-                 <div className="flex items-center gap-2 h-9">
-                     <div className="relative h-8 w-8 ml-1">
-                         <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary rounded-full" />
-                         <div className="absolute inset-0 flex items-center justify-center">
-                            <Clock className="h-4 w-4 text-primary" />
-                         </div>
-                     </div>
-                     <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
-                     <Separator orientation="vertical" className="h-6 mx-2" />
-                     <p className="font-mono flex-grow text-center">{currentInbox.emailAddress}</p>
-                     <TooltipProvider><Tooltip><TooltipTrigger asChild>
-                         <Button onClick={() => setIsQrOpen(true)} variant="ghost" size="icon" className="h-8 w-8"><QrCode className="h-5 w-5" /></Button>
-                     </TooltipTrigger><TooltipContent><p>Show QR Code</p></TooltipContent></Tooltip></TooltipProvider>
-                     <Button onClick={handleCopyEmail} className="h-full"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
-                 </div>
-            ) : (
-                <div className="flex items-center gap-2 h-9">
-                    <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
-                        <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2">
-                            <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <SelectValue placeholder="Lifetime" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="10_minutes">10 Minutes</SelectItem>
-                            <SelectItem value="30_minutes">30 Minutes</SelectItem>
-                            <SelectItem value="1_hours">1 Hour</SelectItem>
-                            <SelectItem value="6_hours">6 Hours</SelectItem>
-                            <SelectItem value="1_days">1 Day</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <Separator orientation="vertical" className="h-6 mx-1" />
-                    
-                    <div className="flex-grow flex items-center h-full rounded-md bg-background border pl-2 pr-0">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <Button variant="ghost" size="sm" className="h-7 ml-1" onClick={() => setCustomPrefix(generateRandomString(10))}>Auto</Button>
-                        <Input 
-                            value={customPrefix}
-                            onChange={(e) => setCustomPrefix(e.target.value)}
-                            className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                            placeholder="your-prefix"
-                            disabled={!canCustomizePrefix}
-                        />
-                        <span className="text-muted-foreground -ml-1">@</span>
-                         <Select value={selectedDomain} onValueChange={setSelectedDomain} disabled={!!currentInbox}>
-                            <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 font-mono text-base h-full focus-visible:ring-0 focus-visible:ring-offset-0">
-                                <SelectValue/>
+       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
+            <Card className="p-1.5 w-full">
+                {currentInbox ? (
+                    <div className="flex items-center gap-2 h-11">
+                        <div className="relative h-8 w-8 ml-1">
+                            <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary rounded-full" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Clock className="h-4 w-4 text-primary" />
+                            </div>
+                        </div>
+                        <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
+                        <Separator orientation="vertical" className="h-6 mx-2" />
+                        <p className="font-mono flex-grow text-center text-base">{currentInbox.emailAddress}</p>
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild>
+                            <Button onClick={() => setIsQrOpen(true)} variant="ghost" size="icon" className="h-8 w-8"><QrCode className="h-5 w-5" /></Button>
+                        </TooltipTrigger><TooltipContent><p>Show QR Code</p></TooltipContent></Tooltip></TooltipProvider>
+                        <Button onClick={handleCopyEmail} className="h-full"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 h-11">
+                        <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
+                            <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2">
+                                <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+                                <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
                             <SelectContent>
-                                {allowedDomains?.map(d => (
-                                    <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
-                                ))}
+                                <SelectItem value="10_minutes">10 Minutes</SelectItem>
+                                <SelectItem value="30_minutes">30 Minutes</SelectItem>
+                                <SelectItem value="1_hours">1 Hour</SelectItem>
+                                <SelectItem value="6_hours">6 Hours</SelectItem>
+                                <SelectItem value="1_days">1 Day</SelectItem>
                             </SelectContent>
                         </Select>
+                        
+                        <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                             <Button variant="ghost" size="sm" className="h-7 ml-1" onClick={() => setCustomPrefix(generateRandomString(10))}>Auto</Button>
+                            <Input 
+                                value={customPrefix}
+                                onChange={(e) => setCustomPrefix(e.target.value)}
+                                className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                                placeholder="your-prefix"
+                                disabled={!canCustomizePrefix}
+                            />
+                            <span className="text-muted-foreground -ml-1">@</span>
+                            <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                                <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 font-mono text-base h-full focus-visible:ring-0 focus-visible:ring-offset-0 pr-1 group">
+                                    <SelectValue/>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allowedDomains?.map(d => (
+                                        <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full ml-2">
+                             {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
+                            Create
+                        </Button>
                     </div>
-                    <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full">
-                        {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
-                        Create
-                    </Button>
-                </div>
-            )}
-        </Card>
-        
-        <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-             <Button onClick={handleDeleteAndRegenerate} variant="outline" size="default" className="h-11"><RefreshCw className="h-4 w-4 mr-2"/>Regenerate</Button>
-             <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-11"><Eye className="h-4 w-4 mr-2"/>Demo</Button>
+                )}
+            </Card>
+            
+            <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
+                <Button onClick={handleDeleteAndRegenerate} variant="outline" size="default" className="h-11">
+                    <RefreshCw className="h-4 w-4 mr-2"/>Regenerate
+                </Button>
+                <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-11">
+                    <Eye className="h-4 w-4 mr-2"/>Demo
+                </Button>
+            </div>
         </div>
-      </div>
       
        <Dialog open={isQrOpen} onOpenChange={setIsQrOpen}>
             <DialogContent className="sm:max-w-xs">
@@ -872,5 +876,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
