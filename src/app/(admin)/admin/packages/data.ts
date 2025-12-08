@@ -39,16 +39,16 @@ export const planSchema = z.object({
     availableInboxtimers: z.array(timerSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
     allowCustomtimer: z.boolean().default(false),
     extendTime: z.boolean().default(false),
-    customPrefix: z.coerce.number().int().min(0).default(0),
-    inboxLocking: z.coerce.number().int().min(0).default(0),
-    qrCode: z.coerce.number().int().min(0).default(0),
+    customPrefix: z.union([z.boolean(), z.number()]).default(false),
+    inboxLocking: z.union([z.boolean(), z.number()]).default(false),
+    qrCode: z.union([z.boolean(), z.number()]).default(false),
 
     // Email
     dailyEmailLimit: z.coerce.number().int().min(0).default(0),
     maxEmailsPerInbox: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     allowAttachments: z.boolean().default(false),
     maxAttachmentSize: z.coerce.number().int().min(0, "Cannot be negative."),
-    emailForwarding: z.coerce.number().int().min(0).default(0),
+    emailForwarding: z.union([z.boolean(), z.number()]).default(false),
     exportEmails: z.boolean().default(false),
     sourceCodeView: z.boolean().default(false),
 
@@ -65,14 +65,14 @@ export const planSchema = z.object({
     allowPremiumDomains: z.boolean().default(false),
     
     // Security & Privacy
-    passwordProtection: z.coerce.number().int().min(0).default(0),
+    passwordProtection: z.union([z.boolean(), z.number()]).default(false),
     twoFactorAuth: z.boolean().default(false),
     spamFilteringLevel: z.enum(["none", "basic", "aggressive"]).default("basic"),
     virusScanning: z.boolean().default(false),
     auditLogs: z.boolean().default(false),
     linkSanitization: z.boolean().default(false),
     spam: z.boolean().default(false),
-    block: z.coerce.number().int().min(0).default(0),
+    block: z.union([z.boolean(), z.number()]).default(false),
     filter: z.boolean().default(false),
 
     // API & Automation
@@ -85,3 +85,4 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
