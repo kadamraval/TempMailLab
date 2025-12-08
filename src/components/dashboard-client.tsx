@@ -579,7 +579,6 @@ export function DashboardClient() {
                                 onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
-                                disabled={!canCustomizePrefix}
                             />
                             <span className="text-muted-foreground -ml-1">@</span>
                             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -696,6 +695,7 @@ export function DashboardClient() {
                                                     checked={isSelected}
                                                     onCheckedChange={() => handleToggleInboxSelection(inbox.id)}
                                                     onClick={(e) => e.stopPropagation()}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
                                                  />
                                                 <div className="truncate">
                                                     <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
@@ -705,25 +705,27 @@ export function DashboardClient() {
                                              <div className="flex items-center gap-2">
                                                 {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
                                                 {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
-                                                <Badge variant={isActive ? "default" : "secondary"}>{inbox.emailCount}</Badge>
+                                                <div className="relative h-7 w-7 flex items-center justify-center">
+                                                    <Badge variant={isActive ? "default" : "secondary"} className="transition-opacity group-hover:opacity-0">{inbox.emailCount}</Badge>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => setIsQrOpen(true)}><QrCode className="mr-2 h-4 w-4" /> Show QR Code</DropdownMenuItem>
+                                                            <DropdownMenuItem><Download className="mr-2 h-4 w-4" /> Export</DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </div>
                                         </div>
-                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => setIsQrOpen(true)}><QrCode className="mr-2 h-4 w-4" /> Show QR Code</DropdownMenuItem>
-                                                <DropdownMenuItem><Download className="mr-2 h-4 w-4" /> Export</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
                                     </div>
                                 )})}
                                 {visibleInboxesCount < displayedInboxes.length && (
@@ -853,15 +855,14 @@ export function DashboardClient() {
                                                         <p className="truncate text-sm">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
-                                                    <div className={cn("col-span-8 md:col-span-5 self-center", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                                    <div className={cn("col-span-8 md:col-span-5 self-center flex items-center gap-2", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                       <p className="truncate text-sm">{email.subject}</p>
+                                                      {email.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
+                                                      {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
+                                                      {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive" />}
+                                                      {email.isBlocked && <Ban className="h-4 w-4 text-gray-500" />}
                                                     </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
-                                                        {email.isStarred && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Starred</Badge>}
-                                                        {email.isArchived && <Badge variant="outline">Archived</Badge>}
-                                                        {email.isSpam && <Badge variant="destructive">Spam</Badge>}
-                                                        {email.isBlocked && <Badge variant="destructive" className="bg-gray-500 text-white">Blocked</Badge>}
-                                                        
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="hidden items-center gap-1 group-hover:flex">
                                                           <DropdownMenu>
@@ -899,4 +900,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
