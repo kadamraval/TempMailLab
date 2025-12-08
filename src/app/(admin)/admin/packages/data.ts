@@ -8,7 +8,7 @@ const timerSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).substr(2, 9)),
   count: z.coerce.number().int().min(1),
   unit: z.enum(['minutes', 'hours', 'days']),
-  isPremium: z.boolean().default(false), // Added for premium-only timers
+  isPremium: z.boolean().default(false),
 });
 
 

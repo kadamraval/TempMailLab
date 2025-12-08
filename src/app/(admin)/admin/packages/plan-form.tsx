@@ -88,7 +88,7 @@ const featureTooltips: Record<string, string> = {
   totalCustomDomainInboxLimit: "The total number of active inboxes that can exist at one time using custom domains.",
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
   
-  // Security
+  // Security & Privacy
   passwordProtection: "Allow users to secure their temporary inboxes with a password. 0 to disable.",
   twoFactorAuth: "Enable Two-Factor Authentication (2FA) for securing user accounts.",
   spamFilteringLevel: "The level of spam filtering applied to incoming emails.",
