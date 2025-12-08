@@ -555,10 +555,10 @@ export function DashboardClient() {
                                 <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
                             <SelectContent>
-                                {activePlan.features.availableLifetimes.map(lt => (
+                                {(activePlan?.features?.availableLifetimes || []).map(lt => (
                                     <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`}>{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)}</SelectItem>
                                 ))}
-                                {activePlan.features.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
+                                {activePlan?.features?.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
@@ -905,3 +905,4 @@ export function DashboardClient() {
     </div>
   );
 }
+
