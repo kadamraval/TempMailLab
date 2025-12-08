@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { planSchema, type Plan } from "./data"
 import * as z from "zod"
@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, Info, Lock } from "lucide-react"
+import { Loader2, Info, Lock, PlusCircle, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
@@ -55,7 +55,8 @@ const featureTooltips: Record<string, string> = {
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
-  inboxLifetime: "Duration an inbox address remains active before it stops receiving new mail.",
+  availableLifetimes: "Predefined durations an inbox address remains active before it stops receiving new mail.",
+  allowCustomLifetime: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
@@ -144,40 +145,6 @@ const FeatureInput = ({ name, label, control, ...props }: { name: any, label: st
     />
 );
 
-const TimeDurationInput = ({ name, label, control }: { name: any; label: string; control: any }) => (
-    <FormField
-        control={control}
-        name={name}
-        render={({ field }) => (
-            <FormItem>
-                <FormLabelWithTooltip label={label} tooltipText={featureTooltips[name.split('.').pop()!]} />
-                <div className="flex items-center gap-2">
-                    <Input 
-                        type="number" 
-                        placeholder="Count"
-                        value={field.value.count}
-                        onChange={(e) => field.onChange({ ...field.value, count: parseInt(e.target.value, 10) || 0 })}
-                    />
-                    <Select value={field.value.unit} onValueChange={(unit) => field.onChange({ ...field.value, unit })}>
-                        <FormControl>
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="minutes">Minutes</SelectItem>
-                            <SelectItem value="hours">Hours</SelectItem>
-                            <SelectItem value="days">Days</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <FormMessage />
-            </FormItem>
-        )}
-    />
-);
-
-
 export function PlanForm({ plan }: PlanFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -193,7 +160,7 @@ export function PlanForm({ plan }: PlanFormProps) {
     features: {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
-        maxInboxes: 1, dailyInboxLimit: 0, inboxLifetime: { count: 10, unit: 'minutes' }, extendTime: false,
+        maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes' }], allowCustomLifetime: false, extendTime: false,
         customPrefix: false, inboxLocking: false, qrCode: false,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
@@ -209,6 +176,11 @@ export function PlanForm({ plan }: PlanFormProps) {
     resolver: zodResolver(formSchemaToSubmit),
     defaultValues,
   })
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "features.availableLifetimes",
+  });
 
   const planType = form.watch('planType');
   const enableCustomDomains = form.watch('features.customDomains');
@@ -348,7 +320,60 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
-                            <TimeDurationInput name="features.inboxLifetime" label="Inbox Expire" control={form.control} />
+                            <div className="md:col-span-2 space-y-4 p-4 border rounded-lg">
+                                <FormLabelWithTooltip label="Available Lifetimes" tooltipText={featureTooltips.availableLifetimes} />
+                                {fields.map((field, index) => (
+                                    <div key={field.id} className="flex items-center gap-2">
+                                        <FormField
+                                            control={form.control}
+                                            name={`features.availableLifetimes.${index}.count`}
+                                            render={({ field }) => (
+                                                <FormItem className="flex-1">
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="Count" {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                         <FormField
+                                            control={form.control}
+                                            name={`features.availableLifetimes.${index}.unit`}
+                                            render={({ field }) => (
+                                                <FormItem className="flex-1">
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Unit" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="minutes">Minutes</SelectItem>
+                                                            <SelectItem value="hours">Hours</SelectItem>
+                                                            <SelectItem value="days">Days</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-2"
+                                onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes' })}
+                                >
+                                    <PlusCircle className="h-4 w-4 mr-2" />
+                                    Add Lifetime
+                                </Button>
+                            </div>
+                            <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Lifetime" control={form.control} />
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />

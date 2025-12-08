@@ -126,6 +126,8 @@ export function DashboardClient() {
   const [prefixInput, setPrefixInput] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedLifetime, setSelectedLifetime] = useState<string | undefined>(undefined);
+  const [customLifetime, setCustomLifetime] = useState({ count: 10, unit: 'minutes' });
+
 
   // Demo mode specific state
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
@@ -225,8 +227,9 @@ export function DashboardClient() {
      if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
       setSelectedDomain(allowedDomains[0].domain);
     }
-    if (!selectedLifetime && activePlan) {
-        setSelectedLifetime(`${activePlan.features.inboxLifetime.count}_${activePlan.features.inboxLifetime.unit}`)
+    if (!selectedLifetime && activePlan && activePlan.features.availableLifetimes.length > 0) {
+        const defaultLifetime = activePlan.features.availableLifetimes[0];
+        setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
@@ -261,8 +264,14 @@ export function DashboardClient() {
                 throw new Error(`The email address '${emailAddress}' is already taken. Please choose another.`);
             }
             
-            const [count, unit] = selectedLifetime!.split('_');
-            const lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
+            let lifetimeInMs;
+            if (selectedLifetime === 'custom') {
+                 lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
+            } else {
+                const [count, unit] = selectedLifetime!.split('_');
+                lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
+            }
+            
             const expiresAt = new Date(Date.now() + lifetimeInMs);
 
             const newInboxData = {
@@ -296,7 +305,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime]
+    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -546,14 +555,34 @@ export function DashboardClient() {
                                 <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="10_minutes">10 Minutes</SelectItem>
-                                <SelectItem value="30_minutes">30 Minutes</SelectItem>
-                                <SelectItem value="1_hours">1 Hour</SelectItem>
-                                <SelectItem value="6_hours">6 Hours</SelectItem>
-                                <SelectItem value="1_days">1 Day</SelectItem>
+                                {activePlan.features.availableLifetimes.map(lt => (
+                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`}>{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)}</SelectItem>
+                                ))}
+                                {activePlan.features.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
+                         {selectedLifetime === 'custom' && (
+                            <div className="flex items-center gap-1 border-l pl-2">
+                               <Input 
+                                   type="number" 
+                                   value={customLifetime.count} 
+                                   onChange={(e) => setCustomLifetime(prev => ({...prev, count: parseInt(e.target.value, 10) || 1}))}
+                                   className="w-20 h-full border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                               />
+                               <Select value={customLifetime.unit} onValueChange={(unit) => setCustomLifetime(prev => ({...prev, unit: unit as 'minutes' | 'hours' | 'days'}))}>
+                                   <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full">
+                                       <SelectValue/>
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                       <SelectItem value="minutes">Minutes</SelectItem>
+                                       <SelectItem value="hours">Hours</SelectItem>
+                                       <SelectItem value="days">Days</SelectItem>
+                                   </SelectContent>
+                               </Select>
+                            </div>
+                         )}
+
                         <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
                             <Button variant="ghost" size="sm" className="h-7 ml-1 group" onClick={() => setPrefixInput(generateRandomString(10))}>
                                 <Mail className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -849,7 +878,7 @@ export function DashboardClient() {
                                                                     </DropdownMenuTrigger>
                                                                     <DropdownMenuContent align="end">
                                                                         <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                                        <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block</DropdownMenuItem>
+                                                                        <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
                                                                         <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
                                                                         <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
