@@ -54,6 +54,8 @@ const featureTooltips: Record<string, string> = {
   dedicatedAccountManager: "Assign a dedicated account manager for high-value enterprise clients.",
   allowStarring: "Allow users to star important emails.",
   allowArchiving: "Allow users to archive emails to remove them from the main inbox view.",
+  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
+
 
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
@@ -75,9 +77,8 @@ const featureTooltips: Record<string, string> = {
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
   // Storage & Data
-  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-  dataRetentionDays: "Number of days emails are kept after an inbox expires. 0 means emails are deleted with the inbox.",
-  purgeDelayDays: "Grace period (in days) before a user-deleted inbox is permanently purged from the server.",
+  dataRetentionDays: "How long to keep emails after an inbox EXPIRES. Set to 0 to delete emails with the inbox. Use a large number (e.g., 36500) for lifetime retention.",
+  purgeDelayDays: "Grace period (in days) before a USER-DELETED inbox and its emails are permanently purged from the server. Set to 0 to purge immediately.",
 
   // Custom Domain
   customDomains: "Enable custom domain features for this plan.",
@@ -165,12 +166,12 @@ export function PlanForm({ plan }: PlanFormProps) {
     features: {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
-        allowStarring: false, allowArchiving: false,
+        allowStarring: false, allowArchiving: false, totalStorageQuota: 50,
         maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomLifetime: false, extendTime: false,
         customPrefix: 0, inboxLocking: 0, qrCode: 0,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: 0, exportEmails: false, sourceCodeView: false,
-        totalStorageQuota: 50, dataRetentionDays: 0, purgeDelayDays: 7,
+        dataRetentionDays: 0, purgeDelayDays: 7,
         customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
         passwordProtection: 0,
         twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
@@ -310,15 +311,16 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">General</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
-                          <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
-                          <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
-                          <FeatureSwitch name="features.browserExtension" label="Browser Extension" control={form.control} />
-                          <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
-                          <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
-                          <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
+                           <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
                            <FeatureSwitch name="features.allowStarring" label="Allow Starring Emails" control={form.control} />
-                          <FeatureSwitch name="features.allowArchiving" label="Allow Archiving Emails" control={form.control} />
+                           <FeatureSwitch name="features.allowArchiving" label="Allow Archiving Emails" control={form.control} />
+                           <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
+                           <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
+                           <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
+                           <FeatureSwitch name="features.browserExtension" label="Browser Extension" control={form.control} />
+                           <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
+                           <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
+                           <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -421,9 +423,8 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
-                           <FeatureInput name="features.dataRetentionDays" label="Data Retention (Days)" control={form.control} type="number" />
-                           <FeatureInput name="features.purgeDelayDays" label="Inbox Purge Delay (Days)" control={form.control} type="number" />
+                           <FeatureInput name="features.dataRetentionDays" label="Data Retention After Expiry (Days)" control={form.control} type="number" />
+                           <FeatureInput name="features.purgeDelayDays" label="Purge Delay for Deleted Inboxes (Days)" control={form.control} type="number" />
                         </div>
                     </div>
                     <Separator />
