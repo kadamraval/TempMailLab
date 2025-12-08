@@ -620,17 +620,17 @@ export function DashboardClient() {
       )}
 
       {/* Main Content Area */}
-      <Card className="flex-1">
-        <CardContent className="p-0 h-full">
+      <Card className="flex-1 flex flex-col h-full">
+        <CardContent className="p-0 h-full flex-grow">
             {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
-                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
+                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
                  </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     {/* Column 1: Inbox List */}
-                    <div className="flex flex-col border-r">
+                    <div className="flex flex-col border-r h-full">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Inbox className="h-4 w-4 text-muted-foreground" />
@@ -659,7 +659,7 @@ export function DashboardClient() {
                                 )}
                             </div>
                         </div>
-                        <ScrollArea className="flex-1 h-[calc(100vh-480px)]">
+                        <ScrollArea className="h-full">
                             <div className="p-2 space-y-0">
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
@@ -702,7 +702,7 @@ export function DashboardClient() {
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuContent align="end">
                                                                 <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Export</DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem><Archive className="mr-2 h-4 w-4" />Archive</DropdownMenuItem>
@@ -723,7 +723,7 @@ export function DashboardClient() {
                     </div>
                     
                     {/* Column 2: Dynamic Content (Email List or Email View) */}
-                    <div className="flex flex-col">
+                    <div className="flex flex-col h-full">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                              <div className="flex items-center gap-2">
                                 <Mail className="h-4 w-4 text-muted-foreground" />
