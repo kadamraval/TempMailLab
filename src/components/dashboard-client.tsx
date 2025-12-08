@@ -309,20 +309,29 @@ export function DashboardClient() {
   const findActiveInbox = useCallback(async (uid: string) => {
     if (!firestore) return null;
     
-    // Updated query to remove orderBy and avoid indexing issues.
     const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', uid));
     const snap = await getDocs(userInboxesQuery);
     
     if (snap.empty) return null;
 
     const now = new Date();
-    // Client-side filtering and sorting remains the same.
+    
     const sortedInboxes = snap.docs
         .map(doc => {
             const data = doc.data();
             const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-            // Safely handle expiresAt which could be a Timestamp or an ISO string from local state
-            const expiresAtDate = data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : new Date(data.expiresAt);
+            
+            // This is the corrected, robust handling of expiresAt
+            let expiresAtDate: Date;
+            if (data.expiresAt instanceof Timestamp) {
+                expiresAtDate = data.expiresAt.toDate();
+            } else if (typeof data.expiresAt === 'string') {
+                expiresAtDate = new Date(data.expiresAt);
+            } else {
+                // Fallback if the format is unexpected
+                expiresAtDate = new Date(0);
+            }
+
             return { id: doc.id, ...data, expiresAt: expiresAtDate.toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
         })
         .filter(inbox => new Date(inbox.expiresAt) > now)
@@ -871,3 +880,4 @@ export function DashboardClient() {
     </div>
   );
 }
+
