@@ -22,7 +22,6 @@ import {
   Ban,
   ShieldAlert,
   QrCode,
-  Plus,
   ChevronsUpDown,
   Download,
 } from "lucide-react";
@@ -63,7 +62,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "./ui/dropdown-menu";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import Image from "next/image";
 import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
@@ -702,9 +701,9 @@ export function DashboardClient() {
                                                     <p className="text-xs text-muted-foreground">Expires: {new Date(inbox.expiresAt).toLocaleTimeString()}</p>
                                                 </div>
                                             </div>
-                                             <div className="flex items-center gap-0">
-                                                {inbox.isStarred && <Badge variant="secondary" className="mr-2">Starred</Badge>}
-                                                {inbox.isArchived && <Badge variant="outline" className="mr-2">Archived</Badge>}
+                                             <div className="flex items-center gap-2">
+                                                {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
+                                                {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
                                                 <Badge variant={isActive ? "default" : "secondary"}>{inbox.emailCount}</Badge>
                                             </div>
                                         </div>
