@@ -697,14 +697,13 @@ export function DashboardClient() {
                                                     onClick={(e) => e.stopPropagation()}
                                                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                                                  />
-                                                <div className="truncate">
+                                                <div className="truncate flex items-center gap-2">
                                                     <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
-                                                    <p className="text-xs text-muted-foreground">Expires: {new Date(inbox.expiresAt).toLocaleTimeString()}</p>
+                                                    {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
+                                                    {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
-                                                {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
-                                                {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
                                                 <div className="relative h-7 w-7 flex items-center justify-center">
                                                     <Badge variant={isActive ? "default" : "secondary"} className="transition-opacity group-hover:opacity-0">{inbox.emailCount}</Badge>
                                                     <DropdownMenu>
@@ -852,17 +851,19 @@ export function DashboardClient() {
                                                 </div>
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                                                        <p className="truncate text-sm">{sender.name}</p>
+                                                        <div className="truncate text-sm flex items-center gap-2">
+                                                          <span>{sender.name}</span>
+                                                          {email.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
+                                                          {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                                          {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />}
+                                                          {email.isBlocked && <Ban className="h-4 w-4 text-gray-500 shrink-0" />}
+                                                        </div>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
                                                     <div className={cn("col-span-8 md:col-span-5 self-center flex items-center gap-2", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                       <p className="truncate text-sm">{email.subject}</p>
                                                     </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
-                                                        {email.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
-                                                        {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
-                                                        {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive" />}
-                                                        {email.isBlocked && <Ban className="h-4 w-4 text-gray-500" />}
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="hidden items-center gap-1 group-hover:flex">
                                                           <DropdownMenu>
@@ -900,3 +901,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
