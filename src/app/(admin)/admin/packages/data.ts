@@ -4,11 +4,11 @@
 import { z } from "zod"
 import type { Timestamp } from "firebase/firestore"
 
-const lifetimeSchema = z.object({
+const timerSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).substr(2, 9)),
   count: z.coerce.number().int().min(1),
   unit: z.enum(['minutes', 'hours', 'days']),
-  isPremium: z.boolean().default(false), // Added for premium-only lifetimes
+  isPremium: z.boolean().default(false), // Added for premium-only timers
 });
 
 
@@ -31,12 +31,13 @@ export const planSchema = z.object({
     dedicatedAccountManager: z.boolean().default(false),
     allowStarring: z.boolean().default(false),
     allowArchiving: z.boolean().default(false),
+    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
-    availableLifetimes: z.array(lifetimeSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
-    allowCustomLifetime: z.boolean().default(false),
+    availableInboxtimers: z.array(timerSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
+    allowCustomtimer: z.boolean().default(false),
     extendTime: z.boolean().default(false),
     customPrefix: z.coerce.number().int().min(0).default(0),
     inboxLocking: z.coerce.number().int().min(0).default(0),
@@ -52,9 +53,8 @@ export const planSchema = z.object({
     sourceCodeView: z.boolean().default(false),
 
     // Storage & Data
-    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
-    dataRetentionDays: z.coerce.number().int().min(0, "0 means delete with inbox."),
-    purgeDelayDays: z.coerce.number().int().min(0, "0 means purge immediately."),
+    expiredInboxCooldownDays: z.coerce.number().int().min(0, "0 means delete immediately after expiry."),
+    retainEmailsAfterDeletion: z.boolean().default(false),
 
 
     // Custom Domain

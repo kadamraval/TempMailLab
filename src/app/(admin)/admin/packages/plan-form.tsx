@@ -60,8 +60,8 @@ const featureTooltips: Record<string, string> = {
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
-  availableLifetimes: "Predefined durations an inbox address remains active before it stops receiving new mail.",
-  allowCustomLifetime: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
+  availableInboxtimers: "Predefined durations an inbox address remains active before it stops receiving new mail.",
+  allowCustomtimer: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters). 0 to disable.",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically. 0 to disable.",
@@ -77,8 +77,9 @@ const featureTooltips: Record<string, string> = {
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
   // Storage & Data
-  dataRetentionDays: "How long to keep emails after an inbox EXPIRES. Set to 0 to delete emails with the inbox. Use a large number (e.g., 36500) for lifetime retention.",
-  purgeDelayDays: "Grace period (in days) before a USER-DELETED inbox and its emails are permanently purged from the server. Set to 0 to purge immediately.",
+  expiredInboxCooldownDays: "After an inbox expires, it enters a cooldown. This is the number of days before it's permanently deleted from the server, allowing the address to be reused.",
+  retainEmailsAfterDeletion: "If 'Yes', emails from an expired inbox will be kept in a permanent user archive, even after the inbox itself is deleted during the cooldown period. This enables 'lifetime' email access for premium plans.",
+
 
   // Custom Domain
   customDomains: "Enable custom domain features for this plan.",
@@ -167,11 +168,11 @@ export function PlanForm({ plan }: PlanFormProps) {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
         allowStarring: false, allowArchiving: false, totalStorageQuota: 50,
-        maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomLifetime: false, extendTime: false,
+        maxInboxes: 1, dailyInboxLimit: 0, availableInboxtimers: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomtimer: false, extendTime: false,
         customPrefix: 0, inboxLocking: 0, qrCode: 0,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: 0, exportEmails: false, sourceCodeView: false,
-        dataRetentionDays: 0, purgeDelayDays: 7,
+        expiredInboxCooldownDays: 7, retainEmailsAfterDeletion: false,
         customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
         passwordProtection: 0,
         twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
@@ -187,7 +188,7 @@ export function PlanForm({ plan }: PlanFormProps) {
   
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "features.availableLifetimes",
+    name: "features.availableInboxtimers",
   });
 
   const planType = form.watch('planType');
@@ -332,12 +333,12 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <div className="md:col-span-2 space-y-4 p-4 border rounded-lg">
-                                <FormLabelWithTooltip label="Available Inbox Timers" tooltipText={featureTooltips.availableLifetimes} />
+                                <FormLabelWithTooltip label="Available Inbox timers" tooltipText={featureTooltips.availableInboxtimers} />
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex items-center gap-2">
                                         <FormField
                                             control={form.control}
-                                            name={`features.availableLifetimes.${index}.count`}
+                                            name={`features.availableInboxtimers.${index}.count`}
                                             render={({ field }) => (
                                                 <FormItem className="flex-1">
                                                     <FormControl>
@@ -349,7 +350,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                                         />
                                          <FormField
                                             control={form.control}
-                                            name={`features.availableLifetimes.${index}.unit`}
+                                            name={`features.availableInboxtimers.${index}.unit`}
                                             render={({ field }) => (
                                                 <FormItem className="flex-1">
                                                     <Select onValueChange={field.onChange} value={field.value}>
@@ -370,7 +371,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name={`features.availableLifetimes.${index}.isPremium`}
+                                            name={`features.availableInboxtimers.${index}.isPremium`}
                                             render={({ field }) => (
                                                 <FormItem className="flex items-center gap-2 space-y-0">
                                                     <FormControl>
@@ -392,9 +393,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes', isPremium: false })}
                                 >
                                     <PlusCircle className="h-4 w-4 mr-2" />
-                                    Add Timer
+                                    Add timer
                                 </Button>
-                                <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Timer" control={form.control} />
+                                <FeatureSwitch name="features.allowCustomtimer" label="Allow Custom timer" control={form.control} />
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureInput name="features.customPrefix" label="Customizable Inbox" control={form.control} type="number" />
@@ -423,8 +424,8 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FeatureInput name="features.dataRetentionDays" label="Data Retention After Expiry (Days)" control={form.control} type="number" />
-                           <FeatureInput name="features.purgeDelayDays" label="Purge Delay for Deleted Inboxes (Days)" control={form.control} type="number" />
+                           <FeatureInput name="features.expiredInboxCooldownDays" label="Cooldown Period Before Deletion (Days)" control={form.control} type="number" />
+                           <FeatureSwitch name="features.retainEmailsAfterDeletion" label="Retain Emails After Inbox Deletion" control={form.control} />
                         </div>
                     </div>
                     <Separator />
