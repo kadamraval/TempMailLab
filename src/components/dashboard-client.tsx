@@ -559,8 +559,8 @@ export function DashboardClient() {
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 h-11">
-                        <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
-                            <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2">
+                         <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
+                            <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
                                 <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
                                 <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
@@ -583,7 +583,6 @@ export function DashboardClient() {
                                 onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
-                                disabled={!canCustomizePrefix}
                             />
                             <span className="text-muted-foreground -ml-1">@</span>
                             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -889,4 +888,3 @@ export function DashboardClient() {
   );
 }
 
-    
