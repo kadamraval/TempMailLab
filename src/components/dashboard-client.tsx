@@ -435,19 +435,6 @@ export function DashboardClient() {
     }
   };
 
-  const handleDeleteAndRegenerate = async () => {
-    if (!auth?.currentUser) return;
-    setIsCreating(true);
-    if (currentInbox && firestore) {
-      await deleteDoc(doc(firestore, "inboxes", currentInbox.id));
-    }
-    if (user?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
-    setCurrentInbox(null);
-    setSelectedEmail(null);
-    setPrefixInput(''); // Reset prefix
-    setIsCreating(false); // Let createNewInbox handle the new creation
-  };
-  
   const handleToggleEmailSelection = (emailId: string) => {
     setSelectedEmails(prev => 
       prev.includes(emailId) ? prev.filter(id => id !== emailId) : [...prev, emailId]
@@ -577,7 +564,6 @@ export function DashboardClient() {
                                 onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
-                                disabled={!activePlan?.features.customPrefix}
                             />
                             <span className="text-muted-foreground -ml-1">@</span>
                             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -600,9 +586,6 @@ export function DashboardClient() {
             </Card>
             
             <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-                <Button onClick={handleDeleteAndRegenerate} variant="outline" size="default" className="h-14">
-                    <RefreshCw className="h-4 w-4 mr-2"/>Regenerate
-                </Button>
                 <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-14">
                     <Eye className="h-4 w-4 mr-2"/>Demo
                 </Button>
@@ -710,8 +693,8 @@ export function DashboardClient() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", (isSelected || "group-hover:opacity-0"))}>{inbox.emailCount}</Badge>
-                                                <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
-                                                    <TooltipProvider>
+                                                <TooltipProvider>
+                                                    <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
                                                         <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip>
                                                         <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip>
                                                         <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
@@ -726,8 +709,8 @@ export function DashboardClient() {
                                                                 <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
-                                                    </TooltipProvider>
-                                                </div>
+                                                    </div>
+                                                </TooltipProvider>
                                             </div>
                                         </div>
                                     </div>
@@ -842,6 +825,10 @@ export function DashboardClient() {
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <div className="truncate text-sm flex items-center gap-2">
                                                             <span className="truncate">{sender.name}</span>
+                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
+                                                            {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                                            {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
+                                                            {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
                                                         </div>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
@@ -849,12 +836,6 @@ export function DashboardClient() {
                                                       <p className="truncate text-sm">{email.subject}</p>
                                                     </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
-                                                        <div className="flex items-center gap-2 text-sm">
-                                                          {email.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
-                                                          {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
-                                                          {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
-                                                          {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
-                                                        </div>
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <TooltipProvider>
                                                             <div className="hidden items-center gap-1 group-hover:flex">
@@ -862,7 +843,7 @@ export function DashboardClient() {
                                                                 <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip>
                                                                 <DropdownMenu>
                                                                     <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
+                                                                        <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                             <MoreHorizontal className="h-4 w-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
@@ -895,5 +876,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
