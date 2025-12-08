@@ -36,6 +36,7 @@ import { useRouter } from "next/navigation"
 import { savePlanAction } from "@/lib/actions/plans"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -581,4 +582,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
