@@ -24,6 +24,7 @@ import {
   QrCode,
   Plus,
   ChevronsUpDown,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,25 +73,27 @@ import { Progress } from "./ui/progress";
 
 const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
 
+const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
+    id: `demo-inbox-${i + 1}`,
+    emailAddress: i === 0 ? 'primary-demo@example.com' : `project-${i}@example.com`,
+    emailCount: Math.floor(Math.random() * 20),
+    userId: 'demo',
+    domain: 'example.com',
+    expiresAt: new Date(Date.now() + (10 + i * 5) * 60 * 1000).toISOString(),
+    isStarred: i === 1 || i === 4,
+    isArchived: i === 7,
+}));
+
 const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
     id: `demo-${i + 1}`,
-    inboxId: 'demo',
+    inboxId: demoInboxes[i % demoInboxes.length].id, // Assign emails to different inboxes
     userId: 'demo',
     senderName: ['Welcome Team <welcome@example.com>', 'Promotions <promo@example.com>', 'Security Alert <security@example.com>', 'Newsletter <news@example.com>', 'Support <support@example.com>', 'Feedback Request <feedback@example.com>'][i % 6],
-    subject: [
-        'Getting Started with Tempmailoz', 
-        'Special Offer: 50% Off Premium!', 
-        'Your account was accessed from a new device', 
-        'Weekly Digest - Top Stories', 
-        'Your Support Ticket #12345 has been updated', 
-        'How was your experience?',
-        'Re: Your Question',
-        'Password Reset Request'
-    ][i % 8],
+    subject: [ 'Getting Started with Tempmailoz', 'Special Offer: 50% Off Premium!', 'Your account was accessed from a new device', 'Weekly Digest - Top Stories', 'Your Support Ticket #12345 has been updated', 'How was your experience?', 'Re: Your Question', 'Password Reset Request' ][i % 8],
     receivedAt: new Date(Date.now() - i * 15 * 60 * 1000).toISOString(),
     createdAt: Timestamp.now(),
-    htmlContent: `<p>This is a demo email #${i+1} to showcase the layout. You can interact with the different elements to see how they behave.</p>`,
-    textContent: `This is a demo email #${i+1} to showcase the layout.`,
+    htmlContent: `<p>This is a demo email #${i+1} for the inbox <strong>${demoInboxes[i % demoInboxes.length].emailAddress}</strong> to showcase the layout. You can interact with the different elements to see how they behave.</p>`,
+    textContent: `This is a demo email #${i+1} for ${demoInboxes[i % demoInboxes.length].emailAddress}.`,
     read: i % 2 === 1,
     isSpam: i === 5,
     isBlocked: i === 8,
@@ -98,24 +101,6 @@ const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
     isArchived: i === 12
 }));
 
-const demoInboxes: InboxType[] = [
-    {
-        id: 'demo-inbox-1',
-        emailAddress: 'primary-demo@example.com',
-        emailCount: 15,
-        userId: 'demo',
-        domain: 'example.com',
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    },
-    ...Array.from({ length: 15 }, (_, i) => ({
-        id: `demo-inbox-${i + 2}`,
-        emailAddress: `project-${i+1}@example.com`,
-        emailCount: Math.floor(Math.random() * 20),
-        userId: 'demo',
-        domain: 'example.com',
-        expiresAt: new Date(Date.now() + (10 + i) * 60 * 1000).toISOString(),
-    }))
-];
 
 const ITEMS_PER_PAGE = 10;
 
@@ -127,7 +112,11 @@ export function DashboardClient() {
   const [countdown, setCountdown] = useState({ total: 0, remaining: 0 });
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  
+  // States for multi-selection
+  const [selectedInboxes, setSelectedInboxes] = useState<string[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [visibleInboxesCount, setVisibleInboxesCount] = useState(ITEMS_PER_PAGE);
   const [visibleEmailsCount, setVisibleEmailsCount] = useState(ITEMS_PER_PAGE);
@@ -139,6 +128,8 @@ export function DashboardClient() {
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedLifetime, setSelectedLifetime] = useState<string | undefined>(undefined);
 
+  // Demo mode specific state
+  const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
   const auth = useAuth();
@@ -181,7 +172,10 @@ export function DashboardClient() {
   }, [isDemoMode, userInboxes, activeInboxFilter]);
 
   const filteredEmails = useMemo(() => {
-    const sourceEmails = isDemoMode ? demoEmails : (inboxEmails || []);
+    const sourceEmails = isDemoMode 
+        ? demoEmails.filter(e => e.inboxId === activeDemoInbox?.id)
+        : (inboxEmails || []);
+
     let filtered = sourceEmails;
 
     switch (activeMailFilter) {
@@ -216,7 +210,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
-  }, [isDemoMode, inboxEmails, activeMailFilter, searchQuery]);
+  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
 
 
   const generateRandomString = useCallback((length: number) => {
@@ -246,7 +240,7 @@ export function DashboardClient() {
         }
         
         if (!prefixInput) {
-            toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button.", variant: "destructive" });
+            toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
             return;
         }
 
@@ -413,29 +407,27 @@ export function DashboardClient() {
   }, [user, isUserLoading, activePlan, isLoadingPlan, auth, firestore, findActiveInbox]);
 
   useEffect(() => {
-    if (!currentInbox?.expiresAt || !currentInbox?.createdAt || !activePlan || !auth?.currentUser) {
-        setCountdown({ total: 0, remaining: 0 });
-        return;
-    };
+    let interval: NodeJS.Timeout;
+    if (currentInbox?.expiresAt) {
+      const expiryDate = new Date(currentInbox.expiresAt);
+      const creationDate = currentInbox.createdAt instanceof Timestamp ? currentInbox.createdAt.toDate() : new Date(0);
+      const totalDuration = expiryDate.getTime() - creationDate.getTime();
 
-    const expiryDate = new Date(currentInbox.expiresAt);
-    const creationDate = (currentInbox.createdAt as Timestamp).toDate();
-    const totalDuration = expiryDate.getTime() - creationDate.getTime();
-    
-    const interval = setInterval(async () => {
-      const remainingMs = expiryDate.getTime() - Date.now();
-      setCountdown({ total: totalDuration, remaining: remainingMs > 0 ? remainingMs : 0});
-
-      if (remainingMs <= 0) {
-        clearInterval(interval);
-        setCurrentInbox(null);
-        setSelectedEmail(null);
-        if (user?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
-      }
-    }, 1000);
-
+      interval = setInterval(() => {
+        const remainingMs = expiryDate.getTime() - Date.now();
+        setCountdown({ total: totalDuration, remaining: remainingMs > 0 ? remainingMs : 0 });
+        if (remainingMs <= 0) {
+          clearInterval(interval);
+          setCurrentInbox(null);
+          setSelectedEmail(null);
+          if (user?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
+        }
+      }, 1000);
+    } else {
+       setCountdown({ total: 0, remaining: 0 });
+    }
     return () => clearInterval(interval);
-  }, [currentInbox, user?.isAnonymous, auth, activePlan]);
+  }, [currentInbox, user?.isAnonymous]);
   
   const handleCopyEmail = () => {
     if (currentInbox?.emailAddress) {
@@ -460,6 +452,11 @@ export function DashboardClient() {
   const handleToggleEmailSelection = (emailId: string) => {
     setSelectedEmails(prev => 
       prev.includes(emailId) ? prev.filter(id => id !== emailId) : [...prev, emailId]
+    );
+  };
+  const handleToggleInboxSelection = (inboxId: string) => {
+    setSelectedInboxes(prev =>
+        prev.includes(inboxId) ? prev.filter(id => id !== inboxId) : [...prev, inboxId]
     );
   };
 
@@ -540,9 +537,9 @@ export function DashboardClient() {
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
-            <Card className="p-1.5 w-full">
+             <Card className="p-1.5 w-full h-14">
                 {currentInbox ? (
-                    <div className="flex items-center gap-2 h-11">
+                    <div className="flex items-center gap-2 h-full">
                         <div className="relative h-8 w-8 ml-1">
                             <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary rounded-full" />
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -558,7 +555,7 @@ export function DashboardClient() {
                         <Button onClick={handleCopyEmail} className="h-full"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
                     </div>
                 ) : (
-                    <div className="flex items-center gap-2 h-11">
+                    <div className="flex items-center gap-2 h-full">
                          <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
                             <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
                                 <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
@@ -596,7 +593,7 @@ export function DashboardClient() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full ml-2">
+                         <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full ml-2">
                             <Copy className="mr-2 h-4 w-4"/>
                             Create
                         </Button>
@@ -605,10 +602,10 @@ export function DashboardClient() {
             </Card>
             
             <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-                <Button onClick={handleDeleteAndRegenerate} variant="outline" size="default" className="h-11">
+                <Button onClick={handleDeleteAndRegenerate} variant="outline" size="default" className="h-14">
                     <RefreshCw className="h-4 w-4 mr-2"/>Regenerate
                 </Button>
-                <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-11">
+                <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-14">
                     <Eye className="h-4 w-4 mr-2"/>Demo
                 </Button>
             </div>
@@ -646,7 +643,7 @@ export function DashboardClient() {
         <CardContent className="p-0 h-full">
             {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full min-h-[calc(100vh-400px)]">
-                    <div className="flex flex-col border-r">{/* Left col for consistency */}</div>
+                    <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
                  </div>
             ) : (
@@ -659,68 +656,76 @@ export function DashboardClient() {
                                 <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, displayedInboxes.length)}/${displayedInboxes.length})`}</h3>
                             </div>
                             <div className="flex items-center gap-1">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Filter Inboxes</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {inboxFilterOptions.map(filter => (
-                                            <DropdownMenuCheckboxItem key={filter} checked={activeInboxFilter === filter} onSelect={() => setActiveInboxFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuItem><Plus className="mr-2 h-4 w-4" /> Add Inbox</DropdownMenuItem>
-                                        <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star Inbox</DropdownMenuItem>
-                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive Inbox</DropdownMenuItem>
-                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete Inbox</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                {selectedInboxes.length > 0 ? (
+                                    <>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4"/></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                                    </>
+                                ) : (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Filter Inboxes</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            {inboxFilterOptions.map(filter => (
+                                                <DropdownMenuCheckboxItem key={filter} checked={activeInboxFilter === filter} onSelect={() => setActiveInboxFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                         </div>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="flex-1 h-[calc(100vh-480px)]">
                             <div className="p-2 space-y-0">
-                                {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => (
-                                    <div key={inbox.id} className="p-2 group relative border-b">
+                                {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => {
+                                    const isSelected = selectedInboxes.includes(inbox.id);
+                                    const isActive = isDemoMode ? activeDemoInbox?.id === inbox.id : currentInbox?.id === inbox.id;
+                                    return (
+                                    <div 
+                                        key={inbox.id} 
+                                        className={cn("p-2 group relative border-b cursor-pointer", isActive && "bg-muted")}
+                                        onClick={() => isDemoMode ? setActiveDemoInbox(inbox) : setCurrentInbox(inbox)}
+                                    >
                                         <div className="flex justify-between items-start">
-                                            <div className="flex-1 truncate">
-                                                <div className="flex items-center gap-2">
+                                            <div className="flex-1 truncate flex items-center gap-2">
+                                                 <Checkbox 
+                                                    id={`select-inbox-${inbox.id}`} 
+                                                    checked={isSelected}
+                                                    onCheckedChange={() => handleToggleInboxSelection(inbox.id)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                 />
+                                                <div className="truncate">
                                                     <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
-                                                    <Badge variant="secondary">{inbox.emailCount}</Badge>
+                                                    <p className="text-xs text-muted-foreground">Expires: {new Date(inbox.expiresAt).toLocaleTimeString()}</p>
                                                 </div>
-                                                 <p className="text-xs text-muted-foreground">Expires: {new Date(inbox.expiresAt).toLocaleTimeString()}</p>
                                             </div>
                                              <div className="flex items-center gap-0">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopyEmail}>
-                                                                <Copy className="h-4 w-4" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent><p>Copy Email</p></TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                                
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem><RefreshCw className="mr-2 h-4 w-4" /> Regenerate</DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                {inbox.isStarred && <Badge variant="secondary" className="mr-2">Starred</Badge>}
+                                                {inbox.isArchived && <Badge variant="outline" className="mr-2">Archived</Badge>}
+                                                <Badge variant={isActive ? "default" : "secondary"}>{inbox.emailCount}</Badge>
                                             </div>
                                         </div>
+                                         <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => setIsQrOpen(true)}><QrCode className="mr-2 h-4 w-4" /> Show QR Code</DropdownMenuItem>
+                                                <DropdownMenuItem><Download className="mr-2 h-4 w-4" /> Export</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
-                                ))}
+                                )})}
                                 {visibleInboxesCount < displayedInboxes.length && (
                                      <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
                                 )}
@@ -848,7 +853,15 @@ export function DashboardClient() {
                                                         <p className="truncate text-sm">{sender.name}</p>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
-                                                    <p className={cn("col-span-8 md:col-span-5 truncate text-sm self-center", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>{email.subject}</p>
+                                                    <div className={cn("col-span-8 md:col-span-5 self-center", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                                      <p className="truncate text-sm">{email.subject}</p>
+                                                      <div className="flex items-center gap-2 pt-1">
+                                                          {email.isStarred && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Starred</Badge>}
+                                                          {email.isArchived && <Badge variant="outline">Archived</Badge>}
+                                                          {email.isSpam && <Badge variant="destructive">Spam</Badge>}
+                                                          {email.isBlocked && <Badge variant="destructive" className="bg-gray-500 text-white">Blocked</Badge>}
+                                                      </div>
+                                                    </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
@@ -887,4 +900,3 @@ export function DashboardClient() {
     </div>
   );
 }
-

@@ -19,6 +19,10 @@ export interface Email {
     url: string; 
   }[];
   read?: boolean;
+  isStarred?: boolean;
+  isArchived?: boolean;
+  isSpam?: boolean;
+  isBlocked?: boolean;
 }
 
 export interface User {
@@ -40,5 +44,7 @@ export interface Inbox {
   emailCount: number;
   createdAt?: Timestamp; // Make optional for client-side creation
   expiresAt: string;
+  isStarred?: boolean;
+  isArchived?: boolean;
 }
     
