@@ -61,7 +61,7 @@ import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuPortal } from "./ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import Image from "next/image";
 import { Separator } from "./ui/separator";
@@ -861,13 +861,15 @@ export function DashboardClient() {
                                                                         <MoreHorizontal className="h-4 w-4" />
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                    <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                                    <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block</DropdownMenuItem>
-                                                                    <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                                </DropdownMenuContent>
+                                                                <DropdownMenuPortal>
+                                                                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                                        <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block</DropdownMenuItem>
+                                                                        <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenuPortal>
                                                             </DropdownMenu>
                                                         </div>
                                                     </div>
@@ -889,5 +891,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
