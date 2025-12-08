@@ -579,6 +579,7 @@ export function DashboardClient() {
                                 onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
+                                disabled={!canCustomizePrefix}
                             />
                             <span className="text-muted-foreground -ml-1">@</span>
                             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -854,16 +855,15 @@ export function DashboardClient() {
                                                     </div>
                                                     <div className={cn("col-span-8 md:col-span-5 self-center", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                       <p className="truncate text-sm">{email.subject}</p>
-                                                      <div className="flex items-center gap-2 pt-1">
-                                                          {email.isStarred && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Starred</Badge>}
-                                                          {email.isArchived && <Badge variant="outline">Archived</Badge>}
-                                                          {email.isSpam && <Badge variant="destructive">Spam</Badge>}
-                                                          {email.isBlocked && <Badge variant="destructive" className="bg-gray-500 text-white">Blocked</Badge>}
-                                                      </div>
                                                     </div>
-                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center">
+                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
+                                                        {email.isStarred && <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">Starred</Badge>}
+                                                        {email.isArchived && <Badge variant="outline">Archived</Badge>}
+                                                        {email.isSpam && <Badge variant="destructive">Spam</Badge>}
+                                                        {email.isBlocked && <Badge variant="destructive" className="bg-gray-500 text-white">Blocked</Badge>}
+                                                        
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
-                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden items-center gap-1 group-hover:flex">
+                                                        <div className="hidden items-center gap-1 group-hover:flex">
                                                           <DropdownMenu>
                                                               <DropdownMenuTrigger asChild>
                                                                   <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity">
@@ -899,3 +899,4 @@ export function DashboardClient() {
     </div>
   );
 }
+
