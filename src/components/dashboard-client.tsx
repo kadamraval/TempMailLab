@@ -577,6 +577,7 @@ export function DashboardClient() {
                                 onChange={(e) => setPrefixInput(e.target.value)}
                                 className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                                 placeholder="your-prefix"
+                                disabled={!activePlan?.features.customPrefix}
                             />
                             <span className="text-muted-foreground -ml-1">@</span>
                             <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -706,23 +707,23 @@ export function DashboardClient() {
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
-                                                <div className="relative h-7 w-7 flex items-center justify-center">
-                                                    <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", isSelected && "opacity-0", !isSelected && "group-hover:opacity-0")}>{inbox.emailCount}</Badge>
-                                                    <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
-                                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip></TooltipProvider>
-                                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip></TooltipProvider>
-                                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                <DropdownMenuItem>Export</DropdownMenuItem>
-                                                                <DropdownMenuItem>Archive</DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </div>
+                                                {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
+                                                {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                                <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", isSelected && "opacity-0", !isSelected && "group-hover:opacity-0")}>{inbox.emailCount}</Badge>
+                                                <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
+                                                    <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip></TooltipProvider>
+                                                    <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip></TooltipProvider>
+                                                    <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                                            <DropdownMenuItem>Export</DropdownMenuItem>
+                                                            <DropdownMenuItem>Archive</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             </div>
                                         </div>
@@ -890,4 +891,3 @@ export function DashboardClient() {
   );
 }
 
-    
