@@ -227,7 +227,7 @@ export function DashboardClient() {
      if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
       setSelectedDomain(allowedDomains[0].domain);
     }
-    if (!selectedLifetime && activePlan && activePlan.features.availableLifetimes.length > 0) {
+    if (!selectedLifetime && activePlan && activePlan.features?.availableLifetimes?.length > 0) {
         const defaultLifetime = activePlan.features.availableLifetimes[0];
         setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
     }
@@ -555,10 +555,10 @@ export function DashboardClient() {
                                 <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
                             <SelectContent>
-                                {(activePlan?.features?.availableLifetimes || []).map(lt => (
+                                {(activePlan.features?.availableLifetimes || []).map(lt => (
                                     <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`}>{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)}</SelectItem>
                                 ))}
-                                {activePlan?.features?.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
+                                {activePlan.features.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
@@ -905,4 +905,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
