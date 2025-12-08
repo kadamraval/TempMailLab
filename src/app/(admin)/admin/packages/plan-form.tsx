@@ -52,6 +52,9 @@ const featureTooltips: Record<string, string> = {
   customBranding: "For enterprise clients, allow white-labeling of the interface.",
   prioritySupport: "Flags users for priority customer support, ensuring faster response times.",
   dedicatedAccountManager: "Assign a dedicated account manager for high-value enterprise clients.",
+  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
+  allowStarring: "Allow users to star important emails.",
+  allowArchiving: "Allow users to archive emails to remove them from the main inbox view.",
 
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
@@ -59,16 +62,16 @@ const featureTooltips: Record<string, string> = {
   availableLifetimes: "Predefined durations an inbox address remains active before it stops receiving new mail.",
   allowCustomLifetime: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
-  customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
-  inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
-  qrCode: "Allow users to generate a QR code for their inbox address.",
+  customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters). 0 to disable.",
+  inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically. 0 to disable.",
+  qrCode: "Allow users to generate a QR code for their inbox address. 0 to disable.",
   
   // Email
   dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. Set to 0 for unlimited.",
   maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. Set to 0 for unlimited.",
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
-  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
+  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address. 0 to disable.",
   exportEmails: "Allow users to download single emails (as .eml) or bulk export (as .zip).",
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
@@ -78,19 +81,16 @@ const featureTooltips: Record<string, string> = {
   dailyCustomDomainInboxLimit: "The number of inboxes that can be created per day using custom domains.",
   totalCustomDomainInboxLimit: "The total number of active inboxes that can exist at one time using custom domains.",
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
-
-  // Storage
-  totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
   
   // Security
-  passwordProtection: "Allow users to secure their temporary inboxes with a password.",
+  passwordProtection: "Allow users to secure their temporary inboxes with a password. 0 to disable.",
   twoFactorAuth: "Enable Two-Factor Authentication (2FA) for securing user accounts.",
   spamFilteringLevel: "The level of spam filtering applied to incoming emails.",
   virusScanning: "Automatically scan all incoming attachments for malware.",
   auditLogs: "For team/business accounts, a log of actions taken by team members.",
   linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
   spam: "Allow users to mark emails as spam.",
-  block: "Allow users to block specific senders or domains.",
+  block: "Allow users to block specific senders or domains. 0 to disable.",
   filter: "Enable filtering rules for incoming mail.",
 
   // API
@@ -161,14 +161,15 @@ export function PlanForm({ plan }: PlanFormProps) {
     features: {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
+        totalStorageQuota: 0, allowStarring: false, allowArchiving: false,
         maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomLifetime: false, extendTime: false,
-        customPrefix: false, inboxLocking: false, qrCode: false,
+        customPrefix: 0, inboxLocking: 0, qrCode: 0,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
-        maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
+        maxAttachmentSize: 5, emailForwarding: 0, exportEmails: false, sourceCodeView: false,
         customDomains: false, totalCustomDomains: 0, dailyCustomDomainInboxLimit: 0, totalCustomDomainInboxLimit: 0, allowPremiumDomains: false, 
-        totalStorageQuota: 0, passwordProtection: false,
+        passwordProtection: 0,
         twoFactorAuth: false, spamFilteringLevel: "basic", virusScanning: false, auditLogs: false, 
-        linkSanitization: false, spam: false, block: false, filter: false,
+        linkSanitization: false, spam: false, block: 0, filter: false,
         apiAccess: false, apiRateLimit: 0, webhooks: false,
     }
   }
@@ -305,12 +306,15 @@ export function PlanForm({ plan }: PlanFormProps) {
                         <h3 className="text-lg font-medium tracking-tight">General</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FeatureInput name="features.teamMembers" label="Team Members" control={form.control} type="number" />
+                           <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
                           <FeatureSwitch name="features.noAds" label="No Ads" control={form.control} />
                           <FeatureSwitch name="features.usageAnalytics" label="Usage Analytics" control={form.control} />
                           <FeatureSwitch name="features.browserExtension" label="Browser Extension" control={form.control} />
                           <FeatureSwitch name="features.customBranding" label="Custom Branding" control={form.control} />
                           <FeatureSwitch name="features.prioritySupport" label="Priority Support" control={form.control} />
                           <FeatureSwitch name="features.dedicatedAccountManager" label="Dedicated Account Manager" control={form.control} />
+                           <FeatureSwitch name="features.allowStarring" label="Allow Starring Emails" control={form.control} />
+                          <FeatureSwitch name="features.allowArchiving" label="Allow Archiving Emails" control={form.control} />
                         </div>
                     </div>
                     <Separator />
@@ -388,9 +392,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Timer" control={form.control} />
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
-                            <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
-                            <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />
-                            <FeatureSwitch name="features.qrCode" label="QR Code" control={form.control} />
+                            <FeatureInput name="features.customPrefix" label="Customizable Inbox" control={form.control} type="number" />
+                            <FeatureInput name="features.inboxLocking" label="Inbox Locking" control={form.control} type="number" />
+                            <FeatureInput name="features.qrCode" label="QR Code" control={form.control} type="number" />
                         </div>
                     </div>
                     <Separator />
@@ -403,7 +407,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.dailyEmailLimit" label="Daily Emails Received" control={form.control} type="number" />
                             <FeatureInput name="features.maxAttachmentSize" label="Max Attachment Size (MB)" control={form.control} type="number" />
                             <FeatureSwitch name="features.allowAttachments" label="Allow Attachments" control={form.control} />
-                            <FeatureSwitch name="features.emailForwarding" label="Email Forwarding" control={form.control} />
+                            <FeatureInput name="features.emailForwarding" label="Email Forwarding" control={form.control} type="number" />
                             <FeatureSwitch name="features.exportEmails" label="Export Emails" control={form.control} />
                             <FeatureSwitch name="features.sourceCodeView" label="Source Code View" control={form.control} />
                         </div>
@@ -427,15 +431,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                     </div>
                     <Separator />
 
-                    {/* --- Storage --- */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium tracking-tight">Storage</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FeatureInput name="features.totalStorageQuota" label="Cloud Storage (MB)" control={form.control} type="number" />
-                        </div>
-                    </div>
-                    <Separator />
-
                     {/* --- Security & Privacy --- */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Security & Privacy</h3>
@@ -453,13 +448,13 @@ export function PlanForm({ plan }: PlanFormProps) {
                                     </Select>
                                 </FormItem>
                             )} />
-                            <FeatureSwitch name="features.passwordProtection" label="Password Protection" control={form.control} />
+                            <FeatureInput name="features.passwordProtection" label="Password Protection" control={form.control} type="number" />
                             <FeatureSwitch name="features.twoFactorAuth" label="Two-Factor Auth (Account)" control={form.control} />
                             <FeatureSwitch name="features.virusScanning" label="Virus Scanning" control={form.control} />
                             <FeatureSwitch name="features.linkSanitization" label="Link Sanitization" control={form.control} />
                             <FeatureSwitch name="features.auditLogs" label="Audit Logs" control={form.control} />
                             <FeatureSwitch name="features.spam" label="Spam Reporting" control={form.control} />
-                            <FeatureSwitch name="features.block" label="Block Senders" control={form.control} />
+                            <FeatureInput name="features.block" label="Block Senders" control={form.control} type="number" />
                             <FeatureSwitch name="features.filter" label="Mail Filtering" control={form.control} />
                         </div>
                     </div>
@@ -519,5 +514,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
-    

@@ -29,6 +29,9 @@ export const planSchema = z.object({
     customBranding: z.boolean().default(false),
     prioritySupport: z.boolean().default(false),
     dedicatedAccountManager: z.boolean().default(false),
+    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
+    allowStarring: z.boolean().default(false),
+    allowArchiving: z.boolean().default(false),
     
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
@@ -36,16 +39,16 @@ export const planSchema = z.object({
     availableLifetimes: z.array(lifetimeSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
     allowCustomLifetime: z.boolean().default(false),
     extendTime: z.boolean().default(false),
-    customPrefix: z.boolean().default(false),
-    inboxLocking: z.boolean().default(false),
-    qrCode: z.boolean().default(false),
+    customPrefix: z.coerce.number().int().min(0).default(0),
+    inboxLocking: z.coerce.number().int().min(0).default(0),
+    qrCode: z.coerce.number().int().min(0).default(0),
 
     // Email
     dailyEmailLimit: z.coerce.number().int().min(0).default(0),
     maxEmailsPerInbox: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     allowAttachments: z.boolean().default(false),
     maxAttachmentSize: z.coerce.number().int().min(0, "Cannot be negative."),
-    emailForwarding: z.boolean().default(false),
+    emailForwarding: z.coerce.number().int().min(0).default(0),
     exportEmails: z.boolean().default(false),
     sourceCodeView: z.boolean().default(false),
 
@@ -55,19 +58,16 @@ export const planSchema = z.object({
     dailyCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
     totalCustomDomainInboxLimit: z.coerce.number().int().min(0).default(0),
     allowPremiumDomains: z.boolean().default(false),
-
-    // Storage
-    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     
     // Security & Privacy
-    passwordProtection: z.boolean().default(false),
+    passwordProtection: z.coerce.number().int().min(0).default(0),
     twoFactorAuth: z.boolean().default(false),
     spamFilteringLevel: z.enum(["none", "basic", "aggressive"]).default("basic"),
     virusScanning: z.boolean().default(false),
     auditLogs: z.boolean().default(false),
     linkSanitization: z.boolean().default(false),
     spam: z.boolean().default(false),
-    block: z.boolean().default(false),
+    block: z.coerce.number().int().min(0).default(0),
     filter: z.boolean().default(false),
 
     // API & Automation
