@@ -274,9 +274,9 @@ export function DashboardClient() {
                  lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
             } else {
                 const selectedLt = plan.features.availableLifetimes.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
-                if (!selectedLt) throw new Error("Selected lifetime is not valid.");
+                if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
                 if (selectedLt.isPremium && plan.planType !== 'pro') {
-                    throw new Error("This lifetime duration is a premium feature.");
+                    throw new Error("This inbox timer is a premium feature.");
                 }
                 const [count, unit] = selectedLifetime!.split('_');
                 lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
@@ -564,7 +564,7 @@ export function DashboardClient() {
                                  if (activePlan?.features.allowCustomLifetime) {
                                      setUseCustomLifetime(true);
                                  } else {
-                                     toast({ title: "Premium Feature", description: "Custom lifetimes are a premium feature.", variant: "destructive"});
+                                     toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
                                  }
                              } else {
                                  setUseCustomLifetime(false);
@@ -573,15 +573,15 @@ export function DashboardClient() {
                          }}>
                             <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
                                 <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                <SelectValue placeholder="Lifetime" />
+                                <SelectValue placeholder="Inbox Timer" />
                             </SelectTrigger>
                             <SelectContent>
-                                {activePlan.features?.availableLifetimes?.map(lt => (
+                                {activePlan.features.availableLifetimes?.map(lt => (
                                     <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
-                                        <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500"/>}</span>
+                                        <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
                                     </SelectItem>
                                 ))}
-                                {activePlan.features.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
+                                <SelectItem value="custom">Custom</SelectItem>
                             </SelectContent>
                         </Select>
                         
@@ -735,7 +735,7 @@ export function DashboardClient() {
                                                 <div className="truncate flex-1">
                                                   <div className="flex items-center gap-2">
                                                     <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
-                                                    {inbox.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
+                                                    {inbox.isStarred && <Star className="h-3 w-3 text-yellow-500" />}
                                                     {inbox.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
                                                   </div>
                                                   <div className="text-xs text-muted-foreground">
@@ -877,7 +877,7 @@ export function DashboardClient() {
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <div className="truncate text-sm flex items-center gap-2">
                                                             <span className="truncate">{sender.name}</span>
-                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
+                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500" />}
                                                             {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
                                                             {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
                                                             {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
@@ -928,3 +928,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

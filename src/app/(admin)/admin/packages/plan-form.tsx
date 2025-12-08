@@ -322,7 +322,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <div className="md:col-span-2 space-y-4 p-4 border rounded-lg">
-                                <FormLabelWithTooltip label="Available Lifetimes" tooltipText={featureTooltips.availableLifetimes} />
+                                <FormLabelWithTooltip label="Available Inbox Timers" tooltipText={featureTooltips.availableLifetimes} />
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex items-center gap-2">
                                         <FormField
@@ -383,9 +383,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes', isPremium: false })}
                                 >
                                     <PlusCircle className="h-4 w-4 mr-2" />
-                                    Add Lifetime
+                                    Add Timer
                                 </Button>
-                                <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Lifetime" control={form.control} />
+                                <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Timer" control={form.control} />
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
@@ -519,3 +519,5 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
+
+    
