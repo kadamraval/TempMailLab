@@ -842,10 +842,6 @@ export function DashboardClient() {
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <div className="truncate text-sm flex items-center gap-2">
                                                             <span className="truncate">{sender.name}</span>
-                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
-                                                            {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
-                                                            {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
-                                                            {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
                                                         </div>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
@@ -853,6 +849,12 @@ export function DashboardClient() {
                                                       <p className="truncate text-sm">{email.subject}</p>
                                                     </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                          {email.isStarred && <Star className="h-3 w-3 text-yellow-500 shrink-0" />}
+                                                          {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                                          {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
+                                                          {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
+                                                        </div>
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <TooltipProvider>
                                                             <div className="hidden items-center gap-1 group-hover:flex">
@@ -864,15 +866,13 @@ export function DashboardClient() {
                                                                             <MoreHorizontal className="h-4 w-4" />
                                                                         </Button>
                                                                     </DropdownMenuTrigger>
-                                                                    <DropdownMenuPortal>
-                                                                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                            <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                                            <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block</DropdownMenuItem>
-                                                                            <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
-                                                                            <DropdownMenuSeparator />
-                                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                                        </DropdownMenuContent>
-                                                                    </DropdownMenuPortal>
+                                                                    <DropdownMenuContent align="end">
+                                                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                                        <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block</DropdownMenuItem>
+                                                                        <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                                    </DropdownMenuContent>
                                                                 </DropdownMenu>
                                                             </div>
                                                         </TooltipProvider>
@@ -895,3 +895,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
