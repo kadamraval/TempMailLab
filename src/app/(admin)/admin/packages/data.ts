@@ -29,7 +29,6 @@ export const planSchema = z.object({
     customBranding: z.boolean().default(false),
     prioritySupport: z.boolean().default(false),
     dedicatedAccountManager: z.boolean().default(false),
-    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     allowStarring: z.boolean().default(false),
     allowArchiving: z.boolean().default(false),
     
@@ -51,6 +50,12 @@ export const planSchema = z.object({
     emailForwarding: z.coerce.number().int().min(0).default(0),
     exportEmails: z.boolean().default(false),
     sourceCodeView: z.boolean().default(false),
+
+    // Storage & Data
+    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
+    dataRetentionDays: z.coerce.number().int().min(0, "0 means delete with inbox."),
+    purgeDelayDays: z.coerce.number().int().min(0, "0 means purge immediately."),
+
 
     // Custom Domain
     customDomains: z.boolean().default(false),
