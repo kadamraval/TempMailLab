@@ -4,6 +4,12 @@
 import { z } from "zod"
 import type { Timestamp } from "firebase/firestore"
 
+const lifetimeSchema = z.object({
+  id: z.string().default(() => Math.random().toString(36).substr(2, 9)),
+  count: z.coerce.number().int().min(1),
+  unit: z.enum(['minutes', 'hours', 'days']),
+});
+
 export const planSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Plan name is required."),
@@ -25,10 +31,8 @@ export const planSchema = z.object({
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
-    inboxLifetime: z.object({
-        count: z.coerce.number().int().min(0),
-        unit: z.enum(['minutes', 'hours', 'days'])
-    }).default({ count: 10, unit: 'minutes' }),
+    availableLifetimes: z.array(lifetimeSchema).default([{ id: 'default', count: 10, unit: 'minutes' }]),
+    allowCustomLifetime: z.boolean().default(false),
     extendTime: z.boolean().default(false),
     customPrefix: z.boolean().default(false),
     inboxLocking: z.boolean().default(false),

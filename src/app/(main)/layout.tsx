@@ -2,6 +2,7 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { DotBackground } from '@/components/dot-background';
+import { BottomAdBanner } from '@/components/adsense-ad';
 
 export default async function MainLayout({
   children,
@@ -17,6 +18,7 @@ export default async function MainLayout({
           {children}
         </main>
         <Footer />
+        <BottomAdBanner />
     </div>
   );
 }
