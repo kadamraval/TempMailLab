@@ -525,8 +525,6 @@ export function DashboardClient() {
   const mailFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Spam", "Blocked"];
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
   
-  const canCustomizePrefix = activePlan.features.customPrefix;
-  
   const countdownMinutes = Math.floor(countdown.remaining / 60000);
   const countdownSeconds = Math.floor((countdown.remaining % 60000) / 1000);
   const progress = countdown.total > 0 ? (countdown.remaining / countdown.total) * 100 : 0;
@@ -682,6 +680,7 @@ export function DashboardClient() {
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
                                     const isActive = isDemoMode ? activeDemoInbox?.id === inbox.id : currentInbox?.id === inbox.id;
+                                    const expiresDate = new Date(inbox.expiresAt);
                                     return (
                                     <div 
                                         key={inbox.id} 
@@ -695,31 +694,32 @@ export function DashboardClient() {
                                                     checked={isSelected}
                                                     onCheckedChange={() => handleToggleInboxSelection(inbox.id)}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className={cn("transition-opacity", !isSelected && "opacity-0 group-hover:opacity-100")}
                                                  />
-                                                <div className="truncate flex items-center gap-2">
+                                                <div className="truncate flex-1">
+                                                  <div className="flex items-center gap-2">
                                                     <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
                                                     {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
                                                     {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground">
+                                                      Expires: {expiresDate.toLocaleTimeString()}
+                                                  </div>
                                                 </div>
                                             </div>
                                              <div className="flex items-center gap-2">
                                                 <div className="relative h-7 w-7 flex items-center justify-center">
                                                     <Badge variant={isActive ? "default" : "secondary"} className="transition-opacity group-hover:opacity-0">{inbox.emailCount}</Badge>
-                                                    <DropdownMenu>
+                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="h-7 w-7 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                                                                 <MoreHorizontal className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                            <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem><Copy className="mr-2 h-4 w-4" /> Copy</DropdownMenuItem>
                                                             <DropdownMenuItem onClick={() => setIsQrOpen(true)}><QrCode className="mr-2 h-4 w-4" /> Show QR Code</DropdownMenuItem>
-                                                            <DropdownMenuItem><Download className="mr-2 h-4 w-4" /> Export</DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                                                            <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </div>
@@ -852,11 +852,11 @@ export function DashboardClient() {
                                                 <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <div className="truncate text-sm flex items-center gap-2">
-                                                          <span>{sender.name}</span>
-                                                          {email.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
-                                                          {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
-                                                          {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />}
-                                                          {email.isBlocked && <Ban className="h-4 w-4 text-gray-500 shrink-0" />}
+                                                            <span className="truncate">{sender.name}</span>
+                                                            {email.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
+                                                            {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
+                                                            {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive shrink-0" />}
+                                                            {email.isBlocked && <Ban className="h-4 w-4 text-gray-500 shrink-0" />}
                                                         </div>
                                                         {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
                                                     </div>
@@ -873,12 +873,8 @@ export function DashboardClient() {
                                                                   </Button>
                                                               </DropdownMenuTrigger>
                                                               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                                                  <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
                                                                   <DropdownMenuItem><Star className="mr-2 h-4 w-4" /> Star</DropdownMenuItem>
                                                                   <DropdownMenuItem><Forward className="mr-2 h-4 w-4" /> Forward</DropdownMenuItem>
-                                                                  <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
-                                                                  <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
-                                                                  <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                                               </DropdownMenuContent>
                                                           </DropdownMenu>
                                                         </div>
@@ -901,5 +897,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
