@@ -54,7 +54,7 @@ export const planSchema = z.object({
 
     // Storage & Data
     expiredInboxCooldownDays: z.coerce.number().int().min(0, "0 means delete immediately after expiry."),
-    retainEmailsAfterDeletion: z.boolean().default(false),
+    retainEmailsAfterDeletion: z_boolean().default(false),
 
 
     // Custom Domain
@@ -85,4 +85,5 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 

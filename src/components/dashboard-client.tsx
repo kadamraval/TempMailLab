@@ -229,8 +229,8 @@ export function DashboardClient() {
      if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
       setSelectedDomain(allowedDomains[0].domain);
     }
-    if (!selectedLifetime && activePlan && activePlan.features?.availableLifetimes?.length > 0) {
-        const defaultLifetime = activePlan.features.availableLifetimes[0];
+    if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
+        const defaultLifetime = activePlan.features.availableInboxtimers[0];
         setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
@@ -268,15 +268,19 @@ export function DashboardClient() {
             
             let lifetimeInMs;
             if (useCustomLifetime) {
-                if(!plan.features.allowCustomLifetime) {
-                     throw new Error("Your current plan does not allow custom lifetimes.");
+                if(!plan.features.allowCustomtimer) {
+                     toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
+                     setIsCreating(false);
+                     return;
                 }
                  lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
             } else {
-                const selectedLt = plan.features.availableLifetimes.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
+                const selectedLt = plan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
                 if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
                 if (selectedLt.isPremium && plan.planType !== 'pro') {
-                    throw new Error("This inbox timer is a premium feature.");
+                    toast({ title: "Premium Feature", description: "This inbox timer is a premium feature. Please upgrade your plan.", variant: "destructive"});
+                    setIsCreating(false);
+                    return;
                 }
                 const [count, unit] = selectedLifetime!.split('_');
                 lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
@@ -561,11 +565,7 @@ export function DashboardClient() {
                     <div className="flex items-center gap-2 h-full">
                          <Select value={useCustomLifetime ? 'custom' : selectedLifetime} onValueChange={(val) => {
                              if (val === 'custom') {
-                                 if (activePlan?.features.allowCustomLifetime) {
-                                     setUseCustomLifetime(true);
-                                 } else {
-                                     toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
-                                 }
+                                 setUseCustomLifetime(true);
                              } else {
                                  setUseCustomLifetime(false);
                                  setSelectedLifetime(val);
@@ -576,7 +576,7 @@ export function DashboardClient() {
                                 <SelectValue placeholder="Inbox Timer" />
                             </SelectTrigger>
                             <SelectContent>
-                                {activePlan.features.availableLifetimes?.map(lt => (
+                                {(activePlan.features.availableInboxtimers || []).map(lt => (
                                     <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
                                         <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
                                     </SelectItem>
@@ -877,7 +877,7 @@ export function DashboardClient() {
                                                     <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                         <div className="truncate text-sm flex items-center gap-2">
                                                             <span className="truncate">{sender.name}</span>
-                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500" />}
+                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
                                                             {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
                                                             {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
                                                             {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}

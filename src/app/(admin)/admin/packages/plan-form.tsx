@@ -385,7 +385,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.maxInboxes" label="Total Inboxes" control={form.control} type="number" />
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <div className="md:col-span-2 space-y-4 p-4 border rounded-lg">
-                                <FormLabelWithTooltip label="Available Inbox timers" tooltipText={featureTooltips.availableInboxtimers} />
+                                <FormLabelWithTooltip label="Available Inbox Timers" tooltipText={featureTooltips.availableInboxtimers} />
                                 {fields.map((field, index) => (
                                     <div key={field.id} className="flex items-center gap-2">
                                         <FormField
@@ -445,9 +445,9 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes', isPremium: false })}
                                 >
                                     <PlusCircle className="h-4 w-4 mr-2" />
-                                    Add timer
+                                    Add Inbox Timer
                                 </Button>
-                                <FeatureSwitch name="features.allowCustomtimer" label="Allow Custom timer" control={form.control} />
+                                <FeatureSwitch name="features.allowCustomtimer" label="Allow Custom Timer" control={form.control} />
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <NumericFeatureToggle control={form.control} name="features.customPrefix" label="Customizable Inbox" />
@@ -476,7 +476,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium tracking-tight">Storage & Data</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <FeatureInput name="features.expiredInboxCooldownDays" label="Cooldown Period Before Deletion (Days)" control={form.control} type="number" />
+                           <FeatureInput name="features.expiredInboxCooldownDays" label="Expired Inbox Cooldown (Days)" control={form.control} type="number" />
                            <FeatureSwitch name="features.retainEmailsAfterDeletion" label="Retain Emails After Inbox Deletion" control={form.control} />
                         </div>
                     </div>
