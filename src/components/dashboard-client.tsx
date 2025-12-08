@@ -857,12 +857,12 @@ export function DashboardClient() {
                                                     </div>
                                                     <div className={cn("col-span-8 md:col-span-5 self-center flex items-center gap-2", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
                                                       <p className="truncate text-sm">{email.subject}</p>
-                                                      {email.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
-                                                      {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
-                                                      {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive" />}
-                                                      {email.isBlocked && <Ban className="h-4 w-4 text-gray-500" />}
                                                     </div>
                                                     <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
+                                                        {email.isStarred && <Star className="h-4 w-4 text-yellow-500" />}
+                                                        {email.isArchived && <Archive className="h-4 w-4 text-muted-foreground" />}
+                                                        {email.isSpam && <ShieldAlert className="h-4 w-4 text-destructive" />}
+                                                        {email.isBlocked && <Ban className="h-4 w-4 text-gray-500" />}
                                                         <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                         <div className="hidden items-center gap-1 group-hover:flex">
                                                           <DropdownMenu>
