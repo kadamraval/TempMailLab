@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { savePlanAction } from "@/lib/actions/plans"
 import { cn } from "@/lib/utils"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -160,7 +161,7 @@ export function PlanForm({ plan }: PlanFormProps) {
     features: {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
-        maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes' }], allowCustomLifetime: false, extendTime: false,
+        maxInboxes: 1, dailyInboxLimit: 0, availableLifetimes: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomLifetime: false, extendTime: false,
         customPrefix: false, inboxLocking: false, qrCode: false,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
@@ -357,6 +358,18 @@ export function PlanForm({ plan }: PlanFormProps) {
                                                 </FormItem>
                                             )}
                                         />
+                                        <FormField
+                                            control={form.control}
+                                            name={`features.availableLifetimes.${index}.isPremium`}
+                                            render={({ field }) => (
+                                                <FormItem className="flex items-center gap-2 space-y-0">
+                                                    <FormControl>
+                                                         <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                    </FormControl>
+                                                    <FormLabel>Premium</FormLabel>
+                                                </FormItem>
+                                            )}
+                                        />
                                         <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -367,13 +380,13 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 variant="outline"
                                 size="sm"
                                 className="mt-2"
-                                onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes' })}
+                                onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes', isPremium: false })}
                                 >
                                     <PlusCircle className="h-4 w-4 mr-2" />
                                     Add Lifetime
                                 </Button>
+                                <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Lifetime" control={form.control} />
                             </div>
-                            <FeatureSwitch name="features.allowCustomLifetime" label="Allow Custom Lifetime" control={form.control} />
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <FeatureSwitch name="features.customPrefix" label="Customizable Inbox" control={form.control} />
                             <FeatureSwitch name="features.inboxLocking" label="Inbox Locking" control={form.control} />

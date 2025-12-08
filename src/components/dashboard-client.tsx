@@ -24,6 +24,7 @@ import {
   QrCode,
   ChevronsUpDown,
   Download,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,6 +128,7 @@ export function DashboardClient() {
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedLifetime, setSelectedLifetime] = useState<string | undefined>(undefined);
   const [customLifetime, setCustomLifetime] = useState({ count: 10, unit: 'minutes' });
+  const [useCustomLifetime, setUseCustomLifetime] = useState(false);
 
 
   // Demo mode specific state
@@ -265,9 +267,17 @@ export function DashboardClient() {
             }
             
             let lifetimeInMs;
-            if (selectedLifetime === 'custom') {
+            if (useCustomLifetime) {
+                if(!plan.features.allowCustomLifetime) {
+                     throw new Error("Your current plan does not allow custom lifetimes.");
+                }
                  lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
             } else {
+                const selectedLt = plan.features.availableLifetimes.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
+                if (!selectedLt) throw new Error("Selected lifetime is not valid.");
+                if (selectedLt.isPremium && plan.planType !== 'pro') {
+                    throw new Error("This lifetime duration is a premium feature.");
+                }
                 const [count, unit] = selectedLifetime!.split('_');
                 lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
             }
@@ -305,7 +315,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime]
+    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -549,20 +559,33 @@ export function DashboardClient() {
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 h-full">
-                         <Select value={selectedLifetime} onValueChange={setSelectedLifetime}>
+                         <Select value={useCustomLifetime ? 'custom' : selectedLifetime} onValueChange={(val) => {
+                             if (val === 'custom') {
+                                 if (activePlan?.features.allowCustomLifetime) {
+                                     setUseCustomLifetime(true);
+                                 } else {
+                                     toast({ title: "Premium Feature", description: "Custom lifetimes are a premium feature.", variant: "destructive"});
+                                 }
+                             } else {
+                                 setUseCustomLifetime(false);
+                                 setSelectedLifetime(val);
+                             }
+                         }}>
                             <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
                                 <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
                                 <SelectValue placeholder="Lifetime" />
                             </SelectTrigger>
                             <SelectContent>
-                                {(activePlan.features?.availableLifetimes || []).map(lt => (
-                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`}>{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)}</SelectItem>
+                                {activePlan.features?.availableLifetimes?.map(lt => (
+                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
+                                        <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500"/>}</span>
+                                    </SelectItem>
                                 ))}
                                 {activePlan.features.allowCustomLifetime && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
-                         {selectedLifetime === 'custom' && (
+                         {useCustomLifetime && (
                             <div className="flex items-center gap-1 border-l pl-2">
                                <Input 
                                    type="number" 

@@ -8,7 +8,9 @@ const lifetimeSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).substr(2, 9)),
   count: z.coerce.number().int().min(1),
   unit: z.enum(['minutes', 'hours', 'days']),
+  isPremium: z.boolean().default(false), // Added for premium-only lifetimes
 });
+
 
 export const planSchema = z.object({
   id: z.string().optional(),
@@ -31,7 +33,7 @@ export const planSchema = z.object({
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
-    availableLifetimes: z.array(lifetimeSchema).default([{ id: 'default', count: 10, unit: 'minutes' }]),
+    availableLifetimes: z.array(lifetimeSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
     allowCustomLifetime: z.boolean().default(false),
     extendTime: z.boolean().default(false),
     customPrefix: z.boolean().default(false),
