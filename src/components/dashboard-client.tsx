@@ -707,10 +707,8 @@ export function DashboardClient() {
                                             </div>
                                              <div className="flex items-center gap-2">
                                                 <div className="relative h-7 w-7 flex items-center justify-center">
-                                                    {inbox.isStarred && <Star className="h-4 w-4 text-yellow-500 shrink-0" />}
-                                                    {inbox.isArchived && <Archive className="h-4 w-4 text-muted-foreground shrink-0" />}
-                                                    <Badge variant={isActive ? "default" : "secondary"} className="transition-opacity group-hover:opacity-0">{inbox.emailCount}</Badge>
-                                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                                                    <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", isSelected && "opacity-0", !isSelected && "group-hover:opacity-0")}>{inbox.emailCount}</Badge>
+                                                    <div className={cn("absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
                                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip></TooltipProvider>
                                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip></TooltipProvider>
                                                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
@@ -792,22 +790,6 @@ export function DashboardClient() {
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             )}
-                                             {selectedEmails.length === 0 ? (
-                                                <>
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger>
-                                                            <TooltipContent><p>Star</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger>
-                                                            <TooltipContent><p>Forward</p></TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                </>
-                                            ) : null}
                                             </>
                                         )}
                                     </>
@@ -907,3 +889,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
