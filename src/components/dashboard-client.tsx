@@ -321,15 +321,13 @@ export function DashboardClient() {
             const data = doc.data();
             const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
             
-            // This is the corrected, robust handling of expiresAt
             let expiresAtDate: Date;
             if (data.expiresAt instanceof Timestamp) {
                 expiresAtDate = data.expiresAt.toDate();
             } else if (typeof data.expiresAt === 'string') {
                 expiresAtDate = new Date(data.expiresAt);
             } else {
-                // Fallback if the format is unexpected
-                expiresAtDate = new Date(0);
+                expiresAtDate = new Date(0); // Fallback for unexpected format
             }
 
             return { id: doc.id, ...data, expiresAt: expiresAtDate.toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
@@ -388,7 +386,17 @@ export function DashboardClient() {
               const inboxDoc = await getDoc(doc(firestore, "inboxes", localData.id));
               if (inboxDoc.exists() && inboxDoc.data().userId === activeUser.uid) {
                 const data = inboxDoc.data();
-                foundInbox = { id: inboxDoc.id, ...data, expiresAt: (data.expiresAt as Timestamp).toDate().toISOString() } as InboxType;
+                
+                let expiresAtDate: Date;
+                if (data.expiresAt instanceof Timestamp) {
+                  expiresAtDate = data.expiresAt.toDate();
+                } else if (typeof data.expiresAt === 'string') {
+                  expiresAtDate = new Date(data.expiresAt);
+                } else {
+                  expiresAtDate = new Date(0); // Should not happen
+                }
+
+                foundInbox = { id: inboxDoc.id, ...data, expiresAt: expiresAtDate.toISOString() } as InboxType;
               }
             }
           } catch { localStorage.removeItem(LOCAL_INBOX_KEY); }
@@ -590,7 +598,7 @@ export function DashboardClient() {
                             </Select>
                         </div>
                         <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full ml-2">
-                             {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
+                            <Copy className="mr-2 h-4 w-4"/>
                             Create
                         </Button>
                     </div>
@@ -881,3 +889,4 @@ export function DashboardClient() {
   );
 }
 
+    
