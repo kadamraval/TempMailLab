@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -368,55 +367,53 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             </CardFooter>
                         </Card>
                         
-                        <div className="grid grid-cols-1 gap-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Monthly Revenue</CardTitle>
-                                    <CardDescription>Model your potential revenue from advertising.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <Card>
-                                        <CardHeader className="pb-2">
-                                            <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Monthly Revenue</CardTitle>
+                                <CardDescription>Model your potential revenue from advertising.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label>
+                                        <Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} />
+                                        </div>
+                                        <Separator className="my-2"/>
+                                        <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                            <Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label>
-                                            <Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} />
+                                            <Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label>
+                                            <Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} />
                                             </div>
-                                            <Separator className="my-2"/>
-                                            <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label>
-                                                <Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label>
-                                                <Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label>
-                                                <Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label>
-                                                <Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label>
-                                                <Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} />
-                                                </div>
-                                                <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label>
-                                                <Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} />
-                                                </div>
+                                            <div className="space-y-2">
+                                            <Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label>
+                                            <Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} />
                                             </div>
-                                        </CardContent>
-                                    </Card>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                            <div className="space-y-2">
+                                            <Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label>
+                                            <Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                            <Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label>
+                                            <Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                            <Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label>
+                                            <Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                            <Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label>
+                                            <Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
+                        </Card>
                     </div>
                     <Separator />
                     
