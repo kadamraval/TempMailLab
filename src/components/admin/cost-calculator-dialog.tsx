@@ -217,9 +217,12 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         </CardContent>
                     </Card>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                         <Card>
-                            <CardHeader><CardTitle className="text-lg">Monthly Expenses</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Monthly Expenses</CardTitle>
+                                <CardDescription>Enter your estimated monthly costs for various services.</CardDescription>
+                            </CardHeader>
                             <CardContent className="space-y-4">
                                 <Card>
                                     <CardHeader className="pb-2">
@@ -282,11 +285,20 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </CardFooter>
                                 </Card>
                             </CardContent>
+                             <CardFooter className="bg-muted/50 p-4">
+                                <div className="w-full flex justify-between items-center">
+                                    <p className="text-md font-semibold">Total Cost Per User / Month</p>
+                                    <p className="text-lg font-bold">{formatCurrency(toCurrentCurrency(totalCostPerUser), state.currency)}</p>
+                                </div>
+                            </CardFooter>
                         </Card>
                         
                         <div className="space-y-6">
                             <Card>
-                                <CardHeader><CardTitle className="text-lg">Monthly Revenue</CardTitle></CardHeader>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Monthly Revenue</CardTitle>
+                                    <CardDescription>Model your potential revenue from advertising and subscriptions.</CardDescription>
+                                </CardHeader>
                                 <CardContent className="space-y-4">
                                     <Card>
                                         <CardHeader className="pb-2">
@@ -321,7 +333,10 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                     <Separator />
                     
                     <Card>
-                        <CardHeader><CardTitle className="text-lg">Summary & Pricing Suggestion (for {state.users.toLocaleString()} users)</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Summary & Pricing Suggestion (for {state.users.toLocaleString()} users)</CardTitle>
+                            <CardDescription>Use the results of your modeling to determine a data-driven price point.</CardDescription>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
@@ -369,3 +384,5 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         </Dialog>
     );
 }
+
+    
