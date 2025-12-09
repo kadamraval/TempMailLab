@@ -237,5 +237,3 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         </Dialog>
     )
 }
-
-    
