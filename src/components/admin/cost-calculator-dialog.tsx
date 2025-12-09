@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Trash2, Info } from 'lucide-react';
+import { PlusCircle, Trash2, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface CostCalculatorDialogProps {
     isOpen: boolean;
@@ -42,65 +45,112 @@ const FormLabelWithTooltip = ({ label, tooltipText }: { label: string; tooltipTe
     </div>
 );
 
+const initialCalculatorState = {
+    users: 1000,
+    currency: 'USD' as 'USD' | 'INR',
+    exchangeRate: 83.5,
+    profitMargin: 50,
+    expenses: {
+        mail: { volume: 50000, cost: 15, userVolume: 50 },
+        auth: { volume: 10000, cost: 0, userVolume: 1 },
+        storage: { volume: 5, cost: 0.12, userVolume: 0.05 },
+        otherCharges: [] as {name: string, cost: number}[],
+    },
+    revenue: {
+        pageviewsPerUser: 30,
+        adsPerPage: 2,
+        tier1Traffic: { percent: 50, rpm: 15 },
+        tier2Traffic: { percent: 50, rpm: 0.70 },
+    }
+};
+
+type CalculatorState = typeof initialCalculatorState;
+
 export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogProps) {
-    const [users, setUsers] = useState(1000);
-    const [currency, setCurrency] = useState<'USD' | 'INR'>('USD');
-    const [exchangeRate, setExchangeRate] = useState(83.5);
-
-    // Expense States
-    const [mail, setMail] = useState({ volume: 50000, cost: 15, userVolume: 50 });
-    const [auth, setAuth] = useState({ volume: 10000, cost: 0, userVolume: 1 });
-    const [storage, setStorage] = useState({ volume: 5, cost: 0.12, userVolume: 0.05 }); // GB
-    const [otherCharges, setOtherCharges] = useState<{name: string, cost: number}[]>([]);
+    const [state, setState] = useState<CalculatorState>(initialCalculatorState);
+    const [isSaving, setIsSaving] = useState(false);
     
-    // Revenue States
-    const [pageviewsPerUser, setPageviewsPerUser] = useState(30);
-    const [adsPerPage, setAdsPerPage] = useState(2);
-    const [tier1Traffic, setTier1Traffic] = useState({ percent: 50, rpm: 15 });
-    const [tier2Traffic, setTier2Traffic] = useState({ percent: 50, rpm: 0.70 });
-    const [totalSubscriptionRevenue, setTotalSubscriptionRevenue] = useState(500); // Manual input
+    const { toast } = useToast();
+    const firestore = useFirestore();
 
-    const toCurrentCurrency = (usdValue: number) => currency === 'INR' ? usdValue * exchangeRate : usdValue;
+    const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'admin_settings', 'cost_calculator_settings') : null, [firestore]);
+    const { data: savedSettings, isLoading: isLoadingSettings } = useDoc(settingsRef);
+    
+    useEffect(() => {
+        if (savedSettings) {
+            setState(prev => ({...prev, ...savedSettings}));
+        }
+    }, [savedSettings]);
+
+    const handleStateChange = (section: keyof CalculatorState, key: string, value: any) => {
+        setState(prev => {
+            const newSection = { ...prev[section], [key]: value };
+            return { ...prev, [section]: newSection };
+        });
+    };
+    const handleNestedStateChange = (section: 'expenses' | 'revenue', subSection: string, key: string, value: any) => {
+         setState(prev => {
+            const newSubSection = { ...prev[section][subSection as keyof typeof prev[typeof section]], [key]: value };
+            const newSection = { ...prev[section], [subSection]: newSubSection };
+            return { ...prev, [section]: newSection };
+        });
+    };
+    
+    const handleSave = async () => {
+        if (!settingsRef) return;
+        setIsSaving(true);
+        try {
+            await setDoc(settingsRef, state, { merge: true });
+            toast({ title: "Configuration Saved", description: "Your calculator settings have been saved."});
+        } catch (error: any) {
+            toast({ title: "Error", description: error.message, variant: "destructive" });
+        }
+        setIsSaving(false);
+    };
+
+    const toCurrentCurrency = (usdValue: number) => state.currency === 'INR' ? usdValue * state.exchangeRate : usdValue;
 
     // --- EXPENSES ---
-    const costPerMail = mail.cost / (mail.volume || 1);
-    const mailCostPerUser = costPerMail * mail.userVolume;
+    const costPerMail = state.expenses.mail.cost / (state.expenses.mail.volume || 1);
+    const mailCostPerUser = costPerMail * state.expenses.mail.userVolume;
     
-    const costPerAuth = auth.cost / (auth.volume || 1);
-    const authCostPerUser = costPerAuth * auth.userVolume;
+    const costPerAuth = state.expenses.auth.cost / (state.expenses.auth.volume || 1);
+    const authCostPerUser = costPerAuth * state.expenses.auth.userVolume;
 
-    const costPerGbStorage = storage.cost / (storage.volume || 1);
-    const storageCostPerUser = costPerGbStorage * storage.userVolume;
+    const costPerGbStorage = state.expenses.storage.cost / (state.expenses.storage.volume || 1);
+    const storageCostPerUser = costPerGbStorage * state.expenses.storage.userVolume;
     
-    const otherChargesPerUser = otherCharges.reduce((acc, charge) => acc + charge.cost, 0) / (users || 1);
+    const totalOtherCharges = state.expenses.otherCharges.reduce((acc, charge) => acc + charge.cost, 0);
 
-    const totalExpensePerUser = mailCostPerUser + authCostPerUser + storageCostPerUser + otherChargesPerUser;
-    const totalExpenses = totalExpensePerUser * users;
+    const totalExpensePerUser = mailCostPerUser + authCostPerUser + storageCostPerUser;
+    const totalExpenses = (totalExpensePerUser * state.users) + totalOtherCharges;
 
     // --- REVENUE ---
-    const totalAdRevenue = useMemo(() => {
-        const totalPageviews = users * pageviewsPerUser;
-        const tier1Pageviews = totalPageviews * (tier1Traffic.percent / 100);
-        const tier2Pageviews = totalPageviews * (tier2Traffic.percent / 100);
+    const { totalAdRevenue, adRevenuePerUser } = useMemo(() => {
+        const totalPageviews = state.users * state.revenue.pageviewsPerUser;
+        const tier1Pageviews = totalPageviews * (state.revenue.tier1Traffic.percent / 100);
+        const tier2Pageviews = totalPageviews * (state.revenue.tier2Traffic.percent / 100);
 
-        const tier1Earnings = (tier1Pageviews / 1000) * tier1Traffic.rpm;
-        const tier2Earnings = (tier2Pageviews / 1000) * tier2Traffic.rpm;
+        const tier1Earnings = (tier1Pageviews / 1000) * state.revenue.tier1Traffic.rpm;
+        const tier2Earnings = (tier2Pageviews / 1000) * state.revenue.tier2Traffic.rpm;
+        
+        const totalRevenue = tier1Earnings + tier2Earnings;
+        const revenuePerUser = totalRevenue / (state.users || 1);
 
-        return tier1Earnings + tier2Earnings;
-    }, [users, pageviewsPerUser, tier1Traffic, tier2Traffic]);
+        return { totalAdRevenue: totalRevenue, adRevenuePerUser: revenuePerUser };
+    }, [state.users, state.revenue.pageviewsPerUser, state.revenue.tier1Traffic, state.revenue.tier2Traffic]);
 
-    const totalRevenue = totalSubscriptionRevenue + totalAdRevenue;
-    const perUserRevenue = totalRevenue / (users || 1);
+    // --- PRICING SUGGESTION ---
+    const breakEvenPrice = totalExpensePerUser + adRevenuePerUser;
+    const suggestedPrice = breakEvenPrice * (1 + (state.profitMargin / 100));
 
-    // --- SUMMARY ---
-    const netProfit = totalRevenue - totalExpenses;
 
-    const handleAddCharge = () => setOtherCharges([...otherCharges, { name: '', cost: 0 }]);
-    const handleRemoveCharge = (index: number) => setOtherCharges(otherCharges.filter((_, i) => i !== index));
+    const handleAddCharge = () => setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: [...prev.expenses.otherCharges, { name: '', cost: 0 }]}}));
+    const handleRemoveCharge = (index: number) => setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: prev.expenses.otherCharges.filter((_, i) => i !== index)}}));
     const handleChargeChange = (index: number, field: 'name' | 'cost', value: string | number) => {
-        const newCharges = [...otherCharges];
+        const newCharges = [...state.expenses.otherCharges];
         (newCharges[index] as any)[field] = value;
-        setOtherCharges(newCharges);
+        setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: newCharges}}));
     };
 
     return (
@@ -112,68 +162,65 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         Model your operational costs and revenue streams. All financial figures are in USD and converted to your selected currency.
                     </DialogDescription>
                 </DialogHeader>
+                {isLoadingSettings ? <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
-                    {/* --- Global Settings --- */}
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Global Settings</CardTitle>
-                        </CardHeader>
+                        <CardHeader><CardTitle className="text-lg">Global Settings</CardTitle></CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Model Users" tooltipText="The total number of monthly active users to base all calculations on." />
-                                <Input type="number" value={users} onChange={(e) => setUsers(Number(e.target.value))} />
+                                <Input type="number" value={state.users} onChange={(e) => setState(p => ({...p, users: Number(e.target.value)}))} />
                             </div>
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Display Currency" tooltipText="Display all financial data in this currency." />
-                                <Select value={currency} onValueChange={(val) => setCurrency(val as any)}>
+                                <Select value={state.currency} onValueChange={(val) => setState(p => ({...p, currency: val as 'USD' | 'INR'}))}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="INR">INR</SelectItem></SelectContent>
                                 </Select>
                             </div>
-                            {currency === 'INR' && (
+                            {state.currency === 'INR' && (
                                 <div className="space-y-2">
                                     <FormLabelWithTooltip label="USD to INR Rate" tooltipText="The exchange rate used for currency conversion." />
-                                    <Input type="number" value={exchangeRate} onChange={e => setExchangeRate(Number(e.target.value))} />
+                                    <Input type="number" value={state.exchangeRate} onChange={e => setState(p => ({...p, exchangeRate: Number(e.target.value)}))} />
                                 </div>
                             )}
                         </CardContent>
                     </Card>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* --- Expenses --- */}
                         <Card>
                             <CardHeader><CardTitle className="text-lg">Monthly Expenses</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Mail (e.g., inbound.new)" tooltipText="Cost for processing incoming emails." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (# Mails)</Label><Input type="number" placeholder="Volume" value={mail.volume} onChange={e => setMail(p => ({...p, volume: Number(e.target.value)}))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" placeholder="Total Cost" value={mail.cost} onChange={e => setMail(p => ({...p, cost: Number(e.target.value)}))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={mail.userVolume} onChange={e => setMail(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (# Mails)</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleNestedStateChange('expenses', 'mail', 'volume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.mail.cost} onChange={e => handleNestedStateChange('expenses', 'mail', 'cost', Number(e.target.value))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleNestedStateChange('expenses', 'mail', 'userVolume', Number(e.target.value))} /></div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(mailCostPerUser), currency)}</p>
+                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(mailCostPerUser), state.currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Auth" tooltipText="Cost for user authentications." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (MAUs)</Label><Input type="number" value={auth.volume} onChange={e => setAuth(p => ({...p, volume: Number(e.target.value)}))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={auth.cost} onChange={e => setAuth(p => ({...p, cost: Number(e.target.value)}))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={auth.userVolume} onChange={e => setAuth(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (MAUs)</Label><Input type="number" value={state.expenses.auth.volume} onChange={e => handleNestedStateChange('expenses', 'auth', 'volume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.auth.cost} onChange={e => handleNestedStateChange('expenses', 'auth', 'cost', Number(e.target.value))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={state.expenses.auth.userVolume} onChange={e => handleNestedStateChange('expenses', 'auth', 'userVolume', Number(e.target.value))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Cloud Storage" tooltipText="Cost for storing email attachments, etc." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (GB)</Label><Input type="number" value={storage.volume} onChange={e => setStorage(p => ({...p, volume: Number(e.target.value)}))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={storage.cost} onChange={e => setStorage(p => ({...p, cost: Number(e.target.value)}))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User (GB)</Label><Input type="number" value={storage.userVolume} onChange={e => setStorage(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (GB)</Label><Input type="number" value={state.expenses.storage.volume} onChange={e => handleNestedStateChange('expenses', 'storage', 'volume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.storage.cost} onChange={e => handleNestedStateChange('expenses', 'storage', 'cost', Number(e.target.value))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User (GB)</Label><Input type="number" value={state.expenses.storage.userVolume} onChange={e => handleNestedStateChange('expenses', 'storage', 'userVolume', Number(e.target.value))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), state.currency)}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <FormLabelWithTooltip label="Other Charges" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
-                                    {otherCharges.map((charge, index) => (
+                                    <FormLabelWithTooltip label="Other Charges ($)" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
+                                    {state.expenses.otherCharges.map((charge, index) => (
                                         <div key={index} className="flex gap-2 items-center">
                                             <Input placeholder="Charge Name" value={charge.name} onChange={e => handleChargeChange(index, 'name', e.target.value)} />
                                             <Input type="number" placeholder="Cost ($)" value={charge.cost} onChange={e => handleChargeChange(index, 'cost', Number(e.target.value))} />
@@ -185,45 +232,29 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             </CardContent>
                         </Card>
                         
-                        {/* --- Revenue --- */}
                         <div className="space-y-6">
                             <Card>
-                                <CardHeader><CardTitle className="text-lg">Monthly Revenue</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-lg">Monthly AdSense Revenue</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                      <div className="space-y-4 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Google AdSense Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Impressions." />
-                                        
+                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Impressions." />
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label>
-                                                <Input type="number" value={pageviewsPerUser} onChange={e => setPageviewsPerUser(Number(e.target.value))} />
-                                            </div>
-                                             <div>
-                                                <Label className="text-xs text-muted-foreground">Ads/Page</Label>
-                                                <Input type="number" value={adsPerPage} onChange={e => setAdsPerPage(Number(e.target.value))} />
-                                            </div>
+                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleNestedStateChange('revenue', 'pageviewsPerUser', 'pageviewsPerUser', Number(e.target.value))} /></div>
+                                             <div><Label className="text-xs text-muted-foreground">Ads/Page</Label><Input type="number" value={state.revenue.adsPerPage} onChange={e => handleNestedStateChange('revenue', 'adsPerPage', 'adsPerPage', Number(e.target.value))} /></div>
                                         </div>
-                                        
                                         <Separator />
-
                                         <div className="space-y-2">
                                             <Label className="font-semibold">Traffic Distribution</Label>
                                             <div className="grid grid-cols-2 gap-2">
-                                                 <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={tier1Traffic.percent} onChange={e => setTier1Traffic(p => ({...p, percent: Number(e.target.value)}))} /></div>
-                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={tier1Traffic.rpm} onChange={e => setTier1Traffic(p => ({...p, rpm: Number(e.target.value)}))} /></div>
+                                                 <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={state.revenue.tier1Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'percent', Number(e.target.value))} /></div>
+                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'rpm', Number(e.target.value))} /></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <div><Label className="text-xs text-muted-foreground">India/Tier 2 Traffic (%)</Label><Input type="number" value={tier2Traffic.percent} onChange={e => setTier2Traffic(p => ({...p, percent: Number(e.target.value)}))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={tier2Traffic.rpm} onChange={e => setTier2Traffic(p => ({...p, rpm: Number(e.target.value)}))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">India/Tier 2 Traffic (%)</Label><Input type="number" value={state.revenue.tier2Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'percent', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'rpm', Number(e.target.value))} /></div>
                                             </div>
                                         </div>
-
-                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Ad Revenue/User: {formatCurrency(toCurrentCurrency(totalAdRevenue / (users || 1)), currency)}</p>
-                                    </div>
-                                    <div className="space-y-2 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Enter your estimated total monthly revenue from all paying subscribers in USD." />
-                                        <Input type="number" value={totalSubscriptionRevenue} onChange={e => setTotalSubscriptionRevenue(Number(e.target.value))} />
-                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Subscription Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue / (users || 1)), currency)}</p>
+                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Ad Revenue/User: {formatCurrency(toCurrentCurrency(adRevenuePerUser), state.currency)}</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -231,31 +262,50 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                     </div>
                     <Separator />
                     
-                    {/* --- Summary --- */}
-                     <Card>
-                        <CardHeader><CardTitle className="text-lg">Summary (for {users.toLocaleString()} users)</CardTitle></CardHeader>
+                    <Card>
+                        <CardHeader><CardTitle className="text-lg">Summary & Pricing Suggestion (for {state.users.toLocaleString()} users)</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
                                     <p className="text-sm text-muted-foreground">Total Monthly Expense</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalExpenses), currency)}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(totalExpensePerUser), currency)} / user</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalExpenses), state.currency)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(totalExpensePerUser), state.currency)} / user</p>
                                 </div>
                                 <div className="p-4 rounded-lg border bg-card">
-                                    <p className="text-sm text-muted-foreground">Total Monthly Revenue</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalRevenue), currency)}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(perUserRevenue), currency)} / user</p>
+                                    <p className="text-sm text-muted-foreground">Total Ad Revenue</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalAdRevenue), state.currency)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(adRevenuePerUser), state.currency)} / user</p>
                                 </div>
                             </div>
-                            <div className={cn("p-4 rounded-lg border text-center", netProfit >= 0 ? "bg-emerald-100/50 dark:bg-emerald-900/30" : "bg-red-100/50 dark:bg-red-900/30")}>
-                                <p className="text-sm text-muted-foreground">Est. Net Monthly Profit / (Loss)</p>
-                                <p className={cn("text-3xl font-bold", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{formatCurrency(toCurrentCurrency(netProfit), currency)}</p>
-                            </div>
+                             <Card>
+                                <CardHeader><FormLabelWithTooltip label="Premium Plan Pricing Suggestion" tooltipText="Calculates a suggested price for an ad-free plan to meet your profit goals." /></CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                     <div className="p-4 rounded-lg border bg-card">
+                                        <p className="text-sm text-muted-foreground">Break-Even (Cost + Ad Loss)</p>
+                                        <p className="text-xl font-bold">{formatCurrency(toCurrentCurrency(breakEvenPrice), state.currency)}</p>
+                                        <p className="text-xs text-muted-foreground">per user / month</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Desired Profit Margin (%)</Label>
+                                        <Input type="number" value={state.profitMargin} onChange={e => setState(p => ({...p, profitMargin: Number(e.target.value)}))} />
+                                    </div>
+                                    <div className={cn("p-4 rounded-lg border text-center", "bg-primary/10")}>
+                                        <p className="text-sm text-primary">Suggested Ad-Free Price</p>
+                                        <p className={cn("text-3xl font-bold text-primary")}>{formatCurrency(toCurrentCurrency(suggestedPrice), state.currency)}</p>
+                                         <p className="text-xs text-primary">per user / month</p>
+                                    </div>
+                                </CardContent>
+                             </Card>
                         </CardContent>
                     </Card>
                 </div>
+                )}
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>Close</Button>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                        Save Configuration
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
