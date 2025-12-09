@@ -20,9 +20,12 @@ export async function signUpAction(uid: string, email: string, anonymousInboxDat
         if (!userDoc.exists) {
             const isAdmin = email === 'admin@example.com';
             
+            // Standardize the user object being created
             await userRef.set({
                 uid,
                 email,
+                displayName: email.split('@')[0], // Default display name
+                inboxCount: 0,
                 planId: 'free-default',
                 isAdmin,
                 createdAt: Timestamp.now(),

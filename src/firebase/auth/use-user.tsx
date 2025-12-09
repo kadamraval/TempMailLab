@@ -6,14 +6,11 @@ import type { UserHookResult } from '../provider';
 import { useDoc, useMemoFirebase, useFirestore } from '..';
 import type { User } from '@/types';
 import { doc } from 'firebase/firestore';
-import { useMemo } from 'react';
 
 
 // This is the user profile from the `users` collection.
-export interface UserProfile extends User {
-  // Add any additional profile properties here
-  isAdmin?: boolean;
-}
+// It directly uses the `User` type from our central types file.
+export type UserProfile = User;
 
 export interface UserHookResultWithProfile extends UserHookResult {
   userProfile: UserProfile | null;

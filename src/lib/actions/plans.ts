@@ -28,8 +28,10 @@ export async function savePlanAction(planData: any, planId?: string) {
             });
         }
         
-        // Revalidate the admin path to show the updated plan list
+        // Revalidate paths to show updated plan data everywhere
         revalidatePath('/admin/packages');
+        revalidatePath('/', 'layout'); // Revalidate all pages that might show plan data
+
         return { success: true };
 
     } catch (error: any) {
@@ -55,6 +57,8 @@ export async function deletePlanAction(planId: string) {
 
         // Revalidate the admin path to show the updated plan list
         revalidatePath('/admin/packages');
+        revalidatePath('/', 'layout'); // Revalidate all pages
+
         return { success: true };
 
     } catch (error: any) {

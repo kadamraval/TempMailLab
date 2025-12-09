@@ -28,12 +28,13 @@ export interface Email {
 export interface User {
   uid: string;
   email: string | null;
+  displayName?: string;
+  inboxCount?: number;
   planId?: string; 
-  createdAt?: Timestamp;
   isAdmin?: boolean;
   isAnonymous?: boolean;
-  displayName?: string;
   photoURL?: string;
+  createdAt?: Timestamp;
 }
 
 export interface Inbox {
@@ -47,4 +48,3 @@ export interface Inbox {
   isStarred?: boolean;
   isArchived?: boolean;
 }
-    

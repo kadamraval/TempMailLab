@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -11,9 +10,7 @@
         "displayName": { "type": "string", "description": "The user's display name." },
         "inboxCount": { "type": "number", "description": "The number of inboxes the user has." },
         "planId": { "type": "string", "description": "The ID of the user's current subscription plan." },
-        "planType": { "type": "string", "description": "The type of plan the user has (e.g., 'free', 'pro')." },
         "isAdmin": { "type": "boolean", "description": "Indicates if the user has administrative privileges." },
-        "isPremium": { "type": "boolean", "description": "Indicates if the user has a premium plan." },
         "createdAt": { "type": "string", "description": "Timestamp of when the user account was created.", "format": "date-time" }
       },
       "required": ["uid", "email", "planId", "isAdmin", "createdAt"]
@@ -25,10 +22,11 @@
       "properties": {
         "userId": { "type": "string", "description": "The UID of the user who owns this inbox." },
         "emailAddress": { "type": "string", "description": "The temporary email address of the inbox." },
+        "domain": { "type": "string", "description": "The domain part of the email address." },
         "emailCount": { "type": "number", "description": "The number of emails currently in the inbox." },
         "expiresAt": { "type": "string", "description": "Timestamp indicating when the inbox and its contents will be deleted.", "format": "date-time" },
-        "isStarred": { "type": "boolean" },
-        "isArchived": { "type": "boolean" },
+        "isStarred": { "type": "boolean", "description": "If the user has starred this inbox." },
+        "isArchived": { "type": "boolean", "description": "If the user has archived this inbox." },
         "createdAt": { "type": "string", "description": "Timestamp of when the inbox was created.", "format": "date-time" }
       },
       "required": ["userId", "emailAddress", "expiresAt", "createdAt"]
@@ -43,25 +41,32 @@
         "senderName": { "type": "string", "description": "Name of the sender." },
         "subject": { "type": "string", "description": "Subject line of the email." },
         "receivedAt": { "type": "string", "description": "Timestamp of when the email was received.", "format": "date-time" },
+        "createdAt": { "type": "string", "description": "Timestamp of when the email was stored.", "format": "date-time" },
         "htmlContent": { "type": "string", "description": "HTML content of the email." },
         "textContent": { "type": "string", "description": "Plain text content of the email." },
         "rawContent": { "type": "string", "description": "The full, raw MIME content of the email." },
-        "read": { "type": "boolean", "description": "Indicates if the email has been read by the user." }
+        "read": { "type": "boolean", "description": "Indicates if the email has been read by the user." },
+        "isStarred": { "type": "boolean" },
+        "isArchived": { "type": "boolean" },
+        "isSpam": { "type": "boolean" },
+        "isBlocked": { "type": "boolean" }
       },
-      "required": ["inboxId", "userId", "senderName", "subject", "receivedAt"]
+      "required": ["inboxId", "userId", "senderName", "subject", "receivedAt", "createdAt"]
     },
     "Plan": {
-        "title": "Plan",
-        "type": "object",
-        "description": "Defines a subscription plan and its features.",
-        "properties": {
-            "name": { "type": "string" },
-            "price": { "type": "number" },
-            "billing": { "type": "string", "enum": ["monthly", "yearly", "lifetime_free"] },
-            "status": { "type": "string", "enum": ["active", "archived"] },
-            "features": { "type": "object" }
-        },
-        "required": ["name", "price", "billing", "status"]
+      "title": "Plan",
+      "description": "Defines a subscription plan and its features.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "planType": { "type": "string", "enum": ["guest", "freemium", "pro"] },
+        "price": { "type": "number" },
+        "billing": { "type": "string", "enum": ["monthly", "yearly", "lifetime_free"] },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "features": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "billing", "status", "features"]
     },
     "BlogPost": {
         "title": "Blog Post",

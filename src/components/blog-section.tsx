@@ -2,7 +2,7 @@
 "use client"
 
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, query, where, limit, Timestamp } from "firebase/firestore"
+import { collection, query, where, limit, Timestamp, orderBy } from "firebase/firestore"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
@@ -21,28 +21,19 @@ interface BlogSectionProps {
 export function BlogSection({ content }: BlogSectionProps) {
   const firestore = useFirestore();
 
-  // Corrected Query: Removed the orderBy clause that was causing silent failures.
+  // Corrected Query: Added the orderBy clause that was missing.
   const postsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
         collection(firestore, 'posts'), 
         where('status', '==', 'published'),
+        orderBy('publishedAt', 'desc'), // Sort by newest first
         limit(3)
     );
   }, [firestore]);
 
   const { data: posts, isLoading } = useCollection<BlogPost>(postsQuery);
   
-  // Added client-side sorting to ensure posts are always in the correct order.
-  const sortedPosts = useMemo(() => {
-    if (!posts) return [];
-    return [...posts].sort((a, b) => {
-        const dateA = a.publishedAt instanceof Timestamp ? a.publishedAt.toMillis() : 0;
-        const dateB = b.publishedAt instanceof Timestamp ? b.publishedAt.toMillis() : 0;
-        return dateB - dateA;
-    });
-  }, [posts]);
-
   if (isLoading) {
     return (
         <div className="flex items-center justify-center min-h-[300px]">
@@ -64,9 +55,9 @@ export function BlogSection({ content }: BlogSectionProps) {
             </div>
         )}
 
-        {sortedPosts && sortedPosts.length > 0 ? (
+        {posts && posts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {sortedPosts.map((post: any) => (
+            {posts.map((post: any) => (
                 <Card key={post.id} className="overflow-hidden flex flex-col border">
                 <Link href={`/blog/${post.slug}`}>
                     <Image

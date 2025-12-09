@@ -209,10 +209,10 @@ export function DashboardClient() {
     }
     
     if (activeMailFilter === 'Old') {
-        return filtered.sort((a,b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
+        return filtered.sort((a,b) => new Date(a.receivedAt as string).getTime() - new Date(b.receivedAt as string).getTime());
     }
     // New and All sort by newest first
-    return filtered.sort((a,b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+    return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
   }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
 
 
@@ -295,6 +295,8 @@ export function DashboardClient() {
                 emailCount: 0,
                 expiresAt: Timestamp.fromDate(expiresAt),
                 createdAt: serverTimestamp(),
+                isStarred: false,
+                isArchived: false,
             };
 
             const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
@@ -629,7 +631,7 @@ export function DashboardClient() {
                                 </SelectContent>
                             </Select>
                         </div>
-                         <Button onClick={() => createNewInbox(auth!.currentUser!, activePlan)} disabled={isCreating} className="h-full ml-2">
+                         <Button onClick={() => auth?.currentUser && createNewInbox(auth.currentUser, activePlan)} disabled={isCreating} className="h-full ml-2">
                             <Copy className="mr-2 h-4 w-4"/>
                             Create
                         </Button>
@@ -928,5 +930,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
