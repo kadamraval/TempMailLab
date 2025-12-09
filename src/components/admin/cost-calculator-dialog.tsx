@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -52,33 +53,29 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
     // Expense States
     const [mail, setMail] = useState({ volume: 50000, cost: 15 });
-    const [auth, setAuth] = useState({ volume: 10000, cost: 2.50 });
-    const [hosting, setHosting] = useState({ volume: 10, cost: 0.12 });
+    const [auth, setAuth] = useState({ volume: 1000, cost: 0 }); // First 10k free
     const [storage, setStorage] = useState({ volume: 20, cost: 3.60 });
     const [otherCharges, setOtherCharges] = useState<{name: string, cost: number}[]>([]);
     
-    // AdSense Revenue States
+    // Revenue States
     const [pageviewsPerUser, setPageviewsPerUser] = useState(30);
     const [adsPerPage, setAdsPerPage] = useState(2);
     const [ctr, setCtr] = useState(2); // Click-Through Rate %
     const [cpc, setCpc] = useState(0.50); // Cost Per Click $
+    const [totalSubscriptionRevenue, setTotalSubscriptionRevenue] = useState(500); // Manual input
 
-    const firestore = useFirestore();
-    const plansQuery = useMemoFirebase(() => firestore ? collection(firestore, "plans") : null, [firestore]);
-    const { data: plans } = useCollection<Plan>(plansQuery);
-    
     const toCurrentCurrency = (usdValue: number) => currency === 'INR' ? usdValue * exchangeRate : usdValue;
+    const fromCurrentCurrency = (value: number) => currency === 'INR' ? value / exchangeRate : value;
 
-    const totalSubscriptionRevenue = useMemo(() => {
-        if (!plans) return 0;
-        return plans.reduce((acc, plan) => {
-             if (plan.status === 'active' && plan.price > 0) {
-                 return acc + toCurrentCurrency(plan.price);
-             }
-             return acc;
-        }, 0);
-    }, [plans, currency, exchangeRate]);
+    // --- EXPENSES ---
+    const totalMailCost = toCurrentCurrency(mail.cost);
+    const totalAuthCost = toCurrentCurrency(auth.cost);
+    const totalStorageCost = toCurrentCurrency(storage.cost);
+    const totalOtherCharges = otherCharges.reduce((acc, charge) => acc + toCurrentCurrency(charge.cost), 0);
+    const totalExpenses = totalMailCost + totalAuthCost + totalStorageCost + totalOtherCharges;
+    const totalExpensePerUser = totalExpenses / (users || 1);
 
+    // --- REVENUE ---
     const totalAdRevenue = useMemo(() => {
         const totalImpressions = users * pageviewsPerUser * adsPerPage;
         const totalClicks = totalImpressions * (ctr / 100);
@@ -86,21 +83,11 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         return toCurrentCurrency(totalRevenueUSD);
     }, [users, pageviewsPerUser, adsPerPage, ctr, cpc, currency, exchangeRate]);
 
-    const totalRevenue = totalSubscriptionRevenue + totalAdRevenue;
+    const totalRevenue = toCurrentCurrency(totalSubscriptionRevenue) + totalAdRevenue;
+    const perUserRevenue = totalRevenue / (users || 1);
 
-    const calculatePerUserCost = (totalCost: number) => totalCost / (users || 1);
-    
-    const mailPerUserCost = calculatePerUserCost(toCurrentCurrency(mail.cost));
-    const authPerUserCost = calculatePerUserCost(toCurrentCurrency(auth.cost));
-    const hostingPerUserCost = calculatePerUserCost(toCurrentCurrency(hosting.cost));
-    const storagePerUserCost = calculatePerUserCost(toCurrentCurrency(storage.cost));
-    const otherChargesPerUserCost = otherCharges.reduce((acc, charge) => acc + calculatePerUserCost(toCurrentCurrency(charge.cost)), 0);
-
-    const totalExpensePerUser = mailPerUserCost + authPerUserCost + hostingPerUserCost + storagePerUserCost + otherChargesPerUserCost;
-    const totalExpenses = totalExpensePerUser * users;
-
+    // --- SUMMARY ---
     const netProfit = totalRevenue - totalExpenses;
-    const perUserRevenue = users > 0 ? totalRevenue / users : 0;
 
     const handleAddCharge = () => setOtherCharges([...otherCharges, { name: '', cost: 0 }]);
     const handleRemoveCharge = (index: number) => setOtherCharges(otherCharges.filter((_, i) => i !== index));
@@ -157,7 +144,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         <div><Label className="text-xs text-muted-foreground">Volume (# Mails)</Label><Input type="number" placeholder="Volume" value={mail.volume} onChange={e => setMail(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" placeholder="Total Cost" value={mail.cost} onChange={e => setMail(p => ({...p, cost: Number(e.target.value)}))} /></div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(mailPerUserCost, currency)}</p>
+                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalMailCost / (users || 1), currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Auth" tooltipText="Cost for user authentications. First 10k MAU are free." />
@@ -165,7 +152,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         <div><Label className="text-xs text-muted-foreground">Volume (MAUs)</Label><Input type="number" value={auth.volume} onChange={e => setAuth(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={auth.cost} onChange={e => setAuth(p => ({...p, cost: Number(e.target.value)}))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(authPerUserCost, currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalAuthCost / (users || 1), currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Cloud Storage" tooltipText="Cost for storing email attachments, etc." />
@@ -173,14 +160,14 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         <div><Label className="text-xs text-muted-foreground">Volume (GB)</Label><Input type="number" value={storage.volume} onChange={e => setStorage(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={storage.cost} onChange={e => setStorage(p => ({...p, cost: Number(e.target.value)}))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(storagePerUserCost, currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalStorageCost / (users || 1), currency)}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <FormLabelWithTooltip label="Other Charges" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
                                     {otherCharges.map((charge, index) => (
                                         <div key={index} className="flex gap-2 items-center">
                                             <Input placeholder="Charge Name" value={charge.name} onChange={e => handleChargeChange(index, 'name', e.target.value)} />
-                                            <Input type="number" placeholder="Cost" value={charge.cost} onChange={e => handleChargeChange(index, 'cost', Number(e.target.value))} />
+                                            <Input type="number" placeholder="Cost ($)" value={charge.cost} onChange={e => handleChargeChange(index, 'cost', Number(e.target.value))} />
                                             <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                         </div>
                                     ))}
@@ -204,9 +191,10 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         </div>
                                          <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(totalAdRevenue / (users || 1), currency)}</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <FormLabelWithTooltip label="Subscription Revenue (Fetched)" tooltipText="This is automatically calculated from your active, priced subscription plans." />
-                                        <Input readOnly value={formatCurrency(totalSubscriptionRevenue, currency)} className="bg-muted" />
+                                    <div className="space-y-2 p-3 border rounded-lg">
+                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue" tooltipText="Enter your estimated total monthly revenue from all paying subscribers." />
+                                        <Input type="number" value={fromCurrentCurrency(toCurrentCurrency(totalSubscriptionRevenue))} onChange={e => setTotalSubscriptionRevenue(fromCurrentCurrency(Number(e.target.value)))} />
+                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue) / (users || 1), currency)}</p>
                                     </div>
                                 </CardContent>
                             </Card>
