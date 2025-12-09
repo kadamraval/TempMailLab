@@ -103,22 +103,20 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     
     useEffect(() => {
         if (savedSettings) {
-            // Use deep merge to prevent overwriting nested state with undefined
-            setState(prev => mergeDeep({ ...prev }, savedSettings));
+            setState(prev => mergeDeep({ ...initialCalculatorState }, prev, savedSettings));
         }
     }, [savedSettings]);
 
-    const handleStateChange = (section: keyof CalculatorState, key: string, value: any) => {
+    const handleNestedChange = (path: string, value: any) => {
         setState(prev => {
-            const newSection = { ...prev[section], [key]: value };
-            return { ...prev, [section]: newSection };
-        });
-    };
-    const handleNestedStateChange = (section: 'expenses' | 'revenue', subSection: string, key: string, value: any) => {
-         setState(prev => {
-            const newSubSection = { ...prev[section][subSection as keyof typeof prev[typeof section]], [key]: value };
-            const newSection = { ...prev[section], [subSection]: newSubSection };
-            return { ...prev, [section]: newSection };
+            const keys = path.split('.');
+            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
+            let current = newState;
+            for (let i = 0; i < keys.length - 1; i++) {
+                current = current[keys[i]];
+            }
+            current[keys[keys.length - 1]] = value;
+            return newState;
         });
     };
     
@@ -185,12 +183,12 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     const suggestedPrice = breakEvenPrice * (1 + (state.profitMargin / 100));
 
 
-    const handleAddCharge = () => setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: [...prev.expenses.otherCharges, { name: '', cost: 0 }]}}));
-    const handleRemoveCharge = (index: number) => setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: prev.expenses.otherCharges.filter((_, i) => i !== index)}}));
+    const handleAddCharge = () => handleNestedChange('expenses.otherCharges', [...state.expenses.otherCharges, { name: '', cost: 0 }]);
+    const handleRemoveCharge = (index: number) => handleNestedChange('expenses.otherCharges', state.expenses.otherCharges.filter((_, i) => i !== index));
     const handleChargeChange = (index: number, field: 'name' | 'cost', value: string | number) => {
         const newCharges = [...state.expenses.otherCharges];
         (newCharges[index] as any)[field] = value;
-        setState(prev => ({...prev, expenses: {...prev.expenses, otherCharges: newCharges}}));
+        handleNestedChange('expenses.otherCharges', newCharges);
     };
 
     return (
@@ -209,11 +207,11 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Model Users" tooltipText="The total number of monthly active users to base all calculations on." />
-                                <Input type="number" value={state.users} onChange={(e) => setState(p => ({...p, users: Number(e.target.value)}))} />
+                                <Input type="number" value={state.users} onChange={(e) => handleNestedChange('users', Number(e.target.value))} />
                             </div>
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Display Currency" tooltipText="Display all financial data in this currency." />
-                                <Select value={state.currency} onValueChange={(val) => setState(p => ({...p, currency: val as 'USD' | 'INR'}))}>
+                                <Select value={state.currency} onValueChange={(val) => handleNestedChange('currency', val as 'USD' | 'INR')}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="INR">INR</SelectItem></SelectContent>
                                 </Select>
@@ -221,7 +219,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             {state.currency === 'INR' && (
                                 <div className="space-y-2">
                                     <FormLabelWithTooltip label="USD to INR Rate" tooltipText="The exchange rate used for currency conversion." />
-                                    <Input type="number" value={state.exchangeRate} onChange={e => setState(p => ({...p, exchangeRate: Number(e.target.value)}))} />
+                                    <Input type="number" value={state.exchangeRate} onChange={e => handleNestedChange('exchangeRate', Number(e.target.value))} />
                                 </div>
                             )}
                         </CardContent>
@@ -234,17 +232,17 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Mail (e.g., inbound.new)" tooltipText="Cost for processing incoming emails. This is a third-party service." />
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleNestedStateChange('expenses', 'mail', 'volume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.mail.cost} onChange={e => handleNestedStateChange('expenses', 'mail', 'cost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleNestedStateChange('expenses', 'mail', 'userVolume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleNestedChange('expenses.mail.volume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.mail.cost} onChange={e => handleNestedChange('expenses.mail.cost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleNestedChange('expenses.mail.userVolume', Number(e.target.value))} /></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(mailCostPerUser), state.currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Auth (MAU)" tooltipText="Cost for monthly active users after the free tier." />
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier</Label><Input type="number" value={state.expenses.auth.freeTier} onChange={e => handleNestedStateChange('expenses', 'auth', 'freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Cost/User ($)</Label><Input type="number" step="0.01" value={state.expenses.auth.paidCost} onChange={e => handleNestedStateChange('expenses', 'auth', 'paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier</Label><Input type="number" value={state.expenses.auth.freeTier} onChange={e => handleNestedChange('expenses.auth.freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/User ($)</Label><Input type="number" step="0.01" value={state.expenses.auth.paidCost} onChange={e => handleNestedChange('expenses.auth.paidCost', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" readOnly value={state.expenses.auth.userVolume} /></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)}</p>
@@ -252,18 +250,18 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Hosting (GB)" tooltipText="Cost for data transfer (egress) after the free tier." />
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleNestedStateChange('expenses', 'hosting', 'freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.hosting.paidCost} onChange={e => handleNestedStateChange('expenses', 'hosting', 'paidCost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.1" value={state.expenses.hosting.userVolume} onChange={e => handleNestedStateChange('expenses', 'hosting', 'userVolume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleNestedChange('expenses.hosting.freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.hosting.paidCost} onChange={e => handleNestedChange('expenses.hosting.paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.1" value={state.expenses.hosting.userVolume} onChange={e => handleNestedChange('expenses.hosting.userVolume', Number(e.target.value))} /></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(hostingCostPerUser), state.currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Cloud Storage (GB)" tooltipText="Cost for storing files (attachments) after the free tier." />
                                     <div className="grid grid-cols-3 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.storage.freeTier} onChange={e => handleNestedStateChange('expenses', 'storage', 'freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.storage.paidCost} onChange={e => handleNestedStateChange('expenses', 'storage', 'paidCost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.01" value={state.expenses.storage.userVolume} onChange={e => handleNestedStateChange('expenses', 'storage', 'userVolume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.storage.freeTier} onChange={e => handleNestedChange('expenses.storage.freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.storage.paidCost} onChange={e => handleNestedChange('expenses.storage.paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.01" value={state.expenses.storage.userVolume} onChange={e => handleNestedChange('expenses.storage.userVolume', Number(e.target.value))} /></div>
                                     </div>
                                      <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), state.currency)}</p>
                                 </div>
@@ -288,22 +286,22 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                      <div className="space-y-4 p-3 border rounded-lg">
                                         <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
                                         <div className="grid grid-cols-1 gap-4">
-                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => setState(p => ({...p, revenue: {...p.revenue, pageviewsPerUser: Number(e.target.value)}}))} /></div>
+                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleNestedChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
                                         </div>
                                         <Separator />
                                         <div className="space-y-2">
                                             <Label className="font-semibold">Traffic Distribution & RPM</Label>
                                             <div className="grid grid-cols-2 gap-2">
-                                                 <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={state.revenue.tier1Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'percent', Number(e.target.value))} /></div>
-                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'rpm', Number(e.target.value))} /></div>
+                                                 <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={state.revenue.tier1Traffic.percent} onChange={e => handleNestedChange('revenue.tier1Traffic.percent', Number(e.target.value))} /></div>
+                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1Traffic.rpm} onChange={e => handleNestedChange('revenue.tier1Traffic.rpm', Number(e.target.value))} /></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <div><Label className="text-xs text-muted-foreground">Europe/Tier 2 Traffic (%)</Label><Input type="number" value={state.revenue.tier2Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'percent', Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'rpm', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Europe/Tier 2 Traffic (%)</Label><Input type="number" value={state.revenue.tier2Traffic.percent} onChange={e => handleNestedChange('revenue.tier2Traffic.percent', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2Traffic.rpm} onChange={e => handleNestedChange('revenue.tier2Traffic.rpm', Number(e.target.value))} /></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <div><Label className="text-xs text-muted-foreground">India/Tier 3 Traffic (%)</Label><Input type="number" value={state.revenue.tier3Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier3Traffic', 'percent', Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" value={state.revenue.tier3Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier3Traffic', 'rpm', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">India/Tier 3 Traffic (%)</Label><Input type="number" value={state.revenue.tier3Traffic.percent} onChange={e => handleNestedChange('revenue.tier3Traffic.percent', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" value={state.revenue.tier3Traffic.rpm} onChange={e => handleNestedChange('revenue.tier3Traffic.rpm', Number(e.target.value))} /></div>
                                             </div>
                                         </div>
                                          <p className="text-xs text-muted-foreground text-right pt-1">Est. Ad Revenue/User: {formatCurrency(toCurrentCurrency(adRevenuePerUser), state.currency)}</p>
@@ -339,7 +337,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Desired Profit Margin (%)</Label>
-                                        <Input type="number" value={state.profitMargin} onChange={e => setState(p => ({...p, profitMargin: Number(e.target.value)}))} />
+                                        <Input type="number" value={state.profitMargin} onChange={e => handleNestedChange('profitMargin', Number(e.target.value))} />
                                     </div>
                                     <div className={cn("p-4 rounded-lg border text-center", "bg-primary/10")}>
                                         <p className="text-sm text-primary">Suggested Ad-Free Price</p>
