@@ -66,16 +66,16 @@ const featureTooltips: Record<string, string> = {
   availableInboxtimers: "Predefined durations an inbox address remains active before it stops receiving new mail.",
   allowCustomtimer: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
-  customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters).",
-  inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically.",
-  qrCode: "Allow users to generate a QR code for their inbox address.",
+  customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters). True means unlimited, a number sets a specific limit.",
+  inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically. True means unlimited, a number sets a specific limit.",
+  qrCode: "Allow users to generate a QR code for their inbox address. True means unlimited, a number sets a specific limit.",
   
   // Email
   dailyEmailLimit: "Maximum number of emails a user can receive across all inboxes per day. Set to 0 for unlimited.",
   maxEmailsPerInbox: "Max number of emails to store per inbox. Older emails will be deleted. Set to 0 for unlimited.",
   allowAttachments: "Allow or block incoming emails that contain file attachments.",
   maxAttachmentSize: "The maximum size in megabytes (MB) for a single email attachment.",
-  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address.",
+  emailForwarding: "Automatically forward incoming temporary emails to a real, verified email address. True means unlimited, a number sets a specific limit.",
   exportEmails: "Allow users to download single emails (as .eml) or bulk export (as .zip).",
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
@@ -92,14 +92,14 @@ const featureTooltips: Record<string, string> = {
   allowPremiumDomains: "Grant access to a pool of shorter, more memorable premium domains.",
   
   // Security & Privacy
-  passwordProtection: "Allow users to secure their temporary inboxes with a password.",
+  passwordProtection: "Allow users to secure their temporary inboxes with a password. True means unlimited, a number sets a specific limit.",
   twoFactorAuth: "Enable Two-Factor Authentication (2FA) for securing user accounts.",
   spamFilteringLevel: "The level of spam filtering applied to incoming emails.",
   virusScanning: "Automatically scan all incoming attachments for malware.",
   auditLogs: "For team/business accounts, a log of actions taken by team members.",
   linkSanitization: "Scan links for known malicious sites and warn the user before redirection.",
   spam: "Allow users to mark emails as spam.",
-  block: "Allow users to block specific senders or domains.",
+  block: "Allow users to block specific senders or domains. True means unlimited, a number sets a specific limit.",
   filter: "Enable filtering rules for incoming mail.",
 
   // API
@@ -302,9 +302,6 @@ export function PlanForm({ plan }: PlanFormProps) {
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            
-            <CostAnalysisModule planData={watchedPlan} />
-            
             <Card>
                 <CardHeader>
                     <CardTitle>{plan ? `Edit: ${plan.name}` : 'Add New Plan'}</CardTitle>
@@ -435,7 +432,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                                                     <FormControl>
                                                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                                                     </FormControl>
-                                                    <FormLabel>Premium</FormLabel>
+                                                    <Label>Premium</Label>
                                                 </FormItem>
                                             )}
                                         />
@@ -557,11 +554,11 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 <RadioGroup onValueChange={field.onChange} value={field.value} className="flex space-x-4">
                                     <FormItem className="flex items-center space-x-2 space-y-0">
                                         <FormControl><RadioGroupItem value="active" /></FormControl>
-                                        <FormLabel className="font-normal">Active</FormLabel>
+                                        <Label className="font-normal">Active</Label>
                                     </FormItem>
                                     <FormItem className="flex items-center space-x-2 space-y-0">
                                         <FormControl><RadioGroupItem value="archived" /></FormControl>
-                                        <FormLabel className="font-normal">Archived</FormLabel>
+                                        <Label className="font-normal">Archived</Label>
                                     </FormItem>
                                 </RadioGroup>
                             </FormControl>
@@ -585,6 +582,10 @@ export function PlanForm({ plan }: PlanFormProps) {
                 </CardFooter>
             </Card>
         </form>
+
+        <div className="mt-6">
+            <CostAnalysisModule planData={watchedPlan} />
+        </div>
     </Form>
   )
 }
