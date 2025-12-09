@@ -66,11 +66,12 @@ const initialCalculatorState = {
     profitMargin: 50,
     expenses: {
         mail: { volume: 50000, cost: 0.8, userVolume: 50 },
-        auth: { freeTier: 50000, paidTierVolume: 1, paidTierPrice: 0.0055, userVolume: 1 },
-        storage: { freeTier: 5, paidTierVolume: 1, paidTierPrice: 0.02, userVolume: 0.001 },
         hosting: { freeTier: 2000000, paidTierVolume: 1000000, paidTierPrice: 0.4, userVolume: 100 },
+        storage: { freeTier: 5, paidTierVolume: 1, paidTierPrice: 0.02, userVolume: 0.001 },
+        auth: { freeTier: 50000, paidTierVolume: 1, paidTierPrice: 0.0055, userVolume: 1 },
+        dbOps: { readFree: 50000, writeFree: 20000, readPrice: 0.06, writePrice: 0.18, userReads: 100, userWrites: 50 },
         otherCharges: [
-            { id: 'domains', type: 'basic', name: 'Domain Name Renewals', cost: 15 },
+            { id: 'domains', type: 'basic', name: 'Domain Name Renewals (Annual)', cost: 15 },
             { id: 'outbound', type: 'basic', name: 'Outbound Email Service (e.g., SendGrid)', cost: 10 },
         ] as OtherCharge[],
     },
@@ -165,9 +166,22 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         return costPerUnit * (state.expenses.mail.userVolume || 0);
     }, [state.expenses.mail]);
     
-    const authCostPerUser = useMemo(() => calculateServiceCostPerUser(state.expenses.auth), [state.expenses.auth, state.users]);
-    const storageCostPerUser = useMemo(() => calculateServiceCostPerUser(state.expenses.storage), [state.expenses.storage, state.users]);
     const hostingCostPerUser = useMemo(() => calculateServiceCostPerUser(state.expenses.hosting), [state.expenses.hosting, state.users]);
+    const storageCostPerUser = useMemo(() => calculateServiceCostPerUser(state.expenses.storage), [state.expenses.storage, state.users]);
+    const authCostPerUser = useMemo(() => calculateServiceCostPerUser(state.expenses.auth), [state.expenses.auth, state.users]);
+
+    const dbOpsCostPerUser = useMemo(() => {
+        const totalReads = state.users * state.expenses.dbOps.userReads;
+        const totalWrites = state.users * state.expenses.dbOps.userWrites;
+
+        const chargeableReads = Math.max(0, totalReads - state.expenses.dbOps.readFree);
+        const chargeableWrites = Math.max(0, totalWrites - state.expenses.dbOps.writeFree);
+        
+        const readCost = (chargeableReads / 100000) * state.expenses.dbOps.readPrice;
+        const writeCost = (chargeableWrites / 100000) * state.expenses.dbOps.writePrice;
+        
+        return (readCost + writeCost) / (state.users || 1);
+    }, [state.expenses.dbOps, state.users]);
 
     const otherChargesPerUser = useMemo(() => {
         return state.expenses.otherCharges.reduce((acc, charge) => {
@@ -182,7 +196,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     }, [state.expenses.otherCharges, state.users]);
 
 
-    const totalCostPerUser = mailCostPerUser + authCostPerUser + storageCostPerUser + hostingCostPerUser + otherChargesPerUser;
+    const totalCostPerUser = mailCostPerUser + hostingCostPerUser + storageCostPerUser + authCostPerUser + dbOpsCostPerUser + otherChargesPerUser;
     
     const totalAdRevenuePerUser = useMemo(() => {
         const pageviewsPerUser = state.revenue.pageviewsPerUser || 0;
@@ -219,9 +233,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Business Cost & Revenue Calculator</DialogTitle>
-                    <CardDescription>
+                    <DialogDescription>
                         Model your operational costs and revenue streams to determine a data-driven price for your premium plan.
-                    </CardDescription>
+                    </DialogDescription>
                 </DialogHeader>
                 {isLoadingSettings ? <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
@@ -282,7 +296,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 
                                 <Card>
                                     <CardHeader className="pb-2">
-                                        <FormLabelWithTooltip label="Hosting (Compute)" tooltipText={`Cost for server-side code execution (e.g. webhooks) beyond the free tier.`} />
+                                        <FormLabelWithTooltip label="Hosting (Cloud Run)" tooltipText={`Cost for server-side code execution (e.g. webhooks) beyond the free tier.`} />
                                     </CardHeader>
                                     <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                         <div className="space-y-2">
@@ -309,15 +323,58 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </CardFooter>
                                 </Card>
 
-                                {['storage', 'auth'].map(service => {
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Firestore Database Operations" tooltipText={`Cost for reading and writing documents in your database.`} />
+                                    </CardHeader>
+                                    <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-4">
+                                        <div className="p-4 border rounded-md space-y-4">
+                                            <Label className="font-semibold">Read Operations</Label>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Free Reads / month</Label>
+                                                <Input type="number" value={state.expenses.dbOps.readFree} onChange={e => handleStateChange(`expenses.dbOps.readFree`, Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Price per 100k Reads ($)</Label>
+                                                <Input type="number" step="0.01" value={state.expenses.dbOps.readPrice} onChange={e => handleStateChange(`expenses.dbOps.readPrice`, Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Est. Reads / User</Label>
+                                                <Input type="number" value={state.expenses.dbOps.userReads} onChange={e => handleStateChange(`expenses.dbOps.userReads`, Number(e.target.value))} />
+                                            </div>
+                                        </div>
+                                        <div className="p-4 border rounded-md space-y-4">
+                                            <Label className="font-semibold">Write Operations</Label>
+                                             <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Free Writes / month</Label>
+                                                <Input type="number" value={state.expenses.dbOps.writeFree} onChange={e => handleStateChange(`expenses.dbOps.writeFree`, Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Price per 100k Writes ($)</Label>
+                                                <Input type="number" step="0.01" value={state.expenses.dbOps.writePrice} onChange={e => handleStateChange(`expenses.dbOps.writePrice`, Number(e.target.value))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Est. Writes / User</Label>
+                                                <Input type="number" value={state.expenses.dbOps.userWrites} onChange={e => handleStateChange(`expenses.dbOps.userWrites`, Number(e.target.value))} />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <p className="text-sm text-muted-foreground">
+                                            Cost per User: <span className="font-bold text-foreground">{formatCurrency(toCurrentCurrency(dbOpsCostPerUser), state.currency)}</span>
+                                        </p>
+                                    </CardFooter>
+                                </Card>
+
+                                {[['storage', 'Storage (GiB)'], ['auth', 'Authentication (MAUs)']].map(([service, serviceLabel]) => {
                                     const s = service as 'storage' | 'auth';
                                     const config = state.expenses[s];
                                     const costPerUser = calculateServiceCostPerUser(config);
-                                    const unit = s === 'storage' ? 'GB' : 'Users';
+                                    const unit = s === 'storage' ? 'GiB' : 'Users';
                                     return (
                                         <Card key={s}>
                                             <CardHeader className="pb-2">
-                                                <FormLabelWithTooltip label={s.charAt(0).toUpperCase() + s.slice(1)} tooltipText={`Cost for ${s} beyond the free tier.`} />
+                                                <FormLabelWithTooltip label={serviceLabel} tooltipText={`Cost for ${s} beyond the free tier.`} />
                                             </CardHeader>
                                             <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 <div className="space-y-2">
