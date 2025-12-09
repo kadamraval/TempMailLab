@@ -9,12 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { PlusCircle, Trash2, Info } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import type { Plan } from '@/app/(admin)/admin/packages/data';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 interface CostCalculatorDialogProps {
     isOpen: boolean;
@@ -52,9 +49,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     const [exchangeRate, setExchangeRate] = useState(83.5);
 
     // Expense States
-    const [mail, setMail] = useState({ volume: 50000, cost: 15 });
-    const [auth, setAuth] = useState({ volume: 1000, cost: 0 }); // First 10k free
-    const [storage, setStorage] = useState({ volume: 20, cost: 3.60 });
+    const [mail, setMail] = useState({ volume: 50000, cost: 15, userVolume: 50 });
+    const [auth, setAuth] = useState({ volume: 10000, cost: 0, userVolume: 1 });
+    const [storage, setStorage] = useState({ volume: 5, cost: 0.12, userVolume: 0.05 }); // GB
     const [otherCharges, setOtherCharges] = useState<{name: string, cost: number}[]>([]);
     
     // Revenue States
@@ -65,25 +62,30 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     const [totalSubscriptionRevenue, setTotalSubscriptionRevenue] = useState(500); // Manual input
 
     const toCurrentCurrency = (usdValue: number) => currency === 'INR' ? usdValue * exchangeRate : usdValue;
-    const fromCurrentCurrency = (value: number) => currency === 'INR' ? value / exchangeRate : value;
 
     // --- EXPENSES ---
-    const totalMailCost = toCurrentCurrency(mail.cost);
-    const totalAuthCost = toCurrentCurrency(auth.cost);
-    const totalStorageCost = toCurrentCurrency(storage.cost);
-    const totalOtherCharges = otherCharges.reduce((acc, charge) => acc + toCurrentCurrency(charge.cost), 0);
-    const totalExpenses = totalMailCost + totalAuthCost + totalStorageCost + totalOtherCharges;
-    const totalExpensePerUser = totalExpenses / (users || 1);
+    const costPerMail = mail.cost / (mail.volume || 1);
+    const mailCostPerUser = costPerMail * mail.userVolume;
+    
+    const costPerAuth = auth.cost / (auth.volume || 1);
+    const authCostPerUser = costPerAuth * auth.userVolume;
+
+    const costPerGbStorage = storage.cost / (storage.volume || 1);
+    const storageCostPerUser = costPerGbStorage * storage.userVolume;
+    
+    const otherChargesPerUser = otherCharges.reduce((acc, charge) => acc + charge.cost, 0) / (users || 1);
+
+    const totalExpensePerUser = mailCostPerUser + authCostPerUser + storageCostPerUser + otherChargesPerUser;
+    const totalExpenses = totalExpensePerUser * users;
 
     // --- REVENUE ---
     const totalAdRevenue = useMemo(() => {
         const totalImpressions = users * pageviewsPerUser * adsPerPage;
         const totalClicks = totalImpressions * (ctr / 100);
-        const totalRevenueUSD = totalClicks * cpc;
-        return toCurrentCurrency(totalRevenueUSD);
-    }, [users, pageviewsPerUser, adsPerPage, ctr, cpc, currency, exchangeRate]);
+        return totalClicks * cpc;
+    }, [users, pageviewsPerUser, adsPerPage, ctr, cpc]);
 
-    const totalRevenue = toCurrentCurrency(totalSubscriptionRevenue) + totalAdRevenue;
+    const totalRevenue = totalSubscriptionRevenue + totalAdRevenue;
     const perUserRevenue = totalRevenue / (users || 1);
 
     // --- SUMMARY ---
@@ -103,7 +105,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                 <DialogHeader>
                     <DialogTitle>Business Cost & Revenue Calculator</DialogTitle>
                     <DialogDescription>
-                        Model your operational costs and revenue streams based on a set number of users. All costs are monthly estimates.
+                        Model your operational costs and revenue streams. All financial figures are in USD and converted to your selected currency.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
@@ -114,11 +116,11 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <FormLabelWithTooltip label="Model Users" tooltipText="The total number of users to base all calculations on." />
+                                <FormLabelWithTooltip label="Model Users" tooltipText="The total number of monthly active users to base all calculations on." />
                                 <Input type="number" value={users} onChange={(e) => setUsers(Number(e.target.value))} />
                             </div>
                             <div className="space-y-2">
-                                <FormLabelWithTooltip label="Currency" tooltipText="Display all financial data in this currency." />
+                                <FormLabelWithTooltip label="Display Currency" tooltipText="Display all financial data in this currency." />
                                 <Select value={currency} onValueChange={(val) => setCurrency(val as any)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="INR">INR</SelectItem></SelectContent>
@@ -141,26 +143,29 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Mail (e.g., inbound.new)" tooltipText="Cost for processing incoming emails." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Volume (# Mails)</Label><Input type="number" placeholder="Volume" value={mail.volume} onChange={e => setMail(p => ({...p, volume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (# Mails)</Label><Input type="number" placeholder="Volume" value={mail.volume} onChange={e => setMail(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" placeholder="Total Cost" value={mail.cost} onChange={e => setMail(p => ({...p, cost: Number(e.target.value)}))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={mail.userVolume} onChange={e => setMail(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
                                     </div>
-                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalMailCost / (users || 1), currency)}</p>
+                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(mailCostPerUser), currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Firebase Auth" tooltipText="Cost for user authentications. First 10k MAU are free." />
+                                    <FormLabelWithTooltip label="Firebase Auth" tooltipText="Cost for user authentications." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Volume (MAUs)</Label><Input type="number" value={auth.volume} onChange={e => setAuth(p => ({...p, volume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (MAUs)</Label><Input type="number" value={auth.volume} onChange={e => setAuth(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={auth.cost} onChange={e => setAuth(p => ({...p, cost: Number(e.target.value)}))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={auth.userVolume} onChange={e => setAuth(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalAuthCost / (users || 1), currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Cloud Storage" tooltipText="Cost for storing email attachments, etc." />
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Volume (GB)</Label><Input type="number" value={storage.volume} onChange={e => setStorage(p => ({...p, volume: Number(e.target.value)}))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume (GB)</Label><Input type="number" value={storage.volume} onChange={e => setStorage(p => ({...p, volume: Number(e.target.value)}))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={storage.cost} onChange={e => setStorage(p => ({...p, cost: Number(e.target.value)}))} /></div>
+                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User (GB)</Label><Input type="number" value={storage.userVolume} onChange={e => setStorage(p => ({...p, userVolume: Number(e.target.value)}))} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(totalStorageCost / (users || 1), currency)}</p>
+                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), currency)}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <FormLabelWithTooltip label="Other Charges" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
@@ -184,17 +189,17 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                      <div className="space-y-2 p-3 border rounded-lg">
                                         <FormLabelWithTooltip label="Google AdSense Calculator" tooltipText="Model your ad revenue based on user activity." />
                                         <div className="grid grid-cols-2 gap-2">
-                                             <div><Label className="text-xs text-muted-foreground">Pageviews/User</Label><Input type="number" value={pageviewsPerUser} onChange={e => setPageviewsPerUser(Number(e.target.value))} /></div>
+                                             <div><Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label><Input type="number" value={pageviewsPerUser} onChange={e => setPageviewsPerUser(Number(e.target.value))} /></div>
                                              <div><Label className="text-xs text-muted-foreground">Ads/Page</Label><Input type="number" value={adsPerPage} onChange={e => setAdsPerPage(Number(e.target.value))} /></div>
                                              <div><Label className="text-xs text-muted-foreground">CTR (%)</Label><Input type="number" value={ctr} onChange={e => setCtr(Number(e.target.value))} /></div>
                                              <div><Label className="text-xs text-muted-foreground">CPC ($)</Label><Input type="number" value={cpc} onChange={e => setCpc(Number(e.target.value))} /></div>
                                         </div>
-                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(totalAdRevenue / (users || 1), currency)}</p>
+                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalAdRevenue / (users || 1)), currency)}</p>
                                     </div>
                                     <div className="space-y-2 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue" tooltipText="Enter your estimated total monthly revenue from all paying subscribers." />
-                                        <Input type="number" value={fromCurrentCurrency(toCurrentCurrency(totalSubscriptionRevenue))} onChange={e => setTotalSubscriptionRevenue(fromCurrentCurrency(Number(e.target.value)))} />
-                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue) / (users || 1), currency)}</p>
+                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Enter your estimated total monthly revenue from all paying subscribers in USD." />
+                                        <Input type="number" value={totalSubscriptionRevenue} onChange={e => setTotalSubscriptionRevenue(Number(e.target.value))} />
+                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue / (users || 1)), currency)}</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -209,18 +214,18 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
                                     <p className="text-sm text-muted-foreground">Total Monthly Expense</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(totalExpenses, currency)}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(totalExpensePerUser, currency)} / user</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalExpenses), currency)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(totalExpensePerUser), currency)} / user</p>
                                 </div>
                                 <div className="p-4 rounded-lg border bg-card">
                                     <p className="text-sm text-muted-foreground">Total Monthly Revenue</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(totalRevenue, currency)}</p>
-                                    <p className="text-xs text-muted-foreground">{formatCurrency(perUserRevenue, currency)} / user</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalRevenue), currency)}</p>
+                                    <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(perUserRevenue), currency)} / user</p>
                                 </div>
                             </div>
                             <div className={cn("p-4 rounded-lg border text-center", netProfit >= 0 ? "bg-emerald-100/50 dark:bg-emerald-900/30" : "bg-red-100/50 dark:bg-red-900/30")}>
                                 <p className="text-sm text-muted-foreground">Est. Net Monthly Profit / (Loss)</p>
-                                <p className={cn("text-3xl font-bold", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{formatCurrency(netProfit, currency)}</p>
+                                <p className={cn("text-3xl font-bold", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{formatCurrency(toCurrentCurrency(netProfit), currency)}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -232,3 +237,5 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         </Dialog>
     )
 }
+
+    
