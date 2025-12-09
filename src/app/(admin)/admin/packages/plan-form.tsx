@@ -37,6 +37,7 @@ import { savePlanAction } from "@/lib/actions/plans"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { CostAnalysisModule } from "./cost-analysis-module"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -79,7 +80,7 @@ const featureTooltips: Record<string, string> = {
   sourceCodeView: "Allow users to view the raw EML source of an email, including headers.",
 
   // Storage & Data
-  expiredInboxCooldownDays: "After an inbox expires, it enters a cooldown. This is the number of days before it's permanently deleted from the server, allowing the address to be reused.",
+  expiredInboxCooldownDays: "After an inbox expires, it enters a cooldown. This is the number of days before the inbox and its address are permanently deleted from the server, allowing another user to claim the same address.",
   retainEmailsAfterDeletion: "If 'Yes', emails from an expired inbox will be kept in a permanent user archive, even after the inbox itself is deleted during the cooldown period. This enables 'lifetime' email access for premium plans.",
 
 
@@ -245,6 +246,8 @@ export function PlanForm({ plan }: PlanFormProps) {
 
   const planType = form.watch('planType');
   const enableCustomDomains = form.watch('features.customDomains');
+  const watchedPlan = form.watch();
+
 
   useEffect(() => {
     if (plan) {
@@ -298,7 +301,10 @@ export function PlanForm({ plan }: PlanFormProps) {
 
   return (
     <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            
+            <CostAnalysisModule planData={watchedPlan} />
+            
             <Card>
                 <CardHeader>
                     <CardTitle>{plan ? `Edit: ${plan.name}` : 'Add New Plan'}</CardTitle>
