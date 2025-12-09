@@ -53,12 +53,13 @@ const initialCalculatorState = {
     profitMargin: 50,
     expenses: {
         mail: { volume: 50000, cost: 0.8, userVolume: 50 },
-        auth: { freeTier: 50000, paidCost: 0.0055, userVolume: 1 },
-        storage: { freeTier: 5, paidCost: 0.02, userVolume: 0.001 },
-        hosting: { freeTier: 10, paidCost: 0.12, userVolume: 0.01 },
+        auth: { freeTier: 50000, paidTierVolume: 1, paidTierPrice: 0.0055, userVolume: 1 },
+        storage: { freeTier: 5, paidTierVolume: 1, paidTierPrice: 0.02, userVolume: 0.001 },
+        hosting: { freeTier: 10, paidTierVolume: 1, paidTierPrice: 0.12, userVolume: 0.01 },
         otherCharges: [] as {name: string, cost: number}[],
     },
     revenue: {
+        totalSubscription: 0,
         pageviewsPerUser: 30,
         tier1: { percent: 10, rpm: 15 },
         tier2: { percent: 40, rpm: 5 },
@@ -68,7 +69,7 @@ const initialCalculatorState = {
 
 type CalculatorState = typeof initialCalculatorState;
 
-const isObject = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
+const isObject = (item: any): item is object => item && typeof item === 'object' && !Array.isArray(item);
 
 const mergeDeep = (target: any, ...sources: any[]): any => {
   if (!sources.length) return target;
@@ -76,11 +77,15 @@ const mergeDeep = (target: any, ...sources: any[]): any => {
 
   if (isObject(target) && isObject(source)) {
     for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], source[key]);
-      } else if (source[key] !== undefined) {
-        Object.assign(target, { [key]: source[key] });
+      if (source[key] !== undefined) {
+        if (isObject(source[key])) {
+          if (!target[key] || !isObject(target[key])) {
+            Object.assign(target, { [key]: {} });
+          }
+          mergeDeep(target[key], source[key]);
+        } else {
+          Object.assign(target, { [key]: source[key] });
+        }
       }
     }
   }
@@ -107,7 +112,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     const handleStateChange = (path: string, value: any) => {
         setState(prev => {
             const keys = path.split('.');
-            const newState = JSON.parse(JSON.stringify(prev));
+            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
             let current = newState;
             for (let i = 0; i < keys.length - 1; i++) {
                 current = current[keys[i]];
@@ -130,7 +135,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     };
 
     const toCurrentCurrency = (usdValue: number) => state.currency === 'INR' ? usdValue * state.exchangeRate : usdValue;
-
+    
     // --- PER-USER COST CALCULATIONS ---
     const mailCostPerUser = useMemo(() => {
         const costPerUnit = (state.expenses.mail.cost || 0) / (state.expenses.mail.volume || 1);
@@ -139,15 +144,15 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
     const calculateTieredCostPerUser = (service: 'auth' | 'storage' | 'hosting') => {
         const config = state.expenses[service];
-        const totalUsage = state.users * config.userVolume;
-        const chargeableUsage = Math.max(0, totalUsage - config.freeTier);
-        const totalCost = chargeableUsage * config.paidCost;
-        return totalCost / state.users;
+        const costPerUnit = config.paidTierPrice / (config.paidTierVolume || 1);
+        // This simplified model assumes average usage cost without factoring in the aggregate free tier,
+        // which provides a safer (higher) cost estimate for individual user pricing.
+        return costPerUnit * config.userVolume;
     };
     
-    const authCostPerUser = useMemo(() => calculateTieredCostPerUser('auth'), [state.users, state.expenses.auth]);
-    const storageCostPerUser = useMemo(() => calculateTieredCostPerUser('storage'), [state.users, state.expenses.storage]);
-    const hostingCostPerUser = useMemo(() => calculateTieredCostPerUser('hosting'), [state.users, state.expenses.hosting]);
+    const authCostPerUser = useMemo(() => calculateTieredCostPerUser('auth'), [state.expenses.auth]);
+    const storageCostPerUser = useMemo(() => calculateTieredCostPerUser('storage'), [state.expenses.storage]);
+    const hostingCostPerUser = useMemo(() => calculateTieredCostPerUser('hosting'), [state.expenses.hosting]);
 
 
     const otherChargesPerUser = useMemo(() => {
@@ -221,44 +226,31 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <CardContent className="space-y-4">
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Mail Service (e.g., Mailgun)" tooltipText="Cost for processing incoming emails. Enter your total monthly volume and total bill from the provider." />
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
                                         <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleStateChange('expenses.mail.volume', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" step="0.1" value={state.expenses.mail.cost} onChange={e => handleStateChange('expenses.mail.cost', Number(e.target.value))} /></div>
-                                    </div>
-                                     <div className="grid grid-cols-2 gap-2 pt-2">
                                         <div><Label className="text-xs text-muted-foreground">Est. Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleStateChange('expenses.mail.userVolume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Est. Cost/User</Label><Input readOnly value={formatCurrency(toCurrentCurrency(mailCostPerUser), state.currency)} /></div>
                                     </div>
                                 </div>
-                                <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Firebase Auth (MAU)" tooltipText="Cost for monthly active users beyond the free tier." />
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier</Label><Input type="number" value={state.expenses.auth.freeTier} onChange={e => handleStateChange('expenses.auth.freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Paid Cost/User ($)</Label><Input type="number" step="0.0001" value={state.expenses.auth.paidCost} onChange={e => handleStateChange('expenses.auth.paidCost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Usage/User</Label><Input type="number" readOnly value={state.expenses.auth.userVolume} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Est. Cost/User</Label><Input readOnly value={formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)} /></div>
-                                    </div>
-                                </div>
-                                <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Cloud Hosting (GB)" tooltipText="Cost for data transfer (egress) beyond the free tier." />
-                                     <div className="grid grid-cols-4 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleStateChange('expenses.hosting.freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Paid Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.hosting.paidCost} onChange={e => handleStateChange('expenses.hosting.paidCost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Usage/User (GB)</Label><Input type="number" step="0.01" value={state.expenses.hosting.userVolume} onChange={e => handleStateChange('expenses.hosting.userVolume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Est. Cost/User</Label><Input readOnly value={formatCurrency(toCurrentCurrency(hostingCostPerUser), state.currency)} /></div>
-                                    </div>
-                                </div>
-                                 <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Cloud Storage (GB)" tooltipText="Cost for storing files (attachments) beyond the free tier." />
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.storage.freeTier} onChange={e => handleStateChange('expenses.storage.freeTier', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Paid Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.storage.paidCost} onChange={e => handleStateChange('expenses.storage.paidCost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Usage/User (GB)</Label><Input type="number" step="0.001" value={state.expenses.storage.userVolume} onChange={e => handleStateChange('expenses.storage.userVolume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Est. Cost/User</Label><Input readOnly value={formatCurrency(toCurrentCurrency(storageCostPerUser), state.currency)} /></div>
-                                    </div>
-                                </div>
+                                
+                                {['hosting', 'storage', 'auth'].map(service => {
+                                    const s = service as 'hosting' | 'storage' | 'auth';
+                                    const config = state.expenses[s];
+                                    return (
+                                        <div key={s} className="space-y-2 p-3 border rounded-lg">
+                                            <FormLabelWithTooltip label={s.charAt(0).toUpperCase() + s.slice(1)} tooltipText={`Cost for ${s} beyond the free tier.`} />
+                                            <div className="grid grid-cols-4 gap-2">
+                                                <div><Label className="text-xs text-muted-foreground">Free Volume</Label><Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Paid Volume</Label><Input type="number" value={config.paidTierVolume} onChange={e => handleStateChange(`expenses.${s}.paidTierVolume`, Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Paid Price ($)</Label><Input type="number" step="0.0001" value={config.paidTierPrice} onChange={e => handleStateChange(`expenses.${s}.paidTierPrice`, Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Usage/User</Label><Input type="number" step="0.001" value={config.userVolume} onChange={e => handleStateChange(`expenses.${s}.userVolume`, Number(e.target.value))} /></div>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+
                                 <div className="space-y-2">
-                                    <FormLabelWithTooltip label="Other Charges ($)" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
+                                    <FormLabelWithTooltip label="Other Charges (Monthly Total $)" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
                                     {state.expenses.otherCharges.map((charge, index) => (
                                         <div key={index} className="flex gap-2 items-center">
                                             <Input placeholder="Charge Name" value={charge.name} onChange={e => handleChargeChange(index, 'name', e.target.value)} />
@@ -273,9 +265,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         
                         <div className="space-y-6">
                             <Card>
-                                <CardHeader><CardTitle className="text-lg">Monthly AdSense Revenue</CardTitle></CardHeader>
+                                <CardHeader><CardTitle className="text-lg">Monthly Revenue</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                     <div className="space-y-4 p-3 border rounded-lg">
+                                    <div className="space-y-4 p-3 border rounded-lg">
                                         <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
                                         <div className="grid grid-cols-1 gap-4">
                                             <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
@@ -296,6 +288,10 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                                 <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
                                             </div>
                                         </div>
+                                    </div>
+                                    <div className="space-y-2 p-3 border rounded-lg">
+                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Manually enter your projected total monthly income from all paying subscribers."/>
+                                        <Input type="number" value={state.revenue.totalSubscription} onChange={e => handleStateChange('revenue.totalSubscription', Number(e.target.value))} />
                                     </div>
                                 </CardContent>
                             </Card>
