@@ -193,7 +193,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
                     <Card>
                         <CardHeader><CardTitle className="text-lg">Global Settings</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <CardContent className="space-y-4">
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Model Users" tooltipText="The total number of monthly active users to base all calculations on." />
                                 <Input type="number" value={state.users} onChange={(e) => handleStateChange('users', Number(e.target.value))} />
@@ -214,7 +214,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         </CardContent>
                     </Card>
 
-                    <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-lg">Monthly Expenses</CardTitle>
@@ -225,10 +225,19 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     <CardHeader className="pb-2">
                                         <FormLabelWithTooltip label="Mail Service (e.g., Mailgun)" tooltipText="Cost for processing incoming emails. Enter your total monthly volume and total bill from the provider." />
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleStateChange('expenses.mail.volume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" step="0.1" value={state.expenses.mail.cost} onChange={e => handleStateChange('expenses.mail.cost', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Est. Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleStateChange('expenses.mail.userVolume', Number(e.target.value))} /></div>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Total Volume</Label>
+                                          <Input type="number" value={state.expenses.mail.volume} onChange={e => handleStateChange('expenses.mail.volume', Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Total Cost ($)</Label>
+                                          <Input type="number" step="0.1" value={state.expenses.mail.cost} onChange={e => handleStateChange('expenses.mail.cost', Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Est. Volume/User</Label>
+                                          <Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleStateChange('expenses.mail.userVolume', Number(e.target.value))} />
+                                        </div>
                                     </CardContent>
                                     <CardFooter>
                                         <p className="text-sm text-muted-foreground">
@@ -246,11 +255,23 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                             <CardHeader className="pb-2">
                                                 <FormLabelWithTooltip label={s.charAt(0).toUpperCase() + s.slice(1)} tooltipText={`Cost for ${s} beyond the free tier.`} />
                                             </CardHeader>
-                                            <CardContent className="space-y-2">
-                                                <div><Label className="text-xs text-muted-foreground">Free Tier Volume (Total)</Label><Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Paid Tier Volume (e.g., 1000)</Label><Input type="number" value={config.paidTierVolume} onChange={e => handleStateChange(`expenses.${s}.paidTierVolume`, Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Paid Tier Price ($)</Label><Input type="number" step="0.0001" value={config.paidTierPrice} onChange={e => handleStateChange(`expenses.${s}.paidTierPrice`, Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Est. Usage/User</Label><Input type="number" step="0.001" value={config.userVolume} onChange={e => handleStateChange(`expenses.${s}.userVolume`, Number(e.target.value))} /></div>
+                                            <CardContent className="space-y-4">
+                                                <div className="space-y-2">
+                                                  <Label className="text-xs text-muted-foreground">Free Tier Volume (Total)</Label>
+                                                  <Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label className="text-xs text-muted-foreground">Paid Tier Volume (e.g., 1000)</Label>
+                                                  <Input type="number" value={config.paidTierVolume} onChange={e => handleStateChange(`expenses.${s}.paidTierVolume`, Number(e.target.value))} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label className="text-xs text-muted-foreground">Paid Tier Price ($)</Label>
+                                                  <Input type="number" step="0.0001" value={config.paidTierPrice} onChange={e => handleStateChange(`expenses.${s}.paidTierPrice`, Number(e.target.value))} />
+                                                </div>
+                                                <div className="space-y-2">
+                                                  <Label className="text-xs text-muted-foreground">Est. Usage/User</Label>
+                                                  <Input type="number" step="0.001" value={config.userVolume} onChange={e => handleStateChange(`expenses.${s}.userVolume`, Number(e.target.value))} />
+                                                </div>
                                             </CardContent>
                                             <CardFooter>
                                                 <p className="text-sm text-muted-foreground">
@@ -300,18 +321,39 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     <CardHeader className="pb-2">
                                         <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label>
+                                          <Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} />
+                                        </div>
                                         <Separator className="my-2"/>
                                         <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label><Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} /></div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label>
+                                          <Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label>
+                                          <Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} />
+                                        </div>
                                         <Separator className="my-2"/>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label><Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} /></div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label>
+                                          <Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label>
+                                          <Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} />
+                                        </div>
                                         <Separator className="my-2"/>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label><Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label>
+                                          <Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label>
+                                          <Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} />
+                                        </div>
                                     </CardContent>
                                 </Card>
                                 <Card>
@@ -347,17 +389,17 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             </div>
                              <Card>
                                 <CardHeader><FormLabelWithTooltip label="Premium Plan Pricing Suggestion" tooltipText="Calculates a suggested price for an ad-free plan to meet your profit goals." /></CardHeader>
-                                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                                     <div className="p-4 rounded-lg border bg-card">
+                                <CardContent className="space-y-4">
+                                     <div className="space-y-2">
+                                        <Label>Desired Profit Margin (%)</Label>
+                                        <Input type="number" value={state.profitMargin} onChange={e => handleStateChange('profitMargin', Number(e.target.value))} />
+                                    </div>
+                                    <div className="p-4 rounded-lg border bg-card space-y-2">
                                         <p className="text-sm text-muted-foreground">Break-Even (Cost + Ad Loss)</p>
                                         <p className="text-xl font-bold">{formatCurrency(toCurrentCurrency(breakEvenPricePerUser), state.currency)}</p>
                                         <p className="text-xs text-muted-foreground">per user / month</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Desired Profit Margin (%)</Label>
-                                        <Input type="number" value={state.profitMargin} onChange={e => handleStateChange('profitMargin', Number(e.target.value))} />
-                                    </div>
-                                    <div className={cn("p-4 rounded-lg border text-center", "bg-primary/10")}>
+                                    <div className={cn("p-4 rounded-lg border text-center space-y-2", "bg-primary/10")}>
                                         <p className="text-sm text-primary">Suggested Ad-Free Price</p>
                                         <p className={cn("text-3xl font-bold text-primary")}>{formatCurrency(toCurrentCurrency(suggestedPrice), state.currency)}</p>
                                          <p className="text-xs text-primary">per user / month</p>
