@@ -240,28 +240,31 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Auth (MAU)" tooltipText="Cost for monthly active users after the free tier." />
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <div><Label className="text-xs text-muted-foreground">Free Tier</Label><Input type="number" value={state.expenses.auth.freeTier} onChange={e => handleNestedChange('expenses.auth.freeTier', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Cost/User ($)</Label><Input type="number" step="0.01" value={state.expenses.auth.paidCost} onChange={e => handleNestedChange('expenses.auth.paidCost', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" readOnly value={state.expenses.auth.userVolume} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Chargeable</Label><Input type="number" readOnly value={Math.max(0, totalAuthUsage - state.expenses.auth.freeTier)} className="bg-muted"/></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Firebase Hosting (GB)" tooltipText="Cost for data transfer (egress) after the free tier." />
-                                    <div className="grid grid-cols-3 gap-2">
+                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleNestedChange('expenses.hosting.freeTier', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.hosting.paidCost} onChange={e => handleNestedChange('expenses.hosting.paidCost', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.1" value={state.expenses.hosting.userVolume} onChange={e => handleNestedChange('expenses.hosting.userVolume', Number(e.target.value))} /></div>
+                                         <div><Label className="text-xs text-muted-foreground">Chargeable</Label><Input type="number" readOnly value={Math.max(0, totalHostingUsage - state.expenses.hosting.freeTier).toFixed(2)} className="bg-muted"/></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(hostingCostPerUser), state.currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
                                     <FormLabelWithTooltip label="Cloud Storage (GB)" tooltipText="Cost for storing files (attachments) after the free tier." />
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.storage.freeTier} onChange={e => handleNestedChange('expenses.storage.freeTier', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.storage.paidCost} onChange={e => handleNestedChange('expenses.storage.paidCost', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.01" value={state.expenses.storage.userVolume} onChange={e => handleNestedChange('expenses.storage.userVolume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Chargeable</Label><Input type="number" readOnly value={Math.max(0, totalStorageUsage - state.expenses.storage.freeTier).toFixed(2)} className="bg-muted"/></div>
                                     </div>
                                      <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), state.currency)}</p>
                                 </div>
