@@ -68,8 +68,11 @@ const initialCalculatorState = {
         mail: { volume: 50000, cost: 0.8, userVolume: 50 },
         auth: { freeTier: 50000, paidTierVolume: 1, paidTierPrice: 0.0055, userVolume: 1 },
         storage: { freeTier: 5, paidTierVolume: 1, paidTierPrice: 0.02, userVolume: 0.001 },
-        hosting: { freeTier: 10, paidTierVolume: 1, paidTierPrice: 0.12, userVolume: 0.01 },
-        otherCharges: [] as OtherCharge[],
+        hosting: { freeTier: 2000000, paidTierVolume: 1000000, paidTierPrice: 0.4, userVolume: 100 },
+        otherCharges: [
+            { id: 'domains', type: 'basic', name: 'Domain Name Renewals', cost: 15 },
+            { id: 'outbound', type: 'basic', name: 'Outbound Email Service (e.g., SendGrid)', cost: 10 },
+        ] as OtherCharge[],
     },
     revenue: {
         totalSubscription: 0,
@@ -216,9 +219,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Business Cost & Revenue Calculator</DialogTitle>
-                    <DialogDescription>
+                    <CardDescription>
                         Model your operational costs and revenue streams to determine a data-driven price for your premium plan.
-                    </DialogDescription>
+                    </CardDescription>
                 </DialogHeader>
                 {isLoadingSettings ? <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
@@ -258,7 +261,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </CardHeader>
                                     <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="space-y-2">
-                                          <Label className="text-xs text-muted-foreground">Total Volume</Label>
+                                          <Label className="text-xs text-muted-foreground">Total Emails / month</Label>
                                           <Input type="number" value={state.expenses.mail.volume} onChange={e => handleStateChange('expenses.mail.volume', Number(e.target.value))} />
                                         </div>
                                         <div className="space-y-2">
@@ -266,7 +269,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                           <Input type="number" step="0.1" value={state.expenses.mail.cost} onChange={e => handleStateChange('expenses.mail.cost', Number(e.target.value))} />
                                         </div>
                                         <div className="space-y-2">
-                                          <Label className="text-xs text-muted-foreground">Est. Volume/User</Label>
+                                          <Label className="text-xs text-muted-foreground">Est. Emails / User</Label>
                                           <Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleStateChange('expenses.mail.userVolume', Number(e.target.value))} />
                                         </div>
                                     </CardContent>
@@ -277,10 +280,40 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </CardFooter>
                                 </Card>
                                 
-                                {['hosting', 'storage', 'auth'].map(service => {
-                                    const s = service as 'hosting' | 'storage' | 'auth';
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Hosting (Compute)" tooltipText={`Cost for server-side code execution (e.g. webhooks) beyond the free tier.`} />
+                                    </CardHeader>
+                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Free Requests / month</Label>
+                                          <Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleStateChange(`expenses.hosting.freeTier`, Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Paid Requests Unit</Label>
+                                          <Input type="number" value={state.expenses.hosting.paidTierVolume} onChange={e => handleStateChange(`expenses.hosting.paidTierVolume`, Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Price per Unit ($)</Label>
+                                          <Input type="number" step="0.0001" value={state.expenses.hosting.paidTierPrice} onChange={e => handleStateChange(`expenses.hosting.paidTierPrice`, Number(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs text-muted-foreground">Est. Requests / User</Label>
+                                          <Input type="number" step="0.001" value={state.expenses.hosting.userVolume} onChange={e => handleStateChange(`expenses.hosting.userVolume`, Number(e.target.value))} />
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <p className="text-sm text-muted-foreground">
+                                            Cost per User: <span className="font-bold text-foreground">{formatCurrency(toCurrentCurrency(hostingCostPerUser), state.currency)}</span>
+                                        </p>
+                                    </CardFooter>
+                                </Card>
+
+                                {['storage', 'auth'].map(service => {
+                                    const s = service as 'storage' | 'auth';
                                     const config = state.expenses[s];
                                     const costPerUser = calculateServiceCostPerUser(config);
+                                    const unit = s === 'storage' ? 'GB' : 'Users';
                                     return (
                                         <Card key={s}>
                                             <CardHeader className="pb-2">
@@ -288,11 +321,11 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                             </CardHeader>
                                             <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 <div className="space-y-2">
-                                                  <Label className="text-xs text-muted-foreground">Free Tier Volume (Total)</Label>
+                                                  <Label className="text-xs text-muted-foreground">Free Tier Volume ({unit})</Label>
                                                   <Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} />
                                                 </div>
                                                 <div className="space-y-2">
-                                                  <Label className="text-xs text-muted-foreground">Paid Tier Volume</Label>
+                                                  <Label className="text-xs text-muted-foreground">Paid Tier Volume ({unit})</Label>
                                                   <Input type="number" value={config.paidTierVolume} onChange={e => handleStateChange(`expenses.${s}.paidTierVolume`, Number(e.target.value))} />
                                                 </div>
                                                 <div className="space-y-2">
@@ -300,7 +333,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                                   <Input type="number" step="0.0001" value={config.paidTierPrice} onChange={e => handleStateChange(`expenses.${s}.paidTierPrice`, Number(e.target.value))} />
                                                 </div>
                                                 <div className="space-y-2">
-                                                  <Label className="text-xs text-muted-foreground">Est. Usage/User</Label>
+                                                  <Label className="text-xs text-muted-foreground">Est. Usage/User ({unit})</Label>
                                                   <Input type="number" step="0.001" value={config.userVolume} onChange={e => handleStateChange(`expenses.${s}.userVolume`, Number(e.target.value))} />
                                                 </div>
                                             </CardContent>
