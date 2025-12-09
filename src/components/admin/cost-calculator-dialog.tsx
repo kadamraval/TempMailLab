@@ -14,6 +14,7 @@ import { collection } from 'firebase/firestore';
 import type { Plan } from '@/app/(admin)/admin/packages/data';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Card, CardContent, CardHeader } from '../ui/card';
 
 interface CostCalculatorDialogProps {
     isOpen: boolean;
