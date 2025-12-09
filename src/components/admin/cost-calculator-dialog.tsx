@@ -52,10 +52,10 @@ const initialCalculatorState = {
     exchangeRate: 90.01,
     profitMargin: 50,
     expenses: {
-        mail: { volume: 50000, cost: 15, userVolume: 50 },
-        auth: { freeTier: 10000, paidCost: 0.0055, userVolume: 1 },
-        storage: { freeTier: 1, paidCost: 0.02, userVolume: 0.005 },
-        hosting: { freeTier: 1, paidCost: 0.12, userVolume: 0.01 },
+        mail: { volume: 50000, cost: 0.8, userVolume: 50 },
+        auth: { freeTier: 50000, paidCost: 0.0055, userVolume: 1 },
+        storage: { freeTier: 5, paidCost: 0.02, userVolume: 0.001 },
+        hosting: { freeTier: 10, paidCost: 0.12, userVolume: 0.01 },
         otherCharges: [] as {name: string, cost: number}[],
     },
     revenue: {
@@ -137,29 +137,18 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         return costPerUnit * (state.expenses.mail.userVolume || 0);
     }, [state.expenses.mail]);
 
-    const authCostPerUser = useMemo(() => {
-        const totalUsage = state.users * state.expenses.auth.userVolume;
-        if (totalUsage <= state.expenses.auth.freeTier) return 0;
-        const chargeableUsage = totalUsage - state.expenses.auth.freeTier;
-        const totalCost = chargeableUsage * state.expenses.auth.paidCost;
+    const calculateTieredCostPerUser = (service: 'auth' | 'storage' | 'hosting') => {
+        const config = state.expenses[service];
+        const totalUsage = state.users * config.userVolume;
+        const chargeableUsage = Math.max(0, totalUsage - config.freeTier);
+        const totalCost = chargeableUsage * config.paidCost;
         return totalCost / state.users;
-    }, [state.users, state.expenses.auth]);
+    };
+    
+    const authCostPerUser = useMemo(() => calculateTieredCostPerUser('auth'), [state.users, state.expenses.auth]);
+    const storageCostPerUser = useMemo(() => calculateTieredCostPerUser('storage'), [state.users, state.expenses.storage]);
+    const hostingCostPerUser = useMemo(() => calculateTieredCostPerUser('hosting'), [state.users, state.expenses.hosting]);
 
-    const storageCostPerUser = useMemo(() => {
-        const totalUsage = state.users * state.expenses.storage.userVolume;
-        if (totalUsage <= state.expenses.storage.freeTier) return 0;
-        const chargeableUsage = totalUsage - state.expenses.storage.freeTier;
-        const totalCost = chargeableUsage * state.expenses.storage.paidCost;
-        return totalCost / state.users;
-    }, [state.users, state.expenses.storage]);
-
-    const hostingCostPerUser = useMemo(() => {
-        const totalUsage = state.users * state.expenses.hosting.userVolume;
-        if (totalUsage <= state.expenses.hosting.freeTier) return 0;
-        const chargeableUsage = totalUsage - state.expenses.hosting.freeTier;
-        const totalCost = chargeableUsage * state.expenses.hosting.paidCost;
-        return totalCost / state.users;
-    }, [state.users, state.expenses.hosting]);
 
     const otherChargesPerUser = useMemo(() => {
         const totalOtherCharges = state.expenses.otherCharges.reduce((acc, charge) => acc + charge.cost, 0);
@@ -179,7 +168,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
     // --- PRICING SUGGESTION ---
     const breakEvenPricePerUser = totalCostPerUser + totalAdRevenuePerUser;
-    const suggestedPrice = breakEvenPricePerUser * (1 + (state.profitMargin / 100));
+    const suggestedPrice = breakEvenPricePerUser / (1 - (state.profitMargin / 100));
 
     const totalMonthlyExpense = totalCostPerUser * state.users;
     const totalMonthlyAdRevenue = totalAdRevenuePerUser * state.users;
