@@ -117,43 +117,41 @@
     "providers": [ "password", "anonymous", "google.com" ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": { "schema": { "$ref": "#/entities/User" }, "description": "Stores user profiles." }
-      },
-      {
-        "path": "/inboxes/{inboxId}",
-        "definition": { "schema": { "$ref": "#/entities/Inbox" }, "description": "Global collection of all inboxes." }
-      },
-      {
-        "path": "/inboxes/{inboxId}/emails/{emailId}",
-        "definition": { "schema": { "$ref": "#/entities/Email" }, "description": "Sub-collection of emails for a given inbox." }
-      },
-      {
-        "path": "/plans/{planId}",
-        "definition": { "schema": { "$ref": "#/entities/Plan" }, "description": "Publicly readable subscription plans." }
-      },
-      {
-        "path": "/allowed_domains/{domainId}",
-        "definition": { "schema": { "type": "object" }, "description": "Domains available for generating inboxes." }
-      },
-      {
-        "path": "/admin_settings/{settingId}",
-        "definition": { "schema": { "type": "object" }, "description": "Settings configurable by admins." }
-      },
-       {
-        "path": "/posts/{postId}",
-        "definition": { "schema": { "$ref": "#/entities/BlogPost" }, "description": "Collection of all blog posts." }
-      },
-      {
-        "path": "/categories/{categoryId}",
-        "definition": { "schema": { "$ref": "#/entities/Category" }, "description": "Collection of all blog categories." }
-      },
-      {
-        "path": "/menus/{menuId}",
-        "definition": { "schema": { "$ref": "#/entities/Menu" }, "description": "Stores navigation menus (e.g., header, footer)." }
-      }
-    ]
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles."
+    },
+    "/inboxes/{inboxId}": {
+      "schema": { "$ref": "#/entities/Inbox" },
+      "description": "Global collection of all inboxes."
+    },
+    "/inboxes/{inboxId}/emails/{emailId}": {
+      "schema": { "$ref": "#/entities/Email" },
+      "description": "Sub-collection of emails for a given inbox."
+    },
+    "/plans/{planId}": {
+      "schema": { "$ref": "#/entities/Plan" },
+      "description": "Publicly readable subscription plans."
+    },
+    "/allowed_domains/{domainId}": {
+      "schema": { "type": "object" },
+      "description": "Domains available for generating inboxes."
+    },
+    "/admin_settings/{settingId}": {
+      "schema": { "type": "object" },
+      "description": "Settings configurable by admins."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/BlogPost" },
+      "description": "Collection of all blog posts."
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Collection of all blog categories."
+    },
+    "/menus/{menuId}": {
+      "schema": { "$ref": "#/entities/Menu" },
+      "description": "Stores navigation menus (e.g., header, footer)."
+    }
   }
 }
