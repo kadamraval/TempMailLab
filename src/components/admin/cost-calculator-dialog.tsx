@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -233,9 +234,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Business Cost & Revenue Calculator</DialogTitle>
-                    <DialogDescription>
+                    <CardDescription>
                         Model your operational costs and revenue streams to determine a data-driven price for your premium plan.
-                    </DialogDescription>
+                    </CardDescription>
                 </DialogHeader>
                 {isLoadingSettings ? <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
@@ -325,9 +326,9 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
                                 <Card>
                                     <CardHeader className="pb-2">
-                                        <FormLabelWithTooltip label="Firestore Database Operations" tooltipText={`Cost for reading and writing documents in your database.`} />
+                                        <FormLabelWithTooltip label="Firestore Database Operations" tooltipText={`Cost for reading and writing documents in your database beyond the free tier.`} />
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-2 gap-4">
+                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="p-4 border rounded-md space-y-4">
                                             <Label className="font-semibold">Read Operations</Label>
                                             <div className="space-y-2">
