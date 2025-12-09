@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -234,7 +233,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                     
                     {/* --- Summary --- */}
                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Summary (for {users.toLocaleString()} users)</CardHeader>
+                        <CardHeader><CardTitle className="text-lg">Summary (for {users.toLocaleString()} users)</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
@@ -260,5 +259,5 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    
-    
+    );
+}
