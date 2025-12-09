@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { PlusCircle, Trash2, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../ui/card';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -221,42 +221,66 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                         <Card>
                             <CardHeader><CardTitle className="text-lg">Monthly Expenses</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="space-y-4 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Mail Service (e.g., Mailgun)" tooltipText="Cost for processing incoming emails. Enter your total monthly volume and total bill from the provider." />
-                                    <div className="space-y-2">
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Mail Service (e.g., Mailgun)" tooltipText="Cost for processing incoming emails. Enter your total monthly volume and total bill from the provider." />
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
                                         <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleStateChange('expenses.mail.volume', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" step="0.1" value={state.expenses.mail.cost} onChange={e => handleStateChange('expenses.mail.cost', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Est. Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleStateChange('expenses.mail.userVolume', Number(e.target.value))} /></div>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <p className="text-sm text-muted-foreground">
+                                            Cost per User: <span className="font-bold text-foreground">{formatCurrency(toCurrentCurrency(mailCostPerUser), state.currency)}</span>
+                                        </p>
+                                    </CardFooter>
+                                </Card>
                                 
                                 {['hosting', 'storage', 'auth'].map(service => {
                                     const s = service as 'hosting' | 'storage' | 'auth';
                                     const config = state.expenses[s];
+                                    const costPerUser = calculateServiceCostPerUser(s);
                                     return (
-                                        <div key={s} className="space-y-4 p-3 border rounded-lg">
-                                            <FormLabelWithTooltip label={s.charAt(0).toUpperCase() + s.slice(1)} tooltipText={`Cost for ${s} beyond the free tier.`} />
-                                            <div className="space-y-2">
+                                        <Card key={s}>
+                                            <CardHeader className="pb-2">
+                                                <FormLabelWithTooltip label={s.charAt(0).toUpperCase() + s.slice(1)} tooltipText={`Cost for ${s} beyond the free tier.`} />
+                                            </CardHeader>
+                                            <CardContent className="space-y-2">
                                                 <div><Label className="text-xs text-muted-foreground">Free Tier Volume (Total)</Label><Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} /></div>
                                                 <div><Label className="text-xs text-muted-foreground">Paid Tier Volume (e.g., 1000)</Label><Input type="number" value={config.paidTierVolume} onChange={e => handleStateChange(`expenses.${s}.paidTierVolume`, Number(e.target.value))} /></div>
                                                 <div><Label className="text-xs text-muted-foreground">Paid Tier Price ($)</Label><Input type="number" step="0.0001" value={config.paidTierPrice} onChange={e => handleStateChange(`expenses.${s}.paidTierPrice`, Number(e.target.value))} /></div>
                                                 <div><Label className="text-xs text-muted-foreground">Est. Usage/User</Label><Input type="number" step="0.001" value={config.userVolume} onChange={e => handleStateChange(`expenses.${s}.userVolume`, Number(e.target.value))} /></div>
-                                            </div>
-                                        </div>
+                                            </CardContent>
+                                            <CardFooter>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Cost per User: <span className="font-bold text-foreground">{formatCurrency(toCurrentCurrency(costPerUser), state.currency)}</span>
+                                                </p>
+                                            </CardFooter>
+                                        </Card>
                                     )
                                 })}
 
-                                <div className="space-y-2">
-                                    <FormLabelWithTooltip label="Other Charges (Monthly Total $)" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
-                                    {state.expenses.otherCharges.map((charge, index) => (
-                                        <div key={index} className="flex gap-2 items-center">
-                                            <Input placeholder="Charge Name" value={charge.name} onChange={e => handleChargeChange(index, 'name', e.target.value)} />
-                                            <Input type="number" placeholder="Cost ($)" value={charge.cost} onChange={e => handleChargeChange(index, 'cost', Number(e.target.value))} />
-                                            <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                        </div>
-                                    ))}
-                                    <Button variant="outline" size="sm" onClick={handleAddCharge}><PlusCircle className="h-4 w-4 mr-2" />Add Charge</Button>
-                                </div>
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Other Charges (Monthly Total $)" tooltipText="Add any other miscellaneous monthly costs (e.g., other APIs, software licenses)." />
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {state.expenses.otherCharges.map((charge, index) => (
+                                            <div key={index} className="flex gap-2 items-center">
+                                                <Input placeholder="Charge Name" value={charge.name} onChange={e => handleChargeChange(index, 'name', e.target.value)} />
+                                                <Input type="number" placeholder="Cost ($)" value={charge.cost} onChange={e => handleChargeChange(index, 'cost', Number(e.target.value))} />
+                                                <Button variant="ghost" size="icon" onClick={() => handleRemoveCharge(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            </div>
+                                        ))}
+                                        <Button variant="outline" size="sm" onClick={handleAddCharge}><PlusCircle className="h-4 w-4 mr-2" />Add Charge</Button>
+                                    </CardContent>
+                                     <CardFooter>
+                                        <p className="text-sm text-muted-foreground">
+                                            Cost per User: <span className="font-bold text-foreground">{formatCurrency(toCurrentCurrency(otherChargesPerUser), state.currency)}</span>
+                                        </p>
+                                    </CardFooter>
+                                </Card>
                             </CardContent>
                         </Card>
                         
@@ -264,32 +288,32 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <Card>
                                 <CardHeader><CardTitle className="text-lg">Monthly Revenue</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="space-y-4 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
-                                        <div className="space-y-2">
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
                                             <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
-                                        </div>
-                                        <Separator />
-                                        <div className="space-y-4">
-                                            <Label className="font-semibold">Traffic Distribution & RPM</Label>
-                                            <div className="space-y-2">
-                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label><Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} /></div>
-                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} /></div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div><Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label><Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} /></div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div><Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label><Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} /></div>
-                                                <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Manually enter your projected total monthly income from all paying subscribers."/>
-                                        <Input type="number" value={state.revenue.totalSubscription} onChange={e => handleStateChange('revenue.totalSubscription', Number(e.target.value))} />
-                                    </div>
+                                            <Separator className="my-2"/>
+                                            <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label><Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} /></div>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} /></div>
+                                            <Separator className="my-2"/>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label><Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} /></div>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} /></div>
+                                            <Separator className="my-2"/>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label><Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} /></div>
+                                            <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardHeader className="pb-2">
+                                            <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Manually enter your projected total monthly income from all paying subscribers."/>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <Input type="number" value={state.revenue.totalSubscription} onChange={e => handleStateChange('revenue.totalSubscription', Number(e.target.value))} />
+                                        </CardContent>
+                                    </Card>
                                 </CardContent>
                             </Card>
                         </div>
