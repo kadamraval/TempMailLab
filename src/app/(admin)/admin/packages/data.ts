@@ -38,7 +38,10 @@ export const planSchema = z.object({
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
     availableInboxtimers: z.array(timerSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
-    allowCustomtimer: z.boolean().default(false),
+    maxCustomTimer: z.object({
+        count: z.coerce.number().int().min(0),
+        unit: z.enum(['minutes', 'hours', 'days']),
+    }).default({ count: 24, unit: 'hours'}),
     extendTime: z.boolean().default(false),
     customPrefix: z.union([z.boolean(), z.number()]).default(false),
     inboxLocking: z.union([z.boolean(), z.number()]).default(false),
@@ -86,6 +89,7 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 
 
 

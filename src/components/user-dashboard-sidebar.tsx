@@ -9,6 +9,7 @@ import {
   CreditCard,
   Inbox,
   ChevronsLeft,
+  Globe,
 } from "lucide-react"
 import {
   Tooltip,
@@ -24,8 +25,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/inbox", icon: Inbox, label: "Inbox" },
+  { href: "/dashboard/domain", icon: Globe, label: "Domains" },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", icon: Settings, label: "Settings" },
-  { href: "/billing", label: "Billing", icon: CreditCard },
 ];
 
 interface UserDashboardSidebarProps {

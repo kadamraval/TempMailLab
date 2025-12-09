@@ -63,7 +63,7 @@ const featureTooltips: Record<string, string> = {
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
   availableInboxtimers: "Predefined durations an inbox address remains active before it stops receiving new mail.",
-  allowCustomtimer: "Allow users to define their own custom inbox expiration time, up to a certain limit.",
+  maxCustomTimer: "The maximum duration a user on this plan can set for a custom inbox timer.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters). True means unlimited, a number sets a specific limit.",
   inboxLocking: "Allow users to 'lock' an inbox to prevent it from expiring automatically. True means unlimited, a number sets a specific limit.",
@@ -219,7 +219,8 @@ export function PlanForm({ plan }: PlanFormProps) {
         teamMembers: 0, noAds: false, usageAnalytics: false, browserExtension: false,
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
         allowStarring: false, allowArchiving: false, totalStorageQuota: 50,
-        maxInboxes: 1, dailyInboxLimit: 0, availableInboxtimers: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], allowCustomtimer: false, extendTime: false,
+        maxInboxes: 1, dailyInboxLimit: 0, availableInboxtimers: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], 
+        maxCustomTimer: { count: 24, unit: 'hours'}, extendTime: false,
         customPrefix: false, inboxLocking: false, qrCode: false,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
         maxAttachmentSize: 5, emailForwarding: false, exportEmails: false, sourceCodeView: false,
@@ -461,18 +462,42 @@ export function PlanForm({ plan }: PlanFormProps) {
                                     <PlusCircle className="h-4 w-4 mr-2" />
                                     Add Pre-defined Timer
                                 </Button>
-                                <div className="pt-4">
+                                <div className="pt-4 space-y-4">
                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                                         <div className="space-y-0.5">
-                                            <FormLabelWithTooltip label="Allow Custom Timer" tooltipText={featureTooltips.allowCustomtimer} />
-                                            <FormDescription>
-                                                Allow users to define their own inbox expiration time. This is always a premium feature.
-                                            </FormDescription>
+                                            <FormLabelWithTooltip label="Allow Custom Timer" tooltipText="Allow users to define their own inbox expiration time. This is always a premium feature." />
                                         </div>
                                         <FormControl>
                                             <Switch checked={hasCustomTimer} onCheckedChange={handleToggleCustomTimer} />
                                         </FormControl>
                                     </FormItem>
+                                    {hasCustomTimer && (
+                                        <div className="flex items-center gap-2 pl-3">
+                                             <FeatureInput name="features.maxCustomTimer.count" label="Max Custom Time" control={form.control} type="number" />
+                                             <FormField
+                                                control={form.control}
+                                                name="features.maxCustomTimer.unit"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <Label>Unit</Label>
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Unit" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="minutes">Minutes</SelectItem>
+                                                                <SelectItem value="hours">Hours</SelectItem>
+                                                                <SelectItem value="days">Days</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
@@ -608,4 +633,3 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
-
