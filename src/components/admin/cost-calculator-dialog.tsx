@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { PlusCircle, Trash2, Info, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../ui/card';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -171,9 +171,6 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
     const breakEvenPricePerUser = totalCostPerUser + totalAdRevenuePerUser;
     const suggestedPrice = breakEvenPricePerUser / (1 - (state.profitMargin / 100));
-
-    const totalMonthlyExpense = totalCostPerUser * state.users;
-    const totalMonthlyAdRevenue = totalAdRevenuePerUser * state.users;
     
     const handleAddCharge = () => handleStateChange('expenses.otherCharges', [...state.expenses.otherCharges, { name: '', cost: 0 }]);
     const handleRemoveCharge = (index: number) => handleStateChange('expenses.otherCharges', state.expenses.otherCharges.filter((_, i) => i !== index));
@@ -285,7 +282,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     </CardFooter>
                                 </Card>
                             </CardContent>
-                             <CardFooter className="bg-muted/50 p-4">
+                            <CardFooter className="bg-muted/50 p-4">
                                 <div className="w-full flex justify-between items-center">
                                     <p className="text-md font-semibold">Total Cost Per User / Month</p>
                                     <p className="text-lg font-bold">{formatCurrency(toCurrentCurrency(totalCostPerUser), state.currency)}</p>
@@ -293,42 +290,40 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             </CardFooter>
                         </Card>
                         
-                        <div className="space-y-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Monthly Revenue</CardTitle>
-                                    <CardDescription>Model your potential revenue from advertising and subscriptions.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <Card>
-                                        <CardHeader className="pb-2">
-                                            <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
-                                            <Separator className="my-2"/>
-                                            <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label><Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} /></div>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} /></div>
-                                            <Separator className="my-2"/>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label><Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} /></div>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} /></div>
-                                            <Separator className="my-2"/>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label><Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} /></div>
-                                            <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card>
-                                        <CardHeader className="pb-2">
-                                            <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Manually enter your projected total monthly income from all paying subscribers."/>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <Input type="number" value={state.revenue.totalSubscription} onChange={e => handleStateChange('revenue.totalSubscription', Number(e.target.value))} />
-                                        </CardContent>
-                                    </Card>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Monthly Revenue</CardTitle>
+                                <CardDescription>Model your potential revenue from advertising and subscriptions.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleStateChange('revenue.pageviewsPerUser', Number(e.target.value))} /></div>
+                                        <Separator className="my-2"/>
+                                        <Label className="font-semibold text-xs">Traffic Distribution & RPM</Label>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 1 (e.g. USA) Traffic (%)</Label><Input type="number" value={state.revenue.tier1.percent} onChange={e => handleStateChange('revenue.tier1.percent', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1.rpm} onChange={e => handleStateChange('revenue.tier1.rpm', Number(e.target.value))} /></div>
+                                        <Separator className="my-2"/>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 2 (e.g. Europe) Traffic (%)</Label><Input type="number" value={state.revenue.tier2.percent} onChange={e => handleStateChange('revenue.tier2.percent', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2.rpm} onChange={e => handleStateChange('revenue.tier2.rpm', Number(e.target.value))} /></div>
+                                        <Separator className="my-2"/>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 3 (e.g. India) Traffic (%)</Label><Input type="number" value={state.revenue.tier3.percent} onChange={e => handleStateChange('revenue.tier3.percent', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" step="0.01" value={state.revenue.tier3.rpm} onChange={e => handleStateChange('revenue.tier3.rpm', Number(e.target.value))} /></div>
+                                    </CardContent>
+                                </Card>
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Manually enter your projected total monthly income from all paying subscribers."/>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Input type="number" value={state.revenue.totalSubscription} onChange={e => handleStateChange('revenue.totalSubscription', Number(e.target.value))} />
+                                    </CardContent>
+                                </Card>
+                            </CardContent>
+                        </Card>
                     </div>
                     <Separator />
                     
@@ -341,12 +336,12 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
                                     <p className="text-sm text-muted-foreground">Total Monthly Expense</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalMonthlyExpense), state.currency)}</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalCostPerUser * state.users), state.currency)}</p>
                                     <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(totalCostPerUser), state.currency)} / user</p>
                                 </div>
                                 <div className="p-4 rounded-lg border bg-card">
                                     <p className="text-sm text-muted-foreground">Total Ad Revenue</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalMonthlyAdRevenue), state.currency)}</p>
+                                    <p className="text-2xl font-bold">{formatCurrency(toCurrentCurrency(totalAdRevenuePerUser * state.users), state.currency)}</p>
                                     <p className="text-xs text-muted-foreground">{formatCurrency(toCurrentCurrency(totalAdRevenuePerUser), state.currency)} / user</p>
                                 </div>
                             </div>
@@ -384,5 +379,3 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
         </Dialog>
     );
 }
-
-    
