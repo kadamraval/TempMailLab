@@ -11,7 +11,7 @@
         "displayName": { "type": "string", "description": "The user's display name." },
         "inboxCount": { "type": "number", "description": "The number of inboxes the user has." },
         "planId": { "type": "string", "description": "The ID of the user's current subscription plan." },
-        "planType": { "type": "string", "description": "The type of plan the user has (e.g., 'free')." },
+        "planType": { "type": "string", "description": "The type of plan the user has (e.g., 'free', 'pro')." },
         "isAdmin": { "type": "boolean", "description": "Indicates if the user has administrative privileges." },
         "isPremium": { "type": "boolean", "description": "Indicates if the user has a premium plan." },
         "createdAt": { "type": "string", "description": "Timestamp of when the user account was created.", "format": "date-time" }
@@ -27,6 +27,8 @@
         "emailAddress": { "type": "string", "description": "The temporary email address of the inbox." },
         "emailCount": { "type": "number", "description": "The number of emails currently in the inbox." },
         "expiresAt": { "type": "string", "description": "Timestamp indicating when the inbox and its contents will be deleted.", "format": "date-time" },
+        "isStarred": { "type": "boolean" },
+        "isArchived": { "type": "boolean" },
         "createdAt": { "type": "string", "description": "Timestamp of when the inbox was created.", "format": "date-time" }
       },
       "required": ["userId", "emailAddress", "expiresAt", "createdAt"]
@@ -55,14 +57,11 @@
         "properties": {
             "name": { "type": "string" },
             "price": { "type": "number" },
-            "cycle": { "type": "string", "enum": ["monthly", "yearly"] },
+            "billing": { "type": "string", "enum": ["monthly", "yearly", "lifetime_free"] },
             "status": { "type": "string", "enum": ["active", "archived"] },
-            "features": {
-                "type": "object",
-                "properties": { "maxInboxes": { "type": "number" }, "inboxLifetime": { "type": "number" } }
-            }
+            "features": { "type": "object" }
         },
-        "required": ["name", "price", "cycle", "status"]
+        "required": ["name", "price", "billing", "status"]
     },
     "BlogPost": {
         "title": "Blog Post",
@@ -157,17 +156,17 @@
       "schema": { "$ref": "#/entities/Menu" },
       "description": "Stores navigation menus (e.g., header, footer)."
     },
-    "/page_content/{pageId}": {
-        "schema": { "type": "object" },
-        "description": "Stores content for dynamic pages."
+    "/pages/{pageId}": {
+      "schema": { "type": "object", "properties": { "name": { "type": "string" }, "slug": { "type": "string" } } },
+      "description": "Defines the pages of the website."
+    },
+    "/pages/{pageId}/sections/{sectionId}": {
+      "schema": { "type": "object" },
+      "description": "Stores the configuration for a section on a specific page."
     },
     "/sections/{sectionId}": {
         "schema": { "type": "object" },
         "description": "Stores default styles and configurations for reusable page sections."
-    },
-    "/pages/{pageId}": {
-      "schema": { "type": "object", "properties": { "name": { "type": "string" }, "slug": { "type": "string" } } },
-      "description": "Defines the pages of the website."
     }
   }
 }
