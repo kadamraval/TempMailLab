@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { z } from "zod"
@@ -6,7 +7,7 @@ import type { Timestamp } from "firebase/firestore"
 
 const timerSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).substr(2, 9)),
-  count: z.coerce.number().int().min(1),
+  count: z.coerce.number().int().min(0), // 0 can be used for 'custom'
   unit: z.enum(['minutes', 'hours', 'days']),
   isPremium: z.boolean().default(false),
 });
@@ -85,6 +86,7 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
+
 
 
 

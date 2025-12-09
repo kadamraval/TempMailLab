@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -230,8 +231,10 @@ export function DashboardClient() {
       setSelectedDomain(allowedDomains[0].domain);
     }
     if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
-        const defaultLifetime = activePlan.features.availableInboxtimers[0];
-        setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
+        const defaultLifetime = activePlan.features.availableInboxtimers.find(t => t.id !== 'custom');
+        if (defaultLifetime) {
+            setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
+        }
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
@@ -268,7 +271,8 @@ export function DashboardClient() {
             
             let lifetimeInMs;
             if (useCustomLifetime) {
-                if(!plan.features.allowCustomtimer) {
+                const canUseCustom = plan.features.availableInboxtimers?.some(t => t.id === 'custom');
+                if(!canUseCustom) {
                      toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
                      setIsCreating(false);
                      return;
@@ -536,6 +540,7 @@ export function DashboardClient() {
 
   const mailFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Spam", "Blocked"];
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
+  const canUseCustomTimer = activePlan.features.availableInboxtimers?.some(t => t.id === 'custom');
   
   const countdownMinutes = Math.floor(countdown.remaining / 60000);
   const countdownSeconds = Math.floor((countdown.remaining % 60000) / 1000);
@@ -578,12 +583,15 @@ export function DashboardClient() {
                                 <SelectValue placeholder="Inbox Timer" />
                             </SelectTrigger>
                             <SelectContent>
-                                {(activePlan.features.availableInboxtimers || []).map(lt => (
-                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
-                                        <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
-                                    </SelectItem>
-                                ))}
-                                <SelectItem value="custom">Custom</SelectItem>
+                                {(activePlan.features.availableInboxtimers || []).map(lt => {
+                                    if (lt.id === 'custom') return null;
+                                    return (
+                                        <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
+                                            <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
+                                        </SelectItem>
+                                    )
+                                })}
+                                {canUseCustomTimer && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
@@ -930,3 +938,4 @@ export function DashboardClient() {
     </div>
   );
 }
+

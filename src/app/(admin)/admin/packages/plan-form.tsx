@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -17,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Loader2, Info, Lock, PlusCircle, Trash2, Star } from "lucide-react"
+import { Loader2, Info, Lock, PlusCircle, Trash2, Star, Timer } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Switch } from "@/components/ui/switch"
@@ -240,10 +241,21 @@ export function PlanForm({ plan }: PlanFormProps) {
     control: form.control,
     name: "features.availableInboxtimers",
   });
+  
+  const timerWatch = form.watch('features.availableInboxtimers');
+  const hasCustomTimer = timerWatch?.some(t => t.id === 'custom');
 
   const planType = form.watch('planType');
   const enableCustomDomains = form.watch('features.customDomains');
 
+  const handleToggleCustomTimer = () => {
+    if (hasCustomTimer) {
+        const index = fields.findIndex(f => f.id === 'custom');
+        if (index > -1) remove(index);
+    } else {
+        append({ id: 'custom', count: 0, unit: 'minutes', isPremium: true });
+    }
+  }
 
   useEffect(() => {
     if (plan) {
@@ -385,58 +397,61 @@ export function PlanForm({ plan }: PlanFormProps) {
                             <FeatureInput name="features.dailyInboxLimit" label="Per Day New Inboxes" control={form.control} type="number" />
                             <div className="md:col-span-2 space-y-4 p-4 border rounded-lg">
                                 <FormLabelWithTooltip label="Available Inbox Timers" tooltipText={featureTooltips.availableInboxtimers} />
-                                {fields.map((field, index) => (
-                                    <div key={field.id} className="flex items-center gap-2">
-                                        <FormField
-                                            control={form.control}
-                                            name={`features.availableInboxtimers.${index}.count`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="Count" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                         <FormField
-                                            control={form.control}
-                                            name={`features.availableInboxtimers.${index}.unit`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex-1">
-                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                {fields.map((field, index) => {
+                                    if (field.id === 'custom') return null;
+                                    return (
+                                        <div key={field.id} className="flex items-center gap-2">
+                                            <FormField
+                                                control={form.control}
+                                                name={`features.availableInboxtimers.${index}.count`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
                                                         <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Unit" />
-                                                            </SelectTrigger>
+                                                            <Input type="number" placeholder="Count" {...field} />
                                                         </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="minutes">Minutes</SelectItem>
-                                                            <SelectItem value="hours">Hours</SelectItem>
-                                                            <SelectItem value="days">Days</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name={`features.availableInboxtimers.${index}.isPremium`}
-                                            render={({ field }) => (
-                                                <FormItem className="flex items-center gap-2 space-y-0">
-                                                    <FormControl>
-                                                         <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                                                    </FormControl>
-                                                    <Label>Premium</Label>
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`features.availableInboxtimers.${index}.unit`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-1">
+                                                        <Select onValueChange={field.onChange} value={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Unit" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="minutes">Minutes</SelectItem>
+                                                                <SelectItem value="hours">Hours</SelectItem>
+                                                                <SelectItem value="days">Days</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`features.availableInboxtimers.${index}.isPremium`}
+                                                render={({ field }) => (
+                                                    <FormItem className="flex items-center gap-2 space-y-0">
+                                                        <FormControl>
+                                                            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                        </FormControl>
+                                                        <Label>Premium</Label>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    )
+                                })}
                                 <Button
                                 type="button"
                                 variant="outline"
@@ -444,9 +459,21 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 onClick={() => append({ id: `new-${fields.length}`, count: 60, unit: 'minutes', isPremium: false })}
                                 >
                                     <PlusCircle className="h-4 w-4 mr-2" />
-                                    Add Inbox Timer
+                                    Add Pre-defined Timer
                                 </Button>
-                                <FeatureSwitch name="features.allowCustomtimer" label="Allow Custom Timer" control={form.control} />
+                                <div className="pt-4">
+                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                        <div className="space-y-0.5">
+                                            <FormLabelWithTooltip label="Allow Custom Timer" tooltipText={featureTooltips.allowCustomtimer} />
+                                            <FormDescription>
+                                                Allow users to define their own inbox expiration time. This is always a premium feature.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch checked={hasCustomTimer} onCheckedChange={handleToggleCustomTimer} />
+                                        </FormControl>
+                                    </FormItem>
+                                </div>
                             </div>
                             <FeatureSwitch name="features.extendTime" label="Allow Time Extension" control={form.control} />
                             <NumericFeatureToggle control={form.control} name="features.customPrefix" label="Customizable Inbox" />
@@ -581,3 +608,4 @@ export function PlanForm({ plan }: PlanFormProps) {
     </Form>
   )
 }
+
