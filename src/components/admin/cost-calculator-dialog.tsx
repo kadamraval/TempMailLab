@@ -234,15 +234,15 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
             <DialogContent className="max-w-4xl">
                 <DialogHeader>
                     <DialogTitle>Business Cost & Revenue Calculator</DialogTitle>
-                    <CardDescription>
+                    <DialogDescription>
                         Model your operational costs and revenue streams to determine a data-driven price for your premium plan.
-                    </CardDescription>
+                    </DialogDescription>
                 </DialogHeader>
                 {isLoadingSettings ? <div className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-4">
                     <Card>
                         <CardHeader><CardTitle className="text-lg">Global Settings</CardTitle></CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <FormLabelWithTooltip label="Model Users" tooltipText="The total number of monthly active users to base all calculations on." />
                                 <Input type="number" value={state.users} onChange={(e) => handleStateChange('users', Number(e.target.value))} />
@@ -299,7 +299,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                     <CardHeader className="pb-2">
                                         <FormLabelWithTooltip label="Hosting (Cloud Run)" tooltipText={`Cost for server-side code execution (e.g. webhooks) beyond the free tier.`} />
                                     </CardHeader>
-                                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                         <div className="space-y-2">
                                           <Label className="text-xs text-muted-foreground">Free Requests / month</Label>
                                           <Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleStateChange(`expenses.hosting.freeTier`, Number(e.target.value))} />
@@ -332,8 +332,8 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         <div className="p-4 border rounded-md space-y-4">
                                             <Label className="font-semibold">Read Operations</Label>
                                             <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Free Reads / month</Label>
-                                                <Input type="number" value={state.expenses.dbOps.readFree} onChange={e => handleStateChange(`expenses.dbOps.readFree`, Number(e.target.value))} />
+                                                <Label className="text-xs text-muted-foreground">Free Reads / month (in thousands)</Label>
+                                                <Input type="number" value={state.expenses.dbOps.readFree / 1000} onChange={e => handleStateChange(`expenses.dbOps.readFree`, Number(e.target.value) * 1000)} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-muted-foreground">Price per 100k Reads ($)</Label>
@@ -347,8 +347,8 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                         <div className="p-4 border rounded-md space-y-4">
                                             <Label className="font-semibold">Write Operations</Label>
                                              <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Free Writes / month</Label>
-                                                <Input type="number" value={state.expenses.dbOps.writeFree} onChange={e => handleStateChange(`expenses.dbOps.writeFree`, Number(e.target.value))} />
+                                                <Label className="text-xs text-muted-foreground">Free Writes / month (in thousands)</Label>
+                                                <Input type="number" value={state.expenses.dbOps.writeFree / 1000} onChange={e => handleStateChange(`expenses.dbOps.writeFree`, Number(e.target.value) * 1000)} />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-muted-foreground">Price per 100k Writes ($)</Label>
@@ -377,7 +377,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                             <CardHeader className="pb-2">
                                                 <FormLabelWithTooltip label={serviceLabel} tooltipText={`Cost for ${s} beyond the free tier.`} />
                                             </CardHeader>
-                                            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                            <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                 <div className="space-y-2">
                                                   <Label className="text-xs text-muted-foreground">Free Tier Volume ({unit})</Label>
                                                   <Input type="number" value={config.freeTier} onChange={e => handleStateChange(`expenses.${s}.freeTier`, Number(e.target.value))} />
@@ -419,7 +419,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                                         <Input type="number" value={charge.cost || ''} onChange={e => handleChargeChange(charge.id, 'cost', Number(e.target.value))} />
                                                     </div>
                                                 ) : (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                         <div className="space-y-2">
                                                           <Label className="text-xs text-muted-foreground">Free Tier Volume</Label>
                                                           <Input type="number" value={charge.freeTier || ''} onChange={e => handleChargeChange(charge.id, 'freeTier', Number(e.target.value))} />
@@ -463,7 +463,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 <CardTitle className="text-lg">Monthly Revenue</CardTitle>
                                 <CardDescription>Model your potential revenue from advertising.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent>
                                 <Card>
                                     <CardHeader className="pb-2">
                                         <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
