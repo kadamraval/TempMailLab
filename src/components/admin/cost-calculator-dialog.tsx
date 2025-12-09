@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -52,15 +53,16 @@ const initialCalculatorState = {
     profitMargin: 50,
     expenses: {
         mail: { volume: 50000, cost: 15, userVolume: 50 },
-        auth: { volume: 10000, cost: 0, userVolume: 1 },
-        storage: { volume: 5, cost: 0.12, userVolume: 0.05 },
+        auth: { freeTier: 10000, paidCost: 0.01, userVolume: 1 },
+        storage: { freeTier: 5, paidCost: 0.18, userVolume: 0.05 },
+        hosting: { freeTier: 10, paidCost: 0.12, userVolume: 0.1 },
         otherCharges: [] as {name: string, cost: number}[],
     },
     revenue: {
         pageviewsPerUser: 30,
-        adsPerPage: 2,
-        tier1Traffic: { percent: 50, rpm: 15 },
-        tier2Traffic: { percent: 50, rpm: 0.70 },
+        tier1Traffic: { percent: 10, rpm: 15 },
+        tier2Traffic: { percent: 40, rpm: 5 },
+        tier3Traffic: { percent: 50, rpm: 0.70 },
     }
 };
 
@@ -111,34 +113,48 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     const toCurrentCurrency = (usdValue: number) => state.currency === 'INR' ? usdValue * state.exchangeRate : usdValue;
 
     // --- EXPENSES ---
-    const costPerMail = state.expenses.mail.cost / (state.expenses.mail.volume || 1);
-    const mailCostPerUser = costPerMail * state.expenses.mail.userVolume;
-    
-    const costPerAuth = state.expenses.auth.cost / (state.expenses.auth.volume || 1);
-    const authCostPerUser = costPerAuth * state.expenses.auth.userVolume;
+    const calculateCostWithFreeTier = (totalUsage: number, freeTier: number, costPerUnit: number) => {
+        const chargeableUsage = Math.max(0, totalUsage - freeTier);
+        return chargeableUsage * costPerUnit;
+    }
 
-    const costPerGbStorage = state.expenses.storage.cost / (state.expenses.storage.volume || 1);
-    const storageCostPerUser = costPerGbStorage * state.expenses.storage.userVolume;
+    const mailCostPerUser = (state.expenses.mail.cost / state.expenses.mail.volume) * state.expenses.mail.userVolume;
     
+    const totalAuthUsage = state.users * state.expenses.auth.userVolume;
+    const authTotalCost = calculateCostWithFreeTier(totalAuthUsage, state.expenses.auth.freeTier, state.expenses.auth.paidCost);
+    const authCostPerUser = authTotalCost / (state.users || 1);
+    
+    const totalStorageUsage = state.users * state.expenses.storage.userVolume;
+    const storageTotalCost = calculateCostWithFreeTier(totalStorageUsage, state.expenses.storage.freeTier, state.expenses.storage.paidCost);
+    const storageCostPerUser = storageTotalCost / (state.users || 1);
+
+    const totalHostingUsage = state.users * state.expenses.hosting.userVolume;
+    const hostingTotalCost = calculateCostWithFreeTier(totalHostingUsage, state.expenses.hosting.freeTier, state.expenses.hosting.paidCost);
+    const hostingCostPerUser = hostingTotalCost / (state.users || 1);
+
     const totalOtherCharges = state.expenses.otherCharges.reduce((acc, charge) => acc + charge.cost, 0);
 
-    const totalExpensePerUser = mailCostPerUser + authCostPerUser + storageCostPerUser;
+    const totalExpensePerUser = mailCostPerUser + authCostPerUser + storageCostPerUser + hostingCostPerUser;
     const totalExpenses = (totalExpensePerUser * state.users) + totalOtherCharges;
 
     // --- REVENUE ---
     const { totalAdRevenue, adRevenuePerUser } = useMemo(() => {
         const totalPageviews = state.users * state.revenue.pageviewsPerUser;
+        
         const tier1Pageviews = totalPageviews * (state.revenue.tier1Traffic.percent / 100);
-        const tier2Pageviews = totalPageviews * (state.revenue.tier2Traffic.percent / 100);
-
         const tier1Earnings = (tier1Pageviews / 1000) * state.revenue.tier1Traffic.rpm;
+
+        const tier2Pageviews = totalPageviews * (state.revenue.tier2Traffic.percent / 100);
         const tier2Earnings = (tier2Pageviews / 1000) * state.revenue.tier2Traffic.rpm;
         
-        const totalRevenue = tier1Earnings + tier2Earnings;
+        const tier3Pageviews = totalPageviews * (state.revenue.tier3Traffic.percent / 100);
+        const tier3Earnings = (tier3Pageviews / 1000) * state.revenue.tier3Traffic.rpm;
+        
+        const totalRevenue = tier1Earnings + tier2Earnings + tier3Earnings;
         const revenuePerUser = totalRevenue / (state.users || 1);
 
         return { totalAdRevenue: totalRevenue, adRevenuePerUser: revenuePerUser };
-    }, [state.users, state.revenue.pageviewsPerUser, state.revenue.tier1Traffic, state.revenue.tier2Traffic]);
+    }, [state.users, state.revenue]);
 
     // --- PRICING SUGGESTION ---
     const breakEvenPrice = totalExpensePerUser + adRevenuePerUser;
@@ -192,29 +208,38 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <CardHeader><CardTitle className="text-lg">Monthly Expenses</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Mail (e.g., inbound.new)" tooltipText="Cost for processing incoming emails." />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (# Mails)</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleNestedStateChange('expenses', 'mail', 'volume', Number(e.target.value))} /></div>
+                                    <FormLabelWithTooltip label="Mail (e.g., inbound.new)" tooltipText="Cost for processing incoming emails. This is a third-party service." />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div><Label className="text-xs text-muted-foreground">Total Volume</Label><Input type="number" value={state.expenses.mail.volume} onChange={e => handleNestedStateChange('expenses', 'mail', 'volume', Number(e.target.value))} /></div>
                                         <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.mail.cost} onChange={e => handleNestedStateChange('expenses', 'mail', 'cost', Number(e.target.value))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleNestedStateChange('expenses', 'mail', 'userVolume', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" value={state.expenses.mail.userVolume} onChange={e => handleNestedStateChange('expenses', 'mail', 'userVolume', Number(e.target.value))} /></div>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(mailCostPerUser), state.currency)}</p>
                                 </div>
                                 <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Firebase Auth" tooltipText="Cost for user authentications." />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (MAUs)</Label><Input type="number" value={state.expenses.auth.volume} onChange={e => handleNestedStateChange('expenses', 'auth', 'volume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.auth.cost} onChange={e => handleNestedStateChange('expenses', 'auth', 'cost', Number(e.target.value))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User</Label><Input type="number" value={state.expenses.auth.userVolume} onChange={e => handleNestedStateChange('expenses', 'auth', 'userVolume', Number(e.target.value))} /></div>
+                                    <FormLabelWithTooltip label="Firebase Auth (MAU)" tooltipText="Cost for monthly active users after the free tier." />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier</Label><Input type="number" value={state.expenses.auth.freeTier} onChange={e => handleNestedStateChange('expenses', 'auth', 'freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/User ($)</Label><Input type="number" step="0.01" value={state.expenses.auth.paidCost} onChange={e => handleNestedStateChange('expenses', 'auth', 'paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Volume/User</Label><Input type="number" readOnly value={state.expenses.auth.userVolume} /></div>
                                     </div>
-                                     <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)}</p>
+                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(authCostPerUser), state.currency)}</p>
+                                </div>
+                                <div className="space-y-2 p-3 border rounded-lg">
+                                    <FormLabelWithTooltip label="Firebase Hosting (GB)" tooltipText="Cost for data transfer (egress) after the free tier." />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.hosting.freeTier} onChange={e => handleNestedStateChange('expenses', 'hosting', 'freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.hosting.paidCost} onChange={e => handleNestedStateChange('expenses', 'hosting', 'paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.1" value={state.expenses.hosting.userVolume} onChange={e => handleNestedStateChange('expenses', 'hosting', 'userVolume', Number(e.target.value))} /></div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(hostingCostPerUser), state.currency)}</p>
                                 </div>
                                  <div className="space-y-2 p-3 border rounded-lg">
-                                    <FormLabelWithTooltip label="Cloud Storage" tooltipText="Cost for storing email attachments, etc." />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div><Label className="text-xs text-muted-foreground">Total Volume (GB)</Label><Input type="number" value={state.expenses.storage.volume} onChange={e => handleNestedStateChange('expenses', 'storage', 'volume', Number(e.target.value))} /></div>
-                                        <div><Label className="text-xs text-muted-foreground">Total Cost ($)</Label><Input type="number" value={state.expenses.storage.cost} onChange={e => handleNestedStateChange('expenses', 'storage', 'cost', Number(e.target.value))} /></div>
-                                        <div className="col-span-2"><Label className="text-xs text-muted-foreground">Est. Volume / User (GB)</Label><Input type="number" value={state.expenses.storage.userVolume} onChange={e => handleNestedStateChange('expenses', 'storage', 'userVolume', Number(e.target.value))} /></div>
+                                    <FormLabelWithTooltip label="Cloud Storage (GB)" tooltipText="Cost for storing files (attachments) after the free tier." />
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div><Label className="text-xs text-muted-foreground">Free Tier (GB)</Label><Input type="number" value={state.expenses.storage.freeTier} onChange={e => handleNestedStateChange('expenses', 'storage', 'freeTier', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">Cost/GB ($)</Label><Input type="number" step="0.01" value={state.expenses.storage.paidCost} onChange={e => handleNestedStateChange('expenses', 'storage', 'paidCost', Number(e.target.value))} /></div>
+                                        <div><Label className="text-xs text-muted-foreground">GB/User</Label><Input type="number" step="0.01" value={state.expenses.storage.userVolume} onChange={e => handleNestedStateChange('expenses', 'storage', 'userVolume', Number(e.target.value))} /></div>
                                     </div>
                                      <p className="text-xs text-muted-foreground text-right pt-1">Est. Cost/User: {formatCurrency(toCurrentCurrency(storageCostPerUser), state.currency)}</p>
                                 </div>
@@ -237,21 +262,24 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                 <CardHeader><CardTitle className="text-lg">Monthly AdSense Revenue</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
                                      <div className="space-y-4 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Impressions." />
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleNestedStateChange('revenue', 'pageviewsPerUser', 'pageviewsPerUser', Number(e.target.value))} /></div>
-                                             <div><Label className="text-xs text-muted-foreground">Ads/Page</Label><Input type="number" value={state.revenue.adsPerPage} onChange={e => handleNestedStateChange('revenue', 'adsPerPage', 'adsPerPage', Number(e.target.value))} /></div>
+                                        <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleNestedStateChange('revenue', 'pageviewsPerUser', 'pageviewsPerUser', Number(e.target.value))} /></div>
                                         </div>
                                         <Separator />
                                         <div className="space-y-2">
-                                            <Label className="font-semibold">Traffic Distribution</Label>
+                                            <Label className="font-semibold">Traffic Distribution & RPM</Label>
                                             <div className="grid grid-cols-2 gap-2">
                                                  <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={state.revenue.tier1Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'percent', Number(e.target.value))} /></div>
                                                  <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={state.revenue.tier1Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier1Traffic', 'rpm', Number(e.target.value))} /></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
-                                                <div><Label className="text-xs text-muted-foreground">India/Tier 2 Traffic (%)</Label><Input type="number" value={state.revenue.tier2Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'percent', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Europe/Tier 2 Traffic (%)</Label><Input type="number" value={state.revenue.tier2Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'percent', Number(e.target.value))} /></div>
                                                 <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={state.revenue.tier2Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier2Traffic', 'rpm', Number(e.target.value))} /></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div><Label className="text-xs text-muted-foreground">India/Tier 3 Traffic (%)</Label><Input type="number" value={state.revenue.tier3Traffic.percent} onChange={e => handleNestedStateChange('revenue', 'tier3Traffic', 'percent', Number(e.target.value))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Tier 3 RPM ($)</Label><Input type="number" value={state.revenue.tier3Traffic.rpm} onChange={e => handleNestedStateChange('revenue', 'tier3Traffic', 'rpm', Number(e.target.value))} /></div>
                                             </div>
                                         </div>
                                          <p className="text-xs text-muted-foreground text-right pt-1">Est. Ad Revenue/User: {formatCurrency(toCurrentCurrency(adRevenuePerUser), state.currency)}</p>
