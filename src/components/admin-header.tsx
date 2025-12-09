@@ -18,7 +18,9 @@ import { useUser, useAuth } from "@/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { signOut } from "firebase/auth"
 import { useToast } from "@/hooks/use-toast"
-import { LogOut, Settings, HelpCircle } from "lucide-react"
+import { LogOut, Settings, HelpCircle, Calculator } from "lucide-react"
+import { CostCalculatorDialog } from "./admin/cost-calculator-dialog"
+import { useState } from "react"
 
 // A helper function to get a title from the path
 const getTitleFromPath = (pathname: string): string => {
@@ -36,6 +38,7 @@ export function AdminHeader() {
     const router = useRouter();
     const { toast } = useToast();
     const pathname = usePathname();
+    const [isCalcOpen, setIsCalcOpen] = useState(false);
 
     const getInitials = (email: string | null | undefined) => {
         if (!email) return "U";
@@ -61,6 +64,7 @@ export function AdminHeader() {
     };
 
     return (
+        <>
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
              <div className="flex-1">
                  <h1 className="text-xl font-semibold">{getTitleFromPath(pathname)}</h1>
@@ -68,6 +72,10 @@ export function AdminHeader() {
 
             <div className="flex items-center gap-2">
                 <ModeToggle />
+                <Button variant="ghost" size="icon" onClick={() => setIsCalcOpen(true)}>
+                    <Calculator className="h-[1.2rem] w-[1.2rem]" />
+                    <span className="sr-only">Open Cost Calculator</span>
+                </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button
@@ -105,5 +113,7 @@ export function AdminHeader() {
                 </DropdownMenu>
             </div>
         </header>
+        <CostCalculatorDialog isOpen={isCalcOpen} onClose={() => setIsCalcOpen(false)} />
+        </>
     );
 }

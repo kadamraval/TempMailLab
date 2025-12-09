@@ -37,7 +37,6 @@ import { savePlanAction } from "@/lib/actions/plans"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { CostAnalysisModule } from "./cost-analysis-module"
 
 interface PlanFormProps {
     plan?: Plan | null;
@@ -58,8 +57,7 @@ const featureTooltips: Record<string, string> = {
   allowStarring: "Allow users to star important emails.",
   allowArchiving: "Allow users to archive emails to remove them from the main inbox view.",
   totalStorageQuota: "Maximum storage in MB for all of a user's inboxes combined. 0 for unlimited.",
-
-
+  
   // Inbox
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
@@ -82,7 +80,6 @@ const featureTooltips: Record<string, string> = {
   // Storage & Data
   expiredInboxCooldownDays: "After an inbox expires, it enters a cooldown. This is the number of days before the inbox and its address are permanently deleted from the server, allowing another user to claim the same address.",
   retainEmailsAfterDeletion: "If 'Yes', emails from an expired inbox will be kept in a permanent user archive, even after the inbox itself is deleted during the cooldown period. This enables 'lifetime' email access for premium plans.",
-
 
   // Custom Domain
   customDomains: "Enable custom domain features for this plan.",
@@ -246,7 +243,6 @@ export function PlanForm({ plan }: PlanFormProps) {
 
   const planType = form.watch('planType');
   const enableCustomDomains = form.watch('features.customDomains');
-  const watchedPlan = form.watch();
 
 
   useEffect(() => {
@@ -582,10 +578,6 @@ export function PlanForm({ plan }: PlanFormProps) {
                 </CardFooter>
             </Card>
         </form>
-
-        <div className="mt-6">
-            <CostAnalysisModule planData={watchedPlan} />
-        </div>
     </Form>
   )
 }
