@@ -8,8 +8,12 @@
       "properties": {
         "uid": { "type": "string", "description": "The user's unique ID from Firebase Auth." },
         "email": { "type": "string", "description": "User's email address.", "format": "email" },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "inboxCount": { "type": "number", "description": "The number of inboxes the user has." },
         "planId": { "type": "string", "description": "The ID of the user's current subscription plan." },
+        "planType": { "type": "string", "description": "The type of plan the user has (e.g., 'free')." },
         "isAdmin": { "type": "boolean", "description": "Indicates if the user has administrative privileges." },
+        "isPremium": { "type": "boolean", "description": "Indicates if the user has a premium plan." },
         "createdAt": { "type": "string", "description": "Timestamp of when the user account was created.", "format": "date-time" }
       },
       "required": ["uid", "email", "planId", "isAdmin", "createdAt"]
@@ -152,6 +156,18 @@
     "/menus/{menuId}": {
       "schema": { "$ref": "#/entities/Menu" },
       "description": "Stores navigation menus (e.g., header, footer)."
+    },
+    "/page_content/{pageId}": {
+        "schema": { "type": "object" },
+        "description": "Stores content for dynamic pages."
+    },
+    "/sections/{sectionId}": {
+        "schema": { "type": "object" },
+        "description": "Stores default styles and configurations for reusable page sections."
+    },
+    "/pages/{pageId}": {
+      "schema": { "type": "object", "properties": { "name": { "type": "string" }, "slug": { "type": "string" } } },
+      "description": "Defines the pages of the website."
     }
   }
 }
