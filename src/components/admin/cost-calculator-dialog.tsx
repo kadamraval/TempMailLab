@@ -57,8 +57,8 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     // Revenue States
     const [pageviewsPerUser, setPageviewsPerUser] = useState(30);
     const [adsPerPage, setAdsPerPage] = useState(2);
-    const [ctr, setCtr] = useState(2); // Click-Through Rate %
-    const [cpc, setCpc] = useState(0.50); // Cost Per Click $
+    const [tier1Traffic, setTier1Traffic] = useState({ percent: 50, rpm: 15 });
+    const [tier2Traffic, setTier2Traffic] = useState({ percent: 50, rpm: 0.70 });
     const [totalSubscriptionRevenue, setTotalSubscriptionRevenue] = useState(500); // Manual input
 
     const toCurrentCurrency = (usdValue: number) => currency === 'INR' ? usdValue * exchangeRate : usdValue;
@@ -80,10 +80,15 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
 
     // --- REVENUE ---
     const totalAdRevenue = useMemo(() => {
-        const totalImpressions = users * pageviewsPerUser * adsPerPage;
-        const totalClicks = totalImpressions * (ctr / 100);
-        return totalClicks * cpc;
-    }, [users, pageviewsPerUser, adsPerPage, ctr, cpc]);
+        const totalPageviews = users * pageviewsPerUser;
+        const tier1Pageviews = totalPageviews * (tier1Traffic.percent / 100);
+        const tier2Pageviews = totalPageviews * (tier2Traffic.percent / 100);
+
+        const tier1Earnings = (tier1Pageviews / 1000) * tier1Traffic.rpm;
+        const tier2Earnings = (tier2Pageviews / 1000) * tier2Traffic.rpm;
+
+        return tier1Earnings + tier2Earnings;
+    }, [users, pageviewsPerUser, tier1Traffic, tier2Traffic]);
 
     const totalRevenue = totalSubscriptionRevenue + totalAdRevenue;
     const perUserRevenue = totalRevenue / (users || 1);
@@ -186,20 +191,40 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                             <Card>
                                 <CardHeader><CardTitle className="text-lg">Monthly Revenue</CardTitle></CardHeader>
                                 <CardContent className="space-y-4">
-                                     <div className="space-y-2 p-3 border rounded-lg">
-                                        <FormLabelWithTooltip label="Google AdSense Calculator" tooltipText="Model your ad revenue based on user activity." />
-                                        <div className="grid grid-cols-2 gap-2">
-                                             <div><Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label><Input type="number" value={pageviewsPerUser} onChange={e => setPageviewsPerUser(Number(e.target.value))} /></div>
-                                             <div><Label className="text-xs text-muted-foreground">Ads/Page</Label><Input type="number" value={adsPerPage} onChange={e => setAdsPerPage(Number(e.target.value))} /></div>
-                                             <div><Label className="text-xs text-muted-foreground">CTR (%)</Label><Input type="number" value={ctr} onChange={e => setCtr(Number(e.target.value))} /></div>
-                                             <div><Label className="text-xs text-muted-foreground">CPC ($)</Label><Input type="number" value={cpc} onChange={e => setCpc(Number(e.target.value))} /></div>
+                                     <div className="space-y-4 p-3 border rounded-lg">
+                                        <FormLabelWithTooltip label="Google AdSense Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Impressions." />
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">Pageviews/User/Mo</Label>
+                                                <Input type="number" value={pageviewsPerUser} onChange={e => setPageviewsPerUser(Number(e.target.value))} />
+                                            </div>
+                                             <div>
+                                                <Label className="text-xs text-muted-foreground">Ads/Page</Label>
+                                                <Input type="number" value={adsPerPage} onChange={e => setAdsPerPage(Number(e.target.value))} />
+                                            </div>
                                         </div>
-                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalAdRevenue / (users || 1)), currency)}</p>
+                                        
+                                        <Separator />
+
+                                        <div className="space-y-2">
+                                            <Label className="font-semibold">Traffic Distribution</Label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                 <div><Label className="text-xs text-muted-foreground">USA/Tier 1 Traffic (%)</Label><Input type="number" value={tier1Traffic.percent} onChange={e => setTier1Traffic(p => ({...p, percent: Number(e.target.value)}))} /></div>
+                                                 <div><Label className="text-xs text-muted-foreground">Tier 1 RPM ($)</Label><Input type="number" value={tier1Traffic.rpm} onChange={e => setTier1Traffic(p => ({...p, rpm: Number(e.target.value)}))} /></div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div><Label className="text-xs text-muted-foreground">India/Tier 2 Traffic (%)</Label><Input type="number" value={tier2Traffic.percent} onChange={e => setTier2Traffic(p => ({...p, percent: Number(e.target.value)}))} /></div>
+                                                <div><Label className="text-xs text-muted-foreground">Tier 2 RPM ($)</Label><Input type="number" value={tier2Traffic.rpm} onChange={e => setTier2Traffic(p => ({...p, rpm: Number(e.target.value)}))} /></div>
+                                            </div>
+                                        </div>
+
+                                         <p className="text-xs text-muted-foreground text-right pt-1">Est. Ad Revenue/User: {formatCurrency(toCurrentCurrency(totalAdRevenue / (users || 1)), currency)}</p>
                                     </div>
                                     <div className="space-y-2 p-3 border rounded-lg">
                                         <FormLabelWithTooltip label="Total Monthly Subscription Revenue ($)" tooltipText="Enter your estimated total monthly revenue from all paying subscribers in USD." />
                                         <Input type="number" value={totalSubscriptionRevenue} onChange={e => setTotalSubscriptionRevenue(Number(e.target.value))} />
-                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue / (users || 1)), currency)}</p>
+                                        <p className="text-xs text-muted-foreground text-right pt-1">Est. Subscription Revenue/User: {formatCurrency(toCurrentCurrency(totalSubscriptionRevenue / (users || 1)), currency)}</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -209,7 +234,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                     
                     {/* --- Summary --- */}
                      <Card>
-                        <CardHeader><CardTitle className="text-lg">Summary (for {users.toLocaleString()} users)</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-lg">Summary (for {users.toLocaleString()} users)</CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="p-4 rounded-lg border bg-card">
@@ -235,5 +260,5 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
-}
+    
+    
