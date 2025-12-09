@@ -68,6 +68,29 @@ const initialCalculatorState = {
 
 type CalculatorState = typeof initialCalculatorState;
 
+// Deep merge utility
+const isObject = (item: any) => {
+  return (item && typeof item === 'object' && !Array.isArray(item));
+};
+
+const mergeDeep = (target: any, ...sources: any[]): any => {
+  if (!sources.length) return target;
+  const source = sources.shift();
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (isObject(source[key])) {
+        if (!target[key]) Object.assign(target, { [key]: {} });
+        mergeDeep(target[key], source[key]);
+      } else if (source[key] !== undefined) {
+        Object.assign(target, { [key]: source[key] });
+      }
+    }
+  }
+  return mergeDeep(target, ...sources);
+};
+
+
 export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogProps) {
     const [state, setState] = useState<CalculatorState>(initialCalculatorState);
     const [isSaving, setIsSaving] = useState(false);
@@ -80,7 +103,8 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
     
     useEffect(() => {
         if (savedSettings) {
-            setState(prev => ({...prev, ...savedSettings}));
+            // Use deep merge to prevent overwriting nested state with undefined
+            setState(prev => mergeDeep({ ...prev }, savedSettings));
         }
     }, [savedSettings]);
 
@@ -264,7 +288,7 @@ export function CostCalculatorDialog({ isOpen, onClose }: CostCalculatorDialogPr
                                      <div className="space-y-4 p-3 border rounded-lg">
                                         <FormLabelWithTooltip label="Ad Revenue Calculator" tooltipText="Model your ad revenue based on user activity and traffic geography. RPM is Revenue Per 1,000 Pageviews." />
                                         <div className="grid grid-cols-1 gap-4">
-                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => handleNestedStateChange('revenue', 'pageviewsPerUser', 'pageviewsPerUser', Number(e.target.value))} /></div>
+                                            <div><Label className="text-xs text-muted-foreground">Pageviews/User/Month</Label><Input type="number" value={state.revenue.pageviewsPerUser} onChange={e => setState(p => ({...p, revenue: {...p.revenue, pageviewsPerUser: Number(e.target.value)}}))} /></div>
                                         </div>
                                         <Separator />
                                         <div className="space-y-2">
