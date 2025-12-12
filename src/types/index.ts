@@ -31,7 +31,7 @@ export interface User {
   displayName?: string;
   inboxCount?: number;
   planId?: string; 
-  plan?: Plan; // Added the resolved plan object
+  plan?: Plan | null; // Changed to allow null
   isAdmin?: boolean;
   isAnonymous?: boolean;
   photoURL?: string;

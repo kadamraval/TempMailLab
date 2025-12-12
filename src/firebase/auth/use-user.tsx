@@ -29,33 +29,37 @@ export const useUser = (): UserHookResultWithProfile => {
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
   const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
+    if (!firestore || !user?.uid || user.isAnonymous) return null;
     return doc(firestore, 'users', user.uid);
-  }, [firestore, user?.uid]);
+  }, [firestore, user?.uid, user?.isAnonymous]);
 
   const { data: userProfileData, isLoading: isLoadingProfileDoc } = useDoc<User>(userProfileRef);
 
   useEffect(() => {
     const fetchPlanAndMerge = async () => {
-        if (!user || !userProfileData || !firestore) {
-            // If the user is anonymous or there's no profile data yet, handle it.
-            if (user?.isAnonymous && firestore) {
-                 const defaultPlanRef = doc(firestore, "plans", "free-default");
-                 const defaultPlanSnap = await getDoc(defaultPlanRef);
-                 if (defaultPlanSnap.exists()) {
-                     setUserProfileWithPlan({ ...user, plan: { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan });
-                 }
-            } else if (!user) {
-                 setUserProfileWithPlan(null); // No user, so no profile
-            }
+        setIsProfileLoading(true);
+        // If there's no user, we are done.
+        if (!user) {
+            setUserProfileWithPlan(null);
+            setIsProfileLoading(false);
             return;
-        };
+        }
+
+        // Handle anonymous user separately and efficiently
+        if (user.isAnonymous) {
+            if (!firestore) return;
+            const defaultPlanRef = doc(firestore, "plans", "free-default");
+            const defaultPlanSnap = await getDoc(defaultPlanRef);
+            const plan = defaultPlanSnap.exists() ? { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan : null;
+            setUserProfileWithPlan({ ...user, plan });
+            setIsProfileLoading(false);
+            return;
+        }
         
-        // Determine the plan ID, defaulting to 'free-default'
-        const planId = userProfileData.planId || 'free-default';
-        const planRef = doc(firestore, 'plans', planId);
-        
-        try {
+        // Handle registered user
+        if (userProfileData && firestore) {
+            const planId = userProfileData.planId || 'free-default';
+            const planRef = doc(firestore, 'plans', planId);
             const planSnap = await getDoc(planRef);
             const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
             
@@ -63,47 +67,27 @@ export const useUser = (): UserHookResultWithProfile => {
                 ...userProfileData,
                 plan: planData
             });
-
-        } catch (error) {
-            console.error("Failed to fetch user plan:", error);
-            // Set profile but with null plan in case of error
-            setUserProfileWithPlan({
-                ...userProfileData,
-                plan: null
-            });
+            setIsProfileLoading(false);
+        } else if (!isLoadingProfileDoc) {
+             // If profile isn't loading but we don't have data (e.g., new registration), set loading to false.
+             setIsProfileLoading(false);
         }
     };
 
-    if (!isLoadingProfileDoc) {
-      fetchPlanAndMerge().finally(() => setIsProfileLoading(false));
+    // Run this logic only when auth is resolved and we have a firestore instance
+    if (!isAuthLoading && firestore) {
+      fetchPlanAndMerge();
     }
 
-  }, [user, userProfileData, isLoadingProfileDoc, firestore]);
+  }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
-
-  const combinedLoading = isAuthLoading || (user && isProfileLoading);
-  
-  // Final check for anonymous user if profile loading is complete but no profile was found
-  useEffect(() => {
-    if (!combinedLoading && user && !userProfileWithPlan) {
-      if (user.isAnonymous && firestore) {
-        const loadDefaultPlan = async () => {
-          const defaultPlanRef = doc(firestore, "plans", "free-default");
-          const defaultPlanSnap = await getDoc(defaultPlanRef);
-          if (defaultPlanSnap.exists()) {
-            setUserProfileWithPlan({ ...user, plan: { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan });
-          }
-        };
-        loadDefaultPlan();
-      }
-    }
-  }, [combinedLoading, user, userProfileWithPlan, firestore]);
-
+  // The final loading state depends on both auth and profile/plan loading
+  const isOverallLoading = isAuthLoading || isProfileLoading;
 
   return { 
     user, 
     userProfile: userProfileWithPlan, 
-    isUserLoading: combinedLoading,
+    isUserLoading: isOverallLoading,
     userError: userError 
   };
 };
