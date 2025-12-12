@@ -1,6 +1,6 @@
 # Subscription Plan Feature Logic
 
-This document details the precise logic for how each feature defined in a subscription plan will be implemented and connected to the application's behavior.
+This document details the precise logic for how each feature defined in a subscription plan will be implemented and connected to the application's behavior. This is the definitive blueprint for all development work related to plans and features. All UI/UX is considered final and will not be changed.
 
 ---
 
