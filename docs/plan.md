@@ -1,3 +1,4 @@
+
 # Subscription Plan Feature Logic
 
 This document details the precise logic for how each feature defined in a subscription plan will be implemented and connected to the application's behavior. This is the definitive blueprint for all development work related to plans and features. All UI/UX is considered final and will not be changed.
@@ -34,7 +35,7 @@ The system revolves around three core user and plan types. The application logic
 
 ### General & Account Features
 
--   **`noAds` (Boolean)**
+-   **`noAds` (Boolean) - [COMPLETED]**
     -   **Logic**: The AdSense components (`<AdSenseAd>`, `<BottomAdBanner>`) will check the active plan's `features.noAds` flag. If `true`, the components will render `null`, effectively hiding all advertisements across the application.
 
 -   **`teamMembers` (Number)**
@@ -51,16 +52,16 @@ The system revolves around three core user and plan types. The application logic
 
 ### Inbox Features
 
--   **`maxInboxes` (Number)**
+-   **`maxInboxes` (Number) - [COMPLETED]**
     -   **Logic**: When a user clicks "Create Inbox", a client-side check against the user's current inbox count from Firestore will be performed. If `user.inboxCount >= plan.features.maxInboxes`, the "Create" button will be disabled and will trigger the premium upsell popup.
 
--   **`availableInboxtimers` (Array of Objects)**
+-   **`availableInboxtimers` (Array of Objects) - [COMPLETED]**
     -   **Logic**: The "Inbox Timer" dropdown in the UI (`dashboard-client.tsx`) will be dynamically populated based on the timers listed in `plan.features.availableInboxtimers`. Timers marked with `isPremium: true` will be visually distinguished (e.g., with a star icon) and will be disabled if the user's plan type is not `Pro`. Selecting a disabled premium timer will trigger the upsell popup.
 
--   **`allowCustomtimer` (Boolean)**
+-   **`allowCustomtimer` (Boolean) - [COMPLETED]**
     -   **Logic**: The UI will display the "Custom" timer option and input fields only if `plan.features.allowCustomtimer` is `true`. A server-side check will also reject any inbox creation request that uses a custom timer if the plan does not permit it. If `false`, the option will be hidden or disabled, triggering the upsell popup on click.
 
--   **`customPrefix` (Boolean or Number)**
+-   **`customPrefix` (Boolean or Number) - [COMPLETED]**
     -   **Logic**: The input field allowing the user to type their own inbox prefix will be enabled. If the plan value is `false`, the prefix input will be disabled, and the system will only allow auto-generated, random prefixes. Clicking the disabled input will trigger the upsell popup.
 
 -   **`allowStarring` (Boolean)**
@@ -71,7 +72,7 @@ The system revolves around three core user and plan types. The application logic
 
 ### Email Features
 
--   **`maxEmailsPerInbox` (Number)**
+-   **`maxEmailsPerInbox` (Number) - [COMPLETED]**
     -   **Logic**: This is a critical **server-side** feature. The inbound email webhook (`src/api/inbound-webhook/route.ts`) will, before saving a new email, read the `emailCount` on the parent inbox document. If `emailCount` is equal to or greater than `maxEmailsPerInbox`, the webhook will stop and discard the incoming email. A value of `0` means unlimited. The user will not be notified in real-time, but their inbox will simply stop receiving new mail.
 
 -   **`allowAttachments` (Boolean)**
@@ -134,20 +135,21 @@ The system revolves around three core user and plan types. The application logic
 This is how we will connect all the pieces together, step-by-step.
 
 ### Phase 1: Solidify the Data Foundation
--   **Database:** Update the `Email` entity in `docs/backend.json` to include all boolean flags (`isStarred`, `isArchived`, `isSpam`, `isBlocked`).
--   **Admin Panel:** Refactor the `Plan` schema in `src/app/(admin)/admin/packages/data.ts` to correctly handle the full range of features, especially complex ones like numeric toggles and custom timers.
--   **Application Types:** Update the `Email` type in `src/types/index.ts` to match the new database schema.
+-   **Database:** Update the `Email` entity in `docs/backend.json` to include all boolean flags (`isStarred`, `isArchived`, `isSpam`, `isBlocked`). **[COMPLETED]**
+-   **Admin Panel:** Refactor the `Plan` schema in `src/app/(admin)/admin/packages/data.ts` to correctly handle the full range of features, especially complex ones like numeric toggles and custom timers. **[COMPLETED]**
+-   **Application Types:** Update the `Email` type in `src/types/index.ts` to match the new database schema. **[COMPLETED]**
 
 ### Phase 2: Implement Core Server-Side Logic
--   **Webhook Enforcement:** Modify the inbound email webhook at `src/api/inbound-webhook/route.ts` to read the user's plan and enforce the `maxEmailsPerInbox` limit. This makes the plans functional.
--   **User Data Integration:** Update the `useUser` hook in `src/firebase/auth/use-user.tsx` to correctly fetch the user's assigned `planId` and default to the `free-default` plan if none is assigned. This ensures every user operates under the correct feature set.
+-   **Webhook Enforcement:** Modify the inbound email webhook at `src/api/inbound-webhook/route.ts` to read the user's plan and enforce the `maxEmailsPerInbox` limit. This makes the plans functional. **[COMPLETED]**
+-   **User Data Integration:** Update the `useUser` hook in `src/firebase/auth/use-user.tsx` to correctly fetch the user's assigned `planId` and default to the `free-default` plan if none is assigned. This ensures every user operates under the correct feature set. **[COMPLETED]**
 
 ### Phase 3: Connect Frontend Logic to Plans
 -   **Inbox UI (`dashboard-client.tsx`):** This is the core of the user-facing changes. The component's logic will be updated to:
-    -   Read the active plan from the `useUser` hook.
-    -   Dynamically populate the inbox timer dropdown from `plan.features.availableInboxtimers`.
-    -   Show/hide the "Custom Timer" option based on `plan.features.allowCustomtimer`.
-    -   Enable/disable the custom prefix input based on `plan.features.customPrefix`.
+    -   Read the active plan from the `useUser` hook. **[COMPLETED]**
+    -   Dynamically populate the inbox timer dropdown from `plan.features.availableInboxtimers`. **[COMPLETED]**
+    -   Show/hide the "Custom Timer" option based on `plan.features.allowCustomtimer`. **[COMPLETED]**
+    -   Enable/disable the custom prefix input based on `plan.features.customPrefix`. **[COMPLETED]**
     -   Enable/disable UI elements for starring, archiving, forwarding, etc., based on their respective feature flags.
     -   Implement the "Premium Upsell" modal dialog for all disabled features.
--   **Admin Plan Form (`plan-form.tsx`):** Update the administrator's plan editor to correctly display and save all the newly defined feature toggles and options from the updated schema.
+-   **Admin Plan Form (`plan-form.tsx`):** Update the administrator's plan editor to correctly display and save all the newly defined feature toggles and options from the updated schema. **[COMPLETED]**
+-   **Ad System (`adsense-ad.tsx`):** Connect AdSense components to the `noAds` flag. **[COMPLETED]**

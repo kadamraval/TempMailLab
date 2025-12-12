@@ -17,7 +17,7 @@ const AdSenseAd = ({ slot, responsive = "false" }: { slot: string, responsive?: 
 
     useEffect(() => {
         // Don't run if ads are disabled for the user/plan, or if settings aren't loaded
-        if (userProfile?.plan?.noAds || !settings?.clientId) {
+        if (userProfile?.plan?.features.noAds || !settings?.clientId) {
             return;
         }
         try {
@@ -26,9 +26,9 @@ const AdSenseAd = ({ slot, responsive = "false" }: { slot: string, responsive?: 
         } catch (e) {
             console.error("AdSense error:", e);
         }
-    }, [settings?.clientId, slot, userProfile?.plan?.noAds]);
+    }, [settings?.clientId, slot, userProfile?.plan?.features.noAds]);
     
-    if (userProfile?.plan?.noAds || !settings?.clientId || !slot) {
+    if (userProfile?.plan?.features.noAds || !settings?.clientId || !slot) {
         return null;
     }
 
@@ -53,7 +53,7 @@ export const BottomAdBanner = () => {
     const { data: settings } = useDoc(settingsRef);
     
     // Don't render anything if ads disabled or not configured
-    if (userProfile?.plan?.noAds || !settings?.bottomBannerSlot) {
+    if (userProfile?.plan?.features.noAds || !settings?.bottomBannerSlot) {
         return null;
     }
 
