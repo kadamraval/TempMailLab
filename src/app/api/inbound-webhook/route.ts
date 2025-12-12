@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
 
         const fromAddress = parsedEmail.from?.addresses?.[0];
 
+        // Standardized Email object
         const newEmail: any = {
             inboxId: inboxDoc.id,
             userId: inboxData.userId,
@@ -90,6 +91,10 @@ export async function POST(req: NextRequest) {
             textContent: parsedEmail.textBody || null,
             rawContent: parsedEmail.raw,
             read: false,
+            isStarred: false,
+            isArchived: false,
+            isSpam: false,
+            isBlocked: false
         };
 
         if (parsedEmail.attachments && parsedEmail.attachments.length > 0) {

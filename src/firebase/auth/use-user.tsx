@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirebase } from '../provider';
@@ -37,47 +38,65 @@ export const useUser = (): UserHookResultWithProfile => {
 
   useEffect(() => {
     const fetchPlanAndMerge = async () => {
+        // Don't do anything until auth is resolved and we have a firestore instance
+        if (isAuthLoading || !firestore) {
+            return;
+        }
+        
         setIsProfileLoading(true);
-        // If there's no user, we are done.
+
         if (!user) {
             setUserProfileWithPlan(null);
             setIsProfileLoading(false);
             return;
         }
 
-        // Handle anonymous user separately and efficiently
+        let planIdToFetch: string;
+        let baseProfile: User;
+
         if (user.isAnonymous) {
-            if (!firestore) return;
-            const defaultPlanRef = doc(firestore, "plans", "free-default");
-            const defaultPlanSnap = await getDoc(defaultPlanRef);
-            const plan = defaultPlanSnap.exists() ? { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan : null;
-            setUserProfileWithPlan({ ...user, plan });
-            setIsProfileLoading(false);
-            return;
+            planIdToFetch = 'free-default';
+            baseProfile = user as User;
+        } else {
+            if (isLoadingProfileDoc) {
+                // If the registered user's profile is still loading, we can't proceed.
+                return;
+            }
+            if (userProfileData) {
+                baseProfile = userProfileData;
+                planIdToFetch = userProfileData.planId || 'free-default';
+            } else {
+                // This can happen briefly during sign-up before the user doc is created.
+                // We'll treat them as having the default plan in the meantime.
+                baseProfile = user as User;
+                planIdToFetch = 'free-default';
+            }
         }
         
-        // Handle registered user
-        if (userProfileData && firestore) {
-            const planId = userProfileData.planId || 'free-default';
-            const planRef = doc(firestore, 'plans', planId);
+        try {
+            const planRef = doc(firestore, 'plans', planIdToFetch);
             const planSnap = await getDoc(planRef);
             const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
-            
+
+            if (!planData && planIdToFetch === 'free-default') {
+                console.error("CRITICAL: The 'free-default' plan document was not found in Firestore.");
+            }
+
             setUserProfileWithPlan({
-                ...userProfileData,
+                ...baseProfile,
                 plan: planData
             });
+
+        } catch (error) {
+            console.error("Error fetching user plan:", error);
+            // In case of error, create a profile with a null plan to avoid breaking the app
+            setUserProfileWithPlan({ ...baseProfile, plan: null });
+        } finally {
             setIsProfileLoading(false);
-        } else if (!isLoadingProfileDoc) {
-             // If profile isn't loading but we don't have data (e.g., new registration), set loading to false.
-             setIsProfileLoading(false);
         }
     };
 
-    // Run this logic only when auth is resolved and we have a firestore instance
-    if (!isAuthLoading && firestore) {
-      fetchPlanAndMerge();
-    }
+    fetchPlanAndMerge();
 
   }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
