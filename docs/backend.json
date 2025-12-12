@@ -52,7 +52,7 @@
         "isSpam": { "type": "boolean", "description": "Indicates if the user has marked the email as spam." },
         "isBlocked": { "type": "boolean", "description": "Indicates if the sender of the email is blocked." }
       },
-      "required": ["inboxId", "userId", "senderName", "subject", "receivedAt", "createdAt"]
+      "required": ["inboxId", "userId", "senderName", "subject", "receivedAt", "createdAt", "read", "isStarred", "isArchived", "isSpam", "isBlocked"]
     },
     "Plan": {
       "title": "Plan",
