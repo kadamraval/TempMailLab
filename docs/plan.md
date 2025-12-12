@@ -48,6 +48,22 @@ The system revolves around three core user and plan types. The application logic
     -   **Condition**: `plan.features.customPrefix !== false`
     -   **Logic**: The input field allowing the user to type their own inbox prefix will be enabled. If the value is a number, it will represent a limit on how many custom-prefix inboxes can be created (logic to be implemented later). If `false`, the prefix input will be disabled, and the system will only allow auto-generated, random prefixes.
 
+- **`allowStarring` (Boolean)**
+    -   **Condition**: `plan.features.allowStarring === true`.
+    -   **Logic**: The "Star" icon/button will be visible next to each email. Clicking it will update the email's `isStarred` field in Firestore. If `false`, the star icon will be hidden, and any starring action will be disabled.
+
+- **`allowArchiving` (Boolean)**
+    -   **Condition**: `plan.features.allowArchiving === true`.
+    -   **Logic**: The "Archive" button/icon will be visible. When an email is archived, it will be hidden from the main inbox view (filtered out on the client-side) and can be viewed in a separate "Archived" filter. If `false`, the archive button will be hidden.
+
+- **`spam` (Boolean)**
+    -   **Condition**: `plan.features.spam === true`.
+    -   **Logic**: The "Mark as Spam" option will be available. When an email is marked as spam, its `isSpam` flag is set to `true` in Firestore. This can be used to train future spam filters and will move the email to a "Spam" folder/view. If `false`, the option is hidden.
+
+- **`block` (Boolean or Number)**
+    -   **Condition**: `plan.features.block !== false`.
+    -   **Logic**: The "Block Sender" option will be available. When used, the sender's address is added to a blocklist associated with the user's account. The inbound webhook will check this list and automatically reject new emails from blocked senders. If the value is a number, it represents the maximum number of blocked addresses allowed. If `false`, the block option is hidden.
+
 ### Email Features
 
 -   **`maxEmailsPerInbox` (Number)**
@@ -57,6 +73,10 @@ The system revolves around three core user and plan types. The application logic
 -   **`allowAttachments` (Boolean)**
     -   **Condition**: `plan.features.allowAttachments === true`
     -   **Logic**: In the `EmailView` component, the section for displaying and downloading attachments will be rendered only if this flag is `true`. The inbound webhook will still process and store attachment metadata regardless, but the UI will control visibility.
+
+- **`delete` (Implicit Feature)**
+    -   **Condition**: This is a basic action available to all users for emails they own.
+    -   **Logic**: When a user deletes an email, the email document is permanently removed from the `emails` subcollection in Firestore. An associated Cloud Function will then trigger to decrement the `emailCount` on the parent inbox document, ensuring data consistency.
 
 ### Custom Domain Features
 
