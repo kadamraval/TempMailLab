@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -46,10 +47,10 @@
         "textContent": { "type": "string", "description": "Plain text content of the email." },
         "rawContent": { "type": "string", "description": "The full, raw MIME content of the email." },
         "read": { "type": "boolean", "description": "Indicates if the email has been read by the user." },
-        "isStarred": { "type": "boolean" },
-        "isArchived": { "type": "boolean" },
-        "isSpam": { "type": "boolean" },
-        "isBlocked": { "type": "boolean" }
+        "isStarred": { "type": "boolean", "description": "Indicates if the user has starred the email." },
+        "isArchived": { "type": "boolean", "description": "Indicates if the user has archived the email." },
+        "isSpam": { "type": "boolean", "description": "Indicates if the user has marked the email as spam." },
+        "isBlocked": { "type": "boolean", "description": "Indicates if the sender of the email is blocked." }
       },
       "required": ["inboxId", "userId", "senderName", "subject", "receivedAt", "createdAt"]
     },

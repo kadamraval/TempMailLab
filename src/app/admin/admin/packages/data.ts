@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { z } from "zod"
@@ -85,6 +86,3 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
-
-
-

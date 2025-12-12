@@ -30,22 +30,18 @@ export const planSchema = z.object({
     customBranding: z.boolean().default(false),
     prioritySupport: z.boolean().default(false),
     dedicatedAccountManager: z.boolean().default(false),
-    allowStarring: z.boolean().default(false),
-    allowArchiving: z.boolean().default(false),
-    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     
     // Inbox
     maxInboxes: z.coerce.number().int().min(0, "Cannot be negative."),
     dailyInboxLimit: z.coerce.number().int().min(0).default(0),
     availableInboxtimers: z.array(timerSchema).default([{ id: 'default', count: 10, unit: 'minutes', isPremium: false }]),
-    maxCustomTimer: z.object({
-        count: z.coerce.number().int().min(0),
-        unit: z.enum(['minutes', 'hours', 'days']),
-    }).default({ count: 24, unit: 'hours'}),
+    allowCustomtimer: z.boolean().default(false),
     extendTime: z.boolean().default(false),
     customPrefix: z.union([z.boolean(), z.number()]).default(false),
     inboxLocking: z.union([z.boolean(), z.number()]).default(false),
     qrCode: z.union([z.boolean(), z.number()]).default(false),
+    allowStarring: z.boolean().default(false), // Moved from general
+    allowArchiving: z.boolean().default(false), // Moved from general
 
     // Email
     dailyEmailLimit: z.coerce.number().int().min(0).default(0),
@@ -57,6 +53,7 @@ export const planSchema = z.object({
     sourceCodeView: z.boolean().default(false),
 
     // Storage & Data
+    totalStorageQuota: z.coerce.number().int().min(0, "Cannot be negative. 0 for unlimited."),
     expiredInboxCooldownDays: z.coerce.number().int().min(0, "0 means delete immediately after expiry."),
     retainEmailsAfterDeletion: z.boolean().default(false),
 
@@ -89,8 +86,3 @@ export const planSchema = z.object({
 })
 
 export type Plan = z.infer<typeof planSchema> & { id: string };
-
-
-
-
-
