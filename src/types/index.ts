@@ -19,11 +19,11 @@ export interface Email {
     size: number;
     url: string; 
   }[];
-  read?: boolean;
-  isStarred?: boolean;
-  isArchived?: boolean;
-  isSpam?: boolean;
-  isBlocked?: boolean;
+  read: boolean;
+  isStarred: boolean;
+  isArchived: boolean;
+  isSpam: boolean;
+  isBlocked: boolean;
 }
 
 export interface User {
