@@ -22,68 +22,65 @@ The system revolves around three core user and plan types. The application logic
 
 ---
 
-## 2. Feature Implementation Details
+## 2. Feature Implementation Details (Categorized)
 
-### General Features
+### General & Account Features
 
 -   **`noAds` (Boolean)**
-    -   **Condition**: `plan.features.noAds === true`
-    -   **Logic**: The AdSense components (`<AdSenseAd>`, `<BottomAdBanner>`) will check this flag. If `true`, the components will render nothing (`return null`), effectively hiding all ads.
+    -   **Logic**: The AdSense components (`<AdSenseAd>`, `<BottomAdBanner>`) will check the active plan's `features.noAds` flag. If `true`, the components will render `null`, effectively hiding all advertisements across the application.
+
+-   **`teamMembers` (Number)**
+    -   **Logic**: This is a placeholder for future implementation. The logic will involve inviting other users to share a plan's benefits, but it is not part of the current scope.
+
+-   **`prioritySupport` (Boolean)**
+    -   **Logic**: If `true`, any support requests submitted by the user will be flagged as "priority" in the admin support queue. This is a backend flag.
+
+-   **`browserExtension` (Boolean)**
+    -   **Logic**: If `true`, the user will be able to download and use the companion browser extension. A check will be performed within the extension to validate the user's plan.
 
 ### Inbox Features
 
 -   **`maxInboxes` (Number)**
-    -   **Condition**: The number of active inboxes associated with the user's `userId`.
-    -   **Logic**: When a user clicks "Create Inbox", a server-side check will count their existing active inboxes. If the count is equal to or greater than `plan.features.maxInboxes`, the creation request will be denied and an error message will be shown to the user.
+    -   **Logic**: When a user clicks "Create Inbox", a server-side check (or a client-side check against the user's current inbox count from Firestore) will count their active inboxes. If the count is equal to or greater than `plan.features.maxInboxes`, the creation UI will be disabled or show an error message.
 
 -   **`availableInboxtimers` (Array of Objects)**
-    -   **Condition**: The user's active plan.
-    -   **Logic**: The "Inbox Timer" dropdown in the UI will be dynamically populated based on the timers listed in `plan.features.availableInboxtimers`. If a timer in the array has `isPremium: true`, it will be disabled or hidden unless the user's plan is of type `Pro`.
+    -   **Logic**: The "Inbox Timer" dropdown in the UI (`dashboard-client.tsx`) will be dynamically populated based on the timers listed in `plan.features.availableInboxtimers`. Timers marked with `isPremium: true` will be disabled or hidden unless the user's plan type is `Pro`.
 
 -   **`allowCustomtimer` (Boolean)**
-    -   **Condition**: `plan.features.allowCustomtimer === true`
-    -   **Logic**: The UI will display the "Custom" timer option and input fields. If `false`, these UI elements will be hidden. A server-side check will also reject any inbox creation request that uses a custom timer if the plan does not permit it.
+    -   **Logic**: The UI will display the "Custom" timer option and input fields only if `plan.features.allowCustomtimer` is `true`. A server-side check will also reject any inbox creation request that uses a custom timer if the plan does not permit it.
 
 -   **`customPrefix` (Boolean or Number)**
-    -   **Condition**: `plan.features.customPrefix !== false`
     -   **Logic**: The input field allowing the user to type their own inbox prefix will be enabled. If the value is a number, it will represent a limit on how many custom-prefix inboxes can be created (logic to be implemented later). If `false`, the prefix input will be disabled, and the system will only allow auto-generated, random prefixes.
 
 - **`allowStarring` (Boolean)**
-    -   **Condition**: `plan.features.allowStarring === true`.
-    -   **Logic**: The "Star" icon/button will be visible next to each email. Clicking it will update the email's `isStarred` field in Firestore. If `false`, the star icon will be hidden, and any starring action will be disabled.
+    -   **Logic**: The "Star" icon/button next to each email in the list and in the email view will be visible only if `plan.features.allowStarring === true`. Clicking it will update the email's `isStarred` field in Firestore. If `false`, the star icon will be hidden.
 
 - **`allowArchiving` (Boolean)**
-    -   **Condition**: `plan.features.allowArchiving === true`.
-    -   **Logic**: The "Archive" button/icon will be visible. When an email is archived, it will be hidden from the main inbox view (filtered out on the client-side) and can be viewed in a separate "Archived" filter. If `false`, the archive button will be hidden.
-
-- **`spam` (Boolean)**
-    -   **Condition**: `plan.features.spam === true`.
-    -   **Logic**: The "Mark as Spam" option will be available. When an email is marked as spam, its `isSpam` flag is set to `true` in Firestore. This can be used to train future spam filters and will move the email to a "Spam" folder/view. If `false`, the option is hidden.
-
-- **`block` (Boolean or Number)**
-    -   **Condition**: `plan.features.block !== false`.
-    -   **Logic**: The "Block Sender" option will be available. When used, the sender's address is added to a blocklist associated with the user's account. The inbound webhook will check this list and automatically reject new emails from blocked senders. If the value is a number, it represents the maximum number of blocked addresses allowed. If `false`, the block option is hidden.
+    -   **Logic**: The "Archive" button/icon will be visible only if `plan.features.allowArchiving === true`. When an email is archived, it will be hidden from the main inbox view (filtered out on the client-side) and can be viewed in a separate "Archived" filter.
 
 ### Email Features
 
 -   **`maxEmailsPerInbox` (Number)**
-    -   **Condition**: `plan.features.maxEmailsPerInbox > 0`
-    -   **Logic**: This is a critical **server-side** feature. The inbound email webhook will, before saving a new email, read the `emailCount` on the parent inbox document. If `emailCount` is equal to or greater than `maxEmailsPerInbox`, the webhook will stop and discard the incoming email, preventing the inbox from overflowing.
+    -   **Logic**: This is a critical **server-side** feature. The inbound email webhook (`src/api/inbound-webhook/route.ts`) will, before saving a new email, read the `emailCount` on the parent inbox document. If `emailCount` is equal to or greater than `maxEmailsPerInbox`, the webhook will stop and discard the incoming email, preventing the inbox from overflowing. A value of `0` means unlimited.
 
 -   **`allowAttachments` (Boolean)**
-    -   **Condition**: `plan.features.allowAttachments === true`
     -   **Logic**: In the `EmailView` component, the section for displaying and downloading attachments will be rendered only if this flag is `true`. The inbound webhook will still process and store attachment metadata regardless, but the UI will control visibility.
 
 - **`delete` (Implicit Feature)**
-    -   **Condition**: This is a basic action available to all users for emails they own.
-    -   **Logic**: When a user deletes an email, the email document is permanently removed from the `emails` subcollection in Firestore. An associated Cloud Function will then trigger to decrement the `emailCount` on the parent inbox document, ensuring data consistency.
+    -   **Logic**: This is a basic action available to all users for emails they own. When a user deletes an email, the email document is permanently removed from the `emails` subcollection in Firestore. An associated Cloud Function will then trigger to decrement the `emailCount` on the parent inbox document.
+
+### Security & Privacy Features
+
+- **`spam` (Boolean)**
+    -   **Logic**: The "Mark as Spam" option will be available only if `plan.features.spam === true`. When an email is marked as spam, its `isSpam` flag is set to `true` in Firestore. This will move the email to a "Spam" folder/view.
+
+- **`block` (Boolean or Number)**
+    -   **Logic**: The "Block Sender" option will be available only if `plan.features.block !== false`. When used, the sender's address is added to a blocklist associated with the user's account. The inbound webhook will check this list and automatically reject new emails from blocked senders. If the value is a number, it represents the maximum number of blocked addresses allowed.
 
 ### Custom Domain Features
 
 -   **`customDomains` (Boolean)**
-    -   **Condition**: `plan.features.customDomains === true`
-    -   **Logic**: The "Custom Domains" page in the user dashboard will be enabled, allowing users to add and manage their domains. If `false`, this page will show a banner prompting the user to upgrade.
+    -   **Logic**: The "Custom Domains" page in the user dashboard will be enabled only if `plan.features.customDomains === true`. If `false`, this page will show a banner prompting the user to upgrade.
 
 -   **`allowPremiumDomains` (Boolean)**
-    -   **Condition**: `plan.features.allowPremiumDomains === true`
-    -   **Logic**: When populating the domain selection dropdown, the logic will fetch all domains from the `allowed_domains` collection. If this flag is `false`, it will filter out any domains marked with `tier: "premium"`.
+    -   **Logic**: When populating the domain selection dropdown for inbox creation, the logic will fetch all domains from the `allowed_domains` collection. If `plan.features.allowPremiumDomains` is `false`, it will filter out any domains marked with `tier: "premium"`.
