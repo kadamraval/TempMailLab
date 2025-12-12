@@ -1,5 +1,5 @@
-
 import type { Timestamp } from "firebase/firestore";
+import type { Plan } from "@/app/(admin)/admin/packages/data";
 
 export interface Email {
   id: string; 
@@ -31,6 +31,7 @@ export interface User {
   displayName?: string;
   inboxCount?: number;
   planId?: string; 
+  plan?: Plan; // Added the resolved plan object
   isAdmin?: boolean;
   isAnonymous?: boolean;
   photoURL?: string;
