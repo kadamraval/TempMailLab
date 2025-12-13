@@ -134,7 +134,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const { userProfile } = useUser();
+  const { userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -148,19 +148,18 @@ export function DashboardClient() {
 
   
   const userInboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile?.uid || userProfile?.isAnonymous || isDemoMode) return null;
+    if (!firestore || !userProfile?.uid || userProfile?.isAnonymous) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid));
-  }, [firestore, userProfile?.uid, userProfile?.isAnonymous, isDemoMode]);
+  }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
   const { data: userInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id || !userProfile || isDemoMode) return null;
-    if (userProfile.isAnonymous) return null; // Don't fetch for guests from firestore
+    if (!firestore || !currentInbox?.id || !userProfile || userProfile.isAnonymous) return null;
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, currentInbox?.id, userProfile, isDemoMode]);
+  }, [firestore, currentInbox?.id, userProfile]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
@@ -334,6 +333,7 @@ export function DashboardClient() {
 
   useEffect(() => {
     // This effect runs only once when the component mounts and userProfile is available.
+    if (isUserLoading) return;
     const initializeSession = async () => {
         if (!userProfile || !firestore) return;
 
@@ -378,7 +378,7 @@ export function DashboardClient() {
     };
 
     initializeSession();
-}, [userProfile, firestore]);
+}, [userProfile, firestore, isUserLoading]);
 
 
   useEffect(() => {
@@ -457,7 +457,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isLoadingDomains) {
+  if (isLoading || isUserLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -621,7 +621,7 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && (!isLoadingEmails || isDemoMode)) ? (
+            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
