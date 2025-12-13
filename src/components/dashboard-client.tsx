@@ -102,7 +102,6 @@ const ITEMS_PER_PAGE = 10;
 export function DashboardClient() {
   const [activeInbox, setActiveInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -229,48 +228,16 @@ export function DashboardClient() {
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
+    // This is the correct logic as provided by the user.
+    // It only auto-selects an inbox if one isn't already active.
     useEffect(() => {
-        if (isUserLoading || isLoadingInboxes || !isLoading) return;
-        
-        const initializeSession = async () => {
-            if (!userProfile || !firestore) {
-                setIsLoading(false);
-                return;
-            };
-            
-            let foundInbox: InboxType | null = null;
-            
-            if (userProfile.isAnonymous) {
-                const localInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
-                if (localInboxId) {
-                    const inboxRef = doc(firestore, 'inboxes', localInboxId);
-                    const inboxSnap = await getDoc(inboxRef);
-                    if (inboxSnap.exists()) {
-                         const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                         if (new Date(inboxData.expiresAt) > new Date()) {
-                            foundInbox = inboxData;
-                         } else {
-                            localStorage.removeItem(LOCAL_INBOX_KEY);
-                         }
-                    } else {
-                        localStorage.removeItem(LOCAL_INBOX_KEY);
-                    }
-                }
-            } else if (liveUserInboxes && liveUserInboxes.length > 0) {
-                const now = new Date();
-                const latestActive = liveUserInboxes
-                    .filter(ib => new Date(ib.expiresAt) > now)
-                    .sort((a,b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime())[0];
-                foundInbox = latestActive || null;
-            }
-
-            setActiveInbox(foundInbox);
-            setIsLoading(false);
-        };
-        
-        initializeSession();
-
-    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes, isLoading]);
+        const inboxToUse = userProfile?.inbox; // From AuthProvider
+        if (inboxToUse && !activeInbox) {
+            setActiveInbox(inboxToUse);
+        } else if (!activeInbox && liveUserInboxes && liveUserInboxes.length > 0) {
+            setActiveInbox(liveUserInboxes[0]);
+        }
+    }, [liveUserInboxes, userProfile, activeInbox]);
     
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -339,7 +306,7 @@ export function DashboardClient() {
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
-      setActiveInbox(createdInbox);
+      setActiveInbox(createdInbox); // This now correctly sets the active inbox and prevents the flicker.
 
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
@@ -447,7 +414,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isUserLoading || isLoadingDomains) {
+  if (isUserLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -855,3 +822,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
+
+    
