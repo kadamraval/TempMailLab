@@ -279,13 +279,10 @@ export function DashboardClient() {
             if (!activeInbox || userInboxes[0].id !== activeInbox.id) {
                 const newInbox = userInboxes[0];
                 setActiveInbox(newInbox);
-                 if (userProfile?.isAnonymous) {
-                    localStorage.setItem(LOCAL_INBOX_KEY, newInbox.id);
-                }
                 setIsCreating(false);
             }
         }
-    }, [userInboxes, isCreating, activeInbox, userProfile]);
+    }, [userInboxes, isCreating, activeInbox]);
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -346,7 +343,11 @@ export function DashboardClient() {
           isArchived: false,
       };
       
-      await addDoc(collection(firestore, `inboxes`), newInboxData);
+      const docRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+
+      if (userProfile.isAnonymous) {
+          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
+      }
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -362,7 +363,7 @@ export function DashboardClient() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-        if (!userInboxes) return; // Add this guard clause
+        if (!userInboxes) return;
 
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
         let activeInboxStillValid = false;
