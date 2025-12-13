@@ -1,4 +1,5 @@
 
+
 # Subscription Plan Feature Logic
 
 This document details the precise logic for how each feature defined in a subscription plan will be implemented and connected to the application's behavior. This is the definitive blueprint for all development work related to plans and features. All UI/UX is considered final and will not be changed.
@@ -64,10 +65,10 @@ The system revolves around three core user and plan types. The application logic
 -   **`customPrefix` (Boolean or Number) - [COMPLETED]**
     -   **Logic**: The input field allowing the user to type their own inbox prefix will be enabled. If the plan value is `false`, the prefix input will be disabled, and the system will only allow auto-generated, random prefixes. Clicking the disabled input will trigger the upsell popup.
 
--   **`allowStarring` (Boolean)**
+-   **`allowStarring` (Boolean) - [COMPLETED]**
     -   **Logic**: The "Star" icon/button next to each email in the list and in the email view will be visible only if `plan.features.allowStarring === true`. Clicking it will update the email's `isStarred` field in Firestore. If `false`, the star icon will be hidden or disabled, and clicking it will trigger the upsell popup.
 
--   **`allowArchiving` (Boolean)**
+-   **`allowArchiving` (Boolean) - [COMPLETED]**
     -   **Logic**: The "Archive" button/icon will be visible only if `plan.features.allowArchiving === true`. When an email is archived, it will be hidden from the main inbox view (filtered out on the client-side) and can be viewed in a separate "Archived" filter. If `false`, the button will be disabled and trigger the upsell popup.
 
 ### Email Features
@@ -75,7 +76,7 @@ The system revolves around three core user and plan types. The application logic
 -   **`maxEmailsPerInbox` (Number) - [COMPLETED]**
     -   **Logic**: This is a critical **server-side** feature. The inbound email webhook (`src/api/inbound-webhook/route.ts`) will, before saving a new email, read the `emailCount` on the parent inbox document. If `emailCount` is equal to or greater than `maxEmailsPerInbox`, the webhook will stop and discard the incoming email. A value of `0` means unlimited. The user will not be notified in real-time, but their inbox will simply stop receiving new mail.
 
--   **`allowAttachments` (Boolean)**
+-   **`allowAttachments` (Boolean) - [COMPLETED]**
     -   **Logic**: In the `EmailView` component, the section for displaying and downloading attachments will be rendered only if this flag is `true`. The inbound webhook will still process and store attachment metadata, but the UI will control visibility. If `false`, this section will be replaced with a message and an "Upgrade to View Attachments" button that triggers the upsell popup.
 
 -   **`delete` (Implicit Feature)**
@@ -87,7 +88,7 @@ The system revolves around three core user and plan types. The application logic
 -   **`exportEmails` (Boolean)**
     -   **Logic**: The "Export" or "Download" option for emails will be visible only if `plan.features.exportEmails === true`. This allows users to save emails as `.eml` files. If `false`, the option is disabled and triggers the upsell popup.
 
--   **`sourceCodeView` (Boolean)**
+-   **`sourceCodeView` (Boolean) - [COMPLETED]**
     -   **Logic**: The "View Source" or "Raw" tab in the `EmailView` component will be visible only if `plan.features.sourceCodeView === true`. This displays the full, raw MIME content of the email. If `false`, the tab will be disabled and trigger the upsell popup.
 
 ### Storage & Data Features
@@ -149,7 +150,8 @@ This is how we will connect all the pieces together, step-by-step.
     -   Dynamically populate the inbox timer dropdown from `plan.features.availableInboxtimers`. **[COMPLETED]**
     -   Show/hide the "Custom Timer" option based on `plan.features.allowCustomtimer`. **[COMPLETED]**
     -   Enable/disable the custom prefix input based on `plan.features.customPrefix`. **[COMPLETED]**
-    -   Enable/disable UI elements for starring, archiving, forwarding, etc., based on their respective feature flags.
+    -   Enable/disable UI elements for starring, archiving, forwarding, etc., based on their respective feature flags. **[COMPLETED]**
     -   Implement the "Premium Upsell" modal dialog for all disabled features.
 -   **Admin Plan Form (`plan-form.tsx`):** Update the administrator's plan editor to correctly display and save all the newly defined feature toggles and options from the updated schema. **[COMPLETED]**
 -   **Ad System (`adsense-ad.tsx`):** Connect AdSense components to the `noAds` flag. **[COMPLETED]**
+-   **Email View (`email-view.tsx`):** Connect attachment visibility and source code view to plan features. **[COMPLETED]**

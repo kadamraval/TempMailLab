@@ -63,6 +63,7 @@ const featureTooltips: Record<string, string> = {
   maxInboxes: "Max number of active inboxes a user can have at one time.",
   dailyInboxLimit: "Maximum number of new inboxes a user can create per day. Set to 0 for unlimited.",
   availableInboxtimers: "Predefined durations an inbox address remains active before it stops receiving new mail.",
+  allowCustomtimer: "Allow users to set a custom inbox lifetime, up to the maximum defined below.",
   maxCustomTimer: "The maximum duration a user on this plan can set for a custom inbox timer.",
   extendTime: "Allow users to manually extend the lifetime of their active inbox.",
   customPrefix: "Allow users to choose the part before the '@' (e.g., 'my-project' instead of random characters). True means unlimited, a number sets a specific limit.",
@@ -220,6 +221,7 @@ export function PlanForm({ plan }: PlanFormProps) {
         customBranding: false, prioritySupport: false, dedicatedAccountManager: false,
         allowStarring: false, allowArchiving: false, totalStorageQuota: 50,
         maxInboxes: 1, dailyInboxLimit: 0, availableInboxtimers: [{ id: 'default', count: 10, unit: 'minutes', isPremium: false }], 
+        allowCustomtimer: false,
         maxCustomTimer: { count: 24, unit: 'hours'}, extendTime: false,
         customPrefix: false, inboxLocking: false, qrCode: false,
         dailyEmailLimit: 0, maxEmailsPerInbox: 25, allowAttachments: false,
@@ -451,7 +453,7 @@ export function PlanForm({ plan }: PlanFormProps) {
                                 <div className="pt-4 space-y-4">
                                      <FeatureSwitch name="features.allowCustomtimer" label="Allow Custom Timer" control={form.control} />
                                     {allowCustomTimer && (
-                                        <div className="flex items-center gap-2 pl-3">
+                                        <div className="flex items-end gap-2 pl-3">
                                              <FeatureInput name="features.maxCustomTimer.count" label="Max Custom Time" control={form.control} type="number" />
                                              <FormField
                                                 control={form.control}
