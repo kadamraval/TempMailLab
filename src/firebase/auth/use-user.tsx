@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirebase } from '../provider';
@@ -97,3 +98,5 @@ export const useUser = (): UseUserResult => {
     userError,
   };
 };
+
+    

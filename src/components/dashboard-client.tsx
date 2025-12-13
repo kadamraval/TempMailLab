@@ -125,6 +125,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
+  // AuthProvider is now the single source of truth for the fully hydrated user profile
   const { userProfile, isLoading: isUserLoading } = useUser();
   const { toast } = useToast();
   
@@ -818,3 +819,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
