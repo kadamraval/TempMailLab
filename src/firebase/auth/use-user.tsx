@@ -37,16 +37,18 @@ export const useUser = (): UserHookResultWithProfile => {
   const { data: userProfileData, isLoading: isLoadingProfileDoc } = useDoc<User>(userProfileRef);
 
   useEffect(() => {
-    const fetchPlanAndMerge = async () => {
-        if (isAuthLoading || !firestore) {
-            return;
-        }
+    // This is the core logic change. We do not proceed until the initial auth check is complete.
+    if (isAuthLoading) {
+      return;
+    }
 
+    const fetchPlanAndMerge = async () => {
         setProfileAndPlanLoading(true);
 
         // Handle GUEST user (not logged into Firebase)
         if (!user) {
             try {
+                if (!firestore) throw new Error("Firestore service not available.");
                 const planRef = doc(firestore, 'plans', 'free-default');
                 const planSnap = await getDoc(planRef);
                 const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
@@ -64,6 +66,7 @@ export const useUser = (): UserHookResultWithProfile => {
                 });
             } catch (error) {
                 console.error("Error fetching guest plan:", error);
+                // Still provide a fallback profile to avoid breaking the UI
                 setUserProfileWithPlan({ uid: 'guest-' + Date.now(), isAnonymous: true, email: null, plan: null });
             } finally {
                 setProfileAndPlanLoading(false);
@@ -72,27 +75,29 @@ export const useUser = (): UserHookResultWithProfile => {
         }
 
         // Handle REGISTERED user
+        // Wait for their profile document from Firestore to load
         if (isLoadingProfileDoc) {
-            return; // Wait for profile doc to load for registered user
+            return; 
         }
         
+        // At this point, we have a logged-in user and their profile doc has been loaded (or is confirmed not to exist)
         const baseProfile: User = userProfileData || { uid: user.uid, email: user.email, displayName: user.displayName || '' };
         const planIdToFetch = userProfileData?.planId || 'free-default';
         
         try {
             const planRef = doc(firestore, 'plans', planIdToFetch);
             const planSnap = await getDoc(planRef);
-            const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
+            let planData: Plan | null = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
 
+            // Fallback to free plan if the user's assigned plan doesn't exist
             if (!planData && planIdToFetch !== 'free-default') {
                  console.warn(`Plan '${planIdToFetch}' not found for user ${user.uid}. Falling back to free plan.`);
                  const freePlanRef = doc(firestore, 'plans', 'free-default');
                  const freePlanSnap = await getDoc(freePlanRef);
-                 const freePlanData = freePlanSnap.exists() ? { id: freePlanSnap.id, ...freePlanSnap.data() } as Plan : null;
-                 setUserProfileWithPlan({ ...baseProfile, plan: freePlanData });
-            } else {
-                 setUserProfileWithPlan({ ...baseProfile, plan: planData });
+                 planData = freePlanSnap.exists() ? { id: freePlanSnap.id, ...freePlanSnap.data() } as Plan : null;
             }
+            
+            setUserProfileWithPlan({ ...baseProfile, plan: planData });
 
         } catch (error) {
             console.error("Error fetching user plan:", error);
@@ -106,6 +111,7 @@ export const useUser = (): UserHookResultWithProfile => {
 
   }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
+  // The overall loading state is true if either the auth check is running OR the profile/plan fetch is running.
   const isOverallLoading = isAuthLoading || isProfileAndPlanLoading;
 
   return { 
