@@ -5,6 +5,8 @@ import React, { useEffect } from 'react';
 import { useUser } from '@/firebase/auth/use-user';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/firebase';
 
 /**
  * AuthProvider is a client-side component that enforces authentication rules.
@@ -14,6 +16,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // useUser now correctly handles both guests and registered users,
   // and its `isUserLoading` flag is the definitive source of truth for the entire app's loading state.
   const { user, userProfile, isUserLoading } = useUser();
+  const auth = useAuth();
   
   const router = useRouter();
   const pathname = usePathname();
@@ -23,6 +26,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdminLoginPage = pathname === '/login/admin';
 
   useEffect(() => {
+    // If auth is ready and there's no user at all (not even anonymous), sign them in anonymously.
+    if (auth && !user && !isUserLoading) {
+      initiateAnonymousSignIn(auth);
+    }
+
     // Wait until the user's status (guest or registered) and profile are fully resolved.
     if (isUserLoading) {
       return;
@@ -50,13 +58,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-  }, [isUserLoading, user, userProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
+  }, [isUserLoading, user, userProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage, auth]);
 
 
   // --- Render Logic ---
 
   // While waiting for the definitive user state (guest or registered), show a global loading screen.
-  if (isUserLoading) {
+  if (isUserLoading || !userProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">

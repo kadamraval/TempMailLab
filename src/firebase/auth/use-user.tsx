@@ -35,9 +35,9 @@ export const useUser = (): UserHookResultWithProfile => {
   // Memoize the reference to the user's document in Firestore.
   // This ref will only exist if the user is registered (not a guest).
   const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !authUser?.uid) return null;
+    if (!firestore || !authUser?.uid || authUser.isAnonymous) return null;
     return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser?.uid]);
+  }, [firestore, authUser?.uid, authUser?.isAnonymous]);
 
   // useDoc hook to fetch the registered user's profile from Firestore.
   const { data: userProfileData, isLoading: isLoadingProfileDoc } = useDoc<User>(userProfileRef);
@@ -50,7 +50,7 @@ export const useUser = (): UserHookResultWithProfile => {
             return;
         }
     
-        if (!authUser) {
+        if (!authUser || authUser.isAnonymous) {
             // --- GUEST USER LOGIC ---
             if (!firestore) {
                 setProfileLoading(false);
@@ -64,7 +64,7 @@ export const useUser = (): UserHookResultWithProfile => {
                 
                 // Create a temporary, local user profile object for the guest.
                 setUserProfileWithPlan({
-                    uid: `guest_${Date.now()}`,
+                    uid: authUser?.uid || `guest_${Date.now()}`,
                     isAnonymous: true,
                     email: null,
                     plan: planData

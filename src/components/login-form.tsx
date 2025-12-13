@@ -31,7 +31,7 @@ interface LoginFormProps {
   redirectPath?: string;
 }
 
-const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
+const LOCAL_INBOX_KEY = 'tempinbox_guest_inbox_id';
 
 export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
   const { toast } = useToast()
@@ -70,23 +70,17 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
         return;
     }
     
-    // For regular user login, handle anonymous account merging.
-    if (currentUser?.isAnonymous) {
-        const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-        // This action will create the user doc if it doesn't exist and link the inbox.
-        const result = await signUpAction(user.uid, user.email!, anonymousInboxData);
-        if (!result.success) {
-            await auth.signOut();
-            throw new Error(result.error || "Failed to finalize user profile during login.");
-        }
-        localStorage.removeItem(LOCAL_INBOX_KEY);
-    } else if (!userDoc.exists()) {
-        // This case handles a new login on a device without an anonymous session.
-        const result = await signUpAction(user.uid, user.email!, null);
-        if (!result.success) {
-            await auth.signOut();
-            throw new Error(result.error || "Failed to create user profile during login.");
-        }
+    const anonymousInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+    // This action will create the user doc if it doesn't exist and link the inbox if one was present.
+    const result = await signUpAction(user.uid, user.email!, anonymousInboxId);
+    
+    if (!result.success) {
+      await auth.signOut();
+      throw new Error(result.error || "Failed to finalize user profile during login.");
+    }
+    
+    if (anonymousInboxId) {
+      localStorage.removeItem(LOCAL_INBOX_KEY);
     }
     
     toast({ title: "Success", description: "Logged in successfully." });
@@ -190,5 +184,3 @@ export function LoginForm({ redirectPath = "/" }: LoginFormProps) {
       </div>
   )
 }
-
-    

@@ -11,7 +11,7 @@ interface SignUpResult {
     userId?: string;
 }
 
-export async function signUpAction(uid: string, email: string, anonymousInboxData: string | null): Promise<SignUpResult> {
+export async function signUpAction(uid: string, email: string, anonymousInboxId: string | null): Promise<SignUpResult> {
     try {
         const firestore = getAdminFirestore();
         const userRef = firestore.doc(`users/${uid}`);
@@ -32,15 +32,13 @@ export async function signUpAction(uid: string, email: string, anonymousInboxDat
             });
         }
 
-        if (anonymousInboxData) {
-            const { id: inboxId } = JSON.parse(anonymousInboxData);
-            if (inboxId) {
-                const inboxRef = firestore.doc(`inboxes/${inboxId}`);
-                const inboxSnap = await inboxRef.get();
-
-                if (inboxSnap.exists) {
-                     await inboxRef.update({ userId: uid });
-                }
+        // If there's an inbox ID from an anonymous session, re-assign it to the new permanent user.
+        if (anonymousInboxId) {
+            const inboxRef = firestore.doc(`inboxes/${anonymousInboxId}`);
+            const inboxSnap = await inboxRef.get();
+            // Check if the inbox exists and actually belonged to a guest (or is being claimed)
+            if (inboxSnap.exists) {
+                 await inboxRef.update({ userId: uid });
             }
         }
         
