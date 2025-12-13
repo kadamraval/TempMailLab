@@ -343,7 +343,7 @@ export function DashboardClient() {
           isArchived: false,
       };
       
-      const docRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
 
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
@@ -857,3 +857,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
