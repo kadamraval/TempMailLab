@@ -47,9 +47,8 @@ import {
   where,
   doc,
   addDoc,
-  serverTimestamp,
-  deleteDoc,
   Timestamp,
+  deleteDoc,
   updateDoc,
   orderBy,
   limit,
@@ -342,7 +341,7 @@ export function DashboardClient() {
           domain: domainToUse,
           emailCount: 0,
           expiresAt: Timestamp.fromDate(expiresAt),
-          createdAt: serverTimestamp(),
+          createdAt: Timestamp.now(),
           isStarred: false,
           isArchived: false,
       };
@@ -857,5 +856,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
