@@ -249,16 +249,12 @@ export function DashboardClient() {
 
   useEffect(() => {
     // This effect handles setting the newly created inbox as active.
-    // It runs when the liveUserInboxes array changes.
-    if (!isCreating || !liveUserInboxes || liveUserInboxes.length === 0) return;
-
-    // If we were creating an inbox, find the newest one in the updated list.
-    // Since the query is ordered by createdAt descending, the first one is the newest.
-    const newestInbox = liveUserInboxes[0];
-
-    // If there's no active inbox or the newest one is different from the current active one
-    if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
-      setActiveInbox(newestInbox);
+    if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
+        const newestInbox = liveUserInboxes[0]; // The query is ordered by createdAt desc
+        if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
+            setActiveInbox(newestInbox);
+            setIsCreating(false); // Creation process is complete now.
+        }
     }
   }, [liveUserInboxes, isCreating, activeInbox]);
 
@@ -338,10 +334,9 @@ export function DashboardClient() {
               isStarred: false,
               isArchived: false,
           };
-          // The useCollection hook will automatically pick up this new document
+          
           await addDoc(collection(firestore, `inboxes`), newInboxData);
-          // We don't need to manually set activeInbox here for registered users.
-          // The useEffect listening to liveUserInboxes will handle it.
+          // The `useEffect` watching `liveUserInboxes` will now handle setting the active inbox and `isCreating` to false.
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -353,7 +348,6 @@ export function DashboardClient() {
       setServerError(error.message);
       setIsCreating(false); // Ensure isCreating is reset on error
     } 
-    // `finally` is removed because we want to keep isCreating true until the new inbox is set active by the effect.
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
   useEffect(() => {
@@ -901,3 +895,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
