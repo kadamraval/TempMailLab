@@ -104,11 +104,11 @@ const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
 const ITEMS_PER_PAGE = 10;
 
 export function DashboardClient() {
-  const [currentInbox, setCurrentInbox] = useState<InboxType | null>(null);
+  const [activeInbox, setActiveInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [countdown, setCountdown] = useState({ total: 0, remaining: 0 });
+  const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   
@@ -149,27 +149,34 @@ export function DashboardClient() {
   
   const userInboxesQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.uid || userProfile?.isAnonymous) return null;
-    return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid));
+    return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
   }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
-  const { data: userInboxes } = useCollection<InboxType>(userInboxesQuery);
+  const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
+
+  const [localGuestInbox, setLocalGuestInbox] = useState<InboxType | null>(null);
+
+  const userInboxes = useMemo(() => {
+    if (userProfile?.isAnonymous) {
+      return localGuestInbox ? [localGuestInbox] : [];
+    }
+    return liveUserInboxes || [];
+  }, [userProfile?.isAnonymous, localGuestInbox, liveUserInboxes]);
+
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id || !userProfile || userProfile.isAnonymous) return null;
+    if (!firestore || !activeInbox?.id || !userProfile || userProfile.isAnonymous) return null;
     return query(
-      collection(firestore, `inboxes/${currentInbox.id}/emails`),
+      collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, currentInbox?.id, userProfile]);
+  }, [firestore, activeInbox?.id, userProfile]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   const displayedInboxes = useMemo(() => {
       if (isDemoMode) return demoInboxes;
-      if (userProfile?.isAnonymous) {
-          return currentInbox ? [currentInbox] : [];
-      }
       return userInboxes || [];
-  }, [isDemoMode, userInboxes, userProfile?.isAnonymous, currentInbox]);
+  }, [isDemoMode, userInboxes]);
 
   const filteredEmails = useMemo(() => {
     if (isDemoMode) {
@@ -177,8 +184,8 @@ export function DashboardClient() {
     }
     
     // For guests, emails are stored on the inbox object in local storage
-    if (userProfile?.isAnonymous && currentInbox) {
-      return (currentInbox as any).emails || [];
+    if (userProfile?.isAnonymous && activeInbox) {
+      return (activeInbox as any).emails || [];
     }
 
     const sourceEmails = inboxEmails || [];
@@ -217,7 +224,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery, userProfile, currentInbox]);
+  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery, userProfile, activeInbox]);
 
   const generateRandomString = useCallback((length: number) => {
     let result = "";
@@ -290,11 +297,12 @@ export function DashboardClient() {
               expiresAt: expiresAt.toISOString(),
               isStarred: false,
               isArchived: false,
-              // Guests will have emails stored directly on the object
+              createdAt: Timestamp.now(),
               ...( { emails: [] } as any) 
           };
           localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInbox));
-          setCurrentInbox(newInbox);
+          setLocalGuestInbox(newInbox);
+          setActiveInbox(newInbox);
       } 
       // Handle REGISTERED user (Firestore)
       else {
@@ -315,8 +323,8 @@ export function DashboardClient() {
               isArchived: false,
           };
           const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-          const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString() } as InboxType;
-          setCurrentInbox(newInbox);
+          const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString(), createdAt: Timestamp.now() } as InboxType;
+          setActiveInbox(newInbox); // This will be updated by the collection listener automatically
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -346,6 +354,7 @@ export function DashboardClient() {
                     const localData = JSON.parse(localDataStr);
                     if (new Date(localData.expiresAt) > new Date()) {
                         foundInbox = localData;
+                        setLocalGuestInbox(foundInbox);
                     } else {
                         localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up expired inbox
                     }
@@ -373,7 +382,7 @@ export function DashboardClient() {
             }
         }
         
-        setCurrentInbox(foundInbox);
+        setActiveInbox(foundInbox);
         setIsLoading(false); // We have our initial state, stop loading.
     };
 
@@ -382,31 +391,42 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (currentInbox?.expiresAt) {
-      const expiryDate = new Date(currentInbox.expiresAt);
-      const creationDate = currentInbox.createdAt instanceof Timestamp ? currentInbox.createdAt.toDate() : (new Date(Date.now() - (10 * 60000))); // assume 10 min for guests
-      const totalDuration = expiryDate.getTime() - creationDate.getTime();
+    const intervalId = setInterval(() => {
+        const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
+        let activeInboxStillValid = false;
 
-      interval = setInterval(() => {
-        const remainingMs = expiryDate.getTime() - Date.now();
-        setCountdown({ total: totalDuration, remaining: remainingMs > 0 ? remainingMs : 0 });
-        if (remainingMs <= 0) {
-          clearInterval(interval);
-          if (userProfile?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
-          setCurrentInbox(null);
-          setSelectedEmail(null);
+        userInboxes.forEach(inbox => {
+            const expiryDate = new Date(inbox.expiresAt);
+            const creationDate = inbox.createdAt instanceof Timestamp ? inbox.createdAt.toDate() : new Date(Date.parse(inbox.expiresAt) - 10 * 60000);
+            const totalDuration = expiryDate.getTime() - creationDate.getTime();
+            const remainingMs = expiryDate.getTime() - Date.now();
+
+            if (remainingMs > 0) {
+                newCountdown[inbox.id] = { total: totalDuration, remaining: remainingMs };
+                if (activeInbox?.id === inbox.id) {
+                    activeInboxStillValid = true;
+                }
+            } else {
+                 if (userProfile?.isAnonymous && activeInbox?.id === inbox.id) {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
+                    setLocalGuestInbox(null);
+                }
+            }
+        });
+
+        setCountdown(newCountdown);
+        if (activeInbox && !activeInboxStillValid) {
+            setActiveInbox(null);
         }
-      }, 1000);
-    } else {
-       setCountdown({ total: 0, remaining: 0 });
-    }
-    return () => clearInterval(interval);
-  }, [currentInbox, userProfile?.isAnonymous]);
+
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+}, [userInboxes, activeInbox, userProfile?.isAnonymous]);
   
-  const handleCopyEmail = () => {
-    if (currentInbox?.emailAddress) {
-      navigator.clipboard.writeText(currentInbox.emailAddress);
+  const handleCopyEmail = (email: string) => {
+    if (email) {
+      navigator.clipboard.writeText(email);
       toast({ title: "Copied!", description: "Email address copied to clipboard." });
     }
   };
@@ -424,9 +444,9 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && currentInbox && firestore && !isDemoMode && !userProfile?.isAnonymous) {
+    if (!email.read && activeInbox && firestore && !isDemoMode && !userProfile?.isAnonymous) {
       try {
-        const emailRef = doc(firestore, `inboxes/${currentInbox.id}/emails`, email.id);
+        const emailRef = doc(firestore, `inboxes/${activeInbox.id}/emails`, email.id);
         await updateDoc(emailRef, { read: true });
       } catch (error) { console.error("Failed to mark email as read:", error); }
     }
@@ -479,109 +499,86 @@ export function DashboardClient() {
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
   const canUseCustomTimer = activePlan.features.allowCustomtimer;
   
-  const countdownMinutes = Math.floor(countdown.remaining / 60000);
-  const countdownSeconds = Math.floor((countdown.remaining % 60000) / 1000);
-  const progress = countdown.total > 0 ? (countdown.remaining / countdown.total) * 100 : 0;
-
-
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Top Header */}
        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
-             <Card className="p-1.5 w-full h-14">
-                {currentInbox && !isDemoMode ? (
-                    <div className="flex items-center gap-2 h-full">
-                        <div className="relative h-8 w-8 ml-1">
-                            <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary rounded-full" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Clock className="h-4 w-4 text-primary" />
-                            </div>
-                        </div>
-                        <span className="text-sm font-mono">{`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}</span>
-                        <Separator orientation="vertical" className="h-6 mx-2" />
-                        <p className="font-mono flex-grow text-center text-base">{currentInbox.emailAddress}</p>
-                        <TooltipProvider><Tooltip><TooltipTrigger asChild>
-                            <Button onClick={() => setIsQrOpen(true)} variant="ghost" size="icon" className="h-8 w-8"><QrCode className="h-5 w-5" /></Button>
-                        </TooltipTrigger><TooltipContent><p>Show QR Code</p></TooltipContent></Tooltip></TooltipProvider>
-                        <Button onClick={handleCopyEmail} className="h-full"><Copy className="h-4 w-4 mr-2"/>Copy</Button>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-2 h-full">
-                         <Select value={useCustomLifetime ? 'custom' : selectedLifetime} onValueChange={(val) => {
-                             if (val === 'custom') {
-                                 setUseCustomLifetime(true);
-                             } else {
-                                 setUseCustomLifetime(false);
-                                 setSelectedLifetime(val);
-                             }
-                         }}>
-                            <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
-                                <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                <SelectValue placeholder="Inbox Timer" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {(activePlan.features.availableInboxtimers || []).map(lt => {
-                                    if (lt.id === 'custom' && !canUseCustomTimer) return null;
-                                    if (lt.id === 'custom') return <SelectItem key="custom" value="custom">Custom</SelectItem>;
-                                    return (
-                                        <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
-                                            <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
-                                        </SelectItem>
-                                    )
-                                })}
-                            </SelectContent>
-                        </Select>
-                        
-                         {useCustomLifetime && (
-                            <div className="flex items-center gap-1 border-l pl-2">
-                               <Input 
-                                   type="number" 
-                                   value={customLifetime.count} 
-                                   onChange={(e) => setCustomLifetime(prev => ({...prev, count: parseInt(e.target.value, 10) || 1}))}
-                                   className="w-20 h-full border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                               />
-                               <Select value={customLifetime.unit} onValueChange={(unit) => setCustomLifetime(prev => ({...prev, unit: unit as 'minutes' | 'hours' | 'days'}))}>
-                                   <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full">
-                                       <SelectValue/>
-                                   </SelectTrigger>
-                                   <SelectContent>
-                                       <SelectItem value="minutes">Minutes</SelectItem>
-                                       <SelectItem value="hours">Hours</SelectItem>
-                                       <SelectItem value="days">Days</SelectItem>
-                                   </SelectContent>
-                               </Select>
-                            </div>
-                         )}
-
-                        <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
-                            <Button variant="ghost" size="sm" className="h-7 ml-1 group" onClick={() => setPrefixInput(generateRandomString(10))}>
-                                <Mail className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
-                                Auto
-                            </Button>
+            <Card className="p-1.5 w-full h-14">
+                <div className="flex items-center gap-2 h-full">
+                        <Select value={useCustomLifetime ? 'custom' : selectedLifetime} onValueChange={(val) => {
+                            if (val === 'custom') {
+                                setUseCustomLifetime(true);
+                            } else {
+                                setUseCustomLifetime(false);
+                                setSelectedLifetime(val);
+                            }
+                        }}>
+                        <SelectTrigger className="w-auto border-0 bg-transparent h-full focus:ring-0 focus:ring-offset-0 px-2 group ml-1 mr-2 focus-visible:ring-0 focus-visible:ring-offset-0">
+                            <Clock className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+                            <SelectValue placeholder="Inbox Timer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(activePlan.features.availableInboxtimers || []).map(lt => {
+                                if (lt.id === 'custom' && !canUseCustomTimer) return null;
+                                if (lt.id === 'custom') return <SelectItem key="custom" value="custom">Custom</SelectItem>;
+                                return (
+                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
+                                        <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
+                                    </SelectItem>
+                                )
+                            })}
+                        </SelectContent>
+                    </Select>
+                    
+                        {useCustomLifetime && (
+                        <div className="flex items-center gap-1 border-l pl-2">
                             <Input 
-                                value={prefixInput}
-                                onChange={(e) => setPrefixInput(e.target.value)}
-                                className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                                placeholder="your-prefix"
+                                type="number" 
+                                value={customLifetime.count} 
+                                onChange={(e) => setCustomLifetime(prev => ({...prev, count: parseInt(e.target.value, 10) || 1}))}
+                                className="w-20 h-full border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                             />
-                            <span className="text-muted-foreground -ml-1">@</span>
-                            <Select value={selectedDomain} onValueChange={setSelectedDomain}>
-                                <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 font-mono text-base h-full focus-visible:ring-0 focus-visible:ring-offset-0 pr-1 group">
+                            <Select value={customLifetime.unit} onValueChange={(unit) => setCustomLifetime(prev => ({...prev, unit: unit as 'minutes' | 'hours' | 'days'}))}>
+                                <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full">
                                     <SelectValue/>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {allowedDomains?.map(d => (
-                                        <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
-                                    ))}
+                                    <SelectItem value="minutes">Minutes</SelectItem>
+                                    <SelectItem value="hours">Hours</SelectItem>
+                                    <SelectItem value="days">Days</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                         <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
-                            {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
-                            Create
+                        )}
+
+                    <div className="flex-grow flex items-center h-full rounded-md bg-background border px-2">
+                        <Button variant="ghost" size="sm" className="h-7 ml-1 group" onClick={() => setPrefixInput(generateRandomString(10))}>
+                            <Mail className="h-4 w-4 mr-2 text-muted-foreground group-hover:text-foreground transition-colors" />
+                            Auto
                         </Button>
+                        <Input 
+                            value={prefixInput}
+                            onChange={(e) => setPrefixInput(e.target.value)}
+                            className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                            placeholder="your-prefix"
+                        />
+                        <span className="text-muted-foreground -ml-1">@</span>
+                        <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                            <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 font-mono text-base h-full focus-visible:ring-0 focus-visible:ring-offset-0 pr-1 group">
+                                <SelectValue/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {allowedDomains?.map(d => (
+                                    <SelectItem key={d.id} value={d.domain}>{d.domain}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                )}
+                        <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
+                        {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
+                        Create
+                    </Button>
+                </div>
             </Card>
             
             <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
@@ -601,7 +598,7 @@ export function DashboardClient() {
                 </DialogHeader>
                 <div className="flex items-center justify-center p-4">
                     <Image 
-                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentInbox?.emailAddress || '')}`}
+                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(activeInbox?.emailAddress || '')}`}
                         alt="QR Code for email address"
                         width={200}
                         height={200}
@@ -621,7 +618,7 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
+            {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
@@ -662,8 +659,11 @@ export function DashboardClient() {
                             <div className="p-2 space-y-0">
                                 {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
-                                    const isActive = isDemoMode ? activeDemoInbox?.id === inbox.id : currentInbox?.id === inbox.id;
-                                    const expiresDate = new Date(inbox.expiresAt);
+                                    const isActive = isDemoMode ? activeDemoInbox?.id === inbox.id : activeInbox?.id === inbox.id;
+                                    const inboxCountdown = countdown[inbox.id];
+                                    const countdownMinutes = inboxCountdown ? Math.floor(inboxCountdown.remaining / 60000) : 0;
+                                    const countdownSeconds = inboxCountdown ? Math.floor((inboxCountdown.remaining % 60000) / 1000) : 0;
+                                    
                                     return (
                                     <div 
                                         key={inbox.id} 
@@ -672,7 +672,7 @@ export function DashboardClient() {
                                             if (isDemoMode) {
                                                 setActiveDemoInbox(inbox);
                                             } else {
-                                                setCurrentInbox(inbox);
+                                                setActiveInbox(inbox);
                                             }
                                             setSelectedEmail(null);
                                         }}
@@ -693,7 +693,7 @@ export function DashboardClient() {
                                                     {inbox.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
                                                   </div>
                                                   <div className="text-xs text-muted-foreground">
-                                                      Expires: {expiresDate.toLocaleTimeString()}
+                                                      Expires: {`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}
                                                   </div>
                                                 </div>
                                             </div>
@@ -701,7 +701,7 @@ export function DashboardClient() {
                                                 <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", (isSelected || "group-hover:opacity-0"))}>{inbox.emailCount}</Badge>
                                                 <TooltipProvider>
                                                     <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
-                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip>
+                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleCopyEmail(inbox.emailAddress); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip>
                                                         <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip>
                                                         <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
                                                         <DropdownMenu>
