@@ -80,6 +80,7 @@ const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
     expiresAt: new Date(Date.now() + (10 + i * 5) * 60 * 1000).toISOString(),
     isStarred: i === 1 || i === 4,
     isArchived: i === 7,
+    createdAt: Timestamp.now(),
 }));
 
 const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
@@ -226,7 +227,7 @@ export function DashboardClient() {
     if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
         const defaultLifetime = activePlan.features.availableInboxtimers.find(t => t.id !== 'custom');
         if (defaultLifetime) {
-            setSelectedLifetime(`${'defaultLifetime.count'}_${'defaultLifetime.unit'}`);
+            setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
         }
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
@@ -359,6 +360,7 @@ export function DashboardClient() {
       setPrefixInput('');
 
     } catch (error: any) {
+      console.error("Error creating inbox:", error);
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
     } finally {
@@ -867,4 +869,3 @@ export function DashboardClient() {
   );
 }
 
-    
