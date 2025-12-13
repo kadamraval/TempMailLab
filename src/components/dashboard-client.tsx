@@ -331,10 +331,8 @@ export function DashboardClient() {
           createdAt: Timestamp.now(),
           isStarred: false,
           isArchived: false,
+          userId: userProfile.uid,
       };
-
-      // CRITICAL: Set the userId for the security rules
-      newInboxData.userId = userProfile.uid;
       
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
@@ -855,3 +853,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
