@@ -148,12 +148,13 @@ export function DashboardClient() {
 
   // This hook fetches emails for the currently active real inbox.
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.id || isDemoMode) return null;
+    const inboxToQuery = isDemoMode ? activeDemoInbox : activeInbox;
+    if (!firestore || !inboxToQuery?.id || isDemoMode) return null;
     return query(
-      collection(firestore, `inboxes/${activeInbox.id}/emails`),
+      collection(firestore, `inboxes/${inboxToQuery.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox?.id, isDemoMode]);
+  }, [firestore, activeInbox, activeDemoInbox, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   // Definitive Initialization Effect (Runs ONCE)
@@ -297,11 +298,10 @@ export function DashboardClient() {
   }, [isDemoMode, inboxes]);
 
   const filteredEmails = useMemo(() => {
-    if (isDemoMode) {
-      return demoEmails.filter(e => e.inboxId === activeDemoInbox?.id);
-    }
-    
-    const sourceEmails = inboxEmails || [];
+    const inboxToFilter = isDemoMode ? activeDemoInbox : activeInbox;
+    if (!inboxToFilter) return [];
+
+    let sourceEmails = isDemoMode ? demoEmails.filter(e => e.inboxId === inboxToFilter.id) : (inboxEmails || []);
     
     let filtered = sourceEmails;
 
@@ -337,7 +337,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
+  }, [isDemoMode, inboxEmails, activeInbox, activeDemoInbox, activeMailFilter, searchQuery]);
 
 
   useEffect(() => {
