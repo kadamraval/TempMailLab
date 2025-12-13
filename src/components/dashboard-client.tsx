@@ -46,6 +46,7 @@ import {
   updateDoc,
   orderBy,
   limit,
+  getDocs,
 } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -167,23 +168,21 @@ export function DashboardClient() {
                 const inboxSnap = await getDoc(inboxRef);
                 if (inboxSnap.exists()) {
                     const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                    setInboxes([inboxData]); // Populate the unified state
+                    setInboxes([inboxData]);
                 } else {
                     localStorage.removeItem(LOCAL_INBOX_KEY);
                 }
             }
+        } else {
+             // For registered users, sync from the live collection hook.
+             if (liveUserInboxes) {
+                setInboxes(liveUserInboxes);
+             }
         }
-        // Registered users are handled by the next effect.
     };
     initialize();
-  }, [isUserLoading, userProfile, firestore]);
+  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
 
-  // Effect to sync registered user's inboxes from the collection hook.
-  useEffect(() => {
-      if (userProfile && !userProfile.isAnonymous && liveUserInboxes) {
-          setInboxes(liveUserInboxes);
-      }
-  }, [liveUserInboxes, userProfile]);
 
   // Correct Auto-selection Effect
   useEffect(() => {
@@ -277,15 +276,12 @@ export function DashboardClient() {
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
       // DEFINITIVE FIX: Update local state directly
+      setInboxes(prev => [createdInbox, ...prev]);
+      setActiveInbox(createdInbox); // Set as active immediately
+      
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
-          // For guests, replace the inbox list with the new one
-          setInboxes([createdInbox]);
-      } else {
-          // For registered users, add to the top of the list
-          setInboxes(prev => [createdInbox, ...prev]);
       }
-      setActiveInbox(createdInbox); // Set as active immediately
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -828,5 +824,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
