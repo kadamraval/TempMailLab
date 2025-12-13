@@ -152,20 +152,20 @@ export function DashboardClient() {
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
 
   
-  const inboxQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
+  const userInboxesQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid || isDemoMode) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', user.uid));
-  }, [firestore, user?.uid]);
-  const { data: userInboxes } = useCollection<InboxType>(inboxQuery);
+  }, [firestore, user?.uid, isDemoMode]);
+  const { data: userInboxes } = useCollection<InboxType>(userInboxesQuery);
 
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id || !user) return null;
+    if (!firestore || !currentInbox?.id || !user || isDemoMode) return null;
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, currentInbox?.id, user]);
+  }, [firestore, currentInbox?.id, user, isDemoMode]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } =
     useCollection<Email>(emailsQuery);
@@ -241,9 +241,9 @@ export function DashboardClient() {
 
   const createNewInbox = useCallback(
     async (activeUser: import("firebase/auth").User, plan: Plan) => {
-        if (!firestore || !allowedDomains) {
+        if (!firestore || !allowedDomains || isUserLoading || isLoadingPlan) {
             setServerError("Services not ready. Please try again in a moment.");
-            return null;
+            return;
         }
         
         if (!prefixInput) {
@@ -271,7 +271,7 @@ export function DashboardClient() {
             
             let lifetimeInMs;
             if (useCustomLifetime) {
-                const canUseCustom = plan.features.availableInboxtimers?.some(t => t.id === 'custom');
+                const canUseCustom = plan.features.allowCustomtimer;
                 if(!canUseCustom) {
                      toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
                      setIsCreating(false);
@@ -325,7 +325,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime]
+    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime, isUserLoading, isLoadingPlan]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -365,7 +365,9 @@ export function DashboardClient() {
 
   useEffect(() => {
     const initializeSession = async () => {
-      if (isUserLoading || !auth || !firestore) return;
+      if (isUserLoading || !auth || !firestore || !activePlan) {
+        return;
+      }
 
       let activeUser = user;
       let foundInbox: InboxType | null = null;
@@ -381,23 +383,6 @@ export function DashboardClient() {
         }
       }
       if (!activeUser) return;
-
-      let planToUse: Plan | null = activePlan;
-      if (!planToUse && !isLoadingPlan) {
-        const defaultPlanRef = doc(firestore, "plans", "free-default");
-        const defaultPlanSnap = await getDoc(defaultPlanRef);
-        if (defaultPlanSnap.exists()) {
-          planToUse = { id: defaultPlanSnap.id, ...defaultPlanSnap.data() } as Plan;
-        }
-      }
-
-      if (!planToUse) {
-        if (!isLoadingPlan && !isUserLoading) {
-          setServerError("Default plan 'free-default' not found. Please contact support.");
-        }
-        setIsLoading(false);
-        return;
-      }
 
       if (activeUser.isAnonymous) {
         const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
@@ -432,7 +417,7 @@ export function DashboardClient() {
     };
 
     initializeSession();
-  }, [user, isUserLoading, activePlan, isLoadingPlan, auth, firestore, findActiveInbox]);
+  }, [user, isUserLoading, activePlan, auth, firestore, findActiveInbox]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -510,7 +495,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isLoadingDomains) {
+  if (isLoading || isLoadingDomains || isUserLoading || isLoadingPlan) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -540,7 +525,7 @@ export function DashboardClient() {
 
   const mailFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Spam", "Blocked"];
   const inboxFilterOptions = ["All", "New", "Old", "Unread", "Starred", "Archive"];
-  const canUseCustomTimer = activePlan.features.availableInboxtimers?.some(t => t.id === 'custom');
+  const canUseCustomTimer = activePlan.features.allowCustomtimer;
   
   const countdownMinutes = Math.floor(countdown.remaining / 60000);
   const countdownSeconds = Math.floor((countdown.remaining % 60000) / 1000);
@@ -552,7 +537,7 @@ export function DashboardClient() {
       {/* Top Header */}
        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
              <Card className="p-1.5 w-full h-14">
-                {currentInbox ? (
+                {currentInbox && !isDemoMode ? (
                     <div className="flex items-center gap-2 h-full">
                         <div className="relative h-8 w-8 ml-1">
                             <Progress value={progress} className="absolute inset-0 h-full w-full -rotate-90 [&>div]:bg-primary rounded-full" />
@@ -584,14 +569,14 @@ export function DashboardClient() {
                             </SelectTrigger>
                             <SelectContent>
                                 {(activePlan.features.availableInboxtimers || []).map(lt => {
-                                    if (lt.id === 'custom') return null;
+                                    if (lt.id === 'custom' && !canUseCustomTimer) return null;
+                                    if (lt.id === 'custom') return <SelectItem key="custom" value="custom">Custom</SelectItem>;
                                     return (
                                         <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
                                             <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
                                         </SelectItem>
                                     )
                                 })}
-                                {canUseCustomTimer && <SelectItem value="custom">Custom</SelectItem>}
                             </SelectContent>
                         </Select>
                         
@@ -604,7 +589,7 @@ export function DashboardClient() {
                                    className="w-20 h-full border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                                />
                                <Select value={customLifetime.unit} onValueChange={(unit) => setCustomLifetime(prev => ({...prev, unit: unit as 'minutes' | 'hours' | 'days'}))}>
-                                   <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full">
+                                   <SelectTrigger className="w-auto border-0 bg-transparent focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full">
                                        <SelectValue/>
                                    </SelectTrigger>
                                    <SelectContent>
@@ -639,7 +624,7 @@ export function DashboardClient() {
                                 </SelectContent>
                             </Select>
                         </div>
-                         <Button onClick={() => auth?.currentUser && createNewInbox(auth.currentUser, activePlan)} disabled={isCreating} className="h-full ml-2">
+                         <Button onClick={() => user && activePlan && createNewInbox(user, activePlan)} disabled={isCreating} className="h-full ml-2">
                             <Copy className="mr-2 h-4 w-4"/>
                             Create
                         </Button>
@@ -684,7 +669,7 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
+            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
