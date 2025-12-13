@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -144,7 +145,7 @@ export function DashboardClient() {
   }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
-  // This hook fetches emails for the currently active inbox.
+  // This hook fetches emails for the currently active real inbox.
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !activeInbox?.id || isDemoMode) return null;
     return query(
@@ -817,4 +818,3 @@ export function DashboardClient() {
     </div>
   );
 }
-    
