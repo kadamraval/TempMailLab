@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useEffect, useState, ReactNode, useContext } from 'react';
@@ -9,9 +10,12 @@ import { useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Plan } from '@/app/(admin)/admin/packages/data';
 import { signInAnonymously, getAuth } from 'firebase/auth';
+import type { Inbox } from '@/types';
 
-// This is the FULLY hydrated user profile, including the resolved plan.
-export type UserProfile = BasicUserProfile & { plan: Plan | null };
+const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
+
+// This is the FULLY hydrated user profile, including the resolved plan and guest inbox.
+export type UserProfile = BasicUserProfile & { plan: Plan | null, inbox?: Inbox | null };
 
 // 1. Create a new context for the FULLY hydrated user profile.
 interface AuthContextType {
@@ -33,7 +37,7 @@ export const useUser = () => useContext(AuthContext);
  * to the rest of the app via context.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Step 1: Get the basic user object (auth state only) + Firestore profile data
+  // Step 1: Get the basic user object (auth state only) from the low-level hook.
   const { user: basicProfile, isUserLoading: isProfileLoading } = useBasicUser();
   const firestore = useFirestore();
   const [hydratedUserProfile, setHydratedUserProfile] = useState<UserProfile | null>(null);
@@ -46,7 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isLoginPage = pathname === '/login';
   const isAdminLoginPage = pathname === '/login/admin';
 
-  // Step 2: Ensure anonymous session for guests and hydrate profile with plan.
   useEffect(() => {
     const hydrateProfile = async () => {
       if (isProfileLoading || !firestore) {
@@ -65,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     uid: userCredential.user.uid,
                     email: null,
                     isAnonymous: true,
-                    planId: 'free-default',
                 };
             }
         } catch (error) {
@@ -80,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
       }
 
+      // Determine the plan to fetch.
       const planIdToFetch = finalProfile.planId || 'free-default';
       
       try {
@@ -87,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const planSnap = await getDoc(planRef);
         let planData: Plan | null = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
         
+        // Fallback to free plan if the user's assigned plan doesn't exist.
         if (!planData && planIdToFetch !== 'free-default') {
           console.warn(`Plan '${planIdToFetch}' not found. Falling back to free plan.`);
           const freePlanRef = doc(firestore, 'plans', 'free-default');
@@ -94,7 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           planData = freePlanSnap.exists() ? { id: freePlanSnap.id, ...freePlanSnap.data() } as Plan : null;
         }
 
-        setHydratedUserProfile({ ...finalProfile, plan: planData });
+        let inboxData: Inbox | null = null;
+        if (finalProfile.isAnonymous) {
+            const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (guestInboxId) {
+                 const inboxRef = doc(firestore, 'inboxes', guestInboxId);
+                 const inboxSnap = await getDoc(inboxRef);
+                 if (inboxSnap.exists()) {
+                    inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as Inbox;
+                 }
+            }
+        }
+
+        setHydratedUserProfile({ ...finalProfile, plan: planData, inbox: inboxData });
       } catch (error) {
         console.error("Error hydrating user profile with plan:", error);
         setHydratedUserProfile({ ...finalProfile, plan: null }); 

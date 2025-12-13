@@ -228,16 +228,32 @@ export function DashboardClient() {
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
-    // This is the correct logic as provided by the user.
-    // It only auto-selects an inbox if one isn't already active.
+    // ** CORRECT LOGIC **
+    // For registered users, auto-select the latest inbox IF one isn't already selected.
     useEffect(() => {
-        const inboxToUse = userProfile?.inbox; // From AuthProvider
-        if (inboxToUse && !activeInbox) {
-            setActiveInbox(inboxToUse);
-        } else if (!activeInbox && liveUserInboxes && liveUserInboxes.length > 0) {
+        if (!userProfile?.isAnonymous && !activeInbox && liveUserInboxes && liveUserInboxes.length > 0) {
             setActiveInbox(liveUserInboxes[0]);
         }
-    }, [liveUserInboxes, userProfile, activeInbox]);
+    }, [liveUserInboxes, activeInbox, userProfile]);
+
+    // For guest users, restore session from localStorage on initial load.
+    useEffect(() => {
+        const restoreGuestSession = async () => {
+            if (userProfile?.isAnonymous && firestore) {
+                const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+                if (guestInboxId) {
+                    const inboxRef = doc(firestore, 'inboxes', guestInboxId);
+                    const inboxSnap = await getDoc(inboxRef);
+                    if (inboxSnap.exists()) {
+                        setActiveInbox({ id: inboxSnap.id, ...inboxSnap.data() } as InboxType);
+                    } else {
+                        localStorage.removeItem(LOCAL_INBOX_KEY);
+                    }
+                }
+            }
+        };
+        restoreGuestSession();
+    }, [userProfile, firestore]); // Runs once when user profile is confirmed
     
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -822,6 +838,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    

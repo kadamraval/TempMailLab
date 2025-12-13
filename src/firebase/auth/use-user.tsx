@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirebase } from '../provider';
@@ -85,7 +86,6 @@ export const useUser = (): UseUserResult => {
         uid: authUser.uid,
         email: null,
         isAnonymous: true,
-        planId: 'free-default',
       });
       setProfileLoading(false);
     }
