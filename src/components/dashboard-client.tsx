@@ -100,6 +100,7 @@ const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
 const ITEMS_PER_PAGE = 10;
 
 export function DashboardClient() {
+  const [inboxes, setInboxes] = useState<InboxType[]>([]);
   const [activeInbox, setActiveInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -107,7 +108,6 @@ export function DashboardClient() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   
-  // States for multi-selection
   const [selectedInboxes, setSelectedInboxes] = useState<string[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
 
@@ -124,8 +124,6 @@ export function DashboardClient() {
   const [customLifetime, setCustomLifetime] = useState({ count: 10, unit: 'minutes' });
   const [useCustomLifetime, setUseCustomLifetime] = useState(false);
 
-
-  // Demo mode specific state
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
@@ -140,7 +138,6 @@ export function DashboardClient() {
     return query(collection(firestore, "allowed_domains"), where("tier", "in", tiers));
   }, [firestore, activePlan]);
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
-
   
   const userInboxesQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
@@ -158,11 +155,144 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
+  // Effect to handle initial load and sync with live data for registered users
+  useEffect(() => {
+    const initialize = async () => {
+        if (isUserLoading || !firestore) return;
+
+        if (userProfile?.isAnonymous) {
+            const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (guestInboxId) {
+                const inboxRef = doc(firestore, 'inboxes', guestInboxId);
+                const inboxSnap = await getDoc(inboxRef);
+                if (inboxSnap.exists()) {
+                    setInboxes([{ id: inboxSnap.id, ...inboxSnap.data() } as InboxType]);
+                } else {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
+                }
+            }
+        } else if (liveUserInboxes) {
+            setInboxes(liveUserInboxes);
+        }
+    };
+    initialize();
+  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
+
+  // The CORRECT auto-selection logic
+  useEffect(() => {
+      if (!activeInbox && inboxes.length > 0) {
+          setActiveInbox(inboxes[0]);
+      }
+  }, [inboxes, activeInbox]);
+
+  const generateRandomString = useCallback((length: number) => {
+    let result = "";
+    const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }, []);
+  
+  useEffect(() => {
+     if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
+      setSelectedDomain(allowedDomains[0].domain);
+    }
+    if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
+        const defaultLifetime = activePlan.features.availableInboxtimers.find(t => t.id !== 'custom');
+        if (defaultLifetime) {
+            setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
+        }
+    }
+  }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
+    
+  const createNewInbox = useCallback(async () => {
+    if (!firestore || !allowedDomains || !userProfile || !activePlan) {
+      setServerError("Services not ready. Please try again in a moment.");
+      return;
+    }
+    
+    // Use the auto-generated prefix if the input is empty
+    const finalPrefix = prefixInput.trim() === '' ? generateRandomString(10) : prefixInput.trim();
+
+    setIsCreating(true);
+    setServerError(null);
+
+    try {
+      const domainToUse = selectedDomain || allowedDomains[0]?.domain;
+      if (!domainToUse) throw new Error("No domains available.");
+      
+      const emailAddress = `${finalPrefix}@${domainToUse}`;
+      
+      let lifetimeInMs: number;
+      if (useCustomLifetime) {
+          if(!activePlan.features.allowCustomtimer) {
+               toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature.", variant: "destructive"});
+               setIsCreating(false); return;
+          }
+           lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
+      } else {
+          if (!selectedLifetime) throw new Error("Please select an inbox lifetime.");
+          const [countStr, unit] = selectedLifetime.split('_');
+          const count = parseInt(countStr, 10);
+          const selectedLt = activePlan.features.availableInboxtimers?.find(lt => lt.count === count && lt.unit === unit);
+          
+          if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
+          if (selectedLt.isPremium && activePlan.planType !== 'pro') {
+              toast({ title: "Premium Feature", description: "This inbox timer is a premium feature.", variant: "destructive"});
+              setIsCreating(false); return;
+          }
+          lifetimeInMs = count * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
+      }
+      
+      const expiresAt = new Date(Date.now() + lifetimeInMs);
+
+      const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
+      const existingInboxSnapshot = await getDocs(existingInboxQuery);
+      if (!existingInboxSnapshot.empty) {
+          throw new Error(`The email address '${emailAddress}' is already taken.`);
+      }
+      
+      const newInboxData: Omit<InboxType, 'id'> = {
+          emailAddress,
+          domain: domainToUse,
+          emailCount: 0,
+          expiresAt: expiresAt.toISOString(),
+          createdAt: Timestamp.now(),
+          isStarred: false,
+          isArchived: false,
+          userId: userProfile.uid,
+      };
+      
+      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
+      
+      const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
+
+      // ---- THIS IS THE FIX ----
+      // Immediately update the local state for the UI to react.
+      if (userProfile.isAnonymous) {
+          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
+          setInboxes([createdInbox]); // Replace the old guest inbox if any
+          setActiveInbox(createdInbox);
+      }
+      
+      navigator.clipboard.writeText(emailAddress);
+      toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
+      setPrefixInput('');
+
+    } catch (error: any) {
+      console.error("Error creating inbox:", error);
+      toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
+      setServerError(error.message);
+    } finally {
+        setIsCreating(false);
+    }
+  }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
+
   const displayedInboxes = useMemo(() => {
-      if (isDemoMode) return demoInboxes;
-      if (userProfile?.isAnonymous && activeInbox) return [activeInbox];
-      return liveUserInboxes || [];
-  }, [isDemoMode, liveUserInboxes, userProfile?.isAnonymous, activeInbox]);
+    if (isDemoMode) return demoInboxes;
+    return inboxes || [];
+  }, [isDemoMode, inboxes]);
 
   const filteredEmails = useMemo(() => {
     if (isDemoMode) {
@@ -207,149 +337,13 @@ export function DashboardClient() {
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
   }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
 
-  const generateRandomString = useCallback((length: number) => {
-    let result = "";
-    const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
-    for (let i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return result;
-  }, []);
-  
-  useEffect(() => {
-     if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
-      setSelectedDomain(allowedDomains[0].domain);
-    }
-    if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
-        const defaultLifetime = activePlan.features.availableInboxtimers.find(t => t.id !== 'custom');
-        if (defaultLifetime) {
-            setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
-        }
-    }
-  }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
-
-    // ** CORRECT LOGIC **
-    // For registered users, auto-select the latest inbox IF one isn't already selected.
-    useEffect(() => {
-        if (!userProfile?.isAnonymous && !activeInbox && liveUserInboxes && liveUserInboxes.length > 0) {
-            setActiveInbox(liveUserInboxes[0]);
-        }
-    }, [liveUserInboxes, activeInbox, userProfile]);
-
-    // For guest users, restore session from localStorage on initial load.
-    useEffect(() => {
-        const restoreGuestSession = async () => {
-            if (userProfile?.isAnonymous && firestore) {
-                const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
-                if (guestInboxId) {
-                    const inboxRef = doc(firestore, 'inboxes', guestInboxId);
-                    const inboxSnap = await getDoc(inboxRef);
-                    if (inboxSnap.exists()) {
-                        setActiveInbox({ id: inboxSnap.id, ...inboxSnap.data() } as InboxType);
-                    } else {
-                        localStorage.removeItem(LOCAL_INBOX_KEY);
-                    }
-                }
-            }
-        };
-        restoreGuestSession();
-    }, [userProfile, firestore]); // Runs once when user profile is confirmed
-    
-  const createNewInbox = useCallback(async () => {
-    if (!firestore || !allowedDomains || !userProfile || !activePlan) {
-      setServerError("Services not ready. Please try again in a moment.");
-      return;
-    }
-    if (activePlan.features.customPrefix && !prefixInput) {
-      toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
-      return;
-    }
-
-    setIsCreating(true);
-    setServerError(null);
-
-    try {
-      const domainToUse = selectedDomain || allowedDomains[0]?.domain;
-      if (!domainToUse) throw new Error("No domains available.");
-      
-      const finalPrefix = activePlan.features.customPrefix ? prefixInput : generateRandomString(10);
-      if (!finalPrefix) {
-          throw new Error("Could not determine inbox prefix.");
-      }
-
-      const emailAddress = `${finalPrefix}@${domainToUse}`;
-      
-      let lifetimeInMs: number;
-      if (useCustomLifetime) {
-          if(!activePlan.features.allowCustomtimer) {
-               toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature.", variant: "destructive"});
-               setIsCreating(false); return;
-          }
-           lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
-      } else {
-          if (!selectedLifetime) throw new Error("Please select an inbox lifetime.");
-          const [countStr, unit] = selectedLifetime.split('_');
-          const count = parseInt(countStr, 10);
-          const selectedLt = activePlan.features.availableInboxtimers?.find(lt => lt.count === count && lt.unit === unit);
-          
-          if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
-          if (selectedLt.isPremium && activePlan.planType !== 'pro') {
-              toast({ title: "Premium Feature", description: "This inbox timer is a premium feature.", variant: "destructive"});
-              setIsCreating(false); return;
-          }
-          lifetimeInMs = count * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
-      }
-      
-      const expiresAt = new Date(Date.now() + lifetimeInMs);
-
-      const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
-      const existingInboxSnapshot = await getDocs(existingInboxQuery);
-      if (!existingInboxSnapshot.empty) {
-          throw new Error(`The email address '${emailAddress}' is already taken.`);
-      }
-      
-      const newInboxData: Partial<InboxType> = {
-          emailAddress,
-          domain: domainToUse,
-          emailCount: 0,
-          expiresAt: expiresAt.toISOString(),
-          createdAt: Timestamp.now(),
-          isStarred: false,
-          isArchived: false,
-          userId: userProfile.uid,
-      };
-      
-      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
-      
-      const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
-      setActiveInbox(createdInbox); // This now correctly sets the active inbox and prevents the flicker.
-
-      if (userProfile.isAnonymous) {
-          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
-      }
-      
-      navigator.clipboard.writeText(emailAddress);
-      toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
-      setPrefixInput('');
-
-    } catch (error: any) {
-      console.error("Error creating inbox:", error);
-      toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
-      setServerError(error.message);
-    } finally {
-        setIsCreating(false);
-    }
-}, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
-
 
   useEffect(() => {
-    const allInboxes = isDemoMode ? demoInboxes : (liveUserInboxes || []);
+    const allInboxes = isDemoMode ? demoInboxes : inboxes;
     if (!allInboxes) return;
 
     const intervalId = setInterval(() => {
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
-        let activeInboxStillValid = false;
-
         allInboxes.forEach(inbox => {
             const expiryDate = new Date(inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
@@ -359,23 +353,13 @@ export function DashboardClient() {
 
             if (remainingMs > 0) {
                 newCountdown[inbox.id] = { total: totalDuration, remaining: remainingMs };
-                if (activeInbox?.id === inbox.id) {
-                    activeInboxStillValid = true;
-                }
-            } else if (userProfile?.isAnonymous && activeInbox?.id === inbox.id) {
-                localStorage.removeItem(LOCAL_INBOX_KEY);
             }
         });
-
         setCountdown(newCountdown);
-        if (activeInbox && !activeInboxStillValid && !isDemoMode) {
-            setActiveInbox(null);
-        }
-
     }, 1000);
 
     return () => clearInterval(intervalId);
-}, [liveUserInboxes, activeInbox, userProfile?.isAnonymous, isDemoMode]);
+  }, [inboxes, isDemoMode]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -430,7 +414,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isUserLoading || isLoadingDomains) {
+  if (isUserLoading || isLoadingDomains || isLoadingInboxes) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -454,8 +438,7 @@ export function DashboardClient() {
   
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* Top Header */}
-       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
             <Card className="p-1.5 w-full h-14">
                 <div className="flex items-center gap-2 h-full">
                         <Select value={useCustomLifetime ? 'custom' : selectedLifetime} onValueChange={(val) => {
@@ -514,7 +497,6 @@ export function DashboardClient() {
                             onChange={(e) => setPrefixInput(e.target.value)}
                             className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                             placeholder="your-prefix"
-                            disabled={!activePlan.features.customPrefix}
                         />
                         <span className="text-muted-foreground -ml-1">@</span>
                         <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -569,7 +551,6 @@ export function DashboardClient() {
         </Alert>
       )}
 
-      {/* Main Content Area */}
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
             {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
@@ -579,7 +560,6 @@ export function DashboardClient() {
                  </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
-                    {/* Column 1: Inbox List */}
                     <div className="flex flex-col border-r h-full">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -682,7 +662,6 @@ export function DashboardClient() {
                         </ScrollArea>
                     </div>
                     
-                    {/* Column 2: Dynamic Content (Email List or Email View) */}
                     <div className="flex flex-col h-full">
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                              <div className="flex items-center gap-2">
@@ -776,7 +755,7 @@ export function DashboardClient() {
                                                         id={`select-${email.id}`} 
                                                         checked={isSelected}
                                                         onCheckedChange={() => handleToggleEmailSelection(email.id)}
-                                                        onClick={(e) => e.stopPropagation()} // Prevent row click
+                                                        onClick={(e) => e.stopPropagation()}
                                                         className={cn(
                                                             "transition-opacity",
                                                             !isSelected && "opacity-0 group-hover:opacity-100"
@@ -838,3 +817,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
