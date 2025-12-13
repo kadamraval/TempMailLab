@@ -1,22 +1,25 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
-import { useUser } from '@/firebase/auth/use-user';
+import React, { useEffect, useState } from 'react';
+import { useUser, UserProfile } from '@/firebase/auth/use-user';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { Plan } from '@/app/(admin)/admin/packages/data';
 
 /**
  * AuthProvider is a client-side component that enforces authentication rules.
  * It is the single source of truth for loading states and redirection logic.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // useUser now correctly handles both guests and registered users,
-  // and its `isUserLoading` flag is the definitive source of truth for the entire app's loading state.
   const { user, userProfile, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
+  const [hydratedUserProfile, setHydratedUserProfile] = useState<UserProfile | null>(null);
+  const [isHydrating, setIsHydrating] = useState(true);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -26,45 +29,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdminLoginPage = pathname === '/login/admin';
 
   useEffect(() => {
-    // If auth is ready and there's no user at all (not even anonymous), sign them in anonymously.
     if (auth && !user && !isUserLoading) {
       initiateAnonymousSignIn(auth);
     }
+  }, [auth, user, isUserLoading]);
 
-    // Wait until the user's status (guest or registered) and profile are fully resolved.
-    if (isUserLoading) {
+  useEffect(() => {
+    const hydrateProfile = async () => {
+      if (isUserLoading || !userProfile) {
+        setIsHydrating(true);
+        return;
+      }
+      
+      let finalProfile = { ...userProfile };
+
+      // If the user is a guest and their plan hasn't been fetched yet, fetch it now.
+      if (userProfile.isAnonymous && userProfile.plan === null) {
+          const planRef = doc(firestore, 'plans', 'free-default');
+          const planSnap = await getDoc(planRef);
+          if (planSnap.exists()) {
+              finalProfile.plan = { id: planSnap.id, ...planSnap.data() } as Plan;
+          }
+      }
+      
+      setHydratedUserProfile(finalProfile);
+      setIsHydrating(false);
+    };
+
+    hydrateProfile();
+
+  }, [isUserLoading, userProfile, firestore]);
+
+  useEffect(() => {
+    // Wait until the final profile is hydrated.
+    if (isHydrating) {
       return;
     }
 
-    // --- Redirection Logic ---
-
-    // Rule 1: Protect admin routes.
-    // An admin must be logged in (not a guest) and have the `isAdmin` flag.
-    if (isAdminRoute && !userProfile?.isAdmin) {
+    if (isAdminRoute && !hydratedUserProfile?.isAdmin) {
       router.replace('/login/admin');
       return;
     }
 
-    // Rule 2: Handle already-logged-in users trying to access login pages.
     if (user && !user.isAnonymous && (isLoginPage || isAdminLoginPage)) {
-       // If an admin is on the admin login page, send them to the dashboard.
-      if (userProfile?.isAdmin && isAdminLoginPage) {
+      if (hydratedUserProfile?.isAdmin && isAdminLoginPage) {
          router.replace('/admin');
       } 
-      // If any other logged-in user is on a standard login page, send them to the homepage.
       else if (!isAdminRoute) {
          router.replace('/');
       }
       return;
     }
 
-  }, [isUserLoading, user, userProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage, auth]);
+  }, [isHydrating, user, hydratedUserProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
 
 
-  // --- Render Logic ---
-
-  // While waiting for the definitive user state (guest or registered), show a global loading screen.
-  if (isUserLoading || !userProfile) {
+  // Show loading screen while auth is resolving or profile is hydrating.
+  if (isUserLoading || isHydrating || !hydratedUserProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -75,6 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Once all checks pass and we are not loading, render the requested page.
+  // Once all checks pass, render the application.
   return <>{children}</>;
 }
+
+    

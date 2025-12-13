@@ -32,11 +32,9 @@ import { useToast } from "@/hooks/use-toast";
 import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
 import {
-  useAuth,
   useFirestore,
   useUser,
   useMemoFirebase,
-  useDoc,
   useCollection,
 } from "@/firebase";
 import {
@@ -63,10 +61,8 @@ import { Badge } from "./ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuPortal } from "./ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import Image from "next/image";
-import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Progress } from "./ui/progress";
 
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
@@ -258,7 +254,6 @@ export function DashboardClient() {
                 }
             }
             
-            // If no guest inbox found, or if user is registered, find their latest active inbox.
             if (!foundInbox && liveUserInboxes && liveUserInboxes.length > 0) {
                 const now = new Date();
                 const latestActive = liveUserInboxes
@@ -281,9 +276,12 @@ export function DashboardClient() {
                 const newInbox = liveUserInboxes[0];
                 setActiveInbox(newInbox);
                 setIsCreating(false);
+                 if (userProfile?.isAnonymous) {
+                    localStorage.setItem(LOCAL_INBOX_KEY, newInbox.id);
+                }
             }
         }
-    }, [liveUserInboxes, isCreating, activeInbox]);
+    }, [liveUserInboxes, isCreating, activeInbox, userProfile?.isAnonymous]);
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -349,11 +347,7 @@ export function DashboardClient() {
           isArchived: false,
       };
       
-      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
-
-      if (userProfile.isAnonymous) {
-          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
-      }
+      await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -373,8 +367,6 @@ export function DashboardClient() {
     if(!liveUserInboxes) return;
 
     const intervalId = setInterval(() => {
-        if (!liveUserInboxes) return;
-
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
         let activeInboxStillValid = false;
 
