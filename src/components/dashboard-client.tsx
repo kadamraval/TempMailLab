@@ -363,6 +363,8 @@ export function DashboardClient() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
+        if (!userInboxes) return; // Add this guard clause
+
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
         let activeInboxStillValid = false;
 
@@ -855,3 +857,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
