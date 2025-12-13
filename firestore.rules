@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -69,30 +70,34 @@ service cloud.firestore {
     
     // --- Inboxes & Emails ---
     match /inboxes/{inboxId} {
-      // Allow any authenticated user (including anonymous) to create an inbox for themselves.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      // Allow a registered user to create an inbox for themselves.
+      // Allow ANYONE (including unauthenticated guests) to create an inbox if it does NOT have a userId field.
+      allow create: if (request.auth != null && request.resource.data.userId == request.auth.uid)
+                    || (request.auth == null && !("userId" in request.resource.data));
+
+      // Allow a registered user to read or delete their own inbox.
+      // Allow ANYONE to read a guest inbox (one without a userId).
+      allow read, delete: if (request.auth != null && resource.data.userId == request.auth.uid)
+                          || (!("userId" in resource.data));
       
-      // Allow a user to read, or delete an inbox if they are the owner.
-      // Updates are now handled by the secure webhook.
-      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      
-      // Allow updates only from our secure backend (which bypasses these rules),
-      // or allow the user to update specific, safe fields if needed in the future.
-      // For now, we block client-side updates to things like emailCount.
+      // Updates are disallowed from the client to prevent tampering.
       allow update: if false;
 
 
-      // Secure list operation: only allow querying for one's own inboxes.
+      // Secure list operation: only allow querying for one's own inboxes (for registered users).
       allow list: if request.auth != null && request.query.where['userId'] == request.auth.uid;
     }
 
     match /inboxes/{inboxId}/emails/{emailId} {
         // Disallow all direct client creation. Creation must only happen via the secure webhook.
-        // The server-side logic (webhook/actions), which uses Admin credentials, bypasses these rules.
         allow create: if false;
 
-        // Allow a user to read or update their own emails by checking the parent inbox's ownership.
-        allow read, list, update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
+        // Allow reading emails if the user owns the parent inbox OR if the parent inbox is a guest inbox.
+        allow read, list: if (request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid)
+                           || (!("userId" in get(/databases/$(database)/documents/inboxes/$(inboxId)).data));
+
+        // Allow updating only if the user owns the parent inbox (e.g., to mark as read).
+        allow update: if request.auth != null && get(/databases/$(database)/documents/inboxes/$(inboxId)).data.userId == request.auth.uid;
                              
         // Deletion of emails is disallowed from the client for data integrity.
         allow delete: if false;
@@ -100,3 +105,5 @@ service cloud.firestore {
 
   }
 }
+
+    

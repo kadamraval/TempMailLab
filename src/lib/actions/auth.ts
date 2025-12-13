@@ -31,12 +31,13 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
             });
         }
 
-        // If there's an inbox ID from an anonymous session, re-assign it to the new permanent user.
+        // If there's an inbox ID from a guest session, re-assign it to the new permanent user.
         if (anonymousInboxId) {
             const inboxRef = firestore.doc(`inboxes/${anonymousInboxId}`);
             const inboxSnap = await inboxRef.get();
             
-            if (inboxSnap.exists) {
+            // Check if the guest inbox exists and doesn't already have a userId
+            if (inboxSnap.exists() && !inboxSnap.data()?.userId) {
                  await inboxRef.update({ userId: uid });
             }
         }

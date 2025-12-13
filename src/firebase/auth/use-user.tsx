@@ -2,26 +2,93 @@
 'use client';
 
 import { useFirebase } from '../provider';
-import type { UserHookResult } from '../provider';
+import type { UserHookResult as BasicUserHookResult } from '../provider';
 import type { User } from '@/types';
-import { type Plan } from '@/app/(admin)/admin/packages/data';
+import { useState, useEffect } from 'react';
+import { useFirestore } from '../provider';
+import { doc, getDoc } from 'firebase/firestore';
 
-// This is the FULLY hydrated user profile, including the resolved plan.
-// The AuthProvider is responsible for creating this object.
-export type UserProfile = User & { plan: Plan | null };
+// This is now the BASIC user profile, without the plan.
+// It combines auth data with the Firestore user document.
+export type UserProfile = User;
+
+export interface UseUserResult {
+  user: UserProfile | null;
+  isUserLoading: boolean;
+  userError: Error | null;
+}
 
 /**
- * A basic hook for accessing the raw Firebase authentication state.
- * It does NOT fetch profile data or plan data. This is the first step in the auth flow.
- * The AuthProvider consumes this to build the full user profile.
+ * A hook that provides a partially hydrated user profile.
+ * It combines the raw Firebase Auth state with the corresponding user document from Firestore.
+ * It does NOT fetch the plan. AuthProvider consumes this to build the final profile.
  */
-export const useUser = (): UserHookResult => {
+export const useUser = (): UseUserResult => {
   // Get the base authentication state from the main Firebase provider.
   const { user: authUser, isUserLoading: isAuthLoading, userError } = useFirebase();
+  const firestore = useFirestore();
   
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isProfileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    // If auth state is still loading, do nothing.
+    if (isAuthLoading) {
+      setProfileLoading(true);
+      return;
+    }
+
+    // If there is no authenticated user at all.
+    if (!authUser) {
+      // For a true guest-first model, we create a temporary local-only profile.
+      // This profile is NOT stored in the database.
+      setProfile({
+        uid: 'guest-' + Date.now(), // A temporary, non-database ID
+        email: null,
+        isAnonymous: true,
+        planId: 'free-default', // Guests always use the free plan
+      });
+      setProfileLoading(false);
+      return;
+    }
+
+    // If the user is a registered user, fetch their profile from Firestore.
+    const fetchUserProfile = async () => {
+      setProfileLoading(true);
+      try {
+        const userDocRef = doc(firestore, 'users', authUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          // Combine auth data with Firestore data
+          setProfile({ ...authUser, ...userDocSnap.data() } as UserProfile);
+        } else {
+          // This case happens during registration before the user doc is created.
+          // Fallback to a profile with just the auth data. The AuthProvider/server action will create the doc.
+           setProfile({ 
+            uid: authUser.uid,
+            email: authUser.email,
+            isAnonymous: authUser.isAnonymous,
+            planId: 'free-default'
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        // In case of error, provide a basic profile to avoid crashing the app
+        setProfile({ uid: authUser.uid, email: authUser.email, isAnonymous: authUser.isAnonymous });
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+    
+    fetchUserProfile();
+
+  }, [authUser, isAuthLoading, firestore]);
+
   return { 
-    user: authUser, 
-    isUserLoading: isAuthLoading,
-    userError
+    user: profile,
+    isUserLoading: isAuthLoading || isProfileLoading,
+    userError,
   };
 };
+
+    

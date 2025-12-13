@@ -22,9 +22,7 @@ import {
   Ban,
   ShieldAlert,
   QrCode,
-  ChevronsUpDown,
   Download,
-  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,20 +47,22 @@ import {
   updateDoc,
   orderBy,
   limit,
+  setDoc,
 } from "firebase/firestore";
-import { type Plan } from "@/app/(admin)/admin/packages/data";
+import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "./ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuPortal } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuCheckboxItem, DropdownMenuLabel } from "./ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useUser } from "./auth-provider";
+import { v4 as uuidv4 } from 'uuid';
 
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
@@ -130,7 +130,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const { userProfile, isLoading: isUserLoading } = useUser(); // Use the reliable context hook
+  const { userProfile, isLoading: isUserLoading } = useUser();
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -144,9 +144,9 @@ export function DashboardClient() {
 
   
   const userInboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile?.uid) return null;
+    if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
-  }, [firestore, userProfile?.uid]);
+  }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
@@ -161,8 +161,9 @@ export function DashboardClient() {
 
   const displayedInboxes = useMemo(() => {
       if (isDemoMode) return demoInboxes;
+      if (userProfile?.isAnonymous && activeInbox) return [activeInbox];
       return liveUserInboxes || [];
-  }, [isDemoMode, liveUserInboxes]);
+  }, [isDemoMode, liveUserInboxes, userProfile?.isAnonymous, activeInbox]);
 
   const filteredEmails = useMemo(() => {
     if (isDemoMode) {
@@ -243,7 +244,7 @@ export function DashboardClient() {
                     const inboxSnap = await getDoc(inboxRef);
                     if (inboxSnap.exists()) {
                          const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                         if (new Date((inboxData.expiresAt as any).toDate()) > new Date()) {
+                         if (new Date(inboxData.expiresAt) > new Date()) {
                             foundInbox = inboxData;
                          } else {
                             localStorage.removeItem(LOCAL_INBOX_KEY);
@@ -252,13 +253,12 @@ export function DashboardClient() {
                         localStorage.removeItem(LOCAL_INBOX_KEY);
                     }
                 }
-            }
-            
-            if (!foundInbox && liveUserInboxes && liveUserInboxes.length > 0) {
+            } else if (liveUserInboxes && liveUserInboxes.length > 0) {
+                // If registered user, find their latest active inbox
                 const now = new Date();
                 const latestActive = liveUserInboxes
-                    .filter(ib => new Date((ib.expiresAt as any).toDate ? (ib.expiresAt as any).toDate() : ib.expiresAt) > now)
-                    .sort((a,b) => new Date((b.createdAt as any).toDate()).getTime() - new Date((a.createdAt as any).toDate()).getTime())[0];
+                    .filter(ib => new Date(ib.expiresAt) > now)
+                    .sort((a,b) => new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime())[0];
                 foundInbox = latestActive || null;
             }
 
@@ -270,19 +270,6 @@ export function DashboardClient() {
 
     }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
     
-    useEffect(() => {
-        if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
-            if (!activeInbox || liveUserInboxes[0].id !== activeInbox.id) {
-                const newInbox = liveUserInboxes[0];
-                setActiveInbox(newInbox);
-                setIsCreating(false);
-                 if (userProfile?.isAnonymous) {
-                    localStorage.setItem(LOCAL_INBOX_KEY, newInbox.id);
-                }
-            }
-        }
-    }, [liveUserInboxes, isCreating, activeInbox, userProfile?.isAnonymous]);
-
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
       setServerError("Services not ready. Please try again in a moment.");
@@ -336,21 +323,30 @@ export function DashboardClient() {
           throw new Error(`The email address '${emailAddress}' is already taken.`);
       }
       
-      const newInboxData = {
-          userId: userProfile.uid,
+      const newInboxId = uuidv4();
+      const newInboxRef = doc(firestore, 'inboxes', newInboxId);
+
+      const newInboxData: Partial<InboxType> = {
           emailAddress,
           domain: domainToUse,
           emailCount: 0,
-          expiresAt: Timestamp.fromDate(expiresAt),
+          expiresAt: expiresAt.toISOString(),
           createdAt: Timestamp.now(),
           isStarred: false,
           isArchived: false,
       };
+
+      if (!userProfile.isAnonymous) {
+        newInboxData.userId = userProfile.uid;
+      }
       
-      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
+      await setDoc(newInboxRef, newInboxData);
+
+      const createdInbox = { id: newInboxId, ...newInboxData } as InboxType;
+      setActiveInbox(createdInbox);
 
       if (userProfile.isAnonymous) {
-          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
+          localStorage.setItem(LOCAL_INBOX_KEY, newInboxId);
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -368,14 +364,15 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if(!liveUserInboxes) return;
+    const allInboxes = isDemoMode ? demoInboxes : (liveUserInboxes || []);
+    if (!allInboxes) return;
 
     const intervalId = setInterval(() => {
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
         let activeInboxStillValid = false;
 
-        liveUserInboxes.forEach(inbox => {
-            const expiryDate = new Date((inbox.expiresAt as any).toDate ? (inbox.expiresAt as any).toDate() : inbox.expiresAt);
+        allInboxes.forEach(inbox => {
+            const expiryDate = new Date(inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
             
             const totalDuration = expiryDate.getTime() - creationDate.getTime();
@@ -386,22 +383,20 @@ export function DashboardClient() {
                 if (activeInbox?.id === inbox.id) {
                     activeInboxStillValid = true;
                 }
-            } else {
-                 if (userProfile?.isAnonymous && activeInbox?.id === inbox.id) {
-                    localStorage.removeItem(LOCAL_INBOX_KEY);
-                }
+            } else if (userProfile?.isAnonymous && activeInbox?.id === inbox.id) {
+                localStorage.removeItem(LOCAL_INBOX_KEY);
             }
         });
 
         setCountdown(newCountdown);
-        if (activeInbox && !activeInboxStillValid) {
+        if (activeInbox && !activeInboxStillValid && !isDemoMode) {
             setActiveInbox(null);
         }
 
     }, 1000);
 
     return () => clearInterval(intervalId);
-}, [liveUserInboxes, activeInbox, userProfile?.isAnonymous]);
+}, [liveUserInboxes, activeInbox, userProfile?.isAnonymous, isDemoMode]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -864,3 +859,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    

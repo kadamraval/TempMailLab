@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { GoogleAuthProvider, linkWithCredential, EmailAuthProvider, signInWithPopup } from "firebase/auth"
+import { GoogleAuthProvider, signInWithCredential, EmailAuthProvider, getAuth, signInAnonymously } from "firebase/auth"
 import { useAuth, useUser } from "@/firebase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { signUpAction } from "@/lib/actions/auth"
+import { useEffect } from "react"
 
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -31,14 +32,21 @@ const formSchema = z.object({
     path: ["confirmPassword"],
 });
 
-const LOCAL_INBOX_KEY = 'tempinbox_anonymous_inbox';
+const LOCAL_INBOX_KEY = 'tempinbox_guest_inbox_id';
 
 export function RegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
   const auth = useAuth();
-  const { user: anonymousUser } = useUser(); // Get the current anonymous user
+  const { user: currentUser, isLoading: isUserLoading } = useUser();
 
+  useEffect(() => {
+    // Ensure there's always an anonymous session for a new visitor on this page.
+    if (!isUserLoading && !currentUser && auth) {
+      signInAnonymously(auth);
+    }
+  }, [isUserLoading, currentUser, auth]);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,8 +57,8 @@ export function RegisterForm() {
   });
 
   const handleRegistrationSuccess = async (uid: string, email: string) => {
-     const anonymousInboxData = localStorage.getItem(LOCAL_INBOX_KEY);
-     const result = await signUpAction(uid, email, anonymousInboxData);
+     const anonymousInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+     const result = await signUpAction(uid, email, anonymousInboxId);
 
      if (result.success) {
          localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up local storage
@@ -63,34 +71,31 @@ export function RegisterForm() {
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
-        toast({ title: "Error", description: "No active anonymous session to upgrade. Please refresh and try again.", variant: "destructive" });
-        return;
-    }
+    if (!auth) return;
     
     try {
         const credential = EmailAuthProvider.credential(values.email, values.password);
-        const userCredential = await linkWithCredential(anonymousUser, credential);
+        // Link with popup which will handle merging anonymous user with the new credentials.
+        const userCredential = await signInWithCredential(auth.currentUser!, credential);
         const registeredUser = userCredential.user;
         await handleRegistrationSuccess(registeredUser.uid, values.email);
     } catch (error: any) {
         let errorMessage = "An unknown error occurred during registration.";
         if (error.code === 'auth/email-already-in-use') {
             errorMessage = "This email address is already in use. Please try logging in instead.";
+        } else if (error.code === 'auth/credential-already-in-use') {
+             errorMessage = "This account is already linked to another user. Please log in.";
         }
         toast({ title: "Registration Failed", description: errorMessage, variant: "destructive" });
     }
   }
 
   async function handleGoogleSignIn() {
-    if (!auth || !anonymousUser || !anonymousUser.isAnonymous) {
-       toast({ title: "Error", description: "Authentication service not ready. Please try again in a moment.", variant: "destructive" });
-       return;
-    };
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     
     try {
-        const userCredential = await linkWithCredential(anonymousUser, provider);
+        const userCredential = await signInWithCredential(auth.currentUser!, provider);
         const registeredUser = userCredential.user;
         await handleRegistrationSuccess(registeredUser.uid, registeredUser.email!);
     } catch (error: any) {
