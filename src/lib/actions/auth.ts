@@ -20,11 +20,10 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
         if (!userDoc.exists) {
             const isAdmin = email === 'admin@example.com';
             
-            // Standardize the user object being created
             await userRef.set({
                 uid,
                 email,
-                displayName: email.split('@')[0], // Default display name
+                displayName: email.split('@')[0],
                 inboxCount: 0,
                 planId: 'free-default',
                 isAdmin,
@@ -36,7 +35,7 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
         if (anonymousInboxId) {
             const inboxRef = firestore.doc(`inboxes/${anonymousInboxId}`);
             const inboxSnap = await inboxRef.get();
-            // Check if the inbox exists and actually belonged to a guest (or is being claimed)
+            
             if (inboxSnap.exists) {
                  await inboxRef.update({ userId: uid });
             }
@@ -55,3 +54,5 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
         };
     }
 }
+
+    
