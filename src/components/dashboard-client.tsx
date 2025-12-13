@@ -247,6 +247,21 @@ export function DashboardClient() {
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
+  useEffect(() => {
+    // This effect handles setting the newly created inbox as active.
+    // It runs when the liveUserInboxes array changes.
+    if (!isCreating || !liveUserInboxes || liveUserInboxes.length === 0) return;
+
+    // If we were creating an inbox, find the newest one in the updated list.
+    // Since the query is ordered by createdAt descending, the first one is the newest.
+    const newestInbox = liveUserInboxes[0];
+
+    // If there's no active inbox or the newest one is different from the current active one
+    if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
+      setActiveInbox(newestInbox);
+    }
+  }, [liveUserInboxes, isCreating, activeInbox]);
+
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
       setServerError("Services not ready. Please try again in a moment.");
@@ -303,6 +318,7 @@ export function DashboardClient() {
           localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInbox));
           setLocalGuestInbox(newInbox);
           setActiveInbox(newInbox);
+          setIsCreating(false); // Manually set for guests
       } 
       // Handle REGISTERED user (Firestore)
       else {
@@ -322,9 +338,10 @@ export function DashboardClient() {
               isStarred: false,
               isArchived: false,
           };
-          const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-          const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString(), createdAt: Timestamp.now() } as InboxType;
-          setActiveInbox(newInbox); // This will be updated by the collection listener automatically
+          // The useCollection hook will automatically pick up this new document
+          await addDoc(collection(firestore, `inboxes`), newInboxData);
+          // We don't need to manually set activeInbox here for registered users.
+          // The useEffect listening to liveUserInboxes will handle it.
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -334,9 +351,9 @@ export function DashboardClient() {
     } catch (error: any) {
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-    } finally {
-      setIsCreating(false);
-    }
+      setIsCreating(false); // Ensure isCreating is reset on error
+    } 
+    // `finally` is removed because we want to keep isCreating true until the new inbox is set active by the effect.
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
   useEffect(() => {
