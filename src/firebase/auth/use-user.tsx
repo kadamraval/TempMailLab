@@ -18,76 +18,47 @@ export interface UserHookResultWithProfile extends UserHookResult {
 }
 
 /**
- * Hook for accessing the authenticated user's state and their Firestore profile with the active plan merged.
- * This hook is now designed to work for BOTH registered users and GUESTS.
+ * Hook for accessing a LOGGED-IN user's Firestore profile with the active plan merged.
+ * This hook is now specifically for REGISTERED users. Guest handling is done in the AuthProvider.
  */
 export const useUser = (): UserHookResultWithProfile => {
-  // isAuthLoading is the source of truth for the initial Firebase auth check.
   const { user: authUser, isUserLoading: isAuthLoading, userError } = useFirebase();
   const firestore = useFirestore();
   
   const [userProfileWithPlan, setUserProfileWithPlan] = useState<UserProfile | null>(null);
+  // This hook's loading state is only concerned with fetching the profile *after* auth is confirmed.
   const [isProfileLoading, setProfileLoading] = useState(true);
 
   const userProfileRef = useMemoFirebase(() => {
-    // Only create a ref if we have a logged-in (non-anonymous) user
+    // Only create a ref if we have a logged-in (non-anonymous) user.
     if (!firestore || !authUser) return null;
     return doc(firestore, 'users', authUser.uid);
   }, [firestore, authUser]);
 
+  // The useDoc hook will fetch the user's document from Firestore.
   const { data: userProfileData, isLoading: isLoadingProfileDoc } = useDoc<User>(userProfileRef);
 
   useEffect(() => {
-    // This effect's job is to create the final userProfile object once auth state is known.
-    // It must not run until the initial Firebase auth check is complete.
-    if (isAuthLoading) {
+    // If the main auth check is still running, or if there's no logged-in user, do nothing.
+    if (isAuthLoading || !authUser) {
+      setProfileLoading(false); // Not loading a profile if there's no user.
+      setUserProfileWithPlan(null); // Ensure profile is null.
       return;
     }
 
-    const processUser = async () => {
-        setProfileLoading(true);
+    // If we have an authenticated user but are still waiting for their Firestore doc, wait.
+    if (isLoadingProfileDoc) {
+      setProfileLoading(true);
+      return;
+    }
 
-        // CASE 1: GUEST USER (authUser is null)
-        if (!authUser) {
-            try {
-                if (!firestore) throw new Error("Firestore service not available.");
-                // Fetch the essential 'free-default' plan for all guests.
-                const planRef = doc(firestore, 'plans', 'free-default');
-                const planSnap = await getDoc(planRef);
-                const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
-                
-                if (!planData) {
-                    console.error("CRITICAL: The 'free-default' plan document was not found in Firestore.");
-                }
-
-                // Create a temporary, in-memory profile for the guest.
-                // This user is "anonymous" in our app's logic, not Firebase's.
-                setUserProfileWithPlan({
-                    uid: 'guest-' + Date.now(),
-                    isAnonymous: true, // This is our app-level flag.
-                    email: null,
-                    plan: planData
-                });
-            } catch (error) {
-                console.error("Error fetching guest plan:", error);
-                setUserProfileWithPlan({ uid: 'guest-' + Date.now(), isAnonymous: true, email: null, plan: null });
-            } finally {
-                setProfileLoading(false); // Guest session is now ready.
-            }
-            return;
-        }
-
-        // CASE 2: REGISTERED USER (authUser exists)
-        // We need to wait for their profile document to be fetched from Firestore.
-        if (isLoadingProfileDoc) {
-            return; // Wait for the useDoc hook to finish.
-        }
-        
-        // Now we have the authUser and their corresponding document data (or lack thereof).
+    const processRegisteredUser = async () => {
+        // At this point, authUser is guaranteed to be a registered user.
         const baseProfile: User = userProfileData || { uid: authUser.uid, email: authUser.email, displayName: authUser.displayName || '', isAnonymous: false };
         const planIdToFetch = userProfileData?.planId || 'free-default';
         
         try {
+            if (!firestore) throw new Error("Firestore not available");
             const planRef = doc(firestore, 'plans', planIdToFetch);
             const planSnap = await getDoc(planRef);
             let planData: Plan | null = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
@@ -104,23 +75,21 @@ export const useUser = (): UserHookResultWithProfile => {
 
         } catch (error) {
             console.error("Error fetching user plan:", error);
-            setUserProfileWithPlan({ ...baseProfile, plan: null });
+            setUserProfileWithPlan({ ...baseProfile, plan: null }); // Set profile with null plan on error
         } finally {
-            setProfileLoading(false); // Registered user session is now ready.
+            setProfileLoading(false); // Profile fetching is complete
         }
     };
-
-    processUser();
+    
+    processRegisteredUser();
 
   }, [authUser, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
-  // The overall loading state is true if either the auth check is running OR the profile/plan fetch is running.
-  const isOverallLoading = isAuthLoading || isProfileLoading;
-
   return { 
     user: authUser, 
     userProfile: userProfileWithPlan, 
-    isUserLoading: isOverallLoading,
+    // The overall loading state combines the initial auth check with the profile fetch.
+    isUserLoading: isAuthLoading || (!!authUser && isProfileLoading),
     userError: userError 
   };
 };
