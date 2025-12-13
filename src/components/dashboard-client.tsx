@@ -230,10 +230,13 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
     useEffect(() => {
-        if (isUserLoading || isLoadingInboxes) return;
+        if (isUserLoading || isLoadingInboxes || !isLoading) return;
         
         const initializeSession = async () => {
-            if (!userProfile || !firestore) return;
+            if (!userProfile || !firestore) {
+                setIsLoading(false);
+                return;
+            };
             
             let foundInbox: InboxType | null = null;
             
@@ -254,7 +257,6 @@ export function DashboardClient() {
                     }
                 }
             } else if (liveUserInboxes && liveUserInboxes.length > 0) {
-                // If registered user, find their latest active inbox
                 const now = new Date();
                 const latestActive = liveUserInboxes
                     .filter(ib => new Date(ib.expiresAt) > now)
@@ -268,7 +270,7 @@ export function DashboardClient() {
         
         initializeSession();
 
-    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
+    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes, isLoading]);
     
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -853,5 +855,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
