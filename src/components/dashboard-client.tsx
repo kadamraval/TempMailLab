@@ -300,18 +300,20 @@ export function DashboardClient() {
   // This is the CRITICAL fix. This effect watches for changes from the real-time listener.
   useEffect(() => {
     // Check if we are in the "creating" state and if the live inbox data has updated.
-    if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
-      // The newest inbox is the first in the list because of our query order.
-      const newestInbox = liveUserInboxes[0];
+    if (isCreating && liveUserInboxes && liveUserInboxes.length > (userInboxes?.length || 0)) {
+        // Find the newest inbox that isn't the one we might already have
+        const newestInbox = liveUserInboxes.find(liveInbox => 
+            !userInboxes.some(existing => existing.id === liveInbox.id)
+        ) || liveUserInboxes[0];
 
-      // If the active inbox isn't yet set to our new one, set it.
-      if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
-        setActiveInbox(newestInbox);
-        // We are now done with the creation process.
-        setIsCreating(false);
-      }
+        // If the active inbox isn't yet set to our new one, set it.
+        if (newestInbox && (!activeInbox || newestInbox.id !== activeInbox.id)) {
+            setActiveInbox(newestInbox);
+            // We are now done with the creation process.
+            setIsCreating(false);
+        }
     }
-  }, [liveUserInboxes, isCreating, activeInbox]);
+  }, [liveUserInboxes, isCreating, activeInbox, userInboxes]);
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -332,7 +334,7 @@ export function DashboardClient() {
 
       const emailAddress = `${prefixInput}@${domainToUse}`;
       
-      let lifetimeInMs;
+      let lifetimeInMs: number;
       if (useCustomLifetime) {
           if(!activePlan.features.allowCustomtimer) {
                toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature.", variant: "destructive"});
@@ -340,14 +342,17 @@ export function DashboardClient() {
           }
            lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
       } else {
-          const selectedLt = activePlan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
+          if (!selectedLifetime) throw new Error("Please select an inbox lifetime.");
+          const [countStr, unit] = selectedLifetime.split('_');
+          const count = parseInt(countStr, 10);
+          const selectedLt = activePlan.features.availableInboxtimers?.find(lt => lt.count === count && lt.unit === unit);
+          
           if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
           if (selectedLt.isPremium && activePlan.planType !== 'pro') {
               toast({ title: "Premium Feature", description: "This inbox timer is a premium feature.", variant: "destructive"});
               setIsCreating(false); return;
           }
-          const [count, unit] = selectedLifetime!.split('_');
-          lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
+          lifetimeInMs = count * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
       }
       
       const expiresAt = new Date(Date.now() + lifetimeInMs);
@@ -535,14 +540,14 @@ export function DashboardClient() {
                         </SelectTrigger>
                         <SelectContent>
                             {(activePlan.features.availableInboxtimers || []).map(lt => {
-                                if (lt.id === 'custom' && !canUseCustomTimer) return null;
-                                if (lt.id === 'custom') return <SelectItem key="custom" value="custom">Custom</SelectItem>;
+                                const value = `${lt.count}_${lt.unit}`;
                                 return (
-                                    <SelectItem key={lt.id} value={`${lt.count}_${lt.unit}`} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
+                                    <SelectItem key={value} value={value} disabled={lt.isPremium && activePlan.planType !== 'pro'}>
                                         <span className="flex items-center">{lt.count} {lt.unit.charAt(0).toUpperCase() + lt.unit.slice(1)} {lt.isPremium && <Star className="h-3 w-3 ml-2 text-yellow-500 fill-yellow-500"/>}</span>
                                     </SelectItem>
                                 )
                             })}
+                             {canUseCustomTimer && <SelectItem value="custom">Custom</SelectItem>}
                         </SelectContent>
                     </Select>
                     
@@ -900,4 +905,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
