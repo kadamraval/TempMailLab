@@ -155,42 +155,46 @@ export function DashboardClient() {
   }, [firestore, activeInbox?.id, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Initialization Effect: Runs ONCE to set up the initial state.
+  // Definitive Initialization Effect (Runs ONCE)
   useEffect(() => {
-    const initialize = async () => {
-        if (isUserLoading || !firestore || !userProfile) return;
+    if (isUserLoading || !firestore) return;
 
-        // Guest User Initialization
-        if (userProfile.isAnonymous) {
+    const initialize = async () => {
+        if (userProfile?.isAnonymous) {
             const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
             if (guestInboxId) {
                 const inboxRef = doc(firestore, 'inboxes', guestInboxId);
                 const inboxSnap = await getDoc(inboxRef);
                 if (inboxSnap.exists()) {
-                    const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                    setInboxes([inboxData]);
+                    setInboxes([{ id: inboxSnap.id, ...inboxSnap.data() } as InboxType]);
                 } else {
                     localStorage.removeItem(LOCAL_INBOX_KEY);
+                    setInboxes([]);
                 }
+            } else {
+                setInboxes([]);
             }
-        } else {
-             // For registered users, sync from the live collection hook.
-             if (liveUserInboxes) {
-                setInboxes(liveUserInboxes);
-             }
         }
+        // For registered users, the other useEffect handles `liveUserInboxes`
     };
     initialize();
-  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
+  }, [isUserLoading, userProfile, firestore]);
+
+  // Effect to sync registered user inboxes to local state
+  useEffect(() => {
+    if (!userProfile?.isAnonymous && liveUserInboxes) {
+        setInboxes(liveUserInboxes);
+    }
+  }, [liveUserInboxes, userProfile?.isAnonymous]);
 
 
-  // Correct Auto-selection Effect
+  // CORRECT Auto-selection Effect
   useEffect(() => {
     // Only auto-select if there is NO active inbox yet, and there are inboxes available.
     if (!activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
-  }, [inboxes, activeInbox]); // Dependency on `inboxes` is correct here.
+  }, [inboxes, activeInbox]);
 
 
   const generateRandomString = useCallback((length: number) => {
@@ -824,3 +828,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
