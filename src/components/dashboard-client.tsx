@@ -140,9 +140,7 @@ export function DashboardClient() {
   const { user, userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  const planId = userProfile?.planId || 'free-default';
-  const planRef = useMemoFirebase(() => (firestore && planId) ? doc(firestore, 'plans', planId) : null, [firestore, planId]);
-  const { data: activePlan, isLoading: isLoadingPlan } = useDoc<Plan>(planRef);
+  const activePlan = userProfile?.plan;
 
   const allowedDomainsQuery = useMemoFirebase(() => {
     if (!firestore || !activePlan) return null;
@@ -497,7 +495,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isLoadingDomains || isUserLoading || isLoadingPlan) {
+  if (isUserLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -627,7 +625,7 @@ export function DashboardClient() {
                             </Select>
                         </div>
                          <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
-                            <Copy className="mr-2 h-4 w-4"/>
+                            {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
                             Create
                         </Button>
                     </div>

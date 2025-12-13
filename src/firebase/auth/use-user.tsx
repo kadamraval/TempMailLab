@@ -27,7 +27,7 @@ export const useUser = (): UserHookResultWithProfile => {
   const firestore = useFirestore();
   
   const [userProfileWithPlan, setUserProfileWithPlan] = useState<UserProfile | null>(null);
-  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid || user.isAnonymous) return null;
@@ -38,16 +38,16 @@ export const useUser = (): UserHookResultWithProfile => {
 
   useEffect(() => {
     const fetchPlanAndMerge = async () => {
-        // Don't do anything until auth is resolved and we have a firestore instance
+        // If auth is still loading, we can't do anything yet.
         if (isAuthLoading || !firestore) {
             return;
         }
         
-        setIsProfileLoading(true);
+        setIsPlanLoading(true);
 
         if (!user) {
             setUserProfileWithPlan(null);
-            setIsProfileLoading(false);
+            setIsPlanLoading(false);
             return;
         }
 
@@ -92,7 +92,7 @@ export const useUser = (): UserHookResultWithProfile => {
             // In case of error, create a profile with a null plan to avoid breaking the app
             setUserProfileWithPlan({ ...baseProfile, plan: null });
         } finally {
-            setIsProfileLoading(false);
+            setIsPlanLoading(false);
         }
     };
 
@@ -100,8 +100,8 @@ export const useUser = (): UserHookResultWithProfile => {
 
   }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
-  // The final loading state depends on both auth and profile/plan loading
-  const isOverallLoading = isAuthLoading || isProfileLoading;
+  // The final loading state now correctly waits for auth first, then plan loading.
+  const isOverallLoading = isAuthLoading || isPlanLoading;
 
   return { 
     user, 
