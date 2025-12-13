@@ -298,16 +298,16 @@ export function DashboardClient() {
 }, [userProfile, firestore, isUserLoading]);
 
     useEffect(() => {
+        // This effect detects when a new inbox is added to the live collection
         if (isCreating && liveUserInboxes) {
-            const currentInboxIds = new Set(userInboxes.map(ib => ib.id));
-            const newLiveInbox = liveUserInboxes.find(ib => !currentInboxIds.has(ib.id));
-
-            if (newLiveInbox) {
-                setActiveInbox(newLiveInbox);
+            // Find the newest inbox (first in the sorted list) that wasn't there before
+            const newInbox = liveUserInboxes.find(ib => ib.id !== activeInbox?.id);
+            if (newInbox) {
+                setActiveInbox(newInbox);
                 setIsCreating(false);
             }
         }
-    }, [liveUserInboxes, isCreating, userInboxes]);
+    }, [liveUserInboxes, isCreating, activeInbox]);
 
 
   const createNewInbox = useCallback(async () => {
@@ -369,7 +369,7 @@ export function DashboardClient() {
           localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInbox));
           setLocalGuestInbox(newInbox);
           setActiveInbox(newInbox);
-          setIsCreating(false); // Manually set for guests
+          setIsCreating(false);
       } 
       // Handle REGISTERED user (Firestore)
       else {
@@ -390,7 +390,12 @@ export function DashboardClient() {
               isArchived: false,
           };
           
-          await addDoc(collection(firestore, `inboxes`), newInboxData);
+          const docRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+          const newDocSnap = await getDoc(docRef);
+          if (newDocSnap.exists()) {
+             const newInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
+             setActiveInbox(newInbox); // This will cause the UI to update immediately with the new inbox
+          }
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -400,8 +405,9 @@ export function DashboardClient() {
     } catch (error: any) {
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-      setIsCreating(false); // Ensure isCreating is reset on error
-    } 
+    } finally {
+        setIsCreating(false);
+    }
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
 
@@ -899,3 +905,4 @@ export function DashboardClient() {
     </div>
   );
 }
+
