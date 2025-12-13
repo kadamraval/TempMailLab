@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useContext } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Copy,
   RefreshCw,
@@ -62,7 +61,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { AuthContext } from "./auth-provider";
+import { useUser } from "./auth-provider";
 
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
@@ -130,7 +129,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const { userProfile } = useContext(AuthContext); // Use the new reliable context
+  const { userProfile, isLoading: isUserLoading } = useUser(); // Use the reliable context hook
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -229,7 +228,7 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
     useEffect(() => {
-        if (isLoadingInboxes) return;
+        if (isUserLoading || isLoadingInboxes) return;
         
         const initializeSession = async () => {
             if (!userProfile || !firestore) return;
@@ -268,7 +267,7 @@ export function DashboardClient() {
         
         initializeSession();
 
-    }, [isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
+    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
     
     useEffect(() => {
         if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
@@ -456,7 +455,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isLoadingDomains) {
+  if (isLoading || isUserLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
