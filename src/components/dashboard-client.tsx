@@ -72,7 +72,7 @@ import { Progress } from "./ui/progress";
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
 
 const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
-    id: `demo-inbox-${i + 1}`,
+    id: `demo-inbox-${'i' + 1}`,
     emailAddress: i === 0 ? 'primary-demo@example.com' : `project-${i}@example.com`,
     emailCount: Math.floor(Math.random() * 20),
     userId: 'demo',
@@ -83,7 +83,7 @@ const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
 }));
 
 const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
-    id: `demo-${i + 1}`,
+    id: `demo-${'i' + 1}`,
     inboxId: demoInboxes[i % demoInboxes.length].id, // Assign emails to different inboxes
     userId: 'demo',
     senderName: ['Welcome Team <welcome@example.com>', 'Promotions <promo@example.com>', 'Security Alert <security@example.com>', 'Newsletter <news@example.com>', 'Support <support@example.com>', 'Feedback Request <feedback@example.com>'][i % 6],
@@ -153,12 +153,12 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.id || userProfile?.isAnonymous) return null;
+    if (!firestore || !activeInbox?.id || isDemoMode) return null;
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox?.id, userProfile]);
+  }, [firestore, activeInbox?.id, isDemoMode]);
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
@@ -226,7 +226,7 @@ export function DashboardClient() {
     if (!selectedLifetime && activePlan && activePlan.features.availableInboxtimers?.length > 0) {
         const defaultLifetime = activePlan.features.availableInboxtimers.find(t => t.id !== 'custom');
         if (defaultLifetime) {
-            setSelectedLifetime(`${defaultLifetime.count}_${defaultLifetime.unit}`);
+            setSelectedLifetime(`${'defaultLifetime.count'}_${'defaultLifetime.unit'}`);
         }
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
@@ -289,7 +289,7 @@ export function DashboardClient() {
       setServerError("Services not ready. Please try again in a moment.");
       return;
     }
-    if (!prefixInput) {
+    if (!prefixInput && activePlan.features.customPrefix) {
       toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
       return;
     }
@@ -300,8 +300,13 @@ export function DashboardClient() {
     try {
       const domainToUse = selectedDomain || allowedDomains[0]?.domain;
       if (!domainToUse) throw new Error("No domains available.");
+      
+      const finalPrefix = activePlan.features.customPrefix ? prefixInput : generateRandomString(10);
+      if (!finalPrefix) {
+          throw new Error("Could not determine inbox prefix.");
+      }
 
-      const emailAddress = `${prefixInput}@${domainToUse}`;
+      const emailAddress = `${finalPrefix}@${domainToUse}`;
       
       let lifetimeInMs: number;
       if (useCustomLifetime) {
@@ -359,7 +364,7 @@ export function DashboardClient() {
     } finally {
         setIsCreating(false);
     }
-}, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
+}, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
 
 
   useEffect(() => {
@@ -537,6 +542,7 @@ export function DashboardClient() {
                             onChange={(e) => setPrefixInput(e.target.value)}
                             className="flex-grow !border-0 !ring-0 !shadow-none p-0 pl-2 font-mono text-base bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                             placeholder="your-prefix"
+                            disabled={!activePlan.features.customPrefix}
                         />
                         <span className="text-muted-foreground -ml-1">@</span>
                         <Select value={selectedDomain} onValueChange={setSelectedDomain}>
@@ -860,6 +866,5 @@ export function DashboardClient() {
     </div>
   );
 }
-
 
     
