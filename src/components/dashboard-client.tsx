@@ -156,11 +156,10 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Effect for initial session loading (Guest or Registered)
+  // Initialization Effect (runs once)
   useEffect(() => {
     if (isUserLoading || !firestore) return;
 
-    // Logic for Guest User
     if (userProfile?.isAnonymous) {
       const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
       if (guestInboxId) {
@@ -171,22 +170,28 @@ export function DashboardClient() {
             setInboxes([inboxData]);
           } else {
             localStorage.removeItem(LOCAL_INBOX_KEY);
+            setInboxes([]);
           }
         });
+      } else {
+        setInboxes([]);
       }
-    } 
-    // Logic for Registered User
-    else if (liveUserInboxes) {
-        setInboxes(liveUserInboxes);
     }
-  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
+  }, [isUserLoading, userProfile, firestore]);
 
-  // CORRECTED Auto-selection logic
+  // Effect for registered user inboxes
   useEffect(() => {
-      // Only auto-select an inbox if one isn't already active.
-      if (!activeInbox && inboxes.length > 0) {
-          setActiveInbox(inboxes[0]);
-      }
+    if (userProfile && !userProfile.isAnonymous && liveUserInboxes) {
+      setInboxes(liveUserInboxes);
+    }
+  }, [liveUserInboxes, userProfile]);
+
+  // Auto-selection Effect (The Correct Way)
+  useEffect(() => {
+    // Only auto-select if user hasn't chosen one yet
+    if (!activeInbox && inboxes.length > 0) {
+      setActiveInbox(inboxes[0]);
+    }
   }, [inboxes, activeInbox]);
 
 
@@ -217,7 +222,6 @@ export function DashboardClient() {
       return;
     }
     
-    // Use the auto-generated prefix if the input is empty
     const finalPrefix = prefixInput.trim() === '' ? generateRandomString(10) : prefixInput.trim();
 
     setIsCreating(true);
@@ -273,13 +277,12 @@ export function DashboardClient() {
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
-      // ---- DEFINITIVE FIX ----
-      // Immediately update local state to display the new inbox.
+      // Update State Directly
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
-          setInboxes([createdInbox]); // For guests, this is the only inbox.
       }
-      setActiveInbox(createdInbox); // Set as active to ensure it's displayed.
+      setInboxes(prev => [createdInbox, ...prev]);
+      setActiveInbox(createdInbox);
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -419,7 +422,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isUserLoading || isLoadingDomains) {
+  if (isUserLoading || isLoadingInboxes || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -822,6 +825,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    
