@@ -139,6 +139,7 @@ export function DashboardClient() {
   }, [firestore, activePlan]);
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
   
+  // This hook is ONLY for registered users. Guests are handled manually.
   const userInboxesQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
@@ -155,32 +156,30 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Effect for initial load of guest inbox from localStorage
+  // Effect for initial session loading (Guest or Registered)
   useEffect(() => {
-    const initializeGuestInbox = async () => {
-        if (!isUserLoading && userProfile?.isAnonymous && firestore) {
-            const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
-            if (guestInboxId) {
-                const inboxRef = doc(firestore, 'inboxes', guestInboxId);
-                const inboxSnap = await getDoc(inboxRef);
-                if (inboxSnap.exists()) {
-                    const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                    setInboxes([inboxData]); // Set the single guest inbox
-                } else {
-                    localStorage.removeItem(LOCAL_INBOX_KEY);
-                }
-            }
-        }
-    };
-    initializeGuestInbox();
-  }, [isUserLoading, userProfile, firestore]);
+    if (isUserLoading || !firestore) return;
 
-  // Effect to sync live inboxes for registered users
-  useEffect(() => {
-    if (!userProfile?.isAnonymous && liveUserInboxes) {
+    // Logic for Guest User
+    if (userProfile?.isAnonymous) {
+      const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+      if (guestInboxId) {
+        const inboxRef = doc(firestore, 'inboxes', guestInboxId);
+        getDoc(inboxRef).then(inboxSnap => {
+          if (inboxSnap.exists()) {
+            const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
+            setInboxes([inboxData]);
+          } else {
+            localStorage.removeItem(LOCAL_INBOX_KEY);
+          }
+        });
+      }
+    } 
+    // Logic for Registered User
+    else if (liveUserInboxes) {
         setInboxes(liveUserInboxes);
     }
-  }, [liveUserInboxes, userProfile]);
+  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
 
   // CORRECTED Auto-selection logic
   useEffect(() => {
@@ -420,7 +419,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isUserLoading || isLoadingDomains || isLoadingInboxes) {
+  if (isUserLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -824,3 +823,5 @@ export function DashboardClient() {
   );
 }
 
+
+    
