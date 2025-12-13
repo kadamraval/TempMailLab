@@ -297,23 +297,18 @@ export function DashboardClient() {
     initializeSession();
 }, [userProfile, firestore, isUserLoading]);
 
-  // This is the CRITICAL fix. This effect watches for changes from the real-time listener.
-  useEffect(() => {
-    // Check if we are in the "creating" state and if the live inbox data has updated.
-    if (isCreating && liveUserInboxes && liveUserInboxes.length > (userInboxes?.length || 0)) {
-        // Find the newest inbox that isn't the one we might already have
-        const newestInbox = liveUserInboxes.find(liveInbox => 
-            !userInboxes.some(existing => existing.id === liveInbox.id)
-        ) || liveUserInboxes[0];
+    useEffect(() => {
+        if (isCreating && liveUserInboxes) {
+            const currentInboxIds = new Set(userInboxes.map(ib => ib.id));
+            const newLiveInbox = liveUserInboxes.find(ib => !currentInboxIds.has(ib.id));
 
-        // If the active inbox isn't yet set to our new one, set it.
-        if (newestInbox && (!activeInbox || newestInbox.id !== activeInbox.id)) {
-            setActiveInbox(newestInbox);
-            // We are now done with the creation process.
-            setIsCreating(false);
+            if (newLiveInbox) {
+                setActiveInbox(newLiveInbox);
+                setIsCreating(false);
+            }
         }
-    }
-  }, [liveUserInboxes, isCreating, activeInbox, userInboxes]);
+    }, [liveUserInboxes, isCreating, userInboxes]);
+
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -395,7 +390,6 @@ export function DashboardClient() {
               isArchived: false,
           };
           
-          // This write triggers the useCollection listener. The useEffect above will handle the rest.
           await addDoc(collection(firestore, `inboxes`), newInboxData);
       }
       
