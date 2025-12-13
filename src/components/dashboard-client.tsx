@@ -150,7 +150,7 @@ export function DashboardClient() {
     if (!firestore || !userProfile?.uid) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
   }, [firestore, userProfile?.uid]);
-  const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
+  const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !activeInbox?.id || userProfile?.isAnonymous) return null;
@@ -164,8 +164,8 @@ export function DashboardClient() {
 
   const displayedInboxes = useMemo(() => {
       if (isDemoMode) return demoInboxes;
-      return userInboxes || [];
-  }, [isDemoMode, userInboxes]);
+      return liveUserInboxes || [];
+  }, [isDemoMode, liveUserInboxes]);
 
   const filteredEmails = useMemo(() => {
     if (isDemoMode) {
@@ -258,9 +258,9 @@ export function DashboardClient() {
             }
             
             // If no guest inbox found, or if user is registered, find their latest active inbox.
-            if (!foundInbox && userInboxes && userInboxes.length > 0) {
+            if (!foundInbox && liveUserInboxes && liveUserInboxes.length > 0) {
                 const now = new Date();
-                const latestActive = userInboxes
+                const latestActive = liveUserInboxes
                     .filter(ib => new Date((ib.expiresAt as any).toDate ? (ib.expiresAt as any).toDate() : ib.expiresAt) > now)
                     .sort((a,b) => new Date((b.createdAt as any).toDate()).getTime() - new Date((a.createdAt as any).toDate()).getTime())[0];
                 foundInbox = latestActive || null;
@@ -272,17 +272,17 @@ export function DashboardClient() {
         
         initializeSession();
 
-    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, userInboxes]);
+    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
     
     useEffect(() => {
-        if (isCreating && userInboxes && userInboxes.length > 0) {
-            if (!activeInbox || userInboxes[0].id !== activeInbox.id) {
-                const newInbox = userInboxes[0];
+        if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
+            if (!activeInbox || liveUserInboxes[0].id !== activeInbox.id) {
+                const newInbox = liveUserInboxes[0];
                 setActiveInbox(newInbox);
                 setIsCreating(false);
             }
         }
-    }, [userInboxes, isCreating, activeInbox]);
+    }, [liveUserInboxes, isCreating, activeInbox]);
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -356,20 +356,22 @@ export function DashboardClient() {
     } catch (error: any) {
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-      setIsCreating(false); // Stop loading on error
-    } 
+    } finally {
+        setIsCreating(false);
+    }
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
 
   useEffect(() => {
-    if(!userInboxes) return;
+    if(!liveUserInboxes) return;
+
     const intervalId = setInterval(() => {
-        if (!userInboxes) return;
+        if (!liveUserInboxes) return;
 
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
         let activeInboxStillValid = false;
 
-        userInboxes.forEach(inbox => {
+        liveUserInboxes.forEach(inbox => {
             const expiryDate = new Date((inbox.expiresAt as any).toDate ? (inbox.expiresAt as any).toDate() : inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
             
@@ -396,7 +398,7 @@ export function DashboardClient() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-}, [userInboxes, activeInbox, userProfile?.isAnonymous]);
+}, [liveUserInboxes, activeInbox, userProfile?.isAnonymous]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -858,5 +860,6 @@ export function DashboardClient() {
     </div>
   );
 }
+
 
     
