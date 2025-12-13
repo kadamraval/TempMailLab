@@ -248,13 +248,68 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
   useEffect(() => {
-    // This effect handles setting the newly created inbox as active.
-    if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
-        const newestInbox = liveUserInboxes[0]; // The query is ordered by createdAt desc
-        if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
-            setActiveInbox(newestInbox);
-            setIsCreating(false); // Creation process is complete now.
+    // This effect runs only once when the component mounts and userProfile is available.
+    if (isUserLoading) return;
+    const initializeSession = async () => {
+        if (!userProfile || !firestore) return;
+
+        let foundInbox: InboxType | null = null;
+
+        if (userProfile.isAnonymous) {
+            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (localDataStr) {
+                try {
+                    const localData = JSON.parse(localDataStr);
+                    if (new Date(localData.expiresAt) > new Date()) {
+                        foundInbox = localData;
+                        setLocalGuestInbox(foundInbox);
+                    } else {
+                        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up expired inbox
+                    }
+                } catch {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
+                }
+            }
+        } else {
+            // For registered users, find their most recent active inbox.
+            const q = query(
+                collection(firestore, 'inboxes'),
+                where('userId', '==', userProfile.uid),
+                where('expiresAt', '>', Timestamp.now()),
+                orderBy('expiresAt', 'desc'),
+                limit(1)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const docData = snap.docs[0];
+                foundInbox = {
+                    id: docData.id,
+                    ...docData.data(),
+                    expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString()
+                } as InboxType;
+            }
         }
+        
+        setActiveInbox(foundInbox);
+        setIsLoading(false); // We have our initial state, stop loading.
+    };
+
+    initializeSession();
+}, [userProfile, firestore, isUserLoading]);
+
+  // This is the CRITICAL fix. This effect watches for changes from the real-time listener.
+  useEffect(() => {
+    // Check if we are in the "creating" state and if the live inbox data has updated.
+    if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
+      // The newest inbox is the first in the list because of our query order.
+      const newestInbox = liveUserInboxes[0];
+
+      // If the active inbox isn't yet set to our new one, set it.
+      if (!activeInbox || (newestInbox && newestInbox.id !== activeInbox.id)) {
+        setActiveInbox(newestInbox);
+        // We are now done with the creation process.
+        setIsCreating(false);
+      }
     }
   }, [liveUserInboxes, isCreating, activeInbox]);
 
@@ -335,8 +390,8 @@ export function DashboardClient() {
               isArchived: false,
           };
           
+          // This write triggers the useCollection listener. The useEffect above will handle the rest.
           await addDoc(collection(firestore, `inboxes`), newInboxData);
-          // The `useEffect` watching `liveUserInboxes` will now handle setting the active inbox and `isCreating` to false.
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -349,56 +404,6 @@ export function DashboardClient() {
       setIsCreating(false); // Ensure isCreating is reset on error
     } 
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
-
-  useEffect(() => {
-    // This effect runs only once when the component mounts and userProfile is available.
-    if (isUserLoading) return;
-    const initializeSession = async () => {
-        if (!userProfile || !firestore) return;
-
-        let foundInbox: InboxType | null = null;
-
-        if (userProfile.isAnonymous) {
-            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
-            if (localDataStr) {
-                try {
-                    const localData = JSON.parse(localDataStr);
-                    if (new Date(localData.expiresAt) > new Date()) {
-                        foundInbox = localData;
-                        setLocalGuestInbox(foundInbox);
-                    } else {
-                        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up expired inbox
-                    }
-                } catch {
-                    localStorage.removeItem(LOCAL_INBOX_KEY);
-                }
-            }
-        } else {
-            // For registered users, find their most recent active inbox.
-            const q = query(
-                collection(firestore, 'inboxes'),
-                where('userId', '==', userProfile.uid),
-                where('expiresAt', '>', Timestamp.now()),
-                orderBy('expiresAt', 'desc'),
-                limit(1)
-            );
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                const docData = snap.docs[0];
-                foundInbox = {
-                    id: docData.id,
-                    ...docData.data(),
-                    expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString()
-                } as InboxType;
-            }
-        }
-        
-        setActiveInbox(foundInbox);
-        setIsLoading(false); // We have our initial state, stop loading.
-    };
-
-    initializeSession();
-}, [userProfile, firestore, isUserLoading]);
 
 
   useEffect(() => {
@@ -896,4 +901,3 @@ export function DashboardClient() {
   );
 }
 
-    
