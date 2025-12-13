@@ -1,15 +1,14 @@
-
 'use client';
 
 import { useFirebase } from '../provider';
-import type { User } from '@/types';
+import type { User as UserType } from '@/types';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '../provider';
 import { doc, getDoc } from 'firebase/firestore';
 
 // This is now the BASIC user profile, without the plan.
 // It combines auth data with the Firestore user document.
-export type UserProfile = User;
+export type UserProfile = UserType;
 
 export interface UseUserResult {
   user: UserProfile | null;
