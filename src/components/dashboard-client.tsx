@@ -160,25 +160,15 @@ export function DashboardClient() {
   useEffect(() => {
     if (isUserLoading || !firestore) return;
 
-    const initialize = async () => {
-        if (userProfile?.isAnonymous) {
-            const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
-            if (guestInboxId) {
-                const inboxRef = doc(firestore, 'inboxes', guestInboxId);
-                const inboxSnap = await getDoc(inboxRef);
-                if (inboxSnap.exists()) {
-                    setInboxes([{ id: inboxSnap.id, ...inboxSnap.data() } as InboxType]);
-                } else {
-                    localStorage.removeItem(LOCAL_INBOX_KEY);
-                    setInboxes([]);
-                }
-            } else {
-                setInboxes([]);
-            }
+    if (userProfile?.isAnonymous) {
+        // If there's an inbox attached to the hydrated profile, use it.
+        if (userProfile.inbox) {
+            setInboxes([userProfile.inbox]);
+        } else {
+            setInboxes([]);
         }
-        // For registered users, the other useEffect handles `liveUserInboxes`
-    };
-    initialize();
+    }
+    // For registered users, the other useEffect handles `liveUserInboxes`
   }, [isUserLoading, userProfile, firestore]);
 
   // Effect to sync registered user inboxes to local state
@@ -829,5 +819,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
