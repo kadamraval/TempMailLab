@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useFirebase } from '../provider';
@@ -38,39 +37,36 @@ export const useUser = (): UserHookResultWithProfile => {
 
   useEffect(() => {
     const fetchPlanAndMerge = async () => {
-        // If auth is still loading, we can't do anything yet.
         if (isAuthLoading || !firestore) {
             return;
         }
         
         setIsPlanLoading(true);
 
-        if (!user) {
-            setUserProfileWithPlan(null);
-            setIsPlanLoading(false);
-            return;
-        }
-
         let planIdToFetch: string;
-        let baseProfile: User;
+        let baseProfile: User | null = null;
 
-        if (user.isAnonymous) {
-            planIdToFetch = 'free-default';
-            baseProfile = user as User;
-        } else {
-            if (isLoadingProfileDoc) {
-                // If the registered user's profile is still loading, we can't proceed.
-                return;
-            }
-            if (userProfileData) {
-                baseProfile = userProfileData;
-                planIdToFetch = userProfileData.planId || 'free-default';
-            } else {
-                // This can happen briefly during sign-up before the user doc is created.
-                // We'll treat them as having the default plan in the meantime.
-                baseProfile = user as User;
+        if (user) { // User is authenticated (either anonymous or registered)
+            if (user.isAnonymous) {
                 planIdToFetch = 'free-default';
+                baseProfile = user;
+            } else {
+                 if (isLoadingProfileDoc) {
+                    return; // Wait for the profile document to load for registered users
+                }
+                if (userProfileData) {
+                    baseProfile = userProfileData;
+                    planIdToFetch = userProfileData.planId || 'free-default';
+                } else {
+                    // Registered user but no profile yet (e.g., during sign-up race condition).
+                    // Default to free plan for now.
+                    planIdToFetch = 'free-default';
+                    baseProfile = user;
+                }
             }
+        } else { // No user is logged in at all (truly a guest)
+             planIdToFetch = 'free-default';
+             baseProfile = null;
         }
         
         try {
@@ -82,15 +78,28 @@ export const useUser = (): UserHookResultWithProfile => {
                 console.error("CRITICAL: The 'free-default' plan document was not found in Firestore.");
             }
 
-            setUserProfileWithPlan({
-                ...baseProfile,
-                plan: planData
-            });
+            if (baseProfile) {
+                 setUserProfileWithPlan({
+                    ...baseProfile,
+                    plan: planData
+                });
+            } else {
+                // For a true guest, we still create a profile object with the plan
+                 setUserProfileWithPlan({
+                    uid: 'guest',
+                    isAnonymous: true,
+                    email: null,
+                    plan: planData
+                });
+            }
 
         } catch (error) {
             console.error("Error fetching user plan:", error);
-            // In case of error, create a profile with a null plan to avoid breaking the app
-            setUserProfileWithPlan({ ...baseProfile, plan: null });
+            if (baseProfile) {
+                setUserProfileWithPlan({ ...baseProfile, plan: null });
+            } else {
+                setUserProfileWithPlan({ uid: 'guest', isAnonymous: true, email: null, plan: null });
+            }
         } finally {
             setIsPlanLoading(false);
         }
@@ -100,7 +109,6 @@ export const useUser = (): UserHookResultWithProfile => {
 
   }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
-  // The final loading state now correctly waits for auth first, then plan loading.
   const isOverallLoading = isAuthLoading || isPlanLoading;
 
   return { 

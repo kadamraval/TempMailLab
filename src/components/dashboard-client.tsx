@@ -72,7 +72,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Progress } from "./ui/progress";
 
 
-const LOCAL_INBOX_KEY = "tempinbox_anonymous_inbox";
+const LOCAL_INBOX_KEY = "tempinbox_guest_inbox";
 
 const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
     id: `demo-inbox-${i + 1}`,
@@ -136,8 +136,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const auth = useAuth();
-  const { user, userProfile, isUserLoading } = useUser();
+  const { userProfile, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -151,33 +150,42 @@ export function DashboardClient() {
 
   
   const userInboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid || isDemoMode) return null;
-    return query(collection(firestore, 'inboxes'), where('userId', '==', user.uid));
-  }, [firestore, user?.uid, isDemoMode]);
+    if (!firestore || !userProfile?.uid || userProfile?.isAnonymous || isDemoMode) return null;
+    return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid));
+  }, [firestore, userProfile?.uid, userProfile?.isAnonymous, isDemoMode]);
   const { data: userInboxes } = useCollection<InboxType>(userInboxesQuery);
 
-
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentInbox?.id || !user || isDemoMode) return null;
+    if (!firestore || !currentInbox?.id || !userProfile || isDemoMode) return null;
+    if (userProfile.isAnonymous) return null; // Don't fetch for guests from firestore
     return query(
       collection(firestore, `inboxes/${currentInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, currentInbox?.id, user, isDemoMode]);
+  }, [firestore, currentInbox?.id, userProfile, isDemoMode]);
 
-  const { data: inboxEmails, isLoading: isLoadingEmails } =
-    useCollection<Email>(emailsQuery);
+  const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   const displayedInboxes = useMemo(() => {
-      // This is a placeholder for inbox filtering logic
-      return isDemoMode ? demoInboxes : (userInboxes || []);
-  }, [isDemoMode, userInboxes, activeInboxFilter]);
+      if (isDemoMode) return demoInboxes;
+      if (userProfile?.isAnonymous) {
+          return currentInbox ? [currentInbox] : [];
+      }
+      return userInboxes || [];
+  }, [isDemoMode, userInboxes, userProfile?.isAnonymous, currentInbox]);
 
   const filteredEmails = useMemo(() => {
-    const sourceEmails = isDemoMode 
-        ? demoEmails.filter(e => e.inboxId === activeDemoInbox?.id)
-        : (inboxEmails || []);
+    if (isDemoMode) {
+      return demoEmails.filter(e => e.inboxId === activeDemoInbox?.id);
+    }
+    
+    // For guests, emails are stored on the inbox object in local storage
+    if (userProfile?.isAnonymous && currentInbox) {
+      return (currentInbox as any).emails || [];
+    }
 
+    const sourceEmails = inboxEmails || [];
+    
     let filtered = sourceEmails;
 
     switch (activeMailFilter) {
@@ -212,8 +220,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
-
+  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery, userProfile, currentInbox]);
 
   const generateRandomString = useCallback((length: number) => {
     let result = "";
@@ -236,194 +243,145 @@ export function DashboardClient() {
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
+  const createNewInbox = useCallback(async () => {
+    if (!firestore || !allowedDomains || !userProfile || !activePlan) {
+      setServerError("Services not ready. Please try again in a moment.");
+      return;
+    }
+    if (!prefixInput) {
+      toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
+      return;
+    }
 
-  const createNewInbox = useCallback(
-    async () => {
-        if (!firestore || !allowedDomains || !user || !activePlan) {
-            setServerError("Services not ready. Please try again in a moment.");
-            return;
-        }
-        
-        if (!prefixInput) {
-            toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
-            return;
-        }
+    setIsCreating(true);
+    setServerError(null);
 
-        setIsCreating(true);
-        setServerError(null);
+    try {
+      const domainToUse = selectedDomain || allowedDomains[0]?.domain;
+      if (!domainToUse) throw new Error("No domains available.");
 
-        try {
-            if (allowedDomains.length === 0) throw new Error("No domains are configured by the administrator.");
-            
-            const domainToUse = selectedDomain || allowedDomains[0]?.domain;
-            if (!domainToUse) throw new Error("Could not determine a domain to use.");
-            
-            const emailAddress = `${prefixInput}@${domainToUse}`;
+      const emailAddress = `${prefixInput}@${domainToUse}`;
+      
+      let lifetimeInMs;
+      if (useCustomLifetime) {
+          if(!activePlan.features.allowCustomtimer) {
+               toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature.", variant: "destructive"});
+               setIsCreating(false); return;
+          }
+           lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
+      } else {
+          const selectedLt = activePlan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
+          if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
+          if (selectedLt.isPremium && activePlan.planType !== 'pro') {
+              toast({ title: "Premium Feature", description: "This inbox timer is a premium feature.", variant: "destructive"});
+              setIsCreating(false); return;
+          }
+          const [count, unit] = selectedLifetime!.split('_');
+          lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
+      }
+      
+      const expiresAt = new Date(Date.now() + lifetimeInMs);
 
-            // Check if inbox already exists
-            const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
-            const existingInboxSnapshot = await getDocs(existingInboxQuery);
-            if (!existingInboxSnapshot.empty) {
-                throw new Error(`The email address '${emailAddress}' is already taken. Please choose another.`);
-            }
-            
-            let lifetimeInMs;
-            if (useCustomLifetime) {
-                const canUseCustom = activePlan.features.allowCustomtimer;
-                if(!canUseCustom) {
-                     toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
-                     setIsCreating(false);
-                     return;
-                }
-                 lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
-            } else {
-                const selectedLt = activePlan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
-                if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
-                if (selectedLt.isPremium && activePlan.planType !== 'pro') {
-                    toast({ title: "Premium Feature", description: "This inbox timer is a premium feature. Please upgrade your plan.", variant: "destructive"});
-                    setIsCreating(false);
-                    return;
-                }
-                const [count, unit] = selectedLifetime!.split('_');
-                lifetimeInMs = parseInt(count) * (unit === 'minutes' ? 60 : (unit === 'hours' ? 3600 : 86400)) * 1000;
-            }
-            
-            const expiresAt = new Date(Date.now() + lifetimeInMs);
+      // Handle GUEST user (Local Storage)
+      if (userProfile.isAnonymous) {
+          const newInbox: InboxType = {
+              id: `guest-${Date.now()}`,
+              userId: 'guest',
+              emailAddress,
+              domain: domainToUse,
+              emailCount: 0,
+              expiresAt: expiresAt.toISOString(),
+              isStarred: false,
+              isArchived: false,
+              // Guests will have emails stored directly on the object
+              ...( { emails: [] } as any) 
+          };
+          localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInbox));
+          setCurrentInbox(newInbox);
+      } 
+      // Handle REGISTERED user (Firestore)
+      else {
+          const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
+          const existingInboxSnapshot = await getDocs(existingInboxQuery);
+          if (!existingInboxSnapshot.empty) {
+              throw new Error(`The email address '${emailAddress}' is already taken.`);
+          }
+          
+          const newInboxData = {
+              userId: userProfile.uid,
+              emailAddress,
+              domain: domainToUse,
+              emailCount: 0,
+              expiresAt: Timestamp.fromDate(expiresAt),
+              createdAt: serverTimestamp(),
+              isStarred: false,
+              isArchived: false,
+          };
+          const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
+          const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString() } as InboxType;
+          setCurrentInbox(newInbox);
+      }
+      
+      navigator.clipboard.writeText(emailAddress);
+      toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
+      setPrefixInput('');
 
-            const newInboxData = {
-                userId: user.uid,
-                emailAddress,
-                domain: domainToUse,
-                emailCount: 0,
-                expiresAt: Timestamp.fromDate(expiresAt),
-                createdAt: serverTimestamp(),
-                isStarred: false,
-                isArchived: false,
-            };
-
-            const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-            const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString() } as InboxType;
-
-            if (user.isAnonymous) {
-                localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ id: newInbox.id, expiresAt: newInbox.expiresAt }));
-            }
-            
-            setCurrentInbox(newInbox);
-            navigator.clipboard.writeText(emailAddress);
-            toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
-            setPrefixInput(''); // Clear input after creation
-            
-        } catch (error: any) {
-            toast({
-                title: "Creation Failed",
-                description: error.message || "Could not generate a new email address.",
-                variant: "destructive"
-            });
-            setServerError(error.message || "Could not generate a new email address.");
-        } finally {
-            setIsCreating(false);
-        }
-    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime, user, activePlan]
-  );
-  
-  const findActiveInbox = useCallback(async (uid: string) => {
-    if (!firestore) return null;
-    
-    const userInboxesQuery = query(collection(firestore, 'inboxes'), where('userId', '==', uid));
-    const snap = await getDocs(userInboxesQuery);
-    
-    if (snap.empty) return null;
-
-    const now = new Date();
-    
-    const sortedInboxes = snap.docs
-        .map(doc => {
-            const data = doc.data();
-            const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
-            
-            let expiresAtDate: Date;
-            if (data.expiresAt instanceof Timestamp) {
-                expiresAtDate = data.expiresAt.toDate();
-            } else if (typeof data.expiresAt === 'string') {
-                expiresAtDate = new Date(data.expiresAt);
-            } else {
-                expiresAtDate = new Date(0); // Fallback for unexpected format
-            }
-
-            return { id: doc.id, ...data, expiresAt: expiresAtDate.toISOString(), createdAt: createdAtDate } as InboxType & { createdAt: Date };
-        })
-        .filter(inbox => new Date(inbox.expiresAt) > now)
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    if (sortedInboxes.length === 0) return null;
-    
-    return sortedInboxes[0];
-  }, [firestore]);
-
+    } catch (error: any) {
+      toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
+      setServerError(error.message);
+    } finally {
+      setIsCreating(false);
+    }
+}, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
   useEffect(() => {
     const initializeSession = async () => {
-      if (isUserLoading || !auth || !firestore || !activePlan) {
-        return;
-      }
-
-      let activeUser = user;
+      if (isUserLoading || !userProfile || !firestore) return;
+      
       let foundInbox: InboxType | null = null;
-
-      if (!activeUser) {
-        try {
-          const userCredential = await signInAnonymously(auth);
-          activeUser = userCredential.user;
-        } catch (error) {
-          setServerError("Could not start a session. Please refresh the page.");
-          setIsLoading(false);
-          return;
-        }
-      }
-      if (!activeUser) return;
-
-      if (activeUser.isAnonymous) {
-        const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
-        if (localDataStr) {
-          try {
-            const localData = JSON.parse(localDataStr);
-            if (new Date(localData.expiresAt) > new Date()) {
-              const inboxDoc = await getDoc(doc(firestore, "inboxes", localData.id));
-              if (inboxDoc.exists() && inboxDoc.data().userId === activeUser.uid) {
-                const data = inboxDoc.data();
-                
-                let expiresAtDate: Date;
-                if (data.expiresAt instanceof Timestamp) {
-                  expiresAtDate = data.expiresAt.toDate();
-                } else if (typeof data.expiresAt === 'string') {
-                  expiresAtDate = new Date(data.expiresAt);
-                } else {
-                  expiresAtDate = new Date(0); // Should not happen
-                }
-
-                foundInbox = { id: inboxDoc.id, ...data, expiresAt: expiresAtDate.toISOString() } as InboxType;
+      
+      if (userProfile.isAnonymous) {
+          const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
+          if (localDataStr) {
+              try {
+                  const localData = JSON.parse(localDataStr);
+                  if (new Date(localData.expiresAt) > new Date()) {
+                      foundInbox = localData;
+                  } else {
+                      localStorage.removeItem(LOCAL_INBOX_KEY);
+                  }
+              } catch {
+                  localStorage.removeItem(LOCAL_INBOX_KEY);
               }
-            }
-          } catch { localStorage.removeItem(LOCAL_INBOX_KEY); }
-        }
+          }
       } else {
-        foundInbox = await findActiveInbox(activeUser.uid);
+          // Logic for finding registered user's most recent active inbox
+          const q = query(
+              collection(firestore, 'inboxes'),
+              where('userId', '==', userProfile.uid),
+              where('expiresAt', '>', Timestamp.now()),
+              orderBy('expiresAt', 'desc'),
+              limit(1)
+          );
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+              const docData = snap.docs[0];
+              foundInbox = { id: docData.id, ...docData.data(), expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString() } as InboxType;
+          }
       }
       
       setCurrentInbox(foundInbox);
       setIsLoading(false);
     };
 
-    if (!isUserLoading && auth && firestore && activePlan) {
-        initializeSession();
-    }
-  }, [user, isUserLoading, activePlan, auth, firestore, findActiveInbox]);
+    initializeSession();
+  }, [userProfile, isUserLoading, firestore]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (currentInbox?.expiresAt) {
       const expiryDate = new Date(currentInbox.expiresAt);
-      const creationDate = currentInbox.createdAt instanceof Timestamp ? currentInbox.createdAt.toDate() : new Date(0);
+      const creationDate = currentInbox.createdAt instanceof Timestamp ? currentInbox.createdAt.toDate() : (new Date(Date.now() - (10 * 60000))); // assume 10 min for guests
       const totalDuration = expiryDate.getTime() - creationDate.getTime();
 
       interval = setInterval(() => {
@@ -431,16 +389,16 @@ export function DashboardClient() {
         setCountdown({ total: totalDuration, remaining: remainingMs > 0 ? remainingMs : 0 });
         if (remainingMs <= 0) {
           clearInterval(interval);
+          if (userProfile?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
           setCurrentInbox(null);
           setSelectedEmail(null);
-          if (user?.isAnonymous) localStorage.removeItem(LOCAL_INBOX_KEY);
         }
       }, 1000);
     } else {
        setCountdown({ total: 0, remaining: 0 });
     }
     return () => clearInterval(interval);
-  }, [currentInbox, user?.isAnonymous]);
+  }, [currentInbox, userProfile?.isAnonymous]);
   
   const handleCopyEmail = () => {
     if (currentInbox?.emailAddress) {
@@ -462,7 +420,7 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && currentInbox && firestore && !isDemoMode) {
+    if (!email.read && currentInbox && firestore && !isDemoMode && !userProfile?.isAnonymous) {
       try {
         const emailRef = doc(firestore, `inboxes/${currentInbox.id}/emails`, email.id);
         await updateDoc(emailRef, { read: true });
@@ -495,22 +453,12 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isUserLoading || isLoadingDomains) {
+  if (isUserLoading || isLoadingDomains || isLoading) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="text-muted-foreground">Initializing your secure inbox...</p>
       </Card>
-    );
-  }
-
-  if (serverError && !currentInbox) {
-    return (
-      <Alert variant="destructive" className="mt-4 text-left min-h-[480px] flex flex-col justify-center items-center">
-        <ServerCrash className="h-10 w-10 mb-4" />
-        <AlertTitle className="text-xl font-bold">Initialization Failed</AlertTitle>
-        <AlertDescription className="text-base">{serverError}</AlertDescription>
-      </Alert>
     );
   }
   
@@ -669,7 +617,7 @@ export function DashboardClient() {
       {/* Main Content Area */}
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
+            {(filteredEmails.length === 0 && (!isLoadingEmails || isDemoMode)) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
@@ -716,7 +664,14 @@ export function DashboardClient() {
                                     <div 
                                         key={inbox.id} 
                                         className={cn("p-2 group relative border-b cursor-pointer", isActive && "bg-muted")}
-                                        onClick={() => isDemoMode ? setActiveDemoInbox(inbox) : setCurrentInbox(inbox)}
+                                        onClick={() => {
+                                            if (isDemoMode) {
+                                                setActiveDemoInbox(inbox);
+                                            } else {
+                                                setCurrentInbox(inbox);
+                                            }
+                                            setSelectedEmail(null);
+                                        }}
                                     >
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 truncate flex items-center gap-2">
@@ -843,7 +798,9 @@ export function DashboardClient() {
                                 onBack={() => setSelectedEmail(null)}
                             />
                         ) : (
-                           filteredEmails.length === 0 ? renderEmptyState() :
+                           (isLoadingEmails && !isDemoMode) ? 
+                           <div className="flex-grow flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
+                           (filteredEmails.length === 0 ? renderEmptyState() :
                             <ScrollArea className="h-full">
                                 <div className="p-2 space-y-0">
                                     {filteredEmails.slice(0, visibleEmailsCount).map((email) => {
@@ -914,7 +871,7 @@ export function DashboardClient() {
                                     )}
                                 </div>
                             </ScrollArea>
-                        )}
+                        ))}
                     </div>
                 </div>
             )}
