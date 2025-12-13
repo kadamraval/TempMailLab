@@ -362,6 +362,7 @@ export function DashboardClient() {
 
 
   useEffect(() => {
+    if(!userInboxes) return;
     const intervalId = setInterval(() => {
         if (!userInboxes) return;
 
