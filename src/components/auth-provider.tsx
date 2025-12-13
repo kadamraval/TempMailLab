@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Rule 1: If on an admin route, user MUST be a logged-in admin.
-    if (isAdminRoute && (!user || user.isAnonymous || !userProfile?.isAdmin)) {
+    if (isAdminRoute && !userProfile?.isAdmin) {
       router.replace('/login/admin');
       return;
     }

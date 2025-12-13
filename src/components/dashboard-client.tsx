@@ -240,8 +240,8 @@ export function DashboardClient() {
 
 
   const createNewInbox = useCallback(
-    async (activeUser: import("firebase/auth").User, plan: Plan) => {
-        if (!firestore || !allowedDomains || isUserLoading || isLoadingPlan) {
+    async () => {
+        if (!firestore || !allowedDomains || !user || !activePlan) {
             setServerError("Services not ready. Please try again in a moment.");
             return;
         }
@@ -271,7 +271,7 @@ export function DashboardClient() {
             
             let lifetimeInMs;
             if (useCustomLifetime) {
-                const canUseCustom = plan.features.allowCustomtimer;
+                const canUseCustom = activePlan.features.allowCustomtimer;
                 if(!canUseCustom) {
                      toast({ title: "Premium Feature", description: "Custom inbox timers are a premium feature. Please upgrade your plan.", variant: "destructive"});
                      setIsCreating(false);
@@ -279,9 +279,9 @@ export function DashboardClient() {
                 }
                  lifetimeInMs = customLifetime.count * (customLifetime.unit === 'minutes' ? 60 : (customLifetime.unit === 'hours' ? 3600 : 86400)) * 1000;
             } else {
-                const selectedLt = plan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
+                const selectedLt = activePlan.features.availableInboxtimers?.find(lt => `${lt.count}_${lt.unit}` === selectedLifetime);
                 if (!selectedLt) throw new Error("Selected inbox timer is not valid.");
-                if (selectedLt.isPremium && plan.planType !== 'pro') {
+                if (selectedLt.isPremium && activePlan.planType !== 'pro') {
                     toast({ title: "Premium Feature", description: "This inbox timer is a premium feature. Please upgrade your plan.", variant: "destructive"});
                     setIsCreating(false);
                     return;
@@ -293,7 +293,7 @@ export function DashboardClient() {
             const expiresAt = new Date(Date.now() + lifetimeInMs);
 
             const newInboxData = {
-                userId: activeUser.uid,
+                userId: user.uid,
                 emailAddress,
                 domain: domainToUse,
                 emailCount: 0,
@@ -306,7 +306,7 @@ export function DashboardClient() {
             const newInboxRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
             const newInbox = { id: newInboxRef.id, ...newInboxData, expiresAt: expiresAt.toISOString() } as InboxType;
 
-            if (activeUser.isAnonymous) {
+            if (user.isAnonymous) {
                 localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify({ id: newInbox.id, expiresAt: newInbox.expiresAt }));
             }
             
@@ -325,7 +325,7 @@ export function DashboardClient() {
         } finally {
             setIsCreating(false);
         }
-    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime, isUserLoading, isLoadingPlan]
+    }, [firestore, allowedDomains, prefixInput, selectedDomain, toast, selectedLifetime, customLifetime, useCustomLifetime, user, activePlan]
   );
   
   const findActiveInbox = useCallback(async (uid: string) => {
@@ -416,7 +416,9 @@ export function DashboardClient() {
       setIsLoading(false);
     };
 
-    initializeSession();
+    if (!isUserLoading && auth && firestore && activePlan) {
+        initializeSession();
+    }
   }, [user, isUserLoading, activePlan, auth, firestore, findActiveInbox]);
 
   useEffect(() => {
@@ -624,7 +626,7 @@ export function DashboardClient() {
                                 </SelectContent>
                             </Select>
                         </div>
-                         <Button onClick={() => user && activePlan && createNewInbox(user, activePlan)} disabled={isCreating} className="h-full ml-2">
+                         <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
                             <Copy className="mr-2 h-4 w-4"/>
                             Create
                         </Button>
@@ -923,4 +925,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
