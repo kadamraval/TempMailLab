@@ -132,6 +132,7 @@ export function DashboardClient() {
   
   const activePlan = userProfile?.plan;
 
+  // This hook fetches domains based on the user's plan.
   const allowedDomainsQuery = useMemoFirebase(() => {
     if (!firestore || !activePlan) return null;
     const tiers = activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"];
@@ -139,13 +140,14 @@ export function DashboardClient() {
   }, [firestore, activePlan]);
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
   
-  // This hook is ONLY for registered users. Guests are handled manually.
+  // This hook ONLY fetches inboxes for REGISTERED users.
   const userInboxesQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
   }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
+  // This hook fetches emails for the currently active inbox.
   const emailsQuery = useMemoFirebase(() => {
     if (!firestore || !activeInbox?.id || isDemoMode) return null;
     return query(
@@ -153,46 +155,45 @@ export function DashboardClient() {
       orderBy("receivedAt", "desc")
     );
   }, [firestore, activeInbox?.id, isDemoMode]);
-
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   // Initialization Effect (runs once)
   useEffect(() => {
-    if (isUserLoading || !firestore) return;
+    const initialize = async () => {
+        if (isUserLoading || !firestore || !userProfile) return;
 
-    if (userProfile?.isAnonymous) {
-      const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
-      if (guestInboxId) {
-        const inboxRef = doc(firestore, 'inboxes', guestInboxId);
-        getDoc(inboxRef).then(inboxSnap => {
-          if (inboxSnap.exists()) {
-            const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-            setInboxes([inboxData]);
-          } else {
-            localStorage.removeItem(LOCAL_INBOX_KEY);
-            setInboxes([]);
-          }
-        });
-      } else {
-        setInboxes([]);
-      }
-    }
+        if (userProfile.isAnonymous) {
+            const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (guestInboxId) {
+                const inboxRef = doc(firestore, 'inboxes', guestInboxId);
+                const inboxSnap = await getDoc(inboxRef);
+                if (inboxSnap.exists()) {
+                    const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
+                    // Set the initial list for guests
+                    setInboxes([inboxData]);
+                } else {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
+                }
+            }
+        }
+    };
+    initialize();
   }, [isUserLoading, userProfile, firestore]);
 
-  // Effect for registered user inboxes
+  // Effect to sync registered user's inboxes from the collection hook.
   useEffect(() => {
-    if (userProfile && !userProfile.isAnonymous && liveUserInboxes) {
-      setInboxes(liveUserInboxes);
-    }
+      if (userProfile && !userProfile.isAnonymous && liveUserInboxes) {
+          setInboxes(liveUserInboxes);
+      }
   }, [liveUserInboxes, userProfile]);
 
-  // Auto-selection Effect (The Correct Way)
+  // The CORRECT Auto-selection Effect
   useEffect(() => {
-    // Only auto-select if user hasn't chosen one yet
+    // Only auto-select if user hasn't chosen one yet and there are inboxes available.
     if (!activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
-  }, [inboxes, activeInbox]);
+  }, [inboxes, activeInbox]); // Dependency on `inboxes` is correct here.
 
 
   const generateRandomString = useCallback((length: number) => {
@@ -277,12 +278,12 @@ export function DashboardClient() {
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
-      // Update State Directly
+      // Update State Directly to trigger UI update. This is the fix.
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
       }
       setInboxes(prev => [createdInbox, ...prev]);
-      setActiveInbox(createdInbox);
+      setActiveInbox(createdInbox); // Set as active immediately
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -825,3 +826,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
