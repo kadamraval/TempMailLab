@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -41,6 +42,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
 }
 
 export * from './provider';
+export * from './auth/use-user';
 export * from './client-provider';
 export * from './firestore/use-collection';
 export * from './firestore/use-doc';
