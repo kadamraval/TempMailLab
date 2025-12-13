@@ -62,7 +62,6 @@ import Image from "next/image";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useUser } from "./auth-provider";
-import { v4 as uuidv4 } from 'uuid';
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
 
