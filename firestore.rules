@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -70,10 +69,8 @@ service cloud.firestore {
     
     // --- Inboxes & Emails ---
     match /inboxes/{inboxId} {
-      // Allow a registered user to create an inbox for themselves.
-      // Allow ANYONE (including unauthenticated guests) to create an inbox if it does NOT have a userId field.
-      allow create: if (request.auth != null && request.resource.data.userId == request.auth.uid)
-                    || (request.auth == null && !("userId" in request.resource.data));
+      // Allow an authenticated user (including anonymous) to create an inbox for themselves.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
 
       // Allow a registered user to read or delete their own inbox.
       // Allow ANYONE to read a guest inbox (one without a userId).
@@ -105,5 +102,3 @@ service cloud.firestore {
 
   }
 }
-
-    

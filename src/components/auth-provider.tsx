@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Plan } from '@/app/(admin)/admin/packages/data';
+import { signInAnonymously, getAuth } from 'firebase/auth';
 
 // This is the FULLY hydrated user profile, including the resolved plan.
 export type UserProfile = BasicUserProfile & { plan: Plan | null };
@@ -45,28 +46,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isLoginPage = pathname === '/login';
   const isAdminLoginPage = pathname === '/login/admin';
 
-  // Step 2: Hydrate the basic profile with the correct plan.
+  // Step 2: Ensure anonymous session for guests and hydrate profile with plan.
   useEffect(() => {
-    const hydrateProfileWithPlan = async () => {
-      // Wait for the basic profile (auth + user doc) to be available.
-      if (isProfileLoading || !basicProfile || !firestore) {
+    const hydrateProfile = async () => {
+      if (isProfileLoading || !firestore) {
         return;
       }
+      
+      const auth = getAuth();
+      let finalProfile = basicProfile;
 
-      let planIdToFetch = 'free-default'; // Default for guests and new users
-
-      // If user is registered and has a planId on their profile, use that.
-      if (!basicProfile.isAnonymous && basicProfile.planId) {
-        planIdToFetch = basicProfile.planId;
+      // If no user is logged in at all, create an anonymous session.
+      if (!finalProfile) {
+        try {
+            if (auth) {
+                const userCredential = await signInAnonymously(auth);
+                finalProfile = {
+                    uid: userCredential.user.uid,
+                    email: null,
+                    isAnonymous: true,
+                    planId: 'free-default',
+                };
+            }
+        } catch (error) {
+            console.error("Anonymous sign-in failed:", error);
+            setIsLoading(false);
+            return;
+        }
       }
+
+      if (!finalProfile) {
+          setIsLoading(false);
+          return;
+      }
+
+      const planIdToFetch = finalProfile.planId || 'free-default';
       
       try {
-        // Fetch the determined plan.
         const planRef = doc(firestore, 'plans', planIdToFetch);
         const planSnap = await getDoc(planRef);
         let planData: Plan | null = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
         
-        // If the user's assigned plan doesn't exist, fall back to the default free plan.
         if (!planData && planIdToFetch !== 'free-default') {
           console.warn(`Plan '${planIdToFetch}' not found. Falling back to free plan.`);
           const freePlanRef = doc(firestore, 'plans', 'free-default');
@@ -74,48 +94,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           planData = freePlanSnap.exists() ? { id: freePlanSnap.id, ...freePlanSnap.data() } as Plan : null;
         }
 
-        // Create the final, fully hydrated profile object.
-        const finalProfile = { ...basicProfile, plan: planData };
-        setHydratedUserProfile(finalProfile);
-
+        setHydratedUserProfile({ ...finalProfile, plan: planData });
       } catch (error) {
         console.error("Error hydrating user profile with plan:", error);
-        setHydratedUserProfile({ ...basicProfile, plan: null }); 
+        setHydratedUserProfile({ ...finalProfile, plan: null }); 
       } finally {
-        setIsLoading(false); // Hydration is complete (or failed). The app can now render.
+        setIsLoading(false);
       }
     };
 
-    hydrateProfileWithPlan();
-
+    hydrateProfile();
   }, [isProfileLoading, basicProfile, firestore]);
 
   // Step 3: Enforce routing rules once the final profile is ready.
   useEffect(() => {
-    if (isLoading || !hydratedUserProfile) {
-      return; // Do nothing until hydration is complete.
+    if (isLoading) {
+      return;
     }
 
     if (isAdminRoute && !hydratedUserProfile?.isAdmin) {
       router.replace('/login/admin');
       return;
     }
-
-    if (!hydratedUserProfile.isAnonymous && (isLoginPage || isAdminLoginPage)) {
-      if (hydratedUserProfile?.isAdmin && isAdminLoginPage) {
-         router.replace('/admin');
-      } 
-      else if (!isAdminRoute) {
-         router.replace('/');
+    
+    // Redirect logged-in (non-anonymous) users away from login pages
+    if (hydratedUserProfile && !hydratedUserProfile.isAnonymous) {
+      if (isLoginPage || (isAdminLoginPage && !hydratedUserProfile.isAdmin)) {
+        router.replace(isAdminRoute ? '/admin' : '/');
+      } else if (isAdminLoginPage && hydratedUserProfile.isAdmin) {
+        router.replace('/admin');
       }
-      return;
     }
 
   }, [isLoading, hydratedUserProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
 
 
   // Show the main loading screen while the multi-step hydration process is running.
-  if (isLoading || isProfileLoading || !hydratedUserProfile) {
+  if (isLoading || isProfileLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">

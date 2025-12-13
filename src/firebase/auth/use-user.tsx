@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useFirebase } from '../provider';
-import type { UserHookResult as BasicUserHookResult } from '../provider';
 import type { User } from '@/types';
 import { useState, useEffect } from 'react';
 import { useFirestore } from '../provider';
@@ -38,16 +36,9 @@ export const useUser = (): UseUserResult => {
       return;
     }
 
-    // If there is no authenticated user at all.
+    // If there is no authenticated user at all, this is a true guest.
     if (!authUser) {
-      // For a true guest-first model, we create a temporary local-only profile.
-      // This profile is NOT stored in the database.
-      setProfile({
-        uid: 'guest-' + Date.now(), // A temporary, non-database ID
-        email: null,
-        isAnonymous: true,
-        planId: 'free-default', // Guests always use the free plan
-      });
+      setProfile(null);
       setProfileLoading(false);
       return;
     }
@@ -55,6 +46,11 @@ export const useUser = (): UseUserResult => {
     // If the user is a registered user, fetch their profile from Firestore.
     const fetchUserProfile = async () => {
       setProfileLoading(true);
+      if (!firestore) {
+        setProfileLoading(false);
+        return;
+      };
+      
       try {
         const userDocRef = doc(firestore, 'users', authUser.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -80,7 +76,19 @@ export const useUser = (): UseUserResult => {
       }
     };
     
-    fetchUserProfile();
+    // For anonymous users created by Firebase Auth, we treat them as needing a database profile.
+    if (!authUser.isAnonymous) {
+      fetchUserProfile();
+    } else {
+      // This case handles a signed-in anonymous user. We can give them a temporary profile.
+      setProfile({
+        uid: authUser.uid,
+        email: null,
+        isAnonymous: true,
+        planId: 'free-default',
+      });
+      setProfileLoading(false);
+    }
 
   }, [authUser, isAuthLoading, firestore]);
 
@@ -90,5 +98,3 @@ export const useUser = (): UseUserResult => {
     userError,
   };
 };
-
-    

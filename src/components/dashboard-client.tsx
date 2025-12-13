@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -323,9 +322,6 @@ export function DashboardClient() {
           throw new Error(`The email address '${emailAddress}' is already taken.`);
       }
       
-      const newInboxId = uuidv4();
-      const newInboxRef = doc(firestore, 'inboxes', newInboxId);
-
       const newInboxData: Partial<InboxType> = {
           emailAddress,
           domain: domainToUse,
@@ -336,17 +332,16 @@ export function DashboardClient() {
           isArchived: false,
       };
 
-      if (!userProfile.isAnonymous) {
-        newInboxData.userId = userProfile.uid;
-      }
+      // CRITICAL: Set the userId for the security rules
+      newInboxData.userId = userProfile.uid;
       
-      await setDoc(newInboxRef, newInboxData);
-
-      const createdInbox = { id: newInboxId, ...newInboxData } as InboxType;
+      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
+      
+      const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
       setActiveInbox(createdInbox);
 
       if (userProfile.isAnonymous) {
-          localStorage.setItem(LOCAL_INBOX_KEY, newInboxId);
+          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
       }
       
       navigator.clipboard.writeText(emailAddress);
@@ -859,5 +854,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

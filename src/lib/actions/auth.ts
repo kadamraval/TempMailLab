@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -17,6 +16,7 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
         const userRef = firestore.doc(`users/${uid}`);
         const userDoc = await userRef.get();
 
+        // If the user document does not exist, create it.
         if (!userDoc.exists) {
             const isAdmin = email === 'admin@example.com';
             
@@ -31,13 +31,15 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
             });
         }
 
-        // If there's an inbox ID from a guest session, re-assign it to the new permanent user.
+        // If there was an inbox from a guest session, re-assign it to the new permanent user.
         if (anonymousInboxId) {
             const inboxRef = firestore.doc(`inboxes/${anonymousInboxId}`);
             const inboxSnap = await inboxRef.get();
-            
-            // Check if the guest inbox exists and doesn't already have a userId
-            if (inboxSnap.exists() && !inboxSnap.data()?.userId) {
+            const inboxData = inboxSnap.data();
+
+            // Check if the guest inbox exists and belongs to the anonymous user who is signing up.
+            // This assumes the anonymous UID was correctly stored on the inbox.
+            if (inboxSnap.exists() && inboxData?.userId && inboxData.userId !== uid) {
                  await inboxRef.update({ userId: uid });
             }
         }
@@ -55,5 +57,3 @@ export async function signUpAction(uid: string, email: string, anonymousInboxId:
         };
     }
 }
-
-    
