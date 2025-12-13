@@ -275,12 +275,12 @@ export function DashboardClient() {
 
     }, [isUserLoading, isLoadingInboxes, userProfile, firestore, userInboxes]);
     
-     useEffect(() => {
-        if (isCreating && userInboxes) {
-            const newInbox = userInboxes[0];
-            if (newInbox && newInbox.id !== activeInbox?.id) {
+    useEffect(() => {
+        if (isCreating && userInboxes && userInboxes.length > 0) {
+            if (!activeInbox || userInboxes[0].id !== activeInbox.id) {
+                const newInbox = userInboxes[0];
                 setActiveInbox(newInbox);
-                if (userProfile?.isAnonymous) {
+                 if (userProfile?.isAnonymous) {
                     localStorage.setItem(LOCAL_INBOX_KEY, newInbox.id);
                 }
                 setIsCreating(false);
