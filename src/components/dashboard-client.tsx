@@ -160,7 +160,7 @@ export function DashboardClient() {
     if (isUserLoading || !firestore) return;
 
     if (userProfile?.isAnonymous) {
-        // If there's an inbox attached to the hydrated profile, use it.
+        // The hydrated profile from AuthProvider gives us the guest inbox directly.
         if (userProfile.inbox) {
             setInboxes([userProfile.inbox]);
         } else {

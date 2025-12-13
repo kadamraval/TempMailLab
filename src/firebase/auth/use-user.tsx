@@ -48,6 +48,7 @@ export const useUser = (): UseUserResult => {
     const fetchUserProfile = async () => {
       setProfileLoading(true);
       if (!firestore) {
+        console.error("Firestore not available in useUser");
         setProfileLoading(false);
         return;
       };
@@ -77,17 +78,16 @@ export const useUser = (): UseUserResult => {
       }
     };
     
-    // For anonymous users created by Firebase Auth, we treat them as needing a database profile.
-    if (!authUser.isAnonymous) {
-      fetchUserProfile();
+    if (authUser.isAnonymous) {
+        // For anonymous users, we create a simple profile without a database lookup.
+        setProfile({
+            uid: authUser.uid,
+            email: null,
+            isAnonymous: true,
+        });
+        setProfileLoading(false);
     } else {
-      // This case handles a signed-in anonymous user. We can give them a temporary profile.
-      setProfile({
-        uid: authUser.uid,
-        email: null,
-        isAnonymous: true,
-      });
-      setProfileLoading(false);
+        fetchUserProfile();
     }
 
   }, [authUser, isAuthLoading, firestore]);
