@@ -288,7 +288,7 @@ export function DashboardClient() {
       setServerError("Services not ready. Please try again in a moment.");
       return;
     }
-    if (!prefixInput && activePlan.features.customPrefix) {
+    if (activePlan.features.customPrefix && !prefixInput) {
       toast({ title: "Prefix Required", description: "Please enter a name for your inbox or use the 'Auto' button for a suggestion.", variant: "destructive" });
       return;
     }
@@ -864,6 +864,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-
-    
