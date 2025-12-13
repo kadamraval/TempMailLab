@@ -67,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     uid: userCredential.user.uid,
                     email: null,
                     isAnonymous: true,
+                    planId: 'free-default', // Guests always use the default plan
                 };
             }
         } catch (error) {
@@ -162,3 +163,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </AuthContext.Provider>
   );
 }
+    
