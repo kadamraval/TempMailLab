@@ -35,7 +35,6 @@ import {
   useCollection,
 } from "@/firebase";
 import {
-  getDocs,
   getDoc,
   query,
   collection,
@@ -47,7 +46,6 @@ import {
   updateDoc,
   orderBy,
   limit,
-  setDoc,
 } from "firebase/firestore";
 import type { Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
@@ -63,7 +61,6 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useUser } from "./auth-provider";
 import { v4 as uuidv4 } from 'uuid';
-
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
 
@@ -81,7 +78,7 @@ const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
 
 const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
     id: `demo-${'i' + 1}`,
-    inboxId: demoInboxes[i % demoInboxes.length].id, // Assign emails to different inboxes
+    inboxId: demoInboxes[i % demoInboxes.length].id,
     userId: 'demo',
     senderName: ['Welcome Team <welcome@example.com>', 'Promotions <promo@example.com>', 'Security Alert <security@example.com>', 'Newsletter <news@example.com>', 'Support <support@example.com>', 'Feedback Request <feedback@example.com>'][i % 6],
     subject: [ 'Getting Started with Tempmailoz', 'Special Offer: 50% Off Premium!', 'Your account was accessed from a new device', 'Weekly Digest - Top Stories', 'Your Support Ticket #12345 has been updated', 'How was your experience?', 'Re: Your Question', 'Password Reset Request' ][i % 8],
@@ -157,11 +154,12 @@ export function DashboardClient() {
   }, [firestore, activeInbox?.id, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Initialization Effect (runs once)
+  // Initialization Effect: Runs ONCE to set up the initial state.
   useEffect(() => {
     const initialize = async () => {
         if (isUserLoading || !firestore || !userProfile) return;
 
+        // Guest User Initialization
         if (userProfile.isAnonymous) {
             const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
             if (guestInboxId) {
@@ -169,13 +167,13 @@ export function DashboardClient() {
                 const inboxSnap = await getDoc(inboxRef);
                 if (inboxSnap.exists()) {
                     const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
-                    // Set the initial list for guests
-                    setInboxes([inboxData]);
+                    setInboxes([inboxData]); // Populate the unified state
                 } else {
                     localStorage.removeItem(LOCAL_INBOX_KEY);
                 }
             }
         }
+        // Registered users are handled by the next effect.
     };
     initialize();
   }, [isUserLoading, userProfile, firestore]);
@@ -187,9 +185,9 @@ export function DashboardClient() {
       }
   }, [liveUserInboxes, userProfile]);
 
-  // The CORRECT Auto-selection Effect
+  // Correct Auto-selection Effect
   useEffect(() => {
-    // Only auto-select if user hasn't chosen one yet and there are inboxes available.
+    // Only auto-select if there is NO active inbox yet, and there are inboxes available.
     if (!activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
@@ -278,11 +276,15 @@ export function DashboardClient() {
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
-      // Update State Directly to trigger UI update. This is the fix.
+      // DEFINITIVE FIX: Update local state directly
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
+          // For guests, replace the inbox list with the new one
+          setInboxes([createdInbox]);
+      } else {
+          // For registered users, add to the top of the list
+          setInboxes(prev => [createdInbox, ...prev]);
       }
-      setInboxes(prev => [createdInbox, ...prev]);
       setActiveInbox(createdInbox); // Set as active immediately
       
       navigator.clipboard.writeText(emailAddress);
