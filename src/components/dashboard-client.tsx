@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useContext } from "react";
 import {
   Copy,
   RefreshCw,
@@ -33,7 +33,6 @@ import { type Email, type Inbox as InboxType } from "@/types";
 import { EmailView } from "@/components/email-view";
 import {
   useFirestore,
-  useUser,
   useMemoFirebase,
   useCollection,
 } from "@/firebase";
@@ -63,6 +62,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import Image from "next/image";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { AuthContext } from "./auth-provider";
 
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
@@ -130,7 +130,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const { userProfile, isUserLoading } = useUser();
+  const { userProfile } = useContext(AuthContext); // Use the new reliable context
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -229,7 +229,7 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
     useEffect(() => {
-        if (isUserLoading || isLoadingInboxes) return;
+        if (isLoadingInboxes) return;
         
         const initializeSession = async () => {
             if (!userProfile || !firestore) return;
@@ -268,7 +268,7 @@ export function DashboardClient() {
         
         initializeSession();
 
-    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
+    }, [isLoadingInboxes, userProfile, firestore, liveUserInboxes]);
     
     useEffect(() => {
         if (isCreating && liveUserInboxes && liveUserInboxes.length > 0) {
@@ -347,7 +347,11 @@ export function DashboardClient() {
           isArchived: false,
       };
       
-      await addDoc(collection(firestore, 'inboxes'), newInboxData);
+      const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
+
+      if (userProfile.isAnonymous) {
+          localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
+      }
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -452,7 +456,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isLoading || isUserLoading || isLoadingDomains) {
+  if (isLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -860,5 +864,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    

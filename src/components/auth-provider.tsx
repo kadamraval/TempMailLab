@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useUser, UserProfile } from '@/firebase/auth/use-user';
+import React, { createContext, useEffect, useState, ReactNode } from 'react';
+import { useUser as useAuthUser, UserProfile } from '@/firebase/auth/use-user';
 import { usePathname, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
@@ -10,16 +10,27 @@ import { useAuth, useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Plan } from '@/app/(admin)/admin/packages/data';
 
+// 1. Create a new context for the hydrated user profile
+interface AuthContextType {
+  userProfile: UserProfile | null;
+  isLoading: boolean;
+}
+
+export const AuthContext = createContext<AuthContextType>({
+  userProfile: null,
+  isLoading: true,
+});
+
 /**
  * AuthProvider is a client-side component that enforces authentication rules.
  * It is the single source of truth for loading states and redirection logic.
  */
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, isUserLoading } = useUser();
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { user, isUserLoading, basicUserProfile } = useAuthUser(); // Renamed to avoid confusion
   const auth = useAuth();
   const firestore = useFirestore();
   const [hydratedUserProfile, setHydratedUserProfile] = useState<UserProfile | null>(null);
-  const [isHydrating, setIsHydrating] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   
   const router = useRouter();
   const pathname = usePathname();
@@ -36,33 +47,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const hydrateProfile = async () => {
-      if (isUserLoading || !userProfile) {
-        setIsHydrating(true);
-        return;
-      }
+      setIsLoading(true);
       
-      let finalProfile = { ...userProfile };
+      if (isUserLoading || !basicUserProfile) {
+        return; // Wait for the basic profile to be loaded
+      }
 
-      // If the user is a guest and their plan hasn't been fetched yet, fetch it now.
-      if (userProfile.isAnonymous && userProfile.plan === null) {
-          const planRef = doc(firestore, 'plans', 'free-default');
-          const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) {
-              finalProfile.plan = { id: planSnap.id, ...planSnap.data() } as Plan;
-          }
-      }
+      // We have a profile (either guest or registered), now fetch the plan.
+      const planIdToFetch = basicUserProfile.planId || 'free-default';
       
-      setHydratedUserProfile(finalProfile);
-      setIsHydrating(false);
+      try {
+        const planRef = doc(firestore, 'plans', planIdToFetch);
+        const planSnap = await getDoc(planRef);
+        let planData: Plan | null = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
+        
+        if (!planData && planIdToFetch !== 'free-default') {
+          console.warn(`Plan '${planIdToFetch}' not found. Falling back to free plan.`);
+          const freePlanRef = doc(firestore, 'plans', 'free-default');
+          const freePlanSnap = await getDoc(freePlanRef);
+          planData = freePlanSnap.exists() ? { id: freePlanSnap.id, ...freePlanSnap.data() } as Plan : null;
+        }
+
+        const finalProfile = { ...basicUserProfile, plan: planData };
+        setHydratedUserProfile(finalProfile);
+
+      } catch (error) {
+        console.error("Error hydrating user profile with plan:", error);
+        setHydratedUserProfile({ ...basicUserProfile, plan: null }); // Proceed with a null plan on error
+      } finally {
+        setIsLoading(false); // Hydration complete (or failed)
+      }
     };
 
     hydrateProfile();
 
-  }, [isUserLoading, userProfile, firestore]);
+  }, [isUserLoading, basicUserProfile, firestore]);
 
   useEffect(() => {
     // Wait until the final profile is hydrated.
-    if (isHydrating) {
+    if (isLoading || !hydratedUserProfile) {
       return;
     }
 
@@ -81,11 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-  }, [isHydrating, user, hydratedUserProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
+  }, [isLoading, user, hydratedUserProfile, pathname, router, isAdminRoute, isLoginPage, isAdminLoginPage]);
 
 
   // Show loading screen while auth is resolving or profile is hydrating.
-  if (isUserLoading || isHydrating || !hydratedUserProfile) {
+  if (isLoading || !hydratedUserProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -96,8 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Once all checks pass, render the application.
-  return <>{children}</>;
+  // Once all checks pass, provide the final profile and render the application.
+  return (
+      <AuthContext.Provider value={{ userProfile: hydratedUserProfile, isLoading }}>
+        {children}
+      </AuthContext.Provider>
+  );
 }
-
-    
