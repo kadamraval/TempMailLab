@@ -27,9 +27,29 @@ export default function HomePage() {
     );
   }
 
+  // Find the 'inbox' section specifically to render DashboardClient
+  const inboxSection = sectionsConfig?.find(s => s.id === 'inbox');
+
   return (
     <>
-     {(sectionsConfig || []).map((section) => (
+     {inboxSection ? (
+        <PageSection
+          key={inboxSection.id}
+          pageId={pageId}
+          sectionId={inboxSection.id}
+          order={inboxSection.order}
+          isHidden={inboxSection.hidden}
+        />
+     ) : (
+      <div className="container mx-auto py-20 text-center">
+        <h1 className="text-4xl font-bold">Inbox Not Configured</h1>
+        <p className="text-muted-foreground mt-4">The main inbox section has not been added to the homepage in the admin panel.</p>
+      </div>
+     )}
+
+     {(sectionsConfig || [])
+      .filter(section => section.id !== 'inbox') // Render all other sections
+      .map((section) => (
         <PageSection
             key={section.id}
             pageId={pageId}

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -59,7 +58,6 @@ import { type Plan } from "@/app/(admin)/admin/packages/data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "./ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { signInAnonymously } from "firebase/auth";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
@@ -136,7 +134,7 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  const { userProfile, isUserLoading } = useUser();
+  const { userProfile } = useUser();
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
@@ -286,7 +284,7 @@ export function DashboardClient() {
       if (userProfile.isAnonymous) {
           const newInbox: InboxType = {
               id: `guest-${Date.now()}`,
-              userId: 'guest',
+              userId: userProfile.uid,
               emailAddress,
               domain: domainToUse,
               emailCount: 0,
@@ -335,47 +333,53 @@ export function DashboardClient() {
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
   useEffect(() => {
+    // This effect runs only once when the component mounts and userProfile is available.
     const initializeSession = async () => {
-      if (isUserLoading || !userProfile || !firestore) return;
-      
-      let foundInbox: InboxType | null = null;
-      
-      if (userProfile.isAnonymous) {
-          const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
-          if (localDataStr) {
-              try {
-                  const localData = JSON.parse(localDataStr);
-                  if (new Date(localData.expiresAt) > new Date()) {
-                      foundInbox = localData;
-                  } else {
-                      localStorage.removeItem(LOCAL_INBOX_KEY);
-                  }
-              } catch {
-                  localStorage.removeItem(LOCAL_INBOX_KEY);
-              }
-          }
-      } else {
-          // Logic for finding registered user's most recent active inbox
-          const q = query(
-              collection(firestore, 'inboxes'),
-              where('userId', '==', userProfile.uid),
-              where('expiresAt', '>', Timestamp.now()),
-              orderBy('expiresAt', 'desc'),
-              limit(1)
-          );
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-              const docData = snap.docs[0];
-              foundInbox = { id: docData.id, ...docData.data(), expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString() } as InboxType;
-          }
-      }
-      
-      setCurrentInbox(foundInbox);
-      setIsLoading(false);
+        if (!userProfile || !firestore) return;
+
+        let foundInbox: InboxType | null = null;
+
+        if (userProfile.isAnonymous) {
+            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
+            if (localDataStr) {
+                try {
+                    const localData = JSON.parse(localDataStr);
+                    if (new Date(localData.expiresAt) > new Date()) {
+                        foundInbox = localData;
+                    } else {
+                        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up expired inbox
+                    }
+                } catch {
+                    localStorage.removeItem(LOCAL_INBOX_KEY);
+                }
+            }
+        } else {
+            // For registered users, find their most recent active inbox.
+            const q = query(
+                collection(firestore, 'inboxes'),
+                where('userId', '==', userProfile.uid),
+                where('expiresAt', '>', Timestamp.now()),
+                orderBy('expiresAt', 'desc'),
+                limit(1)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const docData = snap.docs[0];
+                foundInbox = {
+                    id: docData.id,
+                    ...docData.data(),
+                    expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString()
+                } as InboxType;
+            }
+        }
+        
+        setCurrentInbox(foundInbox);
+        setIsLoading(false); // We have our initial state, stop loading.
     };
 
     initializeSession();
-  }, [userProfile, isUserLoading, firestore]);
+}, [userProfile, firestore]);
+
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -453,7 +457,7 @@ export function DashboardClient() {
     </div>
   );
 
-  if (isUserLoading || isLoadingDomains || isLoading) {
+  if (isLoading || isLoadingDomains) {
     return (
       <Card className="min-h-[480px] flex flex-col items-center justify-center text-center p-8 space-y-4">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
