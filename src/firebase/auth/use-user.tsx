@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirebase } from '../provider';
@@ -26,7 +27,7 @@ export const useUser = (): UserHookResultWithProfile => {
   const firestore = useFirestore();
   
   const [userProfileWithPlan, setUserProfileWithPlan] = useState<UserProfile | null>(null);
-  const [isPlanLoading, setIsPlanLoading] = useState(true);
+  const [isProfileAndPlanLoading, setProfileAndPlanLoading] = useState(true);
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !user?.uid || user.isAnonymous) return null;
@@ -40,33 +41,47 @@ export const useUser = (): UserHookResultWithProfile => {
         if (isAuthLoading || !firestore) {
             return;
         }
-        
-        setIsPlanLoading(true);
 
-        let planIdToFetch: string;
-        let baseProfile: User | null = null;
+        setProfileAndPlanLoading(true);
 
-        if (user) { // User is authenticated (either anonymous or registered)
-            if (user.isAnonymous) {
-                planIdToFetch = 'free-default';
-                baseProfile = user;
-            } else {
-                 if (isLoadingProfileDoc) {
-                    return; // Wait for the profile document to load for registered users
+        if (!user) { // Truly a guest, not logged in at all
+            try {
+                const planRef = doc(firestore, 'plans', 'free-default');
+                const planSnap = await getDoc(planRef);
+                const planData = planSnap.exists() ? { id: planSnap.id, ...planSnap.data() } as Plan : null;
+                
+                if (!planData) {
+                    console.error("CRITICAL: The 'free-default' plan document was not found in Firestore.");
                 }
-                if (userProfileData) {
-                    baseProfile = userProfileData;
-                    planIdToFetch = userProfileData.planId || 'free-default';
-                } else {
-                    // Registered user but no profile yet (e.g., during sign-up race condition).
-                    // Default to free plan for now.
-                    planIdToFetch = 'free-default';
-                    baseProfile = user;
-                }
+
+                setUserProfileWithPlan({
+                    uid: 'guest',
+                    isAnonymous: true,
+                    email: null,
+                    plan: planData
+                });
+            } catch (error) {
+                console.error("Error fetching guest plan:", error);
+                setUserProfileWithPlan({ uid: 'guest', isAnonymous: true, email: null, plan: null });
+            } finally {
+                setProfileAndPlanLoading(false);
             }
-        } else { // No user is logged in at all (truly a guest)
-             planIdToFetch = 'free-default';
-             baseProfile = null;
+            return;
+        }
+
+        // Handle authenticated user (anonymous or registered)
+        let baseProfile: User | null = null;
+        let planIdToFetch: string;
+
+        if (user.isAnonymous) {
+            planIdToFetch = 'free-default';
+            baseProfile = { uid: user.uid, isAnonymous: true, email: null };
+        } else {
+            if (isLoadingProfileDoc) {
+                return; // Wait for profile doc to load for registered user
+            }
+            baseProfile = userProfileData || { uid: user.uid, email: user.email, displayName: user.displayName || '' };
+            planIdToFetch = userProfileData?.planId || 'free-default';
         }
         
         try {
@@ -77,31 +92,19 @@ export const useUser = (): UserHookResultWithProfile => {
             if (!planData && planIdToFetch === 'free-default') {
                 console.error("CRITICAL: The 'free-default' plan document was not found in Firestore.");
             }
-
-            if (baseProfile) {
-                 setUserProfileWithPlan({
-                    ...baseProfile,
-                    plan: planData
-                });
-            } else {
-                // For a true guest, we still create a profile object with the plan
-                 setUserProfileWithPlan({
-                    uid: 'guest',
-                    isAnonymous: true,
-                    email: null,
-                    plan: planData
-                });
-            }
+            
+            setUserProfileWithPlan({
+                ...baseProfile,
+                plan: planData,
+            });
 
         } catch (error) {
             console.error("Error fetching user plan:", error);
             if (baseProfile) {
                 setUserProfileWithPlan({ ...baseProfile, plan: null });
-            } else {
-                setUserProfileWithPlan({ uid: 'guest', isAnonymous: true, email: null, plan: null });
             }
         } finally {
-            setIsPlanLoading(false);
+            setProfileAndPlanLoading(false);
         }
     };
 
@@ -109,7 +112,7 @@ export const useUser = (): UserHookResultWithProfile => {
 
   }, [user, isAuthLoading, userProfileData, isLoadingProfileDoc, firestore]);
   
-  const isOverallLoading = isAuthLoading || isPlanLoading;
+  const isOverallLoading = isAuthLoading || isProfileAndPlanLoading;
 
   return { 
     user, 
