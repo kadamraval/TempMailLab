@@ -155,35 +155,41 @@ export function DashboardClient() {
 
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Effect to handle initial load and sync with live data for registered users
+  // Effect for initial load of guest inbox from localStorage
   useEffect(() => {
-    const initialize = async () => {
-        if (isUserLoading || !firestore) return;
-
-        if (userProfile?.isAnonymous) {
+    const initializeGuestInbox = async () => {
+        if (!isUserLoading && userProfile?.isAnonymous && firestore) {
             const guestInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
             if (guestInboxId) {
                 const inboxRef = doc(firestore, 'inboxes', guestInboxId);
                 const inboxSnap = await getDoc(inboxRef);
                 if (inboxSnap.exists()) {
-                    setInboxes([{ id: inboxSnap.id, ...inboxSnap.data() } as InboxType]);
+                    const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
+                    setInboxes([inboxData]); // Set the single guest inbox
                 } else {
                     localStorage.removeItem(LOCAL_INBOX_KEY);
                 }
             }
-        } else if (liveUserInboxes) {
-            setInboxes(liveUserInboxes);
         }
     };
-    initialize();
-  }, [isUserLoading, userProfile, firestore, liveUserInboxes]);
+    initializeGuestInbox();
+  }, [isUserLoading, userProfile, firestore]);
 
-  // The CORRECT auto-selection logic
+  // Effect to sync live inboxes for registered users
   useEffect(() => {
+    if (!userProfile?.isAnonymous && liveUserInboxes) {
+        setInboxes(liveUserInboxes);
+    }
+  }, [liveUserInboxes, userProfile]);
+
+  // CORRECTED Auto-selection logic
+  useEffect(() => {
+      // Only auto-select an inbox if one isn't already active.
       if (!activeInbox && inboxes.length > 0) {
           setActiveInbox(inboxes[0]);
       }
   }, [inboxes, activeInbox]);
+
 
   const generateRandomString = useCallback((length: number) => {
     let result = "";
@@ -268,13 +274,13 @@ export function DashboardClient() {
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
-      // ---- THIS IS THE FIX ----
-      // Immediately update the local state for the UI to react.
+      // ---- DEFINITIVE FIX ----
+      // Immediately update local state to display the new inbox.
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
-          setInboxes([createdInbox]); // Replace the old guest inbox if any
-          setActiveInbox(createdInbox);
+          setInboxes([createdInbox]); // For guests, this is the only inbox.
       }
+      setActiveInbox(createdInbox); // Set as active to ensure it's displayed.
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -818,4 +824,3 @@ export function DashboardClient() {
   );
 }
 
-    
