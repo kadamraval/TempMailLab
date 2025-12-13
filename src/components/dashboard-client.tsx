@@ -70,7 +70,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Progress } from "./ui/progress";
 
 
-const LOCAL_INBOX_KEY = "tempinbox_guest_inbox";
+const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
 
 const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
     id: `demo-inbox-${i + 1}`,
@@ -148,23 +148,13 @@ export function DashboardClient() {
 
   
   const userInboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile?.uid || userProfile?.isAnonymous) return null;
+    if (!firestore || !userProfile?.uid) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
-  }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
-  const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
-
-  const [localGuestInbox, setLocalGuestInbox] = useState<InboxType | null>(null);
-
-  const userInboxes = useMemo(() => {
-    if (userProfile?.isAnonymous) {
-      return localGuestInbox ? [localGuestInbox] : [];
-    }
-    return liveUserInboxes || [];
-  }, [userProfile?.isAnonymous, localGuestInbox, liveUserInboxes]);
-
+  }, [firestore, userProfile?.uid]);
+  const { data: userInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.id || !userProfile || userProfile.isAnonymous) return null;
+    if (!firestore || !activeInbox?.id || userProfile?.isAnonymous) return null;
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
@@ -183,11 +173,6 @@ export function DashboardClient() {
       return demoEmails.filter(e => e.inboxId === activeDemoInbox?.id);
     }
     
-    // For guests, emails are stored on the inbox object in local storage
-    if (userProfile?.isAnonymous && activeInbox) {
-      return (activeInbox as any).emails || [];
-    }
-
     const sourceEmails = inboxEmails || [];
     
     let filtered = sourceEmails;
@@ -224,7 +209,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery, userProfile, activeInbox]);
+  }, [isDemoMode, inboxEmails, activeDemoInbox, activeMailFilter, searchQuery]);
 
   const generateRandomString = useCallback((length: number) => {
     let result = "";
@@ -247,68 +232,61 @@ export function DashboardClient() {
     }
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
 
-  useEffect(() => {
-    // This effect runs only once when the component mounts and userProfile is available.
-    if (isUserLoading) return;
-    const initializeSession = async () => {
-        if (!userProfile || !firestore) return;
-
-        let foundInbox: InboxType | null = null;
-
-        if (userProfile.isAnonymous) {
-            const localDataStr = localStorage.getItem(LOCAL_INBOX_KEY);
-            if (localDataStr) {
-                try {
-                    const localData = JSON.parse(localDataStr);
-                    if (new Date(localData.expiresAt) > new Date()) {
-                        foundInbox = localData;
-                        setLocalGuestInbox(foundInbox);
+    useEffect(() => {
+        if (isUserLoading || isLoadingInboxes) return;
+        
+        const initializeSession = async () => {
+            if (!userProfile || !firestore) return;
+            
+            let foundInbox: InboxType | null = null;
+            
+            if (userProfile.isAnonymous) {
+                const localInboxId = localStorage.getItem(LOCAL_INBOX_KEY);
+                if (localInboxId) {
+                    const inboxRef = doc(firestore, 'inboxes', localInboxId);
+                    const inboxSnap = await getDoc(inboxRef);
+                    if (inboxSnap.exists()) {
+                         const inboxData = { id: inboxSnap.id, ...inboxSnap.data() } as InboxType;
+                         if (new Date((inboxData.expiresAt as any).toDate()) > new Date()) {
+                            foundInbox = inboxData;
+                         } else {
+                            localStorage.removeItem(LOCAL_INBOX_KEY);
+                         }
                     } else {
-                        localStorage.removeItem(LOCAL_INBOX_KEY); // Clean up expired inbox
+                        localStorage.removeItem(LOCAL_INBOX_KEY);
                     }
-                } catch {
-                    localStorage.removeItem(LOCAL_INBOX_KEY);
                 }
             }
-        } else {
-            // For registered users, find their most recent active inbox.
-            const q = query(
-                collection(firestore, 'inboxes'),
-                where('userId', '==', userProfile.uid),
-                where('expiresAt', '>', Timestamp.now()),
-                orderBy('expiresAt', 'desc'),
-                limit(1)
-            );
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                const docData = snap.docs[0];
-                foundInbox = {
-                    id: docData.id,
-                    ...docData.data(),
-                    expiresAt: (docData.data().expiresAt as Timestamp).toDate().toISOString()
-                } as InboxType;
+            
+            // If no guest inbox found, or if user is registered, find their latest active inbox.
+            if (!foundInbox && userInboxes && userInboxes.length > 0) {
+                const now = new Date();
+                const latestActive = userInboxes
+                    .filter(ib => new Date((ib.expiresAt as any).toDate ? (ib.expiresAt as any).toDate() : ib.expiresAt) > now)
+                    .sort((a,b) => new Date((b.createdAt as any).toDate()).getTime() - new Date((a.createdAt as any).toDate()).getTime())[0];
+                foundInbox = latestActive || null;
             }
-        }
+
+            setActiveInbox(foundInbox);
+            setIsLoading(false);
+        };
         
-        setActiveInbox(foundInbox);
-        setIsLoading(false); // We have our initial state, stop loading.
-    };
+        initializeSession();
 
-    initializeSession();
-}, [userProfile, firestore, isUserLoading]);
-
-    useEffect(() => {
-        // This effect detects when a new inbox is added to the live collection
-        if (isCreating && liveUserInboxes) {
-            // Find the newest inbox (first in the sorted list) that wasn't there before
-            const newInbox = liveUserInboxes.find(ib => ib.id !== activeInbox?.id);
-            if (newInbox) {
+    }, [isUserLoading, isLoadingInboxes, userProfile, firestore, userInboxes]);
+    
+     useEffect(() => {
+        if (isCreating && userInboxes) {
+            const newInbox = userInboxes[0];
+            if (newInbox && newInbox.id !== activeInbox?.id) {
                 setActiveInbox(newInbox);
+                if (userProfile?.isAnonymous) {
+                    localStorage.setItem(LOCAL_INBOX_KEY, newInbox.id);
+                }
                 setIsCreating(false);
             }
         }
-    }, [liveUserInboxes, isCreating, activeInbox]);
-
+    }, [userInboxes, isCreating, activeInbox, userProfile]);
 
   const createNewInbox = useCallback(async () => {
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
@@ -352,51 +330,24 @@ export function DashboardClient() {
       
       const expiresAt = new Date(Date.now() + lifetimeInMs);
 
-      // Handle GUEST user (Local Storage)
-      if (userProfile.isAnonymous) {
-          const newInbox: InboxType = {
-              id: `guest-${Date.now()}`,
-              userId: userProfile.uid,
-              emailAddress,
-              domain: domainToUse,
-              emailCount: 0,
-              expiresAt: expiresAt.toISOString(),
-              isStarred: false,
-              isArchived: false,
-              createdAt: Timestamp.now(),
-              ...( { emails: [] } as any) 
-          };
-          localStorage.setItem(LOCAL_INBOX_KEY, JSON.stringify(newInbox));
-          setLocalGuestInbox(newInbox);
-          setActiveInbox(newInbox);
-          setIsCreating(false);
-      } 
-      // Handle REGISTERED user (Firestore)
-      else {
-          const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
-          const existingInboxSnapshot = await getDocs(existingInboxQuery);
-          if (!existingInboxSnapshot.empty) {
-              throw new Error(`The email address '${emailAddress}' is already taken.`);
-          }
-          
-          const newInboxData = {
-              userId: userProfile.uid,
-              emailAddress,
-              domain: domainToUse,
-              emailCount: 0,
-              expiresAt: Timestamp.fromDate(expiresAt),
-              createdAt: serverTimestamp(),
-              isStarred: false,
-              isArchived: false,
-          };
-          
-          const docRef = await addDoc(collection(firestore, `inboxes`), newInboxData);
-          const newDocSnap = await getDoc(docRef);
-          if (newDocSnap.exists()) {
-             const newInbox = { id: newDocSnap.id, ...newDocSnap.data() } as InboxType;
-             setActiveInbox(newInbox); // This will cause the UI to update immediately with the new inbox
-          }
+      const existingInboxQuery = query(collection(firestore, 'inboxes'), where('emailAddress', '==', emailAddress), limit(1));
+      const existingInboxSnapshot = await getDocs(existingInboxQuery);
+      if (!existingInboxSnapshot.empty) {
+          throw new Error(`The email address '${emailAddress}' is already taken.`);
       }
+      
+      const newInboxData = {
+          userId: userProfile.uid,
+          emailAddress,
+          domain: domainToUse,
+          emailCount: 0,
+          expiresAt: Timestamp.fromDate(expiresAt),
+          createdAt: serverTimestamp(),
+          isStarred: false,
+          isArchived: false,
+      };
+      
+      await addDoc(collection(firestore, `inboxes`), newInboxData);
       
       navigator.clipboard.writeText(emailAddress);
       toast({ title: "Created & Copied!", description: "New temporary email copied to clipboard." });
@@ -405,9 +356,8 @@ export function DashboardClient() {
     } catch (error: any) {
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-    } finally {
-        setIsCreating(false);
-    }
+      setIsCreating(false); // Stop loading on error
+    } 
 }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast]);
 
 
@@ -417,8 +367,9 @@ export function DashboardClient() {
         let activeInboxStillValid = false;
 
         userInboxes.forEach(inbox => {
-            const expiryDate = new Date(inbox.expiresAt);
-            const creationDate = inbox.createdAt instanceof Timestamp ? inbox.createdAt.toDate() : new Date(Date.parse(inbox.expiresAt) - 10 * 60000);
+            const expiryDate = new Date((inbox.expiresAt as any).toDate ? (inbox.expiresAt as any).toDate() : inbox.expiresAt);
+            const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
+            
             const totalDuration = expiryDate.getTime() - creationDate.getTime();
             const remainingMs = expiryDate.getTime() - Date.now();
 
@@ -430,7 +381,6 @@ export function DashboardClient() {
             } else {
                  if (userProfile?.isAnonymous && activeInbox?.id === inbox.id) {
                     localStorage.removeItem(LOCAL_INBOX_KEY);
-                    setLocalGuestInbox(null);
                 }
             }
         });
@@ -905,4 +855,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
