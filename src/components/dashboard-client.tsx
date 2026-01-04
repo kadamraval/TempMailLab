@@ -70,6 +70,7 @@ const ITEMS_PER_PAGE = 10;
 export function DashboardClient() {
   const [inboxes, setInboxes] = useState<InboxType[]>([]);
   const [activeInbox, setActiveInbox] = useState<InboxType | null>(null);
+  const [optimisticInbox, setOptimisticInbox] = useState<InboxType | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
@@ -104,13 +105,14 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.id) return null;
+    // CRITICAL: Do not query if the active inbox is the optimistic one, as it doesn't exist in Firestore yet.
+    if (!firestore || !activeInbox?.id || activeInbox.id === optimisticInbox?.id) return null;
 
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox]);
+  }, [firestore, activeInbox, optimisticInbox]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
   // This effect synchronizes the local `inboxes` state with the live data from Firestore.
@@ -126,6 +128,18 @@ export function DashboardClient() {
         setInboxes(liveUserInboxes);
     }
   }, [liveUserInboxes, userProfile]);
+  
+  // This effect reconciles the optimistic update once the real data arrives.
+  useEffect(() => {
+    if (optimisticInbox && liveUserInboxes && liveUserInboxes.some(i => i.emailAddress === optimisticInbox.emailAddress)) {
+      const realInbox = liveUserInboxes.find(i => i.emailAddress === optimisticInbox.emailAddress);
+      if (realInbox) {
+          setActiveInbox(realInbox); // Switch to the real one
+          setOptimisticInbox(null); // Clear the optimistic one
+      }
+    }
+  }, [liveUserInboxes, optimisticInbox]);
+
 
   useEffect(() => {
     if (!activeInbox && inboxes.length > 0) {
@@ -218,11 +232,11 @@ export function DashboardClient() {
           userId: userProfile.uid,
       };
 
-      // Optimistic UI Update: Add the inbox to the local state immediately.
-      // Firestore's real-time listener will eventually replace this with the "real" data.
-      const optimisticInbox = { ...newInboxData, id: `temp-${Date.now()}` } as InboxType;
-      setInboxes(prev => [optimisticInbox, ...prev]);
-      setActiveInbox(optimisticInbox);
+      // Set the optimistic inbox for instant UI feedback
+      const tempId = `optimistic-${Date.now()}`;
+      const optimisticData = { ...newInboxData, id: tempId } as InboxType;
+      setOptimisticInbox(optimisticData);
+      setActiveInbox(optimisticData);
       
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
@@ -239,12 +253,20 @@ export function DashboardClient() {
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
       // Rollback optimistic update on failure
-      setInboxes(prev => prev.filter(ib => !ib.id.startsWith('temp-')));
+      setOptimisticInbox(null);
 
     } finally {
         setIsCreating(false);
     }
   }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
+
+  const currentInboxes = useMemo(() => {
+    let list = inboxes || [];
+    if (optimisticInbox && !list.some(i => i.emailAddress === optimisticInbox.emailAddress)) {
+        return [optimisticInbox, ...list];
+    }
+    return list;
+  }, [inboxes, optimisticInbox]);
 
   const filteredEmails = useMemo(() => {
     if (!activeInbox) return [];
@@ -289,11 +311,11 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (!inboxes.length) return;
+    if (!currentInboxes.length) return;
 
     const intervalId = setInterval(() => {
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
-        inboxes.forEach(inbox => {
+        currentInboxes.forEach(inbox => {
             const expiryDate = new Date(inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
             
@@ -308,7 +330,7 @@ export function DashboardClient() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [inboxes]);
+  }, [currentInboxes]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -506,7 +528,7 @@ export function DashboardClient() {
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Inbox className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, inboxes.length)}/${inboxes.length})`}</h3>
+                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, currentInboxes.length)}/${currentInboxes.length})`}</h3>
                             </div>
                             <div className="flex items-center gap-1">
                                 {selectedInboxes.length > 0 ? (
@@ -533,7 +555,7 @@ export function DashboardClient() {
                         </div>
                         <ScrollArea className="h-full">
                             <div className="p-2 space-y-0">
-                                {inboxes.slice(0, visibleInboxesCount).map((inbox) => {
+                                {currentInboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
                                     const isActive = activeInbox?.id === inbox.id;
                                     const inboxCountdown = countdown[inbox.id];
@@ -593,7 +615,7 @@ export function DashboardClient() {
                                         </div>
                                     </div>
                                 )})}
-                                {visibleInboxesCount < inboxes.length && (
+                                {visibleInboxesCount < currentInboxes.length && (
                                      <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
                                 )}
                             </div>
