@@ -125,13 +125,11 @@ export function DashboardClient() {
   const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
 
   const firestore = useFirestore();
-  // AuthProvider is now the single source of truth for the fully hydrated user profile
   const { userProfile, isLoading: isUserLoading } = useUser();
   const { toast } = useToast();
   
   const activePlan = userProfile?.plan;
 
-  // This hook fetches domains based on the user's plan.
   const allowedDomainsQuery = useMemoFirebase(() => {
     if (!firestore || !activePlan) return null;
     const tiers = activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"];
@@ -139,14 +137,12 @@ export function DashboardClient() {
   }, [firestore, activePlan]);
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
   
-  // This hook ONLY fetches inboxes for REGISTERED users.
   const userInboxesQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
     return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
   }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
-  // This hook fetches emails for the currently active real inbox.
   const emailsQuery = useMemoFirebase(() => {
     const inboxToQuery = isDemoMode ? activeDemoInbox : activeInbox;
     if (!firestore || !inboxToQuery?.id || isDemoMode) return null;
@@ -157,22 +153,18 @@ export function DashboardClient() {
   }, [firestore, activeInbox, activeDemoInbox, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
-  // Definitive Initialization Effect (Runs ONCE)
   useEffect(() => {
     if (isUserLoading || !firestore) return;
 
     if (userProfile?.isAnonymous) {
-        // The hydrated profile from AuthProvider gives us the guest inbox directly.
         if (userProfile.inbox) {
             setInboxes([userProfile.inbox]);
         } else {
             setInboxes([]);
         }
     }
-    // For registered users, the other useEffect handles `liveUserInboxes`
   }, [isUserLoading, userProfile, firestore]);
 
-  // Effect to sync registered user inboxes to local state
   useEffect(() => {
     if (!userProfile?.isAnonymous && liveUserInboxes) {
         setInboxes(liveUserInboxes);
@@ -180,9 +172,7 @@ export function DashboardClient() {
   }, [liveUserInboxes, userProfile?.isAnonymous]);
 
 
-  // CORRECT Auto-selection Effect
   useEffect(() => {
-    // Only auto-select if there is NO active inbox yet, and there are inboxes available.
     if (!activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
@@ -271,9 +261,8 @@ export function DashboardClient() {
       
       const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
 
-      // DEFINITIVE FIX: Update local state directly
       setInboxes(prev => [createdInbox, ...prev]);
-      setActiveInbox(createdInbox); // Set as active immediately
+      setActiveInbox(createdInbox);
       
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
