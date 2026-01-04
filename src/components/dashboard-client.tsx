@@ -65,36 +65,6 @@ import { useUser } from "./auth-provider";
 
 const LOCAL_INBOX_KEY = "tempinbox_guest_inbox_id";
 
-const demoInboxes: InboxType[] = Array.from({ length: 15 }, (_, i) => ({
-    id: `demo-inbox-${'i' + 1}`,
-    emailAddress: i === 0 ? 'primary-demo@example.com' : `project-${i}@example.com`,
-    emailCount: Math.floor(Math.random() * 20),
-    userId: 'demo',
-    domain: 'example.com',
-    expiresAt: new Date(Date.now() + (10 + i * 5) * 60 * 1000).toISOString(),
-    isStarred: i === 1 || i === 4,
-    isArchived: i === 7,
-    createdAt: Timestamp.now(),
-}));
-
-const demoEmails: Email[] = Array.from({ length: 25 }, (_, i) => ({
-    id: `demo-${'i' + 1}`,
-    inboxId: demoInboxes[i % demoInboxes.length].id,
-    userId: 'demo',
-    senderName: ['Welcome Team <welcome@example.com>', 'Promotions <promo@example.com>', 'Security Alert <security@example.com>', 'Newsletter <news@example.com>', 'Support <support@example.com>', 'Feedback Request <feedback@example.com>'][i % 6],
-    subject: [ 'Getting Started with Tempmailoz', 'Special Offer: 50% Off Premium!', 'Your account was accessed from a new device', 'Weekly Digest - Top Stories', 'Your Support Ticket #12345 has been updated', 'How was your experience?', 'Re: Your Question', 'Password Reset Request' ][i % 8],
-    receivedAt: new Date(Date.now() - i * 15 * 60 * 1000).toISOString(),
-    createdAt: Timestamp.now(),
-    htmlContent: `<p>This is a demo email #${i+1} for the inbox <strong>${demoInboxes[i % demoInboxes.length].emailAddress}</strong> to showcase the layout. You can interact with the different elements to see how they behave.</p>`,
-    textContent: `This is a demo email #${i+1} for ${demoInboxes[i % demoInboxes.length].emailAddress}.`,
-    read: i % 2 === 1,
-    isSpam: i === 5,
-    isBlocked: i === 8,
-    isStarred: i === 2 || i === 9,
-    isArchived: i === 12
-}));
-
-
 const ITEMS_PER_PAGE = 10;
 
 export function DashboardClient() {
@@ -104,7 +74,6 @@ export function DashboardClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [pendingInbox, setPendingInbox] = useState<InboxType | null>(null);
   
   const [selectedInboxes, setSelectedInboxes] = useState<string[]>([]);
@@ -123,8 +92,6 @@ export function DashboardClient() {
   const [customLifetime, setCustomLifetime] = useState({ count: 10, unit: 'minutes' });
   const [useCustomLifetime, setUseCustomLifetime] = useState(false);
 
-  const [activeDemoInbox, setActiveDemoInbox] = useState<InboxType | null>(demoInboxes[0]);
-
   const firestore = useFirestore();
   const { userProfile, isLoading: isUserLoading } = useUser();
   const { toast } = useToast();
@@ -138,27 +105,23 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (isDemoMode) return null;
     if (!firestore || !activeInbox?.id) return null;
 
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox, isDemoMode]);
+  }, [firestore, activeInbox]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
   const currentInboxes = useMemo(() => {
-    if (isDemoMode) return demoInboxes;
-  
     if (pendingInbox && !inboxes.some(i => i.id === pendingInbox.id)) {
       return [pendingInbox, ...inboxes];
     }
-  
     return inboxes;
-  }, [isDemoMode, inboxes, pendingInbox]);
+  }, [inboxes, pendingInbox]);
 
-  const currentActiveInbox = isDemoMode ? activeDemoInbox : activeInbox;
+  const currentActiveInbox = activeInbox;
 
   const allowedDomainsQuery = useMemoFirebase(() => {
     if (!firestore || !activePlan) return null;
@@ -194,13 +157,11 @@ export function DashboardClient() {
     }
   }, [liveUserInboxes, userProfile?.isAnonymous]);
 
-
   useEffect(() => {
-    if (!isDemoMode && !activeInbox && inboxes.length > 0) {
+    if (!activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
-  }, [inboxes, isDemoMode, activeInbox]);
-
+  }, [inboxes, activeInbox]);
 
   const generateRandomString = useCallback((length: number) => {
     let result = "";
@@ -224,7 +185,6 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
     
   const createNewInbox = useCallback(async () => {
-    if (isDemoMode) return;
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
       setServerError("Services not ready. Please try again in a moment.");
       return;
@@ -306,13 +266,13 @@ export function DashboardClient() {
     } finally {
         setIsCreating(false);
     }
-  }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString, isDemoMode]);
+  }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
 
   const filteredEmails = useMemo(() => {
     const inboxToFilter = currentActiveInbox;
     if (!inboxToFilter) return [];
 
-    let sourceEmails = isDemoMode ? demoEmails.filter(e => e.inboxId === inboxToFilter.id) : (inboxEmails || []);
+    let sourceEmails = inboxEmails || [];
     
     let filtered = sourceEmails;
 
@@ -348,7 +308,7 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, currentActiveInbox, activeMailFilter, searchQuery]);
+  }, [inboxEmails, currentActiveInbox, activeMailFilter, searchQuery]);
 
 
   useEffect(() => {
@@ -393,17 +353,12 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && !isDemoMode && currentActiveInbox && firestore && !userProfile?.isAnonymous) {
+    if (!email.read && currentActiveInbox && firestore && !userProfile?.isAnonymous) {
       try {
         const emailRef = doc(firestore, `inboxes/${currentActiveInbox.id}/emails`, email.id);
         await updateDoc(emailRef, { read: true });
       } catch (error) { console.error("Failed to mark email as read:", error); }
     }
-  };
-  
-  const handleToggleDemo = () => {
-    setSelectedEmail(null);
-    setIsDemoMode(prev => !prev);
   };
   
   const getReceivedDateTime = (date: string | Timestamp) => {
@@ -522,7 +477,7 @@ export function DashboardClient() {
                             </SelectContent>
                         </Select>
                     </div>
-                        <Button onClick={createNewInbox} disabled={isCreating || isDemoMode} className="h-full ml-2">
+                        <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
                         {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
                         Create
                     </Button>
@@ -530,9 +485,7 @@ export function DashboardClient() {
             </Card>
             
             <div className="flex items-center gap-2 justify-self-start md:justify-self-end">
-                <Button onClick={handleToggleDemo} variant="outline" size="default" className="h-14">
-                    <Eye className="h-4 w-4 mr-2"/>Demo
-                </Button>
+                {/* This space can be used for other actions in the future */}
             </div>
         </div>
       
@@ -565,7 +518,7 @@ export function DashboardClient() {
 
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && !isLoadingEmails && !isDemoMode) ? (
+            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
                  <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
                     <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
                     {renderEmptyState()}
@@ -615,11 +568,7 @@ export function DashboardClient() {
                                         key={inbox.id} 
                                         className={cn("p-2 group relative border-b cursor-pointer", isActive && "bg-muted")}
                                         onClick={() => {
-                                            if (isDemoMode) {
-                                                setActiveDemoInbox(inbox);
-                                            } else {
-                                                setActiveInbox(inbox);
-                                            }
+                                            setActiveInbox(inbox);
                                             setSelectedEmail(null);
                                         }}
                                     >
@@ -747,7 +696,7 @@ export function DashboardClient() {
                                 onBack={() => setSelectedEmail(null)}
                             />
                         ) : (
-                           (isLoadingEmails && !isDemoMode) ? 
+                           (isLoadingEmails) ? 
                            <div className="flex-grow flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
                            (filteredEmails.length === 0 ? renderEmptyState() :
                             <ScrollArea className="h-full">
@@ -829,5 +778,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
