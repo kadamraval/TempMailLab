@@ -130,6 +130,9 @@ export function DashboardClient() {
   
   const activePlan = userProfile?.plan;
 
+  const currentInboxes = isDemoMode ? demoInboxes : inboxes;
+  const currentActiveInbox = isDemoMode ? activeDemoInbox : activeInbox;
+
   const allowedDomainsQuery = useMemoFirebase(() => {
     if (!firestore || !activePlan) return null;
     const tiers = activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"];
@@ -144,13 +147,14 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    const inboxToQuery = isDemoMode ? activeDemoInbox : activeInbox;
-    if (!firestore || !inboxToQuery?.id || isDemoMode) return null;
+    if (isDemoMode) return null;
+    if (!firestore || !activeInbox?.id) return null;
+
     return query(
-      collection(firestore, `inboxes/${inboxToQuery.id}/emails`),
+      collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox, activeDemoInbox, isDemoMode]);
+  }, [firestore, activeInbox, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   useEffect(() => {
@@ -173,10 +177,10 @@ export function DashboardClient() {
 
 
   useEffect(() => {
-    if (!activeInbox && inboxes.length > 0) {
+    if (!isDemoMode && !activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
-  }, [inboxes, activeInbox]);
+  }, [inboxes, isDemoMode]);
 
 
   const generateRandomString = useCallback((length: number) => {
@@ -201,6 +205,7 @@ export function DashboardClient() {
   }, [allowedDomains, selectedDomain, activePlan, selectedLifetime]);
     
   const createNewInbox = useCallback(async () => {
+    if (isDemoMode) return;
     if (!firestore || !allowedDomains || !userProfile || !activePlan) {
       setServerError("Services not ready. Please try again in a moment.");
       return;
@@ -259,10 +264,10 @@ export function DashboardClient() {
       
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
-      const createdInbox = { id: docRef.id, ...newInboxData } as InboxType;
-
-      setInboxes(prev => [createdInbox, ...prev]);
-      setActiveInbox(createdInbox);
+      setActiveInbox({
+        id: docRef.id,
+        ...newInboxData,
+      } as InboxType);
       
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
@@ -279,12 +284,7 @@ export function DashboardClient() {
     } finally {
         setIsCreating(false);
     }
-  }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
-
-  const displayedInboxes = useMemo(() => {
-    if (isDemoMode) return demoInboxes;
-    return inboxes || [];
-  }, [isDemoMode, inboxes]);
+  }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString, isDemoMode]);
 
   const filteredEmails = useMemo(() => {
     const inboxToFilter = isDemoMode ? activeDemoInbox : activeInbox;
@@ -501,7 +501,7 @@ export function DashboardClient() {
                             </SelectContent>
                         </Select>
                     </div>
-                        <Button onClick={createNewInbox} disabled={isCreating} className="h-full ml-2">
+                        <Button onClick={createNewInbox} disabled={isCreating || isDemoMode} className="h-full ml-2">
                         {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
                         Create
                     </Button>
@@ -525,7 +525,7 @@ export function DashboardClient() {
                 </DialogHeader>
                 <div className="flex items-center justify-center p-4">
                     <Image 
-                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(activeInbox?.emailAddress || '')}`}
+                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentActiveInbox?.emailAddress || '')}`}
                         alt="QR Code for email address"
                         width={200}
                         height={200}
@@ -555,7 +555,7 @@ export function DashboardClient() {
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Inbox className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, displayedInboxes.length)}/${displayedInboxes.length})`}</h3>
+                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, currentInboxes.length)}/${currentInboxes.length})`}</h3>
                             </div>
                             <div className="flex items-center gap-1">
                                 {selectedInboxes.length > 0 ? (
@@ -582,9 +582,9 @@ export function DashboardClient() {
                         </div>
                         <ScrollArea className="h-full">
                             <div className="p-2 space-y-0">
-                                {displayedInboxes.slice(0, visibleInboxesCount).map((inbox) => {
+                                {currentInboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
-                                    const isActive = isDemoMode ? activeDemoInbox?.id === inbox.id : activeInbox?.id === inbox.id;
+                                    const isActive = currentActiveInbox?.id === inbox.id;
                                     const inboxCountdown = countdown[inbox.id];
                                     const countdownMinutes = inboxCountdown ? Math.floor(inboxCountdown.remaining / 60000) : 0;
                                     const countdownSeconds = inboxCountdown ? Math.floor((inboxCountdown.remaining % 60000) / 1000) : 0;
@@ -646,7 +646,7 @@ export function DashboardClient() {
                                         </div>
                                     </div>
                                 )})}
-                                {visibleInboxesCount < displayedInboxes.length && (
+                                {visibleInboxesCount < currentInboxes.length && (
                                      <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
                                 )}
                             </div>
@@ -809,5 +809,3 @@ export function DashboardClient() {
   );
 }
 
-
-    
