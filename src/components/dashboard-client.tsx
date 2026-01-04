@@ -287,7 +287,7 @@ export function DashboardClient() {
   }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString, isDemoMode]);
 
   const filteredEmails = useMemo(() => {
-    const inboxToFilter = isDemoMode ? activeDemoInbox : activeInbox;
+    const inboxToFilter = currentActiveInbox;
     if (!inboxToFilter) return [];
 
     let sourceEmails = isDemoMode ? demoEmails.filter(e => e.inboxId === inboxToFilter.id) : (inboxEmails || []);
@@ -326,16 +326,15 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [isDemoMode, inboxEmails, activeInbox, activeDemoInbox, activeMailFilter, searchQuery]);
+  }, [isDemoMode, inboxEmails, currentActiveInbox, activeMailFilter, searchQuery]);
 
 
   useEffect(() => {
-    const allInboxes = isDemoMode ? demoInboxes : inboxes;
-    if (!allInboxes) return;
+    if (!currentInboxes.length) return;
 
     const intervalId = setInterval(() => {
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
-        allInboxes.forEach(inbox => {
+        currentInboxes.forEach(inbox => {
             const expiryDate = new Date(inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
             
@@ -350,7 +349,7 @@ export function DashboardClient() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [inboxes, isDemoMode]);
+  }, [currentInboxes]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -372,9 +371,9 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && activeInbox && firestore && !isDemoMode && !userProfile?.isAnonymous) {
+    if (!email.read && !isDemoMode && currentActiveInbox && firestore && !userProfile?.isAnonymous) {
       try {
-        const emailRef = doc(firestore, `inboxes/${activeInbox.id}/emails`, email.id);
+        const emailRef = doc(firestore, `inboxes/${currentActiveInbox.id}/emails`, email.id);
         await updateDoc(emailRef, { read: true });
       } catch (error) { console.error("Failed to mark email as read:", error); }
     }
@@ -808,4 +807,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
