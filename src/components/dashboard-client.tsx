@@ -105,7 +105,7 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    // CRITICAL: Do not query if the active inbox is the optimistic one, as it doesn't exist in Firestore yet.
+    // CRITICAL: Do not query if the active inbox is the optimistic one.
     if (!firestore || !activeInbox?.id || activeInbox.id === optimisticInbox?.id) return null;
 
     return query(
@@ -115,8 +115,7 @@ export function DashboardClient() {
   }, [firestore, activeInbox, optimisticInbox]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
-  // This effect synchronizes the local `inboxes` state with the live data from Firestore.
-  // This is the core of the fix: the database is the single source of truth.
+  // Effect to synchronize local `inboxes` state with live data from Firestore.
   useEffect(() => {
     if (userProfile?.isAnonymous) {
         if (userProfile.inbox) {
@@ -129,16 +128,19 @@ export function DashboardClient() {
     }
   }, [liveUserInboxes, userProfile]);
   
-  // This effect reconciles the optimistic update once the real data arrives.
+  // Effect to reconcile the optimistic update once the real data arrives.
   useEffect(() => {
     if (optimisticInbox && liveUserInboxes && liveUserInboxes.some(i => i.emailAddress === optimisticInbox.emailAddress)) {
       const realInbox = liveUserInboxes.find(i => i.emailAddress === optimisticInbox.emailAddress);
       if (realInbox) {
-          setActiveInbox(realInbox); // Switch to the real one
+          // If the active inbox is still the optimistic one, switch to the real one
+          if (activeInbox?.id === optimisticInbox.id) {
+              setActiveInbox(realInbox);
+          }
           setOptimisticInbox(null); // Clear the optimistic one
       }
     }
-  }, [liveUserInboxes, optimisticInbox]);
+  }, [liveUserInboxes, optimisticInbox, activeInbox]);
 
 
   useEffect(() => {
@@ -222,6 +224,7 @@ export function DashboardClient() {
       }
       
       const newInboxData: Omit<InboxType, 'id'> = {
+          userId: userProfile.uid,
           emailAddress,
           domain: domainToUse,
           emailCount: 0,
@@ -229,12 +232,11 @@ export function DashboardClient() {
           createdAt: Timestamp.now(),
           isStarred: false,
           isArchived: false,
-          userId: userProfile.uid,
       };
 
       // Set the optimistic inbox for instant UI feedback
       const tempId = `optimistic-${Date.now()}`;
-      const optimisticData = { ...newInboxData, id: tempId } as InboxType;
+      const optimisticData = { ...newInboxData, id: tempId, createdAt: Timestamp.now() } as InboxType;
       setOptimisticInbox(optimisticData);
       setActiveInbox(optimisticData);
       
@@ -252,8 +254,7 @@ export function DashboardClient() {
       console.error("Error creating inbox:", error);
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-      // Rollback optimistic update on failure
-      setOptimisticInbox(null);
+      setOptimisticInbox(null); // Rollback optimistic update on failure
 
     } finally {
         setIsCreating(false);
@@ -263,10 +264,11 @@ export function DashboardClient() {
   const currentInboxes = useMemo(() => {
     let list = inboxes || [];
     if (optimisticInbox && !list.some(i => i.emailAddress === optimisticInbox.emailAddress)) {
-        return [optimisticInbox, ...list];
+      return [optimisticInbox, ...list];
     }
     return list;
   }, [inboxes, optimisticInbox]);
+
 
   const filteredEmails = useMemo(() => {
     if (!activeInbox) return [];
