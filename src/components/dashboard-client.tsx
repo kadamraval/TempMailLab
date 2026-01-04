@@ -74,7 +74,6 @@ export function DashboardClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [pendingInbox, setPendingInbox] = useState<InboxType | null>(null);
   
   const [selectedInboxes, setSelectedInboxes] = useState<string[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
@@ -114,48 +113,19 @@ export function DashboardClient() {
   }, [firestore, activeInbox]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
-  const currentInboxes = useMemo(() => {
-    if (pendingInbox && !inboxes.some(i => i.id === pendingInbox.id)) {
-      return [pendingInbox, ...inboxes];
-    }
-    return inboxes;
-  }, [inboxes, pendingInbox]);
-
-  const currentActiveInbox = activeInbox;
-
-  const allowedDomainsQuery = useMemoFirebase(() => {
-    if (!firestore || !activePlan) return null;
-    const tiers = activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"];
-    return query(collection(firestore, "allowed_domains"), where("tier", "in", tiers));
-  }, [firestore, activePlan]);
-  const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
-
+  // This effect synchronizes the local `inboxes` state with the live data from Firestore.
+  // This is the core of the fix: the database is the single source of truth.
   useEffect(() => {
-    if (!pendingInbox || !liveUserInboxes) return;
-  
-    const exists = liveUserInboxes.some(i => i.id === pendingInbox.id);
-    if (exists) {
-      setPendingInbox(null);
-    }
-  }, [liveUserInboxes, pendingInbox]);
-
-  useEffect(() => {
-    if (isUserLoading || !firestore) return;
-
     if (userProfile?.isAnonymous) {
         if (userProfile.inbox) {
             setInboxes([userProfile.inbox]);
         } else {
             setInboxes([]);
         }
-    }
-  }, [isUserLoading, userProfile, firestore]);
-
-  useEffect(() => {
-    if (!userProfile?.isAnonymous && liveUserInboxes) {
+    } else if (liveUserInboxes) {
         setInboxes(liveUserInboxes);
     }
-  }, [liveUserInboxes, userProfile?.isAnonymous]);
+  }, [liveUserInboxes, userProfile]);
 
   useEffect(() => {
     if (!activeInbox && inboxes.length > 0) {
@@ -172,6 +142,13 @@ export function DashboardClient() {
     return result;
   }, []);
   
+  const allowedDomainsQuery = useMemoFirebase(() => {
+    if (!firestore || !activePlan) return null;
+    const tiers = activePlan.features.allowPremiumDomains ? ["free", "premium"] : ["free"];
+    return query(collection(firestore, "allowed_domains"), where("tier", "in", tiers));
+  }, [firestore, activePlan]);
+  const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
+
   useEffect(() => {
      if (!selectedDomain && allowedDomains && allowedDomains.length > 0) {
       setSelectedDomain(allowedDomains[0].domain);
@@ -240,16 +217,14 @@ export function DashboardClient() {
           isArchived: false,
           userId: userProfile.uid,
       };
+
+      // Optimistic UI Update: Add the inbox to the local state immediately.
+      // Firestore's real-time listener will eventually replace this with the "real" data.
+      const optimisticInbox = { ...newInboxData, id: `temp-${Date.now()}` } as InboxType;
+      setInboxes(prev => [optimisticInbox, ...prev]);
+      setActiveInbox(optimisticInbox);
       
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
-      
-      const createdInbox = {
-        id: docRef.id,
-        ...newInboxData,
-      } as InboxType;
-
-      setPendingInbox(createdInbox);
-      setActiveInbox(createdInbox);
       
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
@@ -263,14 +238,16 @@ export function DashboardClient() {
       console.error("Error creating inbox:", error);
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
+      // Rollback optimistic update on failure
+      setInboxes(prev => prev.filter(ib => !ib.id.startsWith('temp-')));
+
     } finally {
         setIsCreating(false);
     }
   }, [firestore, allowedDomains, userProfile, activePlan, prefixInput, selectedDomain, useCustomLifetime, customLifetime, selectedLifetime, toast, generateRandomString]);
 
   const filteredEmails = useMemo(() => {
-    const inboxToFilter = currentActiveInbox;
-    if (!inboxToFilter) return [];
+    if (!activeInbox) return [];
 
     let sourceEmails = inboxEmails || [];
     
@@ -308,15 +285,15 @@ export function DashboardClient() {
     }
     // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
-  }, [inboxEmails, currentActiveInbox, activeMailFilter, searchQuery]);
+  }, [inboxEmails, activeInbox, activeMailFilter, searchQuery]);
 
 
   useEffect(() => {
-    if (!currentInboxes.length) return;
+    if (!inboxes.length) return;
 
     const intervalId = setInterval(() => {
         const newCountdown: { [inboxId: string]: { total: number; remaining: number } } = {};
-        currentInboxes.forEach(inbox => {
+        inboxes.forEach(inbox => {
             const expiryDate = new Date(inbox.expiresAt);
             const creationDate = (inbox.createdAt as Timestamp)?.toDate() || new Date(expiryDate.getTime() - 10 * 60000);
             
@@ -331,7 +308,7 @@ export function DashboardClient() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [currentInboxes]);
+  }, [inboxes]);
   
   const handleCopyEmail = (email: string) => {
     if (email) {
@@ -353,9 +330,9 @@ export function DashboardClient() {
 
   const handleSelectEmail = async (email: Email) => {
     setSelectedEmail(email);
-    if (!email.read && currentActiveInbox && firestore && !userProfile?.isAnonymous) {
+    if (!email.read && activeInbox && firestore && !userProfile?.isAnonymous) {
       try {
-        const emailRef = doc(firestore, `inboxes/${currentActiveInbox.id}/emails`, email.id);
+        const emailRef = doc(firestore, `inboxes/${activeInbox.id}/emails`, email.id);
         await updateDoc(emailRef, { read: true });
       } catch (error) { console.error("Failed to mark email as read:", error); }
     }
@@ -499,7 +476,7 @@ export function DashboardClient() {
                 </DialogHeader>
                 <div className="flex items-center justify-center p-4">
                     <Image 
-                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(currentActiveInbox?.emailAddress || '')}`}
+                        src={`https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(activeInbox?.emailAddress || '')}`}
                         alt="QR Code for email address"
                         width={200}
                         height={200}
@@ -529,7 +506,7 @@ export function DashboardClient() {
                         <div className="p-2 py-2.5 border-b flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Inbox className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, currentInboxes.length)}/${currentInboxes.length})`}</h3>
+                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, inboxes.length)}/${inboxes.length})`}</h3>
                             </div>
                             <div className="flex items-center gap-1">
                                 {selectedInboxes.length > 0 ? (
@@ -556,9 +533,9 @@ export function DashboardClient() {
                         </div>
                         <ScrollArea className="h-full">
                             <div className="p-2 space-y-0">
-                                {currentInboxes.slice(0, visibleInboxesCount).map((inbox) => {
+                                {inboxes.slice(0, visibleInboxesCount).map((inbox) => {
                                     const isSelected = selectedInboxes.includes(inbox.id);
-                                    const isActive = currentActiveInbox?.id === inbox.id;
+                                    const isActive = activeInbox?.id === inbox.id;
                                     const inboxCountdown = countdown[inbox.id];
                                     const countdownMinutes = inboxCountdown ? Math.floor(inboxCountdown.remaining / 60000) : 0;
                                     const countdownSeconds = inboxCountdown ? Math.floor((inboxCountdown.remaining % 60000) / 1000) : 0;
@@ -616,7 +593,7 @@ export function DashboardClient() {
                                         </div>
                                     </div>
                                 )})}
-                                {visibleInboxesCount < currentInboxes.length && (
+                                {visibleInboxesCount < inboxes.length && (
                                      <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
                                 )}
                             </div>

@@ -47,9 +47,18 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-8">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+            {stats.map(stat => (
+                <StatCard 
+                    key={stat.title}
+                    title={stat.title}
+                    value={stat.value}
+                    icon={stat.icon}
+                    loading={stat.loading}
+                />
+            ))}
+        </div>
         <AnalyticsDashboard />
     </div>
   );
 }
-
-    
