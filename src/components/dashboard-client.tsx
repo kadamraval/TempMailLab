@@ -131,6 +131,23 @@ export function DashboardClient() {
   
   const activePlan = userProfile?.plan;
 
+  const userInboxesQuery = useMemoFirebase(() => {
+    if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
+    return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
+  }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
+  const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
+
+  const emailsQuery = useMemoFirebase(() => {
+    if (isDemoMode) return null;
+    if (!firestore || !activeInbox?.id) return null;
+
+    return query(
+      collection(firestore, `inboxes/${activeInbox.id}/emails`),
+      orderBy("receivedAt", "desc")
+    );
+  }, [firestore, activeInbox, isDemoMode]);
+  const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
+  
   const currentInboxes = useMemo(() => {
     if (isDemoMode) return demoInboxes;
   
@@ -149,23 +166,6 @@ export function DashboardClient() {
     return query(collection(firestore, "allowed_domains"), where("tier", "in", tiers));
   }, [firestore, activePlan]);
   const { data: allowedDomains, isLoading: isLoadingDomains } = useCollection(allowedDomainsQuery);
-  
-  const userInboxesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile?.uid || userProfile.isAnonymous) return null;
-    return query(collection(firestore, 'inboxes'), where('userId', '==', userProfile.uid), orderBy('createdAt', 'desc'));
-  }, [firestore, userProfile?.uid, userProfile?.isAnonymous]);
-  const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
-
-  const emailsQuery = useMemoFirebase(() => {
-    if (isDemoMode) return null;
-    if (!firestore || !activeInbox?.id) return null;
-
-    return query(
-      collection(firestore, `inboxes/${activeInbox.id}/emails`),
-      orderBy("receivedAt", "desc")
-    );
-  }, [firestore, activeInbox, isDemoMode]);
-  const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
 
   useEffect(() => {
     if (!pendingInbox || !liveUserInboxes) return;
@@ -199,7 +199,7 @@ export function DashboardClient() {
     if (!isDemoMode && !activeInbox && inboxes.length > 0) {
       setActiveInbox(inboxes[0]);
     }
-  }, [inboxes, isDemoMode]);
+  }, [inboxes, isDemoMode, activeInbox]);
 
 
   const generateRandomString = useCallback((length: number) => {
