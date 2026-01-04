@@ -105,14 +105,13 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    // CRITICAL: Do not query if the active inbox is the optimistic one.
-    if (!firestore || !activeInbox?.id || activeInbox.id === optimisticInbox?.id) return null;
+    if (!firestore || !activeInbox?.id) return null;
 
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
       orderBy("receivedAt", "desc")
     );
-  }, [firestore, activeInbox, optimisticInbox]);
+  }, [firestore, activeInbox]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
   
   // Effect to synchronize local `inboxes` state with live data from Firestore.
@@ -128,19 +127,17 @@ export function DashboardClient() {
     }
   }, [liveUserInboxes, userProfile]);
   
-  // Effect to reconcile the optimistic update once the real data arrives.
   useEffect(() => {
     if (optimisticInbox && liveUserInboxes && liveUserInboxes.some(i => i.emailAddress === optimisticInbox.emailAddress)) {
-      const realInbox = liveUserInboxes.find(i => i.emailAddress === optimisticInbox.emailAddress);
-      if (realInbox) {
-          // If the active inbox is still the optimistic one, switch to the real one
-          if (activeInbox?.id === optimisticInbox.id) {
-              setActiveInbox(realInbox);
-          }
-          setOptimisticInbox(null); // Clear the optimistic one
-      }
+        const realInbox = liveUserInboxes.find(i => i.emailAddress === optimisticInbox.emailAddress);
+        if (realInbox) {
+            if (activeInbox?.id === optimisticInbox.id) {
+                setActiveInbox(realInbox);
+            }
+            setOptimisticInbox(null);
+        }
     }
-  }, [liveUserInboxes, optimisticInbox, activeInbox]);
+}, [liveUserInboxes, optimisticInbox, activeInbox]);
 
 
   useEffect(() => {
@@ -234,7 +231,6 @@ export function DashboardClient() {
           isArchived: false,
       };
 
-      // Set the optimistic inbox for instant UI feedback
       const tempId = `optimistic-${Date.now()}`;
       const optimisticData = { ...newInboxData, id: tempId, createdAt: Timestamp.now() } as InboxType;
       setOptimisticInbox(optimisticData);
@@ -254,7 +250,7 @@ export function DashboardClient() {
       console.error("Error creating inbox:", error);
       toast({ title: "Creation Failed", description: error.message || "Could not generate a new email.", variant: "destructive" });
       setServerError(error.message);
-      setOptimisticInbox(null); // Rollback optimistic update on failure
+      setOptimisticInbox(null);
 
     } finally {
         setIsCreating(false);
@@ -307,7 +303,6 @@ export function DashboardClient() {
     if (activeMailFilter === 'Old') {
         return filtered.sort((a,b) => new Date(a.receivedAt as string).getTime() - new Date(b.receivedAt as string).getTime());
     }
-    // New and All sort by newest first
     return filtered.sort((a,b) => new Date(b.receivedAt as string).getTime() - new Date(a.receivedAt as string).getTime());
   }, [inboxEmails, activeInbox, activeMailFilter, searchQuery]);
 
@@ -373,14 +368,6 @@ export function DashboardClient() {
     if (sender.includes('@')) return { name: sender, email: sender };
     return { name: sender, email: '' };
   };
-
-  const renderEmptyState = () => (
-    <div className="flex-grow flex flex-col items-center justify-center text-center py-12 px-4 text-muted-foreground space-y-4 min-h-[calc(100vh-400px)]">
-      <Inbox className="h-16 w-16 mb-4" />
-      <h3 className="text-xl font-semibold">No Matching Emails</h3>
-      <p>There are no messages that match your current filter.</p>
-    </div>
-  );
 
   if (isUserLoading || isLoadingInboxes || isLoadingDomains) {
     return (
@@ -519,96 +506,242 @@ export function DashboardClient() {
 
       <Card className="flex-1 flex flex-col h-full">
         <CardContent className="p-0 h-full flex-grow">
-            {(filteredEmails.length === 0 && !isLoadingEmails) ? (
-                 <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
-                    <div className="flex flex-col border-r h-full">{/* Left col for consistency */}</div>
-                    {renderEmptyState()}
-                 </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
-                    <div className="flex flex-col border-r h-full">
-                        <div className="p-2 py-2.5 border-b flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Inbox className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, currentInboxes.length)}/${currentInboxes.length})`}</h3>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                {selectedInboxes.length > 0 ? (
-                                    <>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4"/></Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                                    </>
-                                ) : (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Filter Inboxes</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {inboxFilterOptions.map(filter => (
-                                                <DropdownMenuCheckboxItem key={filter} checked={activeInboxFilter === filter} onSelect={() => setActiveInboxFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                )}
-                            </div>
-                        </div>
-                        <ScrollArea className="h-full">
-                            <div className="p-2 space-y-0">
-                                {currentInboxes.slice(0, visibleInboxesCount).map((inbox) => {
-                                    const isSelected = selectedInboxes.includes(inbox.id);
-                                    const isActive = activeInbox?.id === inbox.id;
-                                    const inboxCountdown = countdown[inbox.id];
-                                    const countdownMinutes = inboxCountdown ? Math.floor(inboxCountdown.remaining / 60000) : 0;
-                                    const countdownSeconds = inboxCountdown ? Math.floor((inboxCountdown.remaining % 60000) / 1000) : 0;
-                                    
-                                    return (
-                                    <div 
-                                        key={inbox.id} 
-                                        className={cn("p-2 group relative border-b cursor-pointer", isActive && "bg-muted")}
-                                        onClick={() => {
-                                            setActiveInbox(inbox);
-                                            setSelectedEmail(null);
-                                        }}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 truncate flex items-center gap-2">
-                                                 <Checkbox 
-                                                    id={`select-inbox-${inbox.id}`} 
-                                                    checked={isSelected}
-                                                    onCheckedChange={() => handleToggleInboxSelection(inbox.id)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className={cn("transition-opacity", !isSelected && "opacity-0 group-hover:opacity-100", isSelected && "opacity-100")}
-                                                 />
-                                                <div className="truncate flex-1">
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
-                                                    {inbox.isStarred && <Star className="h-3 w-3 text-yellow-500" />}
-                                                    {inbox.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
-                                                  </div>
-                                                  <div className="text-xs text-muted-foreground">
-                                                      Expires: {`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}
-                                                  </div>
-                                                </div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] h-full">
+            <div className="flex flex-col border-r h-full">
+                <div className="p-2 py-2.5 border-b flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Inbox className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-semibold text-sm">{`Inbox (${Math.min(visibleInboxesCount, currentInboxes.length)}/${currentInboxes.length})`}</h3>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {selectedInboxes.length > 0 ? (
+                            <>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive"><Trash2 className="h-4 w-4"/></Button>
+                            </>
+                        ) : (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Filter Inboxes</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {inboxFilterOptions.map(filter => (
+                                        <DropdownMenuCheckboxItem key={filter} checked={activeInboxFilter === filter} onSelect={() => setActiveInboxFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
+                </div>
+                <ScrollArea className="h-full">
+                    <div className="p-2 space-y-0">
+                        {currentInboxes.slice(0, visibleInboxesCount).map((inbox) => {
+                            const isSelected = selectedInboxes.includes(inbox.id);
+                            const isActive = activeInbox?.id === inbox.id;
+                            const inboxCountdown = countdown[inbox.id];
+                            const countdownMinutes = inboxCountdown ? Math.floor(inboxCountdown.remaining / 60000) : 0;
+                            const countdownSeconds = inboxCountdown ? Math.floor((inboxCountdown.remaining % 60000) / 1000) : 0;
+                            
+                            return (
+                            <div 
+                                key={inbox.id} 
+                                className={cn("p-2 group relative border-b cursor-pointer", isActive && "bg-muted")}
+                                onClick={() => {
+                                    setActiveInbox(inbox);
+                                    setSelectedEmail(null);
+                                }}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1 truncate flex items-center gap-2">
+                                         <Checkbox 
+                                            id={`select-inbox-${inbox.id}`} 
+                                            checked={isSelected}
+                                            onCheckedChange={() => handleToggleInboxSelection(inbox.id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={cn("transition-opacity", !isSelected && "opacity-0 group-hover:opacity-100", isSelected && "opacity-100")}
+                                         />
+                                        <div className="truncate flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm truncate">{inbox.emailAddress}</span>
+                                            {inbox.isStarred && <Star className="h-3 w-3 text-yellow-500" />}
+                                            {inbox.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                              Expires: {`${String(countdownMinutes).padStart(2, '0')}:${String(countdownSeconds).padStart(2, '0')}`}
+                                          </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", (isSelected || "group-hover:opacity-0"))}>{inbox.emailCount}</Badge>
+                                        <TooltipProvider>
+                                            <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
+                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleCopyEmail(inbox.emailAddress); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip>
+                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip>
+                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Export</DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" />Archive</DropdownMenuItem>
+                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant={isActive ? "default" : "secondary"} className={cn("transition-opacity", (isSelected || "group-hover:opacity-0"))}>{inbox.emailCount}</Badge>
+                                        </TooltipProvider>
+                                    </div>
+                                </div>
+                            </div>
+                        )})}
+                        {visibleInboxesCount < currentInboxes.length && (
+                             <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
+            
+            <div className="flex flex-col h-full">
+                {selectedEmail ? (
+                  <EmailView
+                      email={{
+                          ...selectedEmail,
+                          receivedAt:
+                          selectedEmail.receivedAt instanceof Timestamp
+                              ? selectedEmail.receivedAt.toDate().toISOString()
+                              : selectedEmail.receivedAt,
+                      }}
+                      plan={activePlan}
+                      onBack={() => setSelectedEmail(null)}
+                  />
+                ) : isLoadingEmails ? (
+                  <div className="flex-grow flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : filteredEmails.length === 0 ? (
+                  <div className="flex-grow flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Mail className="h-10 w-10 mx-auto mb-2" />
+                      <p>No emails yet</p>
+                      <p className="text-xs">Waiting for incoming mail…</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-2 py-2.5 border-b flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="font-semibold text-sm">{`Mail (${Math.min(visibleEmailsCount, filteredEmails.length)}/${filteredEmails.length})`}</h3>
+                        </div>
+                        <div className={cn("flex items-center gap-1", isSearching && "flex-grow")}>
+                           
+                                <>
+                                    {selectedEmails.length > 0 ? (
+                                         <>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
+                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
+                                            <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
+                                        </>
+                                    ) : (
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
+                                    )}
+
+                                    {isSearching && selectedEmails.length === 0 ? (
+                                        <div className="w-full relative">
+                                            <Input 
+                                                placeholder="Search mail..." 
+                                                className="h-8 w-full"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                autoFocus
+                                                onBlur={() => { if (!searchQuery) setIsSearching(false); }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <>
+                                        {selectedEmails.length === 0 && (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {mailFilterOptions.slice(0, 5).map(filter => (
+                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                    ))}
+                                                    <DropdownMenuSeparator />
+                                                    {mailFilterOptions.slice(5).map(filter => (
+                                                        <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                        </>
+                                    )}
+                                </>
+                            
+                        </div>
+                    </div>
+                    <ScrollArea className="h-full">
+                        <div className="p-2 space-y-0">
+                            {filteredEmails.slice(0, visibleEmailsCount).map((email) => {
+                                const sender = parseSender(email.senderName);
+                                const isSelected = selectedEmails.includes(email.id);
+                                return (
+                                <div
+                                    key={email.id}
+                                    onClick={() => handleSelectEmail(email)}
+                                    className="group w-full text-left p-2 border-b transition-colors cursor-pointer hover:bg-muted/50"
+                                >
+                                    <div className="flex items-start gap-3 relative">
+                                        <div className="pt-1 flex items-center h-full">
+                                            <Checkbox 
+                                                id={`select-${email.id}`} 
+                                                checked={isSelected}
+                                                onCheckedChange={() => handleToggleEmailSelection(email.id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className={cn(
+                                                    "transition-opacity",
+                                                    !isSelected && "opacity-0 group-hover:opacity-100"
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
+                                            <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                                <div className="truncate text-sm flex items-center gap-2">
+                                                    <span className="truncate">{sender.name}</span>
+                                                    {email.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
+                                                    {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
+                                                    {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
+                                                    {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
+                                                </div>
+                                                {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
+                                            </div>
+                                            <div className={cn("col-span-8 md:col-span-5 self-center flex items-center gap-2", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                              <p className="truncate text-sm">{email.subject}</p>
+                                            </div>
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
+                                                <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
                                                 <TooltipProvider>
-                                                    <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 h-full flex items-center transition-opacity", isSelected || "opacity-0 group-hover:opacity-100")}>
-                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleCopyEmail(inbox.emailAddress); }}><Copy className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Copy</p></TooltipContent></Tooltip>
-                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><QrCode className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>QR Code</p></TooltipContent></Tooltip>
-                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
+                                                    <div className="hidden items-center gap-1 group-hover:flex">
+                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
+                                                        <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
+                                                                <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Export</DropdownMenuItem>
+                                                                <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
+                                                                <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
+                                                                <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuItem><Archive className="mr-2 h-4 w-4" />Archive</DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </div>
@@ -616,166 +749,21 @@ export function DashboardClient() {
                                             </div>
                                         </div>
                                     </div>
-                                )})}
-                                {visibleInboxesCount < currentInboxes.length && (
-                                     <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleInboxesCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
-                                )}
-                            </div>
-                        </ScrollArea>
-                    </div>
-                    
-                    <div className="flex flex-col h-full">
-                        <div className="p-2 py-2.5 border-b flex items-center justify-between">
-                             <div className="flex items-center gap-2">
-                                <Mail className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-semibold text-sm">{`Mail (${Math.min(visibleEmailsCount, filteredEmails.length)}/${filteredEmails.length})`}</h3>
-                            </div>
-                            <div className={cn("flex items-center gap-1", isSearching && "flex-grow")}>
-                                {selectedEmail ? (
-                                    <>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Archive</p></TooltipContent></Tooltip></TooltipProvider>
-                                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Delete</p></TooltipContent></Tooltip></TooltipProvider>
-                                    </>
-                                 ) : (
-                                    <>
-                                        {selectedEmails.length > 0 ? (
-                                             <>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7"><Archive className="h-4 w-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4" /></Button>
-                                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip></TooltipProvider>
-                                                <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip></TooltipProvider>
-                                            </>
-                                        ) : (
-                                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsSearching(true)}><Search className="h-4 w-4" /></Button>
-                                        )}
-
-                                        {isSearching && selectedEmails.length === 0 && !selectedEmail ? (
-                                            <div className="w-full relative">
-                                                <Input 
-                                                    placeholder="Search mail..." 
-                                                    className="h-8 w-full"
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    autoFocus
-                                                    onBlur={() => { if (!searchQuery) setIsSearching(false); }}
-                                                />
-                                            </div>
-                                        ) : (
-                                            <>
-                                            {selectedEmails.length === 0 && (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7"><FilterIcon className="h-4 w-4" /></Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        {mailFilterOptions.slice(0, 5).map(filter => (
-                                                            <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                        ))}
-                                                        <DropdownMenuSeparator />
-                                                        {mailFilterOptions.slice(5).map(filter => (
-                                                            <DropdownMenuCheckboxItem key={filter} checked={activeMailFilter === filter} onSelect={() => setActiveMailFilter(filter)}>{filter}</DropdownMenuCheckboxItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            )}
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        {selectedEmail ? (
-                            <EmailView
-                                email={{
-                                    ...selectedEmail,
-                                    receivedAt:
-                                    selectedEmail.receivedAt instanceof Timestamp
-                                        ? selectedEmail.receivedAt.toDate().toISOString()
-                                        : selectedEmail.receivedAt,
-                                }}
-                                plan={activePlan}
-                                onBack={() => setSelectedEmail(null)}
-                            />
-                        ) : (
-                           (isLoadingEmails) ? 
-                           <div className="flex-grow flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> :
-                           (filteredEmails.length === 0 ? renderEmptyState() :
-                            <ScrollArea className="h-full">
-                                <div className="p-2 space-y-0">
-                                    {filteredEmails.slice(0, visibleEmailsCount).map((email) => {
-                                        const sender = parseSender(email.senderName);
-                                        const isSelected = selectedEmails.includes(email.id);
-                                        return (
-                                        <div
-                                            key={email.id}
-                                            onClick={() => handleSelectEmail(email)}
-                                            className="group w-full text-left p-2 border-b transition-colors cursor-pointer hover:bg-muted/50"
-                                        >
-                                            <div className="flex items-start gap-3 relative">
-                                                <div className="pt-1 flex items-center h-full">
-                                                    <Checkbox 
-                                                        id={`select-${email.id}`} 
-                                                        checked={isSelected}
-                                                        onCheckedChange={() => handleToggleEmailSelection(email.id)}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className={cn(
-                                                            "transition-opacity",
-                                                            !isSelected && "opacity-0 group-hover:opacity-100"
-                                                        )}
-                                                    />
-                                                </div>
-                                                <div className="flex-grow grid grid-cols-12 gap-x-4 items-start">
-                                                    <div className={cn("col-span-4", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                                                        <div className="truncate text-sm flex items-center gap-2">
-                                                            <span className="truncate">{sender.name}</span>
-                                                            {email.isStarred && <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
-                                                            {email.isArchived && <Archive className="h-3 w-3 text-muted-foreground shrink-0" />}
-                                                            {email.isSpam && <ShieldAlert className="h-3 w-3 text-destructive shrink-0" />}
-                                                            {email.isBlocked && <Ban className="h-3 w-3 text-gray-500 shrink-0" />}
-                                                        </div>
-                                                        {sender.email && <p className="text-xs text-muted-foreground truncate">{sender.email}</p>}
-                                                    </div>
-                                                    <div className={cn("col-span-8 md:col-span-5 self-center flex items-center gap-2", !email.read ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                                                      <p className="truncate text-sm">{email.subject}</p>
-                                                    </div>
-                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 h-full flex items-center gap-2">
-                                                        <span className="text-xs text-muted-foreground group-hover:hidden">{getReceivedDateTime(email.receivedAt)}</span>
-                                                        <TooltipProvider>
-                                                            <div className="hidden items-center gap-1 group-hover:flex">
-                                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Star className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Star</p></TooltipContent></Tooltip>
-                                                                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><Forward className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Forward</p></TooltipContent></Tooltip>
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <Button variant="ghost" size="icon" className="h-7 w-7 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                                            <MoreHorizontal className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end">
-                                                                        <DropdownMenuItem><Archive className="mr-2 h-4 w-4" /> Archive</DropdownMenuItem>
-                                                                        <DropdownMenuItem><Ban className="mr-2 h-4 w-4" /> Block Sender</DropdownMenuItem>
-                                                                        <DropdownMenuItem><ShieldAlert className="mr-2 h-4 w-4" /> Report Spam</DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
-                                                        </TooltipProvider>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )})}
-                                     {visibleEmailsCount < filteredEmails.length && (
-                                        <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleEmailsCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
-                                    )}
                                 </div>
-                            </ScrollArea>
-                        ))}
-                    </div>
-                </div>
-            )}
+                            )})}
+                             {visibleEmailsCount < filteredEmails.length && (
+                                <Button variant="outline" className="w-full mt-2" onClick={() => setVisibleEmailsCount(c => c + ITEMS_PER_PAGE)}>Load More</Button>
+                            )}
+                        </div>
+                    </ScrollArea>
+                  </>
+                )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    
