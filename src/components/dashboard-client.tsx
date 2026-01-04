@@ -105,6 +105,7 @@ export function DashboardClient() {
   const [countdown, setCountdown] = useState<{ [inboxId: string]: { total: number, remaining: number } }>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [pendingInbox, setPendingInbox] = useState<InboxType | null>(null);
   
   const [selectedInboxes, setSelectedInboxes] = useState<string[]>([]);
   const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
@@ -130,7 +131,16 @@ export function DashboardClient() {
   
   const activePlan = userProfile?.plan;
 
-  const currentInboxes = isDemoMode ? demoInboxes : inboxes;
+  const currentInboxes = useMemo(() => {
+    if (isDemoMode) return demoInboxes;
+  
+    if (pendingInbox && !inboxes.some(i => i.id === pendingInbox.id)) {
+      return [pendingInbox, ...inboxes];
+    }
+  
+    return inboxes;
+  }, [isDemoMode, inboxes, pendingInbox]);
+
   const currentActiveInbox = isDemoMode ? activeDemoInbox : activeInbox;
 
   const allowedDomainsQuery = useMemoFirebase(() => {
@@ -156,6 +166,15 @@ export function DashboardClient() {
     );
   }, [firestore, activeInbox, isDemoMode]);
   const { data: inboxEmails, isLoading: isLoadingEmails } = useCollection<Email>(emailsQuery);
+
+  useEffect(() => {
+    if (!pendingInbox || !liveUserInboxes) return;
+  
+    const exists = liveUserInboxes.some(i => i.id === pendingInbox.id);
+    if (exists) {
+      setPendingInbox(null);
+    }
+  }, [liveUserInboxes, pendingInbox]);
 
   useEffect(() => {
     if (isUserLoading || !firestore) return;
@@ -264,10 +283,13 @@ export function DashboardClient() {
       
       const docRef = await addDoc(collection(firestore, 'inboxes'), newInboxData);
       
-      setActiveInbox({
+      const createdInbox = {
         id: docRef.id,
         ...newInboxData,
-      } as InboxType);
+      } as InboxType;
+
+      setPendingInbox(createdInbox);
+      setActiveInbox(createdInbox);
       
       if (userProfile.isAnonymous) {
           localStorage.setItem(LOCAL_INBOX_KEY, docRef.id);
@@ -807,3 +829,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
