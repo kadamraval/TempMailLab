@@ -105,7 +105,7 @@ export function DashboardClient() {
   const { data: liveUserInboxes, isLoading: isLoadingInboxes } = useCollection<InboxType>(userInboxesQuery);
 
   const emailsQuery = useMemoFirebase(() => {
-    if (!firestore || !activeInbox?.id) return null;
+    if (!firestore || !activeInbox?.id || activeInbox.id.startsWith('optimistic-')) return null;
 
     return query(
       collection(firestore, `inboxes/${activeInbox.id}/emails`),
@@ -756,7 +756,7 @@ export function DashboardClient() {
                             )}
                         </div>
                     </ScrollArea>
-                  </>
+                  )}
                 )}
             </div>
           </div>
@@ -765,5 +765,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
